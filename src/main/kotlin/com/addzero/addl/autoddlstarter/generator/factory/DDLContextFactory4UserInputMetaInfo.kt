@@ -12,6 +12,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
 
 /**
@@ -46,13 +47,13 @@ object DDLContextFactory4UserInputMetaInfo {
             var colName = it.colName
 
             if (colName.isBlank()) {
-                colName = PinYin4JUtils.hanziToPinyin(colName, "_")
+                colName = PinYin4JUtils.hanziToPinyin(colComment, "_")
             }
 
             val toCamelCase = StrUtil.toCamelCase(colName)
             val javaType = it.javaType
             val firstNotNullOf = fieldMappings.find {
-                it.javaClassSimple == javaType
+                StrUtil.equalsIgnoreCase(it.javaClassSimple, javaType)
             }?.javaClassRef
 
             val loadClass = ClassUtil.loadClass<Any>(firstNotNullOf)
@@ -62,9 +63,10 @@ object DDLContextFactory4UserInputMetaInfo {
             val primaryKey = BaseMetaInfoUtil.isPrimaryKey(toCamelCase)
             val autoIncrement = BaseMetaInfoUtil.isAutoIncrement(toCamelCase)
             DDlRangeContext(
-                colName, mapTypeByJavaType, colComment, length, primaryKey, autoIncrement
+                colName.toUnderlineCase(), mapTypeByJavaType, colComment, length, primaryKey, autoIncrement
             )
         }.toList()
+        //重名属性的处理
         return toList
     }
 }

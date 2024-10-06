@@ -3,9 +3,14 @@ package com.addzero.addl.autoddlstarter.generator.ex
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
-import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
-import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.entity.*
 import com.addzero.addl.util.JlStrUtil
+
+fun main() {
+    mockkDDLContext()
+}
+
+
 
 class DMSQLDDLGenerator : DatabaseDDLGenerator() {
     override fun generateCreateTableDDL(ddlContext: DDLContext): String {

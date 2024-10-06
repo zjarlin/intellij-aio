@@ -3,8 +3,11 @@ package com.addzero.addl.autoddlstarter.generator.ex
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
+import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
+import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4UserInputMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.JlStrUtil
 
@@ -16,13 +19,12 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         val dto = ddlContext.dto
 
         val createTableSQL = """
-    CREATE TABLE `$tableEnglishName` (
-        `id` VARCHAR(64) NOT NULL ,
-        `create_by` VARCHAR(255) NOT NULL COMMENT '创建者',
-        `update_by` VARCHAR(255) NOT NULL COMMENT '更新者',
-        `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 
-        '创建时间',
-        `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    create table `$tableEnglishName` (
+        `id` varchar(64) not null ,
+        `create_by` varchar(255) not null comment '创建者',
+        `update_by` varchar(255) null comment '更新者',
+        `create_time` datetime not null default current_timestamp comment '创建时间',
+        `update_time` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
             dto.joinToString(System.lineSeparator()) {
                 val colLength =it.colLength

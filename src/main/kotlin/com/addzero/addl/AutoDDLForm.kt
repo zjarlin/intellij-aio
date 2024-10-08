@@ -20,7 +20,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
 
-private const val s = "问问大模型"
+private const val s = "AI生成"
 
 class AutoDDLForm(project: Project?) : DialogWrapper(project) {
     private var mainPanel: JPanel? = null
@@ -100,7 +100,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
                 """<html><font color='orange'>
             删除选中行：按住Ctrl(跳跃选)或Shift(连续选)，点击要删除的行，然后点击“删除选中行”按钮。
             <br>
-            问问大模型：您可以说:创建一张xx表，包含xxx字段。
+            AI生成：您可以说:创建一张xx表，包含xxx字段。
             </font></html>"""
             )
 
@@ -229,7 +229,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
     private fun addAdvancedPanel(panel: JPanel) {
         val advancedPanelContainer = JPanel(BorderLayout())
-        val toggleButton = JToggleButton("问问大模型", false)
+        val toggleButton = JToggleButton("AI生成", false)
         llmPanel = createLLMPanel() // 创建LLM面板
 
         // 折叠菜单的逻辑
@@ -248,7 +248,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
     private fun createLLMPanel(): JPanel {
         val llmPanel = JPanel(BorderLayout())
         val inputTextArea = JTextArea(5, 30) // 长文本框
-        val submitButton = JButton("使用大模型的建议回填表单")
+        val submitButton = JButton("使用AI的建议回填表单")
         val loadingLabel = JLabel("正在加载，请稍候...") // 显示加载状态的Label
         loadingLabel.isVisible = false // 初始状态为不可见
         submitButton.addActionListener {

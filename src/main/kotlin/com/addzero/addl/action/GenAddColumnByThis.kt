@@ -21,8 +21,9 @@ class GenAddColumnByThis : AnAction() {
         val project: Project = e.project ?: return
         val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
         val document = editor.document
-        val virtualFile = editor.virtualFile
-        val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return
+//        val virtualFile = editor.virtualFile
+        val virtualFile = FileEditorManager.getInstance(project).getSelectedEditor()?.file
+        val psiFile = PsiManager.getInstance(project).findFile(virtualFile!!) ?: return
 
         // 获取当前类的 PsiClass 对象
         val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java) ?: return

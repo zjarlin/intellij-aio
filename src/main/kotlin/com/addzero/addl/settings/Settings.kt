@@ -2,6 +2,10 @@ package com.addzero.addl.settings
 
 import Description
 import FieldType
+import com.addzero.addl.autoddlstarter.generator.consts.DM
+import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
+import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
+import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 
 data class Settings(
     @field:Description("*阿里模型API Key", "")
@@ -18,4 +22,18 @@ data class Settings(
             "qwen-max"]
     )
     var modelName: String = "",
+
+
+    @field:Description(
+        "默认的数据库类型(在右键菜单上下文中,增加列语句会用到数据库类型,默认是MySQL)",
+        defaultValue = MYSQL,
+        type = FieldType.DROPDOWN,
+        options = [
+            MYSQL,
+            ORACLE,
+            POSTGRESQL,
+            DM
+        ]
+    )
+    var defaultDbType: String = "",
 )

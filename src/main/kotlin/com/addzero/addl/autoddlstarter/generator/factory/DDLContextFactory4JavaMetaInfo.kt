@@ -1,5 +1,6 @@
 package com.addzero.addl.autoddlstarter.generator.factory
 
+import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
@@ -11,8 +12,32 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
+import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.intellij.psi.PsiClass
 
 object DDLContextFactory4JavaMetaInfo {
+
+
+    fun createDDLContext(psiClass: PsiClass ,databaseType: String = MYSQL): DDLContext {
+        var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo (psiClass)
+        tableEnglishName= tableEnglishName!!.ifBlank {"unknown_table_name"}
+        tableChineseName=tableChineseName.ifBlank { tableEnglishName!! }
+
+        val javaFieldMetaInfo = PsiUtil.getJavaFieldMetaInfo(psiClass)
+
+        val rangeContexts = javaFieldMetaInfo.map { field ->
+            createRangeContext(field, databaseType)
+        }
+        return DDLContext(
+            tableChineseName = tableChineseName,
+            tableEnglishName = tableEnglishName,
+            databaseType = databaseType,
+            dto = rangeContexts,
+        )
+
+    }
+
+
 
 
     fun createDDLContext(clazz: Class<*>, databaseType: String = MYSQL): DDLContext {

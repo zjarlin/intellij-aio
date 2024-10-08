@@ -3,11 +3,8 @@ package com.addzero.addl.autoddlstarter.generator.ex
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
-import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
-import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
-import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4UserInputMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.JlStrUtil
 
@@ -27,15 +24,15 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         `update_time` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
             dto.joinToString(System.lineSeparator()) {
-                val colLength =it.colLength
+                val colLength = it.colLength
                 """
-                       `${it.colName.toUnderlineCase()}` ${it.colType}    $colLength    COMMENT '${it .colComment}' ,
+                       `${it.colName.toUnderlineCase()}` ${it.colType}    $colLength    comment '${it.colComment}' ,
                 """.trimIndent()
             }
         }
-        PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-     COMMENT = '${tableChineseName}'; 
+        primary key (`id`)
+    ) engine=innodb default charset=utf8mb4
+     comment = '${tableChineseName}'; 
 """.trimIndent()
         return createTableSQL
     }
@@ -53,9 +50,11 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
             }
             // 生成 ALTER 语句以及字段注释
             val toUnderlineCase = StrUtil.toUnderlineCase(it.colName)
+
+//            alter table biz_env_vars add 列_name int null comment 'cadsca';
+
             """
-            ALTER TABLE $tableRef ADD COLUMN `$toUnderlineCase` ${it.colType}(${it.colLength}) ; 
-            COMMENT ON COLUMN $tableRef.`$toUnderlineCase` IS '${it.colComment}';
+            alter table $tableRef add column `$toUnderlineCase` ${it.colType} ${it.colLength}  comment '${it.colComment}';
         """.trimIndent()
         }
 

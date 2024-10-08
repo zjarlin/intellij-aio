@@ -13,33 +13,69 @@
          Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <!-- 更新日志，显示在插件详情页的 "What's New" 部分 -->
+
+
     <change-notes><![CDATA[
-        <h3>Version 1.4</h3>
-        <ul>
-            <li>IntelliJ IDEA设置中,加入了阿里的多个模型选择 </li>
-            <li>默认采用(目前)免费的模型qwen2.5-coder-1.5b-instruct </li>
-        </ul>
+    <h3>English:</h3>
+    <h3>Version 1.4</h3>
+    <ul>
+   <li>New Feature: Automatically output the corresponding columns to add for the entity (allowing users to quickly add fields). In the entity's generation context menu, use GenAddColumnByThis (please configure the database type in settings; it can be dynamically selected during table creation, and the database type set in settings will be used when adding columns).</li>
+<li>Generated statements can be previewed in the SQL editor and are saved by default in the .autoddl folder in the project root path (a hidden folder starting with a dot). Please note to include it in gitignore.</li>
+        <li>In IntelliJ IDEA settings, multiple Alibaba models have been added for selection.</li>
+        <li>The free model (currently) <b>qwen2.5-coder-1.5b-instruct</b> is used by default.</li>
+    </ul>
 
-        <h3>Version 1.3</h3>
-        <ul>
-            <li>LLM提问 loding效果,按钮禁言,体验更加友好</li>
-            <li>有数据时才显示删除按钮,可shift连续选择,也可ctrl跳跃选择删除</li>
-            <li>表单校验,表名校验,字段区域校验</li>
-        </ul>
+    <h3>Version 1.3</h3>
+    <ul>
+        <li>Added loading effect when querying the LLM, buttons are disabled during this time for a smoother experience.</li>
+        <li>Delete button is only shown when there is data; shift for continuous selection, ctrl for jumping selection.</li>
+        <li>Form validation, table name validation, and field area validation are added.</li>
+    </ul>
 
-        <h3>Version 1.2</h3>
-        <ul>
-            <li>修复部分数据库类型语法错误</li>
-            <li>加入LLM能力,支持在 Tools 菜单下生成数据库建表语句</li>
-            <li>LLM回填表单失败,则返回默认表单</li>
-        </ul>
+    <h3>Version 1.2</h3>
+    <ul>
+        <li>Fixed some database syntax errors.</li>
+        <li>Added LLM capability, allowing generation of CREATE TABLE statements in the Tools menu.</li>
+        <li>If LLM fails to fill the form, the default form is returned.</li>
+    </ul>
 
-        <h3>Version 1.0</h3>
-        <ul>
-            <li>首次发布插件 AutoDDL</li>
-            <li>支持在 Tools 菜单下生成数据库建表语句</li>
-        </ul>
-    ]]></change-notes>
+    <h3>Version 1.0</h3>
+    <ul>
+        <li>First release of the AutoDDL plugin.</li>
+        <li>Supports generating CREATE TABLE statements in the Tools menu.</li>
+    </ul>
+
+    <h3>中文：</h3>
+    <h3>Version 1.4</h3>
+    <ul>
+        <li>新功能:自动输出实体对应的增加列(用户快速加字段),在实体的生成上下文菜单中GenAddColumnByThis(设置中请配置数据库类型,建表时可动态选择,加列时采用设置中的数据库类型)</li>
+        <li>生成语句可以在sql编辑器中预览,默认在项目根路径.autoddl文件夹(点开头的隐藏文件夹)中保存,注意gitignore</li>
+        <li>IntelliJ IDEA设置中，加入了阿里的多个模型选择。</li>
+        <li>默认采用（目前）免费的模型 <b>qwen2.5-coder-1.5b-instruct</b>。</li>
+    </ul>
+
+    <h3>Version 1.3</h3>
+    <ul>
+        <li>LLM提问加载loading效果，按钮禁用，体验更加友好。</li>
+        <li>有数据时才显示删除按钮，可Shift连续选择，也可Ctrl跳跃选择删除。</li>
+        <li>表单校验，表名校验，字段区域校验。</li>
+    </ul>
+
+    <h3>Version 1.2</h3>
+    <ul>
+        <li>修复部分数据库类型语法错误。</li>
+        <li>加入LLM能力，支持在Tools菜单下生成数据库建表语句。</li>
+        <li>LLM回填表单失败，则返回默认表单。</li>
+    </ul>
+
+    <h3>Version 1.0</h3>
+    <ul>
+        <li>首次发布插件 AutoDDL。</li>
+        <li>支持在Tools菜单下生成数据库建表语句。</li>
+    </ul>
+]]></change-notes>
+
+
     <description><![CDATA[
     <h3>English:</h3>
 <ul>
@@ -90,6 +126,11 @@
     <actions>
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
+        </action>
+        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
+                description="在当前实体右键生成加列语句">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
         </action>
     </actions>
 </idea-plugin>

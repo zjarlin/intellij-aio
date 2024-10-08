@@ -15,7 +15,7 @@
     <description><![CDATA[
     <h3>English:</h3>
 <ul>
-<li>In IDEA, the CREATE TABLE statements can also be generated sweetly. Users can choose to utilize the capabilities of large language models to initially generate structured form for creating tables (hereinafter referred to as the form cell metadata J for creating tables).</li>
+<li>In IntelliJ IDEA, the CREATE TABLE statements can also be generated conveniently Users can choose to utilize the capabilities of large language models to initially generate structured form for creating tables (hereinafter referred to as the form cell metadata J for creating tables).</li>
 <li>For the form metadata J, users can still make secondary edits.</li>
 <li>-------</li>
 <li>Users only need to worry about the types in Java, and the plugin will automatically map them into database CREATE TABLE statements for you.</li>
@@ -24,17 +24,20 @@
 <li>The plugin entry is under the Tools menu -> AutoDDL.</li>
 <li>Note: Users need to configure the large model KEY in the IDEA settings</li>
 <li># Currently, only Alibaba DASHSCOPE_API_KEY='sk-xxxxxxxxxx' is supported</li>
+ <li>---<a href="https://dashscope.console.aliyun.com/model">Model application address</a>---</li>
+
 </ul>
 <h3>中文：</h3>
     <ul>
-    <li>在idea中也能甜甜的生成建表语句, 用户可以选择调用大模型的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
+    <li>在IntelliJ IDEA中你可以便捷地生成建表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
     <li>对于表单的元数据J ,用户仍可以二次编辑</li>
    <li>-------</li>
     <li>用户只需操心Java中的类型,插件帮你自动映射为数据库建表语句</li>
     <li>用户也可以不调用LLM能力,直接手动写表单来生成DDL语句</li>
     <li>------</li>
    <li>插件入口在Tools菜单下->AutoDDL</li>
-   <li>注: 用户需要在idea设置中配置大模型KEY</li> <li>#目前只支持阿里灵积 DASHSCOPE_API_KEY='sk-xxxxxxxxxx'</li>
+   <li>注: 用户需要在idea设置中配置AIKEY</li> <li>#目前只支持阿里灵积 DASHSCOPE_API_KEY='sk-xxxxxxxxxx'</li>
+ <li>---<a href="https://dashscope.console.aliyun.com/model">模型申请地址</a>---</li>
     </ul>
 
   ]]></description>
@@ -53,7 +56,8 @@
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <projectConfigurable instance="com.addzero.addl.settings.MyPluginSettingsConfigurable"/>
+        <projectConfigurable instance="com.addzero.addl.settings.MyPluginSettingsConfigurable"
+                             displayName="AutoDDL设置"/>
     </extensions>
     <actions>
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">

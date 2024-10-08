@@ -100,7 +100,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
                 """<html><font color='orange'>
             删除选中行：按住Ctrl(跳跃选)或Shift(连续选)，点击要删除的行，然后点击“删除选中行”按钮。
             <br>
-            AI生成：您可以说:创建一张xx表，包含xxx字段。
+            AI生成：您可以说:创建xx表，包含xxx字段(一次提问仅能生成一张表,有概率失败,失败回填默认表单)。
             </font></html>"""
             )
 

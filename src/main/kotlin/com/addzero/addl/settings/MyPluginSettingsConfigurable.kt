@@ -1,8 +1,11 @@
 package com.addzero.addl.settings
 
+import MyPluginSettings
 import com.intellij.openapi.options.Configurable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.kotlin.idea.gradleTooling.get
 import javax.swing.JComponent
+import javax.swing.JTextField
 
 class MyPluginSettingsConfigurable : Configurable {
     private var settingsComponent: MyPluginSettingsComponent? = null
@@ -18,20 +21,20 @@ class MyPluginSettingsConfigurable : Configurable {
     }
 
     override fun isModified(): Boolean {
-        val settings: MyPluginSettings = MyPluginSettings.instance
-        return settingsComponent!!.aliLingjiModelKey != settings.state!!.aliLingjiModelKey
+        val settings = MyPluginSettings.instance.state
+        return settingsComponent?.getSettings() != settings // 比较当前设置与保存的设置
     }
 
     override fun apply() {
-        val settings: MyPluginSettings = MyPluginSettings.instance
-        // 只更新阿里的灵积模型 Key 设置
-        settings.state!!.aliLingjiModelKey = settingsComponent!!.aliLingjiModelKey!!
+        val settings = MyPluginSettings.instance
+        settings.loadState(settingsComponent!!.getSettings())
     }
 
     override fun reset() {
-        val settings: MyPluginSettings = MyPluginSettings.instance
-        // 只重置阿里的灵积模型 Key 设置
-        settingsComponent?.aliLingjiModelKey = settings.state!!.aliLingjiModelKey
+        // 在设置组件中加载当前设置
+        settingsComponent?.panel?.components
+            ?.filterIsInstance<JTextField>()
+            ?.forEach { it.text = MyPluginSettings.instance.state[it.name]?.toString() ?: "" }
     }
 
     override fun disposeUIResources() {

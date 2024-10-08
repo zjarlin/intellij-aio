@@ -1,5 +1,4 @@
-package com.addzero.addl.settings
-
+import com.addzero.addl.settings.Settings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
@@ -8,19 +7,14 @@ import com.intellij.openapi.components.Storage
 
 @State(name = "MyPluginSettings", storages = [Storage("MyPluginSettings.xml")])
 @Service
-class MyPluginSettings : PersistentStateComponent<MyPluginSettings.State> {
-    class State {
-//        var tablePrefix: String = "biz_" // 表前缀默认值
-        var aliLingjiModelKey: String = ""  // 阿里的灵积模型 Key 默认值
-    }
+class MyPluginSettings : PersistentStateComponent<Settings> {
+     private var myState: Settings = Settings()
 
-    private var myState: State = State()
-
-    override fun getState(): State {
+    override fun getState(): Settings {
         return myState
     }
 
-    override fun loadState(state: State) {
+    override fun loadState(state: Settings) {
         this.myState = state
     }
 

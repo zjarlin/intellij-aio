@@ -5,7 +5,6 @@ import com.addzero.addl.FieldDTO
 import com.addzero.addl.FormDTO
 import com.addzero.addl.ktututil.parseObject
 import com.addzero.addl.ktututil.toJson
-import com.addzero.addl.settings.MyPluginSettings
 import com.addzero.addl.util.Dba
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
 import com.addzero.addl.util.fieldinfo.getSimpleFieldInfoStr
@@ -46,20 +45,18 @@ fun getResponse(question: String, prompt: String): String? {
     val settings = MyPluginSettings.instance
 
 // 修改设置项
-    val getenvBySetting = settings.state.aliLingjiModelKey
+    val state = settings.state
+    val getenvBySetting = state.aliLingjiModelKey
+    // 构建请求内容
+    val model = state.modelName.ifBlank { "qwen-turbo" }
+
     val getenvBySys = System.getenv("DASHSCOPE_API_KEY")
-
-
     val apiKey = StrUtil.firstNonBlank(getenvBySetting, getenvBySys)
-
     if (apiKey.isBlank()) {
         throw RuntimeException("请设置环境变量 DASHSCOPE_API_KEY")
     }
-
-
     val baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-    // 构建请求内容
-    val qwendto = Qwendto("qwen-max", listOf(MyMessage("system", prompt), MyMessage("user", question)))
+    val qwendto = Qwendto(model, listOf(MyMessage("system", prompt), MyMessage("user", question)))
     val toJson = qwendto.toJson()
 
 
@@ -83,17 +80,16 @@ fun getResponse(question: String, prompt: String): String? {
 }
 
 private fun dbask(question: String): String? {
-    val role = "你是一个 DBA 工程师，负责设计表。请根据我的内容,输出结构化的json数据,区分大小写,没有偏差"
+    val role = "你是一个 DBA 工程师，负责设计表。请根据我的内容,输出结构化的json数据,区分大小写"
 
     val trimIndent1 = """
         结构化输出字段定义 内容如下:
         -----------
         ${buildStructureOutPutPrompt(FormDTO::class.java)}
     """.trimIndent()
-
-
     val trimIndent = """
       期望最终返回的结果,即: 结构化的json数据格式如下,最终结果移除开头```json,和结尾```没有偏差 
+       您的响应应该是JSON格式。不包括任何解释，只提供符合RFC8259的JSON响应，遵循此格式，没有偏差。不要在响应中包含markdown代码块。从输出中删除``json标记。这是您的输出必须遵循的JSON模式实例：
         ------------
    {
   "tableName": "",
@@ -135,7 +131,7 @@ fun quesDba(string: String): FormDTO? {
             content
         }?.joinToString()
         val let = joinToString?.let { extractMarkdownBlockContent(it) }
-        val parseObject1 = let?.parseObject(FormDTO::class.java)
+        val parseObject1 = let?.parseObject(FormDTO::class.java) ?: return defaultdTO()
         return parseObject1
     } catch (e: Exception) {
         return defaultdTO()

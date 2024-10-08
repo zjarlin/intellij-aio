@@ -16,13 +16,16 @@ object PsiUtil {
         if (docComment == null) return ""
 
         // 使用正则表达式去除注释符号和多余空格
-        return docComment
+        val trim = docComment
             .replace(Regex("""/\*\*?"""), "")  // 去除开头的 /* 或 /**
             .replace(Regex("""\*"""), "")      // 去除行内的 *
             .replace(Regex("""\*/"""), "")     // 去除结尾的 */
+            .replace(Regex("""/"""), "")     // 去除结尾的 */
             .replace(Regex("""\n"""), " ")      // 将换行替换为空格
             .replace(Regex("""\s+"""), " ")    // 合并多个空格为一个
-            .trim()                             // 去除首尾空格
+            .trim()
+
+        return trim                             // 去除首尾空格
     }
 
     private fun getPsiFileFromEditor(editor: Editor, project: Project): PsiFile? {

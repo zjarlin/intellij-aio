@@ -48,7 +48,7 @@ fun getResponse(question: String, prompt: String): String? {
     val state = settings.state
     val getenvBySetting = state.aliLingjiModelKey
     // 构建请求内容
-    val model = state.modelName.ifBlank { "qwen-turbo" }
+    val model = state.modelName.ifBlank { "qwen2.5-coder-1.5b-instruct" }
 
     val getenvBySys = System.getenv("DASHSCOPE_API_KEY")
     val apiKey = StrUtil.firstNonBlank(getenvBySetting, getenvBySys)

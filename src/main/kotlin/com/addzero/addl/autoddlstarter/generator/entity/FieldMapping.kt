@@ -1,6 +1,8 @@
 package com.addzero.addl.autoddlstarter.generator.entity
 
 import java.util.function.Predicate
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction1
 
 /**
  * @author zjarlin
@@ -13,8 +15,12 @@ data class FieldMapping(
     val oracleType: String,
     val dmType: String,
     val length: String,
-    val classRef: Class<*>,
+    val classRef: KClass<*>,
 ){
-    var javaClassRef: String=classRef.name
-    var javaClassSimple: String=classRef.simpleName
+
+    var javaClassRef: String=classRef.java.name
+    var javaClassSimple: String=classRef.java.simpleName
+
+    var ktClassRef: String=classRef.qualifiedName!!
+    var ktClassSimple: String=classRef.simpleName!!
 }

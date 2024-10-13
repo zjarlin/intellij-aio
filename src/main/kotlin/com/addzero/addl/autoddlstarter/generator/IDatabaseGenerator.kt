@@ -21,6 +21,7 @@ import com.addzero.addl.autoddlstarter.generator.ex.DMSQLDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.MysqlDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.OracleDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.PostgreSQLDDLGenerator
+import com.addzero.addl.ktututil.equalsIgnoreCase
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -53,9 +54,21 @@ interface IDatabaseGenerator {
         }
 
         fun javaType2RefType(javaType: String): String {
-            val javaClass = fieldMappings.find { it.javaClassSimple == javaType }!!.javaClassRef
+            val javaClass = fieldMappings.find { it.javaClassSimple.equalsIgnoreCase(javaType) }!!.javaClassRef
             return javaClass
         }
+
+
+        fun ktType2RefType(type: String): String {
+            val find = fieldMappings.find {
+                it.ktClassSimple.equalsIgnoreCase(type)
+            }
+//            if (find == null) {
+//                return String::class.java.name
+//            }
+            return find?.javaClassRef ?: String::class.java.name
+        }
+
 
         var javaTypesEnum: Array<String>
             get() = fieldMappings.map { it.javaClassSimple }.distinct().toTypedArray()
@@ -63,25 +76,25 @@ interface IDatabaseGenerator {
 
 
         var fieldMappings: List<FieldMapping> = listOf(
-            FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "(255)", String::class.java),
-            FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "(255)", String::class.java),
-            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "", String::class.java),
+            FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "(255)", String::class),
+            FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "(255)", String::class),
+            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "", String::class),
             FieldMapping(
-                ::isDateTimeType, "datetime", "timestamp", "timestamp", "TIMESTAMP", "", LocalDateTime::class.java
+                ::isDateTimeType, "datetime", "timestamp", "timestamp", "TIMESTAMP", "", LocalDateTime::class
             ),
-            FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "", Date::class.java),
-            FieldMapping(::isTimeType, "time", "time", "timestamp", "TIMESTAMP", "", LocalTime::class.java),
-            FieldMapping(::isIntType, "int", "integer", "number", "INT", "", Integer::class.java),
+            FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "", Date::class),
+            FieldMapping(::isTimeType, "time", "time", "timestamp", "TIMESTAMP", "", LocalTime::class),
+            FieldMapping(::isIntType, "int", "integer", "number", "INT", "", Integer::class),
             FieldMapping(
-                ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "(6,2)", Double::class.java
+                ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "(6,2)", Double::class
             ),
-            FieldMapping(::isBigDecimalType, "decimal", "numeric", "number", "NUMERIC", "(19,2)", BigDecimal::class.java),
-            FieldMapping(::isLongType, "long", "bigint", "number", "BIGINT", "", Long::class.java),
-            FieldMapping(::isBooleanType, "boolean", "boolean", "number", "INT", "", Boolean::class.java),
+            FieldMapping(::isBigDecimalType, "decimal", "numeric", "number", "NUMERIC", "(19,2)", BigDecimal::class),
+            FieldMapping(::isLongType, "long", "bigint", "number", "BIGINT", "", Long::class),
+            FieldMapping(::isBooleanType, "boolean", "boolean", "number", "INT", "", Boolean::class),
         ).onEach { mapping ->
             // 添加计算属性
-            mapping.javaClassRef = mapping.classRef.name
-            mapping.javaClassSimple = mapping.classRef.simpleName
+            mapping.javaClassRef = mapping.classRef.java.name
+            mapping.javaClassSimple = mapping.classRef.java.simpleName
         }
         var databaseType: HashMap<String, DatabaseDDLGenerator> = object : HashMap<String, DatabaseDDLGenerator>() {
             init {

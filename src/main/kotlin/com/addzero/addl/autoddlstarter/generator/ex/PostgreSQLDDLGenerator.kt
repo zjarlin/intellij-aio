@@ -9,10 +9,20 @@ import com.addzero.addl.util.JlStrUtil
 
 class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
-  override fun generateCreateTableDDL(ddlContext: DDLContext): String {
+    override fun generateCreateTableDDL(ddlContext: DDLContext): String {
         val tableEnglishName = ddlContext.tableEnglishName
         val tableChineseName = ddlContext.tableChineseName
         val dto = ddlContext.dto
+
+        var s = """        ${
+            dto.joinToString(System.lineSeparator()) {
+                """
+                    "${it.colName}" ${it.colType},
+                """.trimIndent()
+            }
+        }
+"""
+        s = StrUtil.removeSuffix(s, ",")
 
         val createTableSQL = """
     create table "$tableEnglishName" (
@@ -21,14 +31,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         "update_by" varchar(255) ,
         "create_time" timestamp ,
         "update_time" timestamp ,
-        ${
-            dto.joinToString(System.lineSeparator()) {
-                """
-                    "${it.colName}" ${it.colType} comment '${it.colComment}',
-                """.trimIndent()
-            }
-        }
-        ${
+$s        ${
             """
             comment on column $tableEnglishName.id is '主键';
             comment on column $tableEnglishName.create_by is '创建者';
@@ -64,6 +67,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
         return dmls
     }
+
     override fun mapTypeByMysqlType(mysqlType: String): String {
         return fieldMappings.find { it.mysqlType.equals(mysqlType, ignoreCase = true) }?.pgType!!
     }

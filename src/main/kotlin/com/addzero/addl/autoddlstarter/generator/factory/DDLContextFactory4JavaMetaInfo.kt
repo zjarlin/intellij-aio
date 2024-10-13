@@ -14,8 +14,32 @@ import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.intellij.psi.PsiClass
+import org.jetbrains.kotlin.psi.KtClass
 
 object DDLContextFactory4JavaMetaInfo {
+
+
+
+    fun createDDLContext4KtClass(psiClass: KtClass ,databaseType: String = MYSQL): DDLContext {
+        var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (psiClass)
+        tableEnglishName= tableEnglishName!!.ifBlank {"unknown_table_name"}
+        tableChineseName=tableChineseName.ifBlank { tableEnglishName!! }
+
+        val javaFieldMetaInfo = PsiUtil.getJavaFieldMetaInfo4KtClass(psiClass)
+
+        val rangeContexts = javaFieldMetaInfo.map { field ->
+            createRangeContext(field, databaseType)
+        }
+        return DDLContext(
+            tableChineseName = tableChineseName,
+            tableEnglishName = tableEnglishName,
+            databaseType = databaseType,
+            dto = rangeContexts,
+        )
+
+    }
+
+
 
 
     fun createDDLContext(psiClass: PsiClass ,databaseType: String = MYSQL): DDLContext {

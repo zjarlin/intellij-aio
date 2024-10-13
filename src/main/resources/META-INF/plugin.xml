@@ -17,6 +17,11 @@
 
     <change-notes><![CDATA[
     <h3>English:</h3>
+   <h3>Version 1.5</h3>
+<ul>
+    <li>Context menu generation of ADD COLUMN statements now supports entities of the Jimmer</li>
+</ul>
+
     <h3>Version 1.4</h3>
     <ul>
    <li>New Feature: Automatically output the corresponding columns to add for the entity (allowing users to quickly add fields). In the entity's generation context menu, use GenAddColumnByThis (please configure the database type in settings; it can be dynamically selected during table creation, and the database type set in settings will be used when adding columns).</li>
@@ -46,6 +51,14 @@
     </ul>
 
     <h3>中文：</h3>
+
+
+    <h3>Version 1.5</h3>
+    <ul>
+        <li>上下文菜单生成ADD COLUMN语句,支持Jimmer框架实体</li>
+    </ul>
+
+
     <h3>Version 1.4</h3>
     <ul>
         <li>新功能:自动输出实体对应的增加列(用户快速加字段),在实体的生成上下文菜单中GenAddColumnByThis(设置中请配置数据库类型,建表时可动态选择,加列时采用设置中的数据库类型)</li>

@@ -13,7 +13,7 @@ fun CharSequence.toUnderlineCase(): String {
     return toUnderlineCase
 }
 
-fun <T> String.equalsIgnoreCase(string: String): Boolean {
+fun  String.equalsIgnoreCase(string: String): Boolean {
     return StrUtil.equalsIgnoreCase(this, string)
 }
 

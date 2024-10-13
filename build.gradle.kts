@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.addzero"
-version = "1.4"
+version = "1.5"
 configurations.all {
     resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
 }

@@ -36,6 +36,9 @@ object PsiUtil {
 
 
     fun guessFieldComment(ktProperty: KtProperty): String {
+        if (ktProperty.name=="id") {
+            return "主键"
+        }
         // 获取 KtProperty 上的所有注解
         val annotations = ktProperty.annotationEntries
         // 遍历所有注解
@@ -85,6 +88,9 @@ object PsiUtil {
      * @return [String]
      */
     fun guessFieldComment(psiField: PsiField): String {
+        if (psiField.name=="id") {
+            return "主键"
+        }
         val annotations = psiField.annotations
 
         for (annotation in annotations) {

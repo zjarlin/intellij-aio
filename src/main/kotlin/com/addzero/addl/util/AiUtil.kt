@@ -5,7 +5,7 @@ import com.addzero.addl.FieldDTO
 import com.addzero.addl.FormDTO
 import com.addzero.addl.ktututil.parseObject
 import com.addzero.addl.ktututil.toJson
-import com.addzero.addl.settings.MyPluginSettings
+import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.Dba
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
 import com.addzero.addl.util.ShowSqlUtil.showErrorMsg
@@ -42,15 +42,11 @@ data class MyMessage(
 )
 
 fun getResponse(question: String, prompt: String): String? {
-
-
-    val settings = MyPluginSettings.instance
-
+    val settings = MyPluginSettingsService.getInstance().state
 // 修改设置项
-    val state = settings.state
-    val getenvBySetting = state.aliLingjiModelKey
+    val getenvBySetting = settings.modelKey
     // 构建请求内容
-    val model = state.modelName.ifBlank { "qwen2.5-coder-1.5b-instruct" }
+    val model = settings.modelType
 
     val getenvBySys = System.getenv("DASHSCOPE_API_KEY")
     val apiKey = StrUtil.firstNonBlank(getenvBySetting, getenvBySys)

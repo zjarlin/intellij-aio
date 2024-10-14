@@ -7,6 +7,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.settings.MyPluginSettings
+import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.ShowSqlUtil
 import com.addzero.addl.util.fieldinfo.ktClass
 import com.intellij.openapi.actionSystem.AnAction
@@ -59,9 +60,8 @@ class GenAddColumnByThis : AnAction() {
     }
 
     private fun defaultDbType(): String {
-        val settings = MyPluginSettings.instance
-        val state = settings.state
-        val defaultDbType = state.defaultDbType
+        val settings =  MyPluginSettingsService.getInstance().state
+        val defaultDbType = settings.dbType
         if (StrUtil.isBlank(defaultDbType)) {
             return MYSQL
         }

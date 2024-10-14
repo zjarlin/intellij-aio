@@ -1,33 +1,10 @@
 package com.addzero.addl.settings
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.State
-import com.intellij.openapi.components.Storage
+import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
+import com.addzero.addl.autoddlstarter.generator.consts.QWEN_1_5B_CODER
 
-/**
- * MyPluginSettings 类负责持久化设置。
- */
-@State(
-    name = "com.addzero.addl.settings.MyPluginSettings",
-    storages = [Storage("com.addzero.addl.settings.MyPluginSettings.xml")]
+data class MyPluginSettings(
+    var modelKey: String = "",
+    var modelType: String = QWEN_1_5B_CODER,
+    var dbType: String = MYSQL
 )
-@Service
-class MyPluginSettings : PersistentStateComponent<Settings> {
-
-    private var myState: Settings = Settings()
-
-    override fun getState(): Settings {
-        return myState
-    }
-
-    override fun loadState(state: Settings) {
-        this.myState = state
-    }
-
-    companion object {
-        val instance: MyPluginSettings
-            get() = ApplicationManager.getApplication().getService(MyPluginSettings::class.java)
-    }
-}

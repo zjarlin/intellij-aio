@@ -31,7 +31,7 @@ class AutoDDL : AnAction() {
             val ddlResult = genDDL(formDTO)
             // 使用 IntelliJ 内置的 SQL 编辑器显示 SQL 语句
 //         ShowSqlUtil.   showDDLInTextField(project, ddlResult)
-            ShowSqlUtil.openSqlInEditor(project, ddlResult, "AutoDDL")
+            ShowSqlUtil.openSqlInEditor(project, ddlResult, "create_table_${formDTO.tableEnglishName}")
         }
     }
 

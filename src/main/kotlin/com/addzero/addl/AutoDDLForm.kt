@@ -1,12 +1,14 @@
 package com.addzero.addl
 
 import FieldsTableModel
+import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.ArrayUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.javaTypesEnum
 import com.addzero.addl.autoddlstarter.generator.consts.DM
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.addzero.addl.his.HistoryService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
@@ -38,6 +40,12 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
     private lateinit var panelFunction1: JPanel
     private lateinit var panelFunction2: JPanel
 
+
+    private lateinit var historyCombo: JComboBox<String>  // 历史记录下拉框
+    private val historyService = HistoryService()          // 获取历史记录服务
+    private var currentSelectedDTO: FormDTO? = null        // 当前选择的历史记录
+
+
     init {
         title = "Generate DDL"
         init()
@@ -61,10 +69,12 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         mainPanel!!.add(tabbedPane, BorderLayout.CENTER)
 
         return mainPanel
+
     }
 
     private fun createGenerateDDLPanel(): JPanel {
         val panel = JPanel(BorderLayout())
+        // 创建历史记录下拉框面板并添加到表单最上方
 
         // 表单信息区域
         val formPanel = JPanel(GridLayout(4, 2))
@@ -88,12 +98,19 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         // 字段信息区域
         val tablePanel = fieldsJPanel()
 
+
         // 添加表单信息区域和字段信息区域
         panel.add(formPanel, BorderLayout.NORTH)
         panel.add(tablePanel, BorderLayout.CENTER)
 
+
+//        panel.add(createHisPanel, BorderLayout.SOUTH)
+//        addHisPanel(panel)
+
         // 添加高级功能折叠菜单
         addAdvancedPanel(panel)
+
+
         // 添加使用说明
         val usageInstruction =
             JLabel(
@@ -112,7 +129,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         return panel
     }
 
-//    private fun fieldsJPanel(): JPanel {
+    //    private fun fieldsJPanel(): JPanel {
 //        fieldsTableModel = FieldsTableModel()
 //        fieldsTable = JBTable(fieldsTableModel)
 //
@@ -143,6 +160,54 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 //        tablePanel.preferredSize = Dimension(600, 200)
 //        return tablePanel
 //    }
+    fun addHisPanel(parentPanel: JPanel): Unit {
+        val historyPanel = JPanel(BorderLayout())
+
+        // 从历史服务中获取历史记录
+        val historyList = historyService.getHistory()
+        historyCombo = ComboBox(historyList.map { "${it.tableEnglishName} (${it.tableName})" }.toTypedArray())
+
+        // 添加下拉框到面板
+        historyPanel.add(JLabel("历史记录:")) // 添加说明
+        historyPanel.add(historyCombo) // 添加下拉框到面板
+
+        // 添加下拉框的监听器
+        historyCombo.addActionListener {
+            val selectedIndex = historyCombo.selectedIndex
+            if (selectedIndex >= 0) {
+                currentSelectedDTO = CollUtil.get(historyList, selectedIndex)    // 选择的历史记录
+                loadFormByFormDTO(currentSelectedDTO!!)  // 回填表单数据
+            }
+        }
+        // 将历史记录面板添加到父面板的北部
+        parentPanel.add(historyPanel)
+//        mainPanel!!.add(historyPanel, BorderLayout.NORTH) // 将历史记录面板添加到主面板的北部
+    }
+
+
+
+    fun createHisPanel(): JPanel {
+        val historyPanel = JPanel(BorderLayout())
+
+        // 从历史服务中获取历史记录
+        val historyList = historyService.getHistory()
+        historyCombo = ComboBox(historyList.map { "${it.tableEnglishName} (${it.tableName})" }.toTypedArray())
+
+        // 添加下拉框到面板
+        historyPanel.add(historyCombo, BorderLayout.CENTER) // 添加下拉框到面板
+
+        // 添加下拉框的监听器
+        historyCombo.addActionListener {
+            val selectedIndex = historyCombo.selectedIndex
+            if (selectedIndex >= 0) {
+                currentSelectedDTO =  CollUtil.get(historyList,selectedIndex)    // 选择的历史记录
+                loadFormByFormDTO(currentSelectedDTO!!)  // 回填表单数据
+            }
+        }
+
+        return historyPanel
+    }
+
 
     private fun fieldsJPanel(): JPanel {
         fieldsTableModel = FieldsTableModel()
@@ -259,21 +324,16 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
             val task = object : SwingWorker<FormDTO, Void>() {
                 override fun doInBackground(): FormDTO {
                     val inputText = inputTextArea.text
-                    return callLargeModelApi(inputText) // 调用你的大模型接口
+                    val callLargeModelApi = callLargeModelApi(inputText)
+                    return callLargeModelApi // 调用你的大模型接口
                 }
 
                 override fun done() {
                     try {
                         // 获取表单实体对象并回填到表单输入区域
-                        val formEntity = get()
-                        tableNameField!!.text = formEntity.tableName
-                        tableEnglishNameField!!.text = formEntity.tableEnglishName
-                        dbTypeComboBox!!.selectedItem = formEntity.dbType
-                        dbNameField!!.text = formEntity.dbName
-
-                        // 确保字段可以二次编辑
-                        fieldsTableModel!!.fields = formEntity.fields?.toMutableList() as MutableList<FieldDTO>
-                        fieldsTableModel!!.fireTableDataChanged()
+                        loadForm()
+                        // 保存历史记录
+                        historyService.addRecord(formDTO)
                     } catch (ex: Exception) {
                         ex.printStackTrace()
                         JOptionPane.showMessageDialog(llmPanel, "出现错误: ${ex.message}")
@@ -294,6 +354,22 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         llmPanel.isVisible = false // 默认隐藏
 
         return llmPanel
+    }
+
+    private fun SwingWorker<FormDTO, Void>.loadForm() {
+        val formEntity = get()
+        loadFormByFormDTO(formEntity)
+    }
+
+    private fun loadFormByFormDTO(formEntity: FormDTO) {
+        tableNameField!!.text = formEntity.tableName
+        tableEnglishNameField!!.text = formEntity.tableEnglishName
+        dbTypeComboBox!!.selectedItem = formEntity.dbType
+        dbNameField!!.text = formEntity.dbName
+
+        // 确保字段可以二次编辑
+        fieldsTableModel!!.fields = formEntity.fields?.toMutableList() as MutableList<FieldDTO>
+        fieldsTableModel!!.fireTableDataChanged()
     }
 
     // 模拟调用大模型接口的函数
@@ -353,6 +429,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
             }
 
             close(OK_EXIT_CODE) // 验证通过，关闭对话框
+
         }
         buttons.add(okButton)
 

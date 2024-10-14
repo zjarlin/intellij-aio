@@ -49,7 +49,7 @@ class GenAddColumnByThis : AnAction() {
         val databaseDDLGenerator = getDatabaseDDLGenerator(defaultDbType())
         val sql = databaseDDLGenerator.generateAddColDDL(ddlContext)
         // 将生成的 SQL 语句写入到新的文件并打开
-        ShowSqlUtil.openSqlInEditor(project, sql, "GenAddColumnByThis")
+        ShowSqlUtil.openSqlInEditor(project, sql, "alter_table_${ddlContext.tableEnglishName}")
     }
 
     // 根据 PsiClass 生成 DDLContext 对象

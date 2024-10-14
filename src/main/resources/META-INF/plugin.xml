@@ -132,14 +132,20 @@
 
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
-<!--    <extensions defaultExtensionNs="com.intellij">-->
-<!--        <projectConfigurable instance="com.addzero.addl.settings.MyPluginSettingsConfigurable" displayName="AutoDDL设置"/>-->
-<!--    </extensions>-->
+    <!--    <extensions defaultExtensionNs="com.intellij">-->
+    <!--        <projectConfigurable instance="com.addzero.addl.settings.MyPluginSettingsConfigurable" displayName="AutoDDL设置"/>-->
+    <!--    </extensions>-->
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService" />
+        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
     </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>
+    </extensions>
+
+
     <actions>
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>

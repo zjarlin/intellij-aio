@@ -44,7 +44,7 @@ object ShowSqlUtil {
             }
 
             // 创建 SQL 文件的名称
-            val fileName = "$sqlPrefix${System.currentTimeMillis()}.sql"
+            val fileName = "$sqlPrefix${Vars.timeSuffix}.sql"
             val sqlFile = File(autoddlDirectory, fileName)
 
             // 写入 SQL 到文件

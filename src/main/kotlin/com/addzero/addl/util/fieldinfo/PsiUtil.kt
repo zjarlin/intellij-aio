@@ -6,10 +6,6 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
-import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtProperty
@@ -70,16 +66,6 @@ object PsiUtil {
         }
 
         return text!!
-    }
-
-
-    private fun getPsiFileFromEditor(editor: Editor, project: Project): PsiFile? {
-        val virtualFile1 = editor.virtualFile
-        // 获取当前打开文件的 VirtualFile
-        val virtualFile: VirtualFile? = FileEditorManager.getInstance(project).getSelectedEditor(virtualFile1)?.file
-
-        // 如果找到了 VirtualFile，则查找对应的 PsiFile
-        return virtualFile?.let { PsiManager.getInstance(project).findFile(it) }
     }
 
 

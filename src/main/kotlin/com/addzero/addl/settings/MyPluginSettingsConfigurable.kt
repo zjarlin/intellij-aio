@@ -1,6 +1,5 @@
 package com.addzero.addl.settings
 
-import MyPluginSettings
 import com.intellij.openapi.options.Configurable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.kotlin.idea.gradleTooling.get

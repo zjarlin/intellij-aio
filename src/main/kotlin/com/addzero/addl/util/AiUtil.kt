@@ -5,8 +5,10 @@ import com.addzero.addl.FieldDTO
 import com.addzero.addl.FormDTO
 import com.addzero.addl.ktututil.parseObject
 import com.addzero.addl.ktututil.toJson
+import com.addzero.addl.settings.MyPluginSettings
 import com.addzero.addl.util.Dba
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
+import com.addzero.addl.util.ShowSqlUtil.showErrorMsg
 import com.addzero.addl.util.fieldinfo.getSimpleFieldInfoStr
 
 
@@ -134,6 +136,7 @@ fun quesDba(string: String): FormDTO? {
         val parseObject1 = let?.parseObject(FormDTO::class.java) ?: return defaultdTO()
         return parseObject1
     } catch (e: Exception) {
+        showErrorMsg(e.message.toString())
         return defaultdTO()
     }
 }

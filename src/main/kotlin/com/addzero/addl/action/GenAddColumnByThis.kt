@@ -1,12 +1,12 @@
 package com.addzero.addl.action
 
-import MyPluginSettings
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
+import com.addzero.addl.settings.MyPluginSettings
 import com.addzero.addl.util.ShowSqlUtil
 import com.addzero.addl.util.fieldinfo.ktClass
 import com.intellij.openapi.actionSystem.AnAction

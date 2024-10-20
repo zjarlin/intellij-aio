@@ -12,6 +12,6 @@ import java.time.format.DateTimeFormatter
  */
 object Vars {
     val datePrefix: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
-    val timePrefix: String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss_SSS_"))
-    val timeSuffix: String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("_HH_mm_ss_SSS"))
+    val timePrefix: String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS_"))
+    val timeSuffix: String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss_SSS"))
 }

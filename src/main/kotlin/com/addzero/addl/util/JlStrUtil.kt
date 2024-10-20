@@ -10,6 +10,28 @@ import java.util.*
  */
 object JlStrUtil {
 
+    /**
+     * 删除字符串中最后一次出现的指定字符。
+     *
+     * @param str 字符串
+     * @param ch 要删除的字符
+     * @return 删除指定字符后的字符串
+     */
+    fun removeLastCharOccurrence(str: String, ch: Char): String {
+        if (StrUtil.isBlank(str)) {
+            return ""
+        }
+
+        val lastIndex = str.lastIndexOf(ch) // 获取指定字符最后一次出现的位置
+        return if (lastIndex != -1) {
+            // 如果找到了指定字符，则删除它
+            str.substring(0, lastIndex) + str.substring(lastIndex + 1)
+        } else {
+            // 如果没有找到指定字符，则返回原字符串
+            str!!
+        }
+    }
+
 
     fun makeSurroundWith(s: String, fix: String): String {
         // 如果 s 为空或全是空白字符，则直接返回空字符串

@@ -6,14 +6,14 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 data class FormDTO(
     // 使用JsonPropertyDescription注解描述tableName属性在JSON序列化和反序列化中的含义
     // 这里表示这个属性对应着表的中文名
-    @field:JsonPropertyDescription("表中文名") val tableName: String = "",
+    @field:JsonPropertyDescription("表中文名,只能是汉字中文") val tableName: String = "",
     // tableEnglishName属性，用于表示表的英文名称
-    @field:JsonPropertyDescription("表英文名称tableEnglistName业务系统要求biz_开头,如果是系统架构表需要sys_开头") val tableEnglishName: String = "",
+    @field:JsonPropertyDescription("表英文名称tableEnglistName业务系统要求biz_开头,如果是系统架构表需要sys_开头,下划线格式") val tableEnglishName: String = "",
     // dbType属性，用于表示数据库的类型
     @field:JsonPropertyDescription(" dbType的候选项为(全部小写字母) mysql oracle pg dm ")
-    val dbType: String = "",
+    var dbType: String = "",
     // dbName属性，用于表示数据库的名称
-    @field:JsonPropertyDescription("数据库名称,达梦dm数据库类型的dbname不可以为空,其余都可以为空") val dbName: String = "",
+    @field:JsonPropertyDescription("databasename,达梦dm可以给出,其余数据库类型都留空,json不要出现//注释") val dbName: String = "",
     // fields属性，用于表示表中的字段列表
     @field:JsonPropertyDescription("字段列表") var fields: List<FieldDTO> = emptyList(),
 )

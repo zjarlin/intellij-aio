@@ -14,15 +14,27 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         val tableChineseName = ddlContext.tableChineseName
         val dto = ddlContext.dto
 
-        var s = """        ${
+        var cols = """        ${
             dto.joinToString(System.lineSeparator()) {
                 """
-                    "${it.colName}" ${it.colType},
+                    "${it.colName}" ${it.colType}  ${it.colLength},
                 """.trimIndent()
             }
         }
 """
-        s = StrUtil.removeSuffix(s, ",")
+
+        cols = JlStrUtil.removeLastCharOccurrence(cols, ',')
+
+
+        var colsComments = """        ${
+            dto.joinToString(System.lineSeparator()) {
+                """
+ comment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
+                """.trimIndent()
+            }
+        }
+"""
+
 
         val createTableSQL = """
     create table "$tableEnglishName" (
@@ -31,7 +43,10 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         "update_by" varchar(255) ,
         "create_time" timestamp ,
         "update_time" timestamp ,
-$s        ${
+$cols       
+    );
+    comment on table "$tableEnglishName" is '$tableChineseName';
+ ${
             """
             comment on column $tableEnglishName.id is '主键';
             comment on column $tableEnglishName.create_by is '创建者';
@@ -40,8 +55,7 @@ $s        ${
             comment on column $tableEnglishName.update_time is '更新时间'; 
             """.trimIndent()
         }
-    );
-    comment on table "$tableEnglishName" is '$tableChineseName';
+    $colsComments
 """.trimIndent()
 
         return createTableSQL

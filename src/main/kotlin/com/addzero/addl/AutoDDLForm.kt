@@ -9,6 +9,7 @@ import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 import com.addzero.addl.his.HistoryService
+import com.addzero.addl.settings.MyPluginSettingsService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
@@ -21,6 +22,7 @@ import java.awt.GridLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
+
 
 private const val s = "AI生成"
 
@@ -84,8 +86,9 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
         formPanel.add(JLabel("*数据库类型:"))
         dbTypeComboBox = ComboBox(arrayOf(MYSQL, POSTGRESQL, DM, ORACLE))
+        // 设置默认值为设置中的
+        dbTypeComboBox!!.selectedItem = MyPluginSettingsService.getInstance().state.dbType
         formPanel.add(dbTypeComboBox)
-
 
         formPanel.add(JLabel("表名(可空,为空默认表中文名转拼音):"))
         tableEnglishNameField = JTextField()
@@ -112,14 +115,13 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
 
         // 添加使用说明
-        val usageInstruction =
-            JLabel(
-                """<html><font color='orange'>
+        val usageInstruction = JLabel(
+            """<html><font color='orange'>
             删除选中行：按住Ctrl(跳跃选)或Shift(连续选)，点击要删除的行，然后点击“删除选中行”按钮。
             <br>
             AI生成：您可以说:创建xx表，包含xxx字段(一次提问仅能生成一张表,有概率失败,失败回填默认表单)。
             </font></html>"""
-            )
+        )
 
 
         panel.add(usageInstruction, BorderLayout.SOUTH)
@@ -185,7 +187,6 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
     }
 
 
-
     fun createHisPanel(): JPanel {
         val historyPanel = JPanel(BorderLayout())
 
@@ -200,7 +201,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         historyCombo.addActionListener {
             val selectedIndex = historyCombo.selectedIndex
             if (selectedIndex >= 0) {
-                currentSelectedDTO =  CollUtil.get(historyList,selectedIndex)    // 选择的历史记录
+                currentSelectedDTO = CollUtil.get(historyList, selectedIndex)    // 选择的历史记录
                 loadFormByFormDTO(currentSelectedDTO!!)  // 回填表单数据
             }
         }
@@ -312,7 +313,21 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
     private fun createLLMPanel(): JPanel {
         val llmPanel = JPanel(BorderLayout())
-        val inputTextArea = JTextArea(5, 30) // 长文本框
+        // 创建固定大小的长文本框，不随文字内容改变大小
+        // 创建固定大小的长文本框，不随文字内容改变大小
+        // 创建固定大小的长文本框，不随文字内容改变大小
+        val inputTextArea = JTextArea(5, 30)
+        inputTextArea.preferredSize = Dimension(300, 100) // 设置固定大小
+        inputTextArea.wrapStyleWord = true // 自动换行
+        inputTextArea.lineWrap = true // 自动换行
+
+        // 包装在 JScrollPane 中，并设置滚动条策略
+        val scrollPane = JScrollPane(inputTextArea)
+        scrollPane.viewport.view = inputTextArea
+        scrollPane.verticalScrollBarPolicy = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED
+        scrollPane.horizontalScrollBarPolicy = JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED
+
+
         val submitButton = JButton("使用AI的建议回填表单")
         val loadingLabel = JLabel("正在加载，请稍候...") // 显示加载状态的Label
         loadingLabel.isVisible = false // 初始状态为不可见
@@ -377,7 +392,11 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         val quesDba = quesDba(inputText)
         // 这里实现你调用大模型的逻辑
         // 返回表单实体对象
-        return quesDba!!
+        val quesDba1 = quesDba!!
+        //智能处理表单中的值
+//        handleVal(formDTO)
+        handleVal(quesDba1)
+        return quesDba1
     }
 
     val formDTO: FormDTO
@@ -438,6 +457,24 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         buttons.add(cancelButton)
 
         return buttons
+    }
+
+    private fun handleVal(formDTO: FormDTO) {
+        formDTO.dbType = MyPluginSettingsService.getInstance().state.dbType
+        var (tableName, tableEnglishName, dbType, dbName, fields) = formDTO
+        fields = fields.filter { it.fieldName != "id" }
+        fields.forEach({ correctJavaType(it.javaType) })
+    }
+
+    private fun correctJavaType(javaType: String): String {
+
+        val associateBy = javaTypesEnum.associateBy({ it.lowercase() }, { it })
+//        javaTypesEnum
+        if (associateBy.containsKey(javaType.lowercase())) {
+            val s1 = associateBy[javaType.lowercase()]
+            return s1!!
+        }
+        return javaType
     }
 
 }

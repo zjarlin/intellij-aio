@@ -86,8 +86,16 @@ private fun dbask(question: String): String? {
         ${buildStructureOutPutPrompt(FormDTO::class.java)}
     """.trimIndent()
     val trimIndent = """
+        ----------------
+        结果中不要出现以下基本字段
+         `id` varchar(64) not null ,
+        `create_by` varchar(255) not null comment '创建者',
+        `update_by` varchar(255) null comment '更新者',
+        `create_time` datetime not null default current_timestamp comment '创建时间',
+        `update_time` datetime null default current_timestamp on update current_timestamp comment '更新时间',
+        ----------------
       期望最终返回的结果,即: 结构化的json数据格式如下,最终结果移除开头```json,和结尾```没有偏差 
-       您的响应应该是JSON格式。不包括任何解释，只提供符合RFC8259的JSON响应，遵循此格式，没有偏差。不要在响应中包含markdown代码块。从输出中删除``json标记。这是您的输出必须遵循的JSON模式实例：
+       您的响应应该是JSON格式。不包括任何解释(不要出现//注释)，只提供符合RFC8259的JSON响应，遵循此格式，没有偏差。不要在响应中包含markdown代码块。从输出中删除``json标记。这是您的输出必须遵循的JSON模式实例：
         ------------
    {
   "tableName": "",

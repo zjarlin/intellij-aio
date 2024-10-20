@@ -32,21 +32,17 @@ object ShowSqlUtil {
         )
     }
 
-
     fun openSqlInEditor(project: Project?, sql: String, sqlPrefix: String = "") {
         WriteCommandAction.runWriteCommandAction(project) {
             // 定义 .autoddl 目录
             val autoddlDirectory = File(project!!.basePath, ".autoddl")
-
             // 确保 .autoddl 目录存在
             if (!autoddlDirectory.exists()) {
                 autoddlDirectory.mkdir()
             }
-
             // 创建 SQL 文件的名称
-            val fileName = "$sqlPrefix${Vars.timeSuffix}.sql"
+            val fileName = "$sqlPrefix.sql"
             val sqlFile = File(autoddlDirectory, fileName)
-
             // 写入 SQL 到文件
             sqlFile.writeText(sql)
 
@@ -57,7 +53,6 @@ object ShowSqlUtil {
             }
         }
     }
-
 
     fun showDDLInTextField(project: Project?, ddlResult: String) {
         // 创建一个文本域

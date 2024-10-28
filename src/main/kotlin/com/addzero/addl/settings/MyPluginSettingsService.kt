@@ -1,12 +1,12 @@
 package com.addzero.addl.settings
 
+
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 
 @State(
-    name = "com.myplugin.MyPluginSettings",
-    storages = [Storage("MyPluginSettings.xml")]
+    name = "com.myplugin.MyPluginSettings", storages = [Storage("MyPluginSettings.xml")]
 )
 class MyPluginSettingsService : PersistentStateComponent<MyPluginSettings> {
 

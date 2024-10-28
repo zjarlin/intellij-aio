@@ -155,5 +155,13 @@
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
         </action>
+<!--        <action id="StructuredOutput" class="com.addzero.addl.action.StructuredOutput" text="StructuredOutput"-->
+<!--                description="StructuredOutput">-->
+<!--            <add-to-group group-id="EditSelectWordGroup" anchor="first"/>-->
+<!--        </action>-->
+        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
+                description="GenStructuredOutput">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
     </actions>
 </idea-plugin>

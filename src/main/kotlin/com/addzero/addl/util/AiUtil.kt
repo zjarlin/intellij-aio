@@ -1,34 +1,17 @@
-import cn.hutool.core.util.ReflectUtil
 import cn.hutool.core.util.StrUtil
 import cn.hutool.http.HttpRequest
 import com.addzero.addl.FieldDTO
 import com.addzero.addl.FormDTO
+import com.addzero.addl.ai.agent.dbdesign.getDbaPromtTemplate
+import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ktututil.parseObject
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.Dba
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
 import com.addzero.addl.util.ShowSqlUtil.showErrorMsg
-import com.addzero.addl.util.fieldinfo.getSimpleFieldInfoStr
+import com.addzero.ai.modules.ai.util.ai.ai_abs_builder.AiUtil
 
-
-fun buildStructureOutPutPrompt(clazz: Class<*>?): String {
-    if (clazz == null) {
-        return ""
-    }
-    val fieldInfosRecursive = getSimpleFieldInfoStr(clazz)
-    // 收集所有字段及其描述
-    val fieldDescriptions = StringBuilder()
-    val fields = ReflectUtil.getFields(clazz)
-    // 过滤带有 @field:JsonPropertyDescription 注解的字段
-    val ret = emptyList<String>()
-    // 返回生成的描述信息
-    val prompt = """
-        结构化输出字段定义 内容如下:
-        $fieldInfosRecursive
-    """.trimIndent()
-    return prompt
-}
 
 data class Qwendto(
     val model: String,
@@ -41,12 +24,12 @@ data class MyMessage(
     val content: String = "",
 )
 
-fun getResponse(question: String, prompt: String): String? {
+fun getdashScopeResponse(question: String, prompt: String): String? {
     val settings = MyPluginSettingsService.getInstance().state
 // 修改设置项
     val getenvBySetting = settings.modelKey
     // 构建请求内容
-    val model = settings.modelType
+    val model = settings.modelNameOnline
 
     val getenvBySys = System.getenv("DASHSCOPE_API_KEY")
     val apiKey = StrUtil.firstNonBlank(getenvBySetting, getenvBySys)
@@ -78,58 +61,38 @@ fun getResponse(question: String, prompt: String): String? {
 }
 
 private fun dbask(question: String): String? {
-    val role = "你是一个 DBA 工程师，负责设计表。请根据我的内容,输出结构化的json数据,区分大小写"
-
-    val trimIndent1 = """
-        结构化输出字段定义 内容如下:
-        -----------
-        ${buildStructureOutPutPrompt(FormDTO::class.java)}
-    """.trimIndent()
-    val trimIndent = """
-        ----------------
-        结果中不要出现以下基本字段
-         `id` varchar(64) not null ,
-        `create_by` varchar(255) not null comment '创建者',
-        `update_by` varchar(255) null comment '更新者',
-        `create_time` datetime not null default current_timestamp comment '创建时间',
-        `update_time` datetime null default current_timestamp on update current_timestamp comment '更新时间',
-        ----------------
-      期望最终返回的结果,即: 结构化的json数据格式如下,最终结果移除开头```json,和结尾```没有偏差 
-       您的响应应该是JSON格式。不包括任何解释(不要出现//注释)，只提供符合RFC8259的JSON响应，遵循此格式，没有偏差。不要在响应中包含markdown代码块。从输出中删除``json标记。这是您的输出必须遵循的JSON模式实例：
-        ------------
-   {
-  "tableName": "",
-  "tableEnglishName": "",
-  "dbType": "",
-  "dbName": "",
-  "fields": [
-    {
-      "javaType": "",
-      "fieldName": "",
-      "fieldChineseName": ""
-    }
-  ]
-} 
-""".trimIndent()
+    val promtTempla = getDbaPromtTemplate()
 
 
-    val promtTempla = """
-        $role
-     $trimIndent1
-     ${trimIndent}
- """.trimIndent()
-    val response = getResponse(
+    val response = getdashScopeResponse(
         question, promtTempla
     )
     return response
 }
 
-fun quesDba(string: String): FormDTO? {
-    if (string.isBlank()) {
+
+fun quesDba(question: String): FormDTO? {
+    if (question.isBlank()) {
         return defaultdTO()
     }
     try {
-        val dbask = dbask(string)
+        val settings = MyPluginSettingsService.getInstance().state
+// 修改设置项
+        val getenvBySetting = settings.ollamaUrl
+        val equals = settings.modelManufacturer == OLLAMA
+        val enableOllama =
+//         !StrUtil.equals(getenvBySetting, "http://localhost:11434")||
+        equals
+        if (enableOllama) {
+            val ollamaModelName = settings.modelNameOffline
+            var promtTempla = getDbaPromtTemplate()
+            promtTempla = StrUtil.cleanBlank(promtTempla)
+            //启用ollama
+            val aiUtil = AiUtil(ollamaModelName, question, promtTempla).ask(FormDTO::class.java)
+//            val aiUtil = AiUtil(ollamaModelName, "你好", "").ask(FormDTO::class.java)
+            return aiUtil
+        }
+        val dbask = dbask(question)
         val parseObject = dbask?.parseObject(Dba::class.java)
 
         val joinToString = parseObject?.choices?.map {

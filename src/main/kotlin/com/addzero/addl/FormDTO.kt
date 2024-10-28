@@ -8,7 +8,8 @@ data class FormDTO(
     // 这里表示这个属性对应着表的中文名
     @field:JsonPropertyDescription("表中文名,只能是汉字中文") val tableName: String = "",
     // tableEnglishName属性，用于表示表的英文名称
-    @field:JsonPropertyDescription("表英文名称tableEnglistName业务系统要求biz_开头,如果是系统架构表需要sys_开头,下划线格式") val tableEnglishName: String = "",
+    @field:JsonPropertyDescription("表英文名称,下划线格式") val tableEnglishName:
+    String = "",
     // dbType属性，用于表示数据库的类型
     @field:JsonPropertyDescription(" dbType的候选项为(全部小写字母) mysql oracle pg dm ")
     var dbType: String = "",

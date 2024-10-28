@@ -324,7 +324,7 @@ object PinYin4JUtils {
 
 }
 
-fun main(args: Array<String>) {
+fun main() {
     // pin4j 简码 和 城市编码
 
     val s1 = "中华人民共和国"

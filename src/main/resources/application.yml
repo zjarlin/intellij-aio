@@ -1,0 +1,70 @@
+ocr.ip: 192.168.0.110:8089
+controller:
+  advice:
+    path: com.example.demo.modules
+mousike:
+  spring:
+    ai:
+      client:
+        log-requests: true
+        read-timeout: 10000
+        connect-timeout: 10000
+      observations:
+        include-prompt: true
+
+defaultctx:
+  #  * *  "dashScopeAiChatModel"
+  #  * *  "moonshotChatModel"
+  #  * *  "ollamaChatModel"
+  #  *      ------qwen2.5:1.5b
+  #  *      qwen2.5-coder:1.5b
+  #llava
+  #  * *  "openAiChatModel"
+  #  * *  "zhiPuAiChatModel"
+  defaultChatModel: qwen2.5-coder:1.5b
+server:
+  port: 12344
+  servlet:
+    context-path: /Api
+#  tomcat:
+#    connection-timeout: 50000
+#    keep-alive-timeout: 300000
+spring:
+  #false生产环境可不输出sql
+#  datasource:
+#    username: postgres
+#    password: postgres
+#    url: jdbc:postgresql://localhost/postgres
+  ai:
+    ollama:
+      base-url: http://${OLLAMA_URL:localhost}:11434
+      chat:
+        options:
+          model: ${defaultctx.defaultChatModel}
+      embedding:
+        model: nomic-embed-text
+    # kimi
+    moonshot:
+      api-key: 2
+    zhipuai:
+      api-key: xxxxxxxxxxxxxx
+    openai:
+      chat:
+        api-key: xxxxxxxxxxxxx
+    # 阿里灵积
+    dashscope:
+      api-key: xxxxxxxxxxxxxxxxx
+      chat:
+        enabled: true
+        options:
+          model: qwen-max
+      embedding:
+        options:
+          model: text-embedding-v2
+      image:
+        options:
+          model: wanx-v1
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB

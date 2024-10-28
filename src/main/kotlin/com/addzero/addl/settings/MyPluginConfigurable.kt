@@ -1,113 +1,158 @@
 package com.addzero.addl.settings
 
-import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator
-import com.addzero.addl.autoddlstarter.generator.consts.QWEN_1_5B_CODER
-import com.addzero.addl.autoddlstarter.generator.consts.QWEN_1_5B_INSTRUCT
-import com.addzero.addl.autoddlstarter.generator.consts.QWEN_MAX
-import com.addzero.addl.autoddlstarter.generator.consts.QWEN_TURBO
+import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
+import javax.swing.text.Document
 import javax.swing.*
-
+import kotlin.reflect.full.createInstance
+import javax.swing.event.DocumentEvent
 class MyPluginConfigurable : Configurable {
 
     private var settings = MyPluginSettingsService.getInstance().state
     private lateinit var panel: JPanel
-    private lateinit var modelKeyField: JTextField
-    private lateinit var modelTypeCombo: JComboBox<String>
-    private lateinit var dbTypeCombo: JComboBox<String>
+    private val components = mutableMapOf<String, JComponent>()
+    private val dependentComponents = mutableMapOf<String, Pair<JComponent, FieldDependencyPredicate>>()
+    private fun refreshDependentComponents(dependencyField: String, component: JComponent) {
+        val dependentPair = dependentComponents[dependencyField] ?: return
+        val (dependentComboBox, predicate) = dependentPair
+
+        // 获取依赖字段的当前值并计算下拉选项
+        val dependentValue = when (component) {
+            is JTextField -> component.text
+            is JComboBox<*> -> component.selectedItem as? String
+            else -> null
+        }
+
+        // 确保 dependentValue 不为 null，提供一个默认值
+        val newOptions = predicate.getOptions(dependentValue ?: "")
+
+        // 更新下拉框选项
+        if (dependentComboBox is JComboBox<*>) {
+            dependentComboBox.removeAllItems()
+            newOptions.forEach { dependentComboBox.addItem(it as Nothing?) } // 强制转换为 String
+        }
+    }
+
 
     override fun createComponent(): JPanel {
         panel = JPanel()
-
-        // 使用 GridBagLayout 进行布局
         panel.layout = GridBagLayout()
         val gbc = GridBagConstraints()
-
-        // 统一的样式配置
         setupLayoutConstraints(gbc)
 
-        // 添加表单组件
-        addFormItem("模型 Key:", modelKeyField(), gbc, 0)
-        addFormItem("模型类型:", modelTypeComboBox(), gbc, 1)
-        addFormItem("数据库类型:", dbTypeComboBox(), gbc, 2)
+        for (field in MyPluginSettings::class.java.declaredFields) {
+            val annotation = field.getAnnotation(ConfigField::class.java) ?: continue
+            val label = JLabel(annotation.label)
+
+            val fieldValue = field.get(settings) as? String
+            val component = when (annotation.type) {
+                FieldType.TEXT -> JTextField(fieldValue ?: "")
+                FieldType.DROPDOWN -> {
+                    val items = annotation.options
+                    val comboBox = ComboBox(items)
+                    comboBox.selectedItem = fieldValue
+
+
+                 // 处理依赖关系
+//                    extracted(annotation, comboBox)
+                    comboBox
+                    }
+
+                FieldType.LONG_TEXT -> JTextArea(fieldValue ?: "")
+            }
+
+            addFormItem(label, component, gbc)
+            components[field.name] = component
+
+        }
 
         return panel
     }
 
-    /**
-     * 设置布局约束
-     */
-    private fun setupLayoutConstraints(gbc: GridBagConstraints) {
-        gbc.fill = GridBagConstraints.HORIZONTAL
-        gbc.anchor = GridBagConstraints.WEST
-        gbc.insets = Insets(10, 10, 10, 10) // 设置每个组件的内边距
-        gbc.weightx = 1.0 // 使文本框和下拉框横向填充
+    private fun extracted(
+        annotation: ConfigField,
+        comboBox: ComboBox<String>,
+    ) {
+        if (annotation.dependsOn.isNotEmpty()) {
+            val predicate = annotation.predicateClass.createInstance()
+            val pair = comboBox to predicate
+            dependentComponents[annotation.dependsOn] = pair
+            components[annotation.dependsOn] = comboBox
+            // 监听依赖字段变化
+            val dependencyField = annotation.dependsOn
+            val dependencyComponent = components[dependencyField]
+            if (dependencyComponent is JTextField) {
+                val document: Document = dependencyComponent.document
+                document.addDocumentListener(object : DocumentListener, javax.swing.event.DocumentListener {
+
+                    override fun changedUpdate(e: DocumentEvent) {
+                        refreshDependentComponents(dependencyField, dependencyComponent)
+                    }
+
+                    override fun removeUpdate(e: DocumentEvent) {
+                        refreshDependentComponents(dependencyField, dependencyComponent)
+                    }
+
+                    override fun insertUpdate(e: DocumentEvent) {
+                        refreshDependentComponents(dependencyField, dependencyComponent)
+                    }
+                })
+            } else if (dependencyComponent is JComboBox<*>) {
+                dependencyComponent.addActionListener {
+                    refreshDependentComponents(dependencyField, dependencyComponent)
+                }
+            }
+        }
     }
 
-    /**
-     * 添加表单项
-     */
-    private fun addFormItem(labelText: String, component: JComponent, gbc: GridBagConstraints, row: Int) {
+
+    private fun setupLayoutConstraints(gbc: GridBagConstraints) {
+        gbc.fill = GridBagConstraints.HORIZONTAL
+        gbc.insets = Insets(10, 10, 10, 10)
+        gbc.weightx = 1.0
+    }
+
+    private fun addFormItem(label: JLabel, component: JComponent, gbc: GridBagConstraints) {
         gbc.gridx = 0
-        gbc.gridy = row
-        panel.add(JLabel(labelText), gbc)
+        gbc.gridy++
+        panel.add(label, gbc)
 
         gbc.gridx = 1
         panel.add(component, gbc)
     }
 
-    /**
-     * 创建模型 Key 输入框
-     */
-    private fun modelKeyField(): JTextField {
-        modelKeyField = JTextField(settings.modelKey)
-        return modelKeyField
-    }
-
-    /**
-     * 创建模型类型下拉框
-     */
-    private fun modelTypeComboBox(): JComboBox<String> {
-        modelTypeCombo = ComboBox(
-            arrayOf(
-                QWEN_TURBO,
-                QWEN_1_5B_INSTRUCT,
-                QWEN_1_5B_CODER,
-                QWEN_MAX
-            )
-        )
-        modelTypeCombo.selectedItem = settings.modelType
-        return modelTypeCombo
-    }
-
-    /**
-     * 创建数据库类型下拉框
-     */
-    private fun dbTypeComboBox(): JComboBox<String> {
-        val databaseType = IDatabaseGenerator.databaseType.map { it.key }.toTypedArray()
-        dbTypeCombo = ComboBox(databaseType)
-        dbTypeCombo.selectedItem = settings.dbType
-        return dbTypeCombo
-    }
-
-
     override fun isModified(): Boolean {
-        return modelKeyField.text != settings.modelKey ||
-                modelTypeCombo.selectedItem != settings.modelType ||
-                dbTypeCombo.selectedItem != settings.dbType
+        return components.any { (fieldName, component) ->
+            val field = MyPluginSettings::class.java.getDeclaredField(fieldName)
+            field.isAccessible = true
+            val currentValue = field.get(settings)
+            val newValue = when (component) {
+                is JTextField -> component.text
+                is JComboBox<*> -> component.selectedItem ?: "" as String
+                is JTextArea -> component.text
+                else -> null
+            }
+            currentValue != newValue
+        }
     }
 
     override fun apply() {
-        settings.modelKey = modelKeyField.text
-        settings.modelType = modelTypeCombo.selectedItem as String
-        settings.dbType = dbTypeCombo.selectedItem as String
+        components.forEach { (fieldName, component) ->
+            val field = MyPluginSettings::class.java.getDeclaredField(fieldName)
+            field.isAccessible = true
+            val newValue = when (component) {
+                is JTextField -> component.text
+                is JComboBox<*> -> component.selectedItem as String
+                is JTextArea -> component.text
+                else -> null
+            }
+            field.set(settings, newValue)
+        }
     }
 
-    override fun getDisplayName(): String {
-        return "My Plugin Settings"
-    }
+    override fun getDisplayName(): String = "My Plugin Settings"
 }

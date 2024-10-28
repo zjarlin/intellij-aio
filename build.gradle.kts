@@ -1,9 +1,11 @@
-import org.jetbrains.kotlin.gradle.internal.Kapt3GradleSubplugin.Companion.isUseK2
 
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
     id("org.jetbrains.intellij") version "1.17.4"
+    alias(libs.plugins.spring.dependency.management)
+//    alias(libs.plugins.kotlin.spring)
+
 }
 
 group = "com.addzero"
@@ -46,11 +48,45 @@ intellij {
 //        )
 //    )
 }
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.ai:spring-ai-bom:${libs.versions.spring.ai}")
+//        mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot}")
+    }
+}
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.belerweb:pinyin4j:2.5.1")
     implementation("cn.hutool:hutool-all:5.8.25")
     implementation("com.alibaba:fastjson:2.0.52")
+    implementation(libs.spring.ai.ollama)
+    {
+        exclude(group = "com.fasterxml.jackson.core")
+    }
+
+
+//    implementation(libs.spring.ai.openai)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+//    }
+//    implementation(libs.spring.ai.zhipuai)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+//    }
+//    implementation(libs.spring.ai.moonshot)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+//    }
+    implementation(libs.spring.ai.alibaba)
+    {
+        exclude(group = "com.fasterxml.jackson.core")
+    }
+//    implementation(libs.spring.boot)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+//    }
+
 }
 
 

@@ -6,11 +6,19 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 
-private const val NOCOMMENT = "no_comment_found"
+
+//private const val NOCOMMENT = "no_comment_found"
+private const val NOCOMMENT = ""
 
 
 object PsiUtil {
@@ -32,7 +40,7 @@ object PsiUtil {
 
 
     fun guessFieldComment(ktProperty: KtProperty): String {
-        if (ktProperty.name=="id") {
+        if (ktProperty.name == "id") {
             return "主键"
         }
         // 获取 KtProperty 上的所有注解
@@ -74,7 +82,7 @@ object PsiUtil {
      * @return [String]
      */
     fun guessFieldComment(psiField: PsiField): String {
-        if (psiField.name=="id") {
+        if (psiField.name == "id") {
             return "主键"
         }
         val annotations = psiField.annotations
@@ -249,7 +257,7 @@ object PsiUtil {
     }
 
 
-    fun getJavaFieldMetaInfo4KtClass(psiClass: KtClass): MutableList<JavaFieldMetaInfo> {
+    fun extractInterfaceMetaInfo(psiClass: KtClass): MutableList<JavaFieldMetaInfo> {
         val fieldsMetaInfo = mutableListOf<JavaFieldMetaInfo>()
         // 获取所有字段
         val fields = psiClass?.properties()
@@ -281,6 +289,52 @@ object PsiUtil {
         }
         return fieldsMetaInfo
 
+    }
+
+
+
+
+
+    data class PsiCtx(
+        val editor: Editor?,
+        val psiClass: PsiClass?,
+        val ktClass: KtClass? = null,
+        val psiFile: PsiFile?,
+        val virtualFile: VirtualFile,
+        val any: Array<PsiClass>?,
+
+        )
+
+    fun psiCtx(project: Project): PsiCtx {
+        val editor = FileEditorManager.getInstance(project).selectedTextEditor
+        //        val virtualFile = editor.virtualFile
+        val virtualFile = FileEditorManager.getInstance(project).getSelectedEditor()?.file
+
+        val psiFile = PsiManager.getInstance(project).findFile(virtualFile!!)
+
+        val ktClass = virtualFile.ktClass(project)
+
+        val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java)
+        // 如果是Java文件，可以转换成PsiJavaFile
+
+        // 先获取到文件后再获取文件所在包
+//        val daoPackage = (psiClass?.getContainingFile() as PsiJavaFile).packageName
+//        val name = psiClass.name
+//        val addPrefixIfNot = daoPackage.addSuffixIfNot(".$name")
+//        val loadClass = ClassUtil.loadClass<Any>(addPrefixIfNot)
+
+        val any = if (psiFile is PsiJavaFile) {
+            // 一个文件中可能会定义有多个Class，因此返回的是一个数组
+            val classes: Array<PsiClass> = psiFile.getClasses()
+            classes
+        } else if (psiFile is KtFile) {
+            val classes = psiFile.classes
+            classes
+        } else {
+            null
+        }
+
+        return PsiCtx(editor,psiClass, ktClass, psiFile, virtualFile,any)
     }
 
 

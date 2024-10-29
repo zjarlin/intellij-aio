@@ -1,3 +1,4 @@
+import GenerationCallEarlyStop.modelName
 import com.addzero.addl.action.StructuredInputDialog
 import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
@@ -38,7 +39,8 @@ class StructuredOutput : AnAction() {
 
             // 调用结构化输出接口
             val response = try {
-                callStructuredOutputInterface(project, question, promptTemplate)
+                val callStructuredOutputInterface2 = callStructuredOutputInterface(project, question, promptTemplate)
+                callStructuredOutputInterface2
             } catch (e: Exception) {
                 ShowSqlUtil.showErrorMsg(e.message!!)
                 ""
@@ -63,16 +65,33 @@ class StructuredOutput : AnAction() {
         }
     }
 
+    private fun callStructuredOutputInterface2(
+        project: Project,
+        question: String,
+        promptTemplate: String,
+    ): String {
+
+        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
+        val any = if (ktClass == null) {
+            psiClass ?: return ""
+            val (jsonString, buildStructureOutPutPrompt) = javaPromt(psiClass!!, project, question, promptTemplate)
+            val ask = AiUtil(modelName = modelName, "你好", promptTemplate).ask("", "")
+            ask
+        } else {
+            ""
+        }
+        return any
+    }
+
     private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
         val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
         val settings = SettingContext.settings
-        val modelName =
-            if (settings.modelManufacturer == OLLAMA) {
-                settings.modelNameOffline
-            } else {
-                settings.modelNameOnline
+        val modelName = if (settings.modelManufacturer == OLLAMA) {
+            settings.modelNameOffline
+        } else {
+            settings.modelNameOnline
 
-            }
+        }
 
         val any = if (ktClass == null) {
             psiClass ?: return ""

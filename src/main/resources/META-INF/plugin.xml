@@ -150,18 +150,18 @@
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
         </action>
+        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
+                description="GenStructuredOutput">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
         <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
                 description="在当前实体右键生成加列语句">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
         </action>
-<!--        <action id="StructuredOutput" class="com.addzero.addl.action.StructuredOutput" text="StructuredOutput"-->
-<!--                description="StructuredOutput">-->
-<!--            <add-to-group group-id="EditSelectWordGroup" anchor="first"/>-->
-<!--        </action>-->
-        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
-                description="GenStructuredOutput">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+        <!--        <action id="StructuredOutput" class="com.addzero.addl.action.StructuredOutput" text="StructuredOutput"-->
+        <!--                description="StructuredOutput">-->
+        <!--            <add-to-group group-id="EditSelectWordGroup" anchor="first"/>-->
+        <!--        </action>-->
     </actions>
 </idea-plugin>

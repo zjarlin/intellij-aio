@@ -1,5 +1,6 @@
 package com.addzero.addl.util
 
+import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -27,12 +28,15 @@ object ShowSqlUtil {
 
         // 显示错误消息对话框
         JOptionPane.showMessageDialog(
-            component, "出现错误: $message",
-            "错误", JOptionPane.ERROR_MESSAGE
+            component, "出现错误: $message", "错误", JOptionPane.ERROR_MESSAGE
         )
     }
 
     fun openSqlInEditor(project: Project?, sql: String, sqlPrefix: String = "", fileTypeSuffix: String) {
+        if (sql.isBlank()) {
+            showErrorMsg("生成出错啦")
+            return
+        }
         WriteCommandAction.runWriteCommandAction(project) {
             // 定义 .autoddl 目录
             val autoddlDirectory = File(project!!.basePath, ".autoddl")

@@ -9,9 +9,11 @@ fun getDbaPromtTemplate(): String {
     val promtTempla = """你是一个DBA工程师,根据我提供的上下文设计数据库表结构。
     """
     return promtTempla
+
 }
 
 data class FormDTO(
+
     // 使用JsonPropertyDescription注解描述tableName属性在JSON序列化和反序列化中的含义
     // 这里表示这个属性对应着表的中文名
     @field:JsonPropertyDescription("表中文名") val tableName: String? = "",
@@ -23,7 +25,9 @@ data class FormDTO(
     @field:JsonPropertyDescription("数据库名称,达梦dm数据库类型的dbname不可以为空,其余都可以为空") val dbName: String? = "",
     // fields属性，用于表示表中的字段列表
     @field:JsonPropertyDescription("字段列表") var fields: List<FieldDTO>? = null,
-)
+){
+
+}
 
 // FieldDTO类，用于在数据传输过程中承载表单字段相关的信息
 data class FieldDTO(

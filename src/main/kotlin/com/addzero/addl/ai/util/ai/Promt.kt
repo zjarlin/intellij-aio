@@ -1,4 +1,4 @@
-package com.addzero.ai.modules.ai.util.ai
+package com.addzero.addl.ai.util.ai
 
 
 
@@ -20,4 +20,7 @@ object Promt {
             以下是我输入的文本
             {question}
             """
+
+  const  val DBA = """你是一个DBA工程师,根据我提供的上下文设计数据库表结构。
+    """
 }

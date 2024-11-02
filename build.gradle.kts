@@ -1,11 +1,7 @@
-
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
     id("org.jetbrains.intellij") version "1.17.4"
-    alias(libs.plugins.spring.dependency.management)
-//    alias(libs.plugins.kotlin.spring)
-
 }
 
 group = "com.addzero"
@@ -22,20 +18,14 @@ repositories {
     mavenCentral()
 }
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
-
-
-    version.set("2022.2")
-    type.set("IC") // Target IDE Platform
+//    version.set("2022.2")
+//    type.set("IC") // Target IDE Platform
     plugins.set(
         listOf(
-            "com.intellij.java",
-            "org.jetbrains.kotlin"
+            "com.intellij.java", "org.jetbrains.kotlin"
         )
     )
-
 
 
 //    localPath.set(ideahome)
@@ -48,22 +38,22 @@ intellij {
 //        )
 //    )
 }
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.ai:spring-ai-bom:${libs.versions.spring.ai}")
+//dependencyManagement {
+//    imports {
+//        mavenBom("org.springframework.ai:spring-ai-bom:${libs.versions.spring.ai}")
 //        mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot}")
-    }
-}
+//    }
+//}
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+//    implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.belerweb:pinyin4j:2.5.1")
     implementation("cn.hutool:hutool-all:5.8.25")
     implementation("com.alibaba:fastjson:2.0.52")
-    implementation(libs.spring.ai.ollama)
-    {
-        exclude(group = "com.fasterxml.jackson.core")
-    }
+//    implementation(libs.spring.ai.ollama)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+}
 
 
 //    implementation(libs.spring.ai.openai)
@@ -78,16 +68,16 @@ dependencies {
 //    {
 //        exclude(group = "com.fasterxml.jackson.core")
 //    }
-    implementation(libs.spring.ai.alibaba)
-    {
-        exclude(group = "com.fasterxml.jackson.core")
-    }
+//    implementation(libs.spring.ai.alibaba)
+//    {
+//        exclude(group = "com.fasterxml.jackson.core")
+//    }
 //    implementation(libs.spring.boot)
 //    {
 //        exclude(group = "com.fasterxml.jackson.core")
 //    }
 
-}
+//}
 
 
 tasks {
@@ -103,7 +93,7 @@ tasks {
         targetCompatibility = "17"
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions{
+        kotlinOptions {
             jvmTarget = "17"
             freeCompilerArgs += "-Xuse-k2" // 启用 K2 编译器
         }

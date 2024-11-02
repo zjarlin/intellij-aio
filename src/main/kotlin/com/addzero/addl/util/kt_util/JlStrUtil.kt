@@ -26,16 +26,16 @@ object JlStrUtil {
         }.toMap()
     }
 
-    /**
-     *提取markdown代码块中的内容
-     * @param [markdown]
-     * @return [String]
-     */
-    fun extractMarkdownBlockContent(markdown: String): String {
-        val regex = Regex("```\\w*\\s*(.*?)\\s*```", RegexOption.DOT_MATCHES_ALL)
-        val matchResult = regex.find(markdown)
-        return matchResult?.groups?.get(1)?.value?.trim() ?: ""
-    }
+//    /**
+//     *提取markdown代码块中的内容
+//     * @param [markdown]
+//     * @return [String]
+//     */
+//    fun extractMarkdownBlockContent(markdown: String): String {
+//        val regex = Regex("```\\w*\\s*(.*?)\\s*```", RegexOption.DOT_MATCHES_ALL)
+//        val matchResult = regex.find(markdown)
+//        return matchResult?.groups?.get(1)?.value?.trim() ?: ""
+//    }
 
 }
 

@@ -1,6 +1,6 @@
-import GenerationCallEarlyStop.modelName
 import com.addzero.addl.action.StructuredInputDialog
 import com.addzero.addl.ai.consts.ChatModels.OLLAMA
+import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
@@ -8,7 +8,7 @@ import com.addzero.addl.util.Pojo2JsonUtil
 import com.addzero.addl.util.ShowSqlUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
-import com.addzero.ai.modules.ai.util.ai.ai_abs_builder.AiUtil
+import com.addzero.addl.util.kt_util.Psi2Json
 import com.addzero.common.kt_util.isNotBlank
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -22,6 +22,7 @@ import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 
 class StructuredOutput : AnAction() {
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project
         val editor = e.getData(PlatformDataKeys.EDITOR)
@@ -65,45 +66,21 @@ class StructuredOutput : AnAction() {
         }
     }
 
-    private fun callStructuredOutputInterface2(
-        project: Project,
-        question: String,
-        promptTemplate: String,
-    ): String {
-
-        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
-        val any = if (ktClass == null) {
-            psiClass ?: return ""
-            val (jsonString, buildStructureOutPutPrompt) = javaPromt(psiClass!!, project, question, promptTemplate)
-            val ask = AiUtil(modelName = modelName, "你好", promptTemplate).ask("", "")
-            ask
-        } else {
-            ""
-        }
-        return any
-    }
 
     private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
         val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
-        val settings = SettingContext.settings
-        val modelName = if (settings.modelManufacturer == OLLAMA) {
-            settings.modelNameOffline
-        } else {
-            settings.modelNameOnline
-
-        }
+        val (modelKey, modelManufacturer, modelNameOnline, ollamaUrl, modelNameOffline, temPerature, dbType) = SettingContext.settings
 
         val any = if (ktClass == null) {
             psiClass ?: return ""
             val (jsonString, buildStructureOutPutPrompt) = javaPromt(
                 psiClass!!, project, question, promptTemplate
             )
-
-            val ask =
-                AiUtil(modelName = modelName, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
+            val ask = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
             ask
         } else {
-
+//            val jsonobj = Psi2Json.ktClassToJson(ktClass, project)
+//            val jsonString = jsonobj.toJson()
             val generateMap = Pojo2Json4ktUtil.generateMap(ktClass, project)
             val jsonString = generateMap.toJson()
             val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
@@ -114,8 +91,7 @@ class StructuredOutput : AnAction() {
             val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(
                 question, promptTemplate, buildStructureOutPutPrompt, buildStructureOutPutPrompt
             )
-            val ask1 =
-                AiUtil(modelName = modelName, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
+            val ask1 = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
             ask1
         }
 
@@ -131,6 +107,9 @@ class StructuredOutput : AnAction() {
         question: String,
         promptTemplate: String,
     ): Pair<String, String> {
+//        val psiClassToJson = Psi2Json.psiClassToJson(psiClass, project)
+//        val jsonString = psiClassToJson.toJson()
+
         val generateMap = Pojo2JsonUtil.generateMap(psiClass, project)
         val jsonString = generateMap.toJson()
         val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)

@@ -94,7 +94,7 @@ object DDLContextFactory4JavaMetaInfo {
         val genericType = field.genericType
         val fieldComment = field.comment
         val databaseDDLGenerator = getDatabaseDDLGenerator(databaseType)
-        val javaFieldMetaInfo = JavaFieldMetaInfo(fieldName, javaType, genericType as Class<*>, fieldComment)
+        val javaFieldMetaInfo = JavaFieldMetaInfo(fieldName, javaType, genericType, fieldComment)
         val colType = databaseDDLGenerator.mapTypeByJavaType(javaFieldMetaInfo)
         val length = getLength(javaFieldMetaInfo)
         val isPrimaryKey = BaseMetaInfoUtil.isPrimaryKey(fieldName)

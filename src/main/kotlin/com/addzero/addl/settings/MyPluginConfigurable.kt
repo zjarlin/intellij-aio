@@ -132,7 +132,7 @@ class MyPluginConfigurable : Configurable {
             val currentValue = field.get(settings)
             val newValue = when (component) {
                 is JTextField -> component.text
-                is JComboBox<*> -> component.selectedItem ?: "" as String
+                is JComboBox<*> -> component.selectedItem ?: ""
                 is JTextArea -> component.text
                 else -> null
             }

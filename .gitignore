@@ -1,6 +1,7 @@
 HELP.md
 .gradle
 build/
+gradle/wrapper/gradle-8.10.2-all.zip
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

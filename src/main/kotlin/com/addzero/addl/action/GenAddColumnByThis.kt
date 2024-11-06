@@ -43,7 +43,12 @@ class GenAddColumnByThis : AnAction() {
         val s = generateCreateTableDDL + lineSeparator + lineSeparator + sql
 
         // 将生成的 SQL 语句写入到新的文件并打开
-        ShowSqlUtil.openSqlInEditor(project, s, "alter_table_${ddlContext .tableEnglishName}", ".sql")
+        ShowSqlUtil.openTextInEditor(
+            project,
+            s,
+            "alter_table_${ddlContext .tableEnglishName}",
+            ".sql"
+        )
     }
 
     // 根据 PsiClass 生成 DDLContext 对象

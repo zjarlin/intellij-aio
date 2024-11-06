@@ -43,7 +43,7 @@ object AiCtx {
     ): StructureOutPutPrompt {
 
 
-        val que = "{question}"
+        val que = "the context question is :  {question}---"
         if (promptTemplate.isBlank() && formatJson.isBlank()) {
             val promptTemplate1 = promptTemplate.cleanBlank()
             val promptTemplate2 = StrUtil.addPrefixIfNot(promptTemplate1, que)

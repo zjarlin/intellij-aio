@@ -19,6 +19,8 @@ import quesDba
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GridLayout
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
@@ -211,6 +213,9 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
 
     private fun fieldsJPanel(): JPanel {
+
+
+
         fieldsTableModel = FieldsTableModel()
         fieldsTable = JBTable(fieldsTableModel)
 
@@ -256,12 +261,47 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         val buttonPanel = JPanel() // 用于放置按钮
         buttonPanel.add(deleteButton)
 
+
+        // 添加粘贴按钮
+        val pasteButton = JButton("粘贴内容")
+        pasteButton.addActionListener {
+            pasteFromClipboard()
+        }
+        buttonPanel.add(pasteButton)
+
+
+
+
+
         val tablePanel = JPanel(BorderLayout())
         tablePanel.add(JScrollPane(fieldsTable), BorderLayout.CENTER)
         tablePanel.add(buttonPanel, BorderLayout.SOUTH) // 添加按钮面板
 
         tablePanel.preferredSize = Dimension(600, 200)
         return tablePanel
+    }
+    private fun pasteFromClipboard() {
+        val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+        val clipboardContent = clipboard.getData(DataFlavor.stringFlavor) as? String ?: return
+
+        // 解析剪贴板内容
+        val rows = clipboardContent.split("\n").filter { it.isNotBlank() }
+
+        for (row in rows) {
+            val columns = row.split("\t")
+            if (columns.isNotEmpty()) {
+                val javaType = columns.getOrElse(0) { "" }
+                val colName = columns.getOrElse(1) { "" }
+                val colComment = columns.getOrElse(2) { "" }
+                val fieldDTO = FieldDTO(
+                    javaType,colName,colComment,
+                )
+                fieldsTableModel?.addField(fieldDTO)
+            }
+        }
+
+        // 更新表格
+        fieldsTableModel?.fireTableDataChanged()
     }
 
     private fun deleteSelectedRows() {

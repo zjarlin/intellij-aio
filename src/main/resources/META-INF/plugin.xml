@@ -17,6 +17,12 @@
 
     <change-notes><![CDATA[
     <h3>English:</h3>
+
+   <h3>Version 1.6</h3>
+
+   < li > add structural output capability, call out generate context, and convert natural language into Json format corresponding to the current class < /li >
+
+
    <h3>Version 1.5</h3>
 <ul>
     <li>Context menu generation of ADD COLUMN statements now supports entities of the Jimmer</li>
@@ -52,6 +58,10 @@
 
     <h3>中文：</h3>
 
+   <h3>Version 1.6</h3>
+    <ul>
+        <li>新增结构化输出能力,呼出generate上下文,将自然语言转为当前类对应的Json格式</li>
+    </ul>
 
     <h3>Version 1.5</h3>
     <ul>
@@ -92,6 +102,7 @@
     <description><![CDATA[
     <h3>English:</h3>
 <ul>
+    <li>DataAgentWithStructuredOutput</li>
 <li>In IntelliJ IDEA, the CREATE TABLE statements can also be generated conveniently Users can choose to utilize the capabilities of large language models to initially generate structured form for creating tables (hereinafter referred to as the form cell metadata J for creating tables).</li>
 <li>For the form metadata J, users can still make secondary edits.</li>
 <li>-------</li>
@@ -106,6 +117,7 @@
 </ul>
 <h3>中文：</h3>
     <ul>
+    <li>DataAgentWithStructuredOutput</li>
     <li>在IntelliJ IDEA中你可以便捷地生成建表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
     <li>对于表单的元数据J ,用户仍可以二次编辑</li>
    <li>-------</li>
@@ -150,18 +162,25 @@
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
         </action>
-        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
-                description="GenStructuredOutput">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
-        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
-                description="在当前实体右键生成加列语句">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
-        </action>
         <!--        <action id="StructuredOutput" class="com.addzero.addl.action.StructuredOutput" text="StructuredOutput"-->
         <!--                description="StructuredOutput">-->
         <!--            <add-to-group group-id="EditSelectWordGroup" anchor="first"/>-->
         <!--        </action>-->
+        <action id="GenExcelDTO"
+                class="com.addzero.addl.action.exceldto.GenEasyExcelDTO"
+                text="根据当前实体生成EasyExcel实体" description="根据当前实体生成EasyExcel实体">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+        <action id="GenStructuredOutput" class="StructuredOutput" text="根据当前实体并依据剪切板内容转为Json格式"
+                description="根据当前实体并依据剪切板内容转为Json格式">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="根据当前实体生成DDL语句"
+                description="根据当前实体生成DDL语句">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
+        </action>
     </actions>
 </idea-plugin>

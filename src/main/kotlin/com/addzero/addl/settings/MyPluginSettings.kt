@@ -49,7 +49,7 @@ data class MyPluginSettings(
 //    @ConfigField(
 //        label = "温度(0<=Temperature < =1)"
 //    )
-    @JvmField var temPerature: String = "0.1",
+    @JvmField var temPerature: String = "0.4",
 
 
     @ConfigField(

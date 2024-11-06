@@ -1,5 +1,6 @@
 package com.addzero.addl.util
 
+import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.StrUtil
 import cn.hutool.extra.pinyin.PinyinUtil
 import java.util.*
@@ -105,7 +106,7 @@ object JlStrUtil {
      * @return [String]
      */
     fun extractMarkdownBlockContent(markdown: String): String {
-        if (markdown.containsAny("json","```")) {
+        if (markdown.containsAny("json", "```")) {
             val regex = Regex("```\\w*\\s*(.*?)\\s*```", RegexOption.DOT_MATCHES_ALL)
             val matchResult = regex.find(markdown)
             return matchResult?.groups?.get(1)?.value?.trim() ?: ""
@@ -120,4 +121,15 @@ object JlStrUtil {
 fun CharSequence.containsAny(vararg testStrs: CharSequence): Boolean {
     val containsAny = StrUtil.containsAny(this, *testStrs)
     return containsAny
+}
+
+fun String.getParentPathAndmkdir(childPath: String): String {
+    val parent1 = FileUtil.getParent(this, 1)
+    //            val parent2 = FileUtil.getParent(filePath, 2)
+    //            val parent3 = FileUtil.getParent(filePath, 0)
+    val mkParentDirs = FileUtil.mkdir("$parent1/$childPath")
+    //            val canonicalPath = virtualFile.canonicalPath
+    //            val parent = psiFile!!.parent
+    val filePath1 = mkParentDirs.path
+    return filePath1
 }

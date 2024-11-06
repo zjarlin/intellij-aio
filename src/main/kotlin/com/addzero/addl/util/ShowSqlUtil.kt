@@ -32,14 +32,20 @@ object ShowSqlUtil {
         )
     }
 
-    fun openSqlInEditor(project: Project?, sql: String, sqlPrefix: String = "", fileTypeSuffix: String) {
+    fun openTextInEditor(
+        project: Project?,
+        sql: String,
+        sqlPrefix: String = "",
+        fileTypeSuffix: String,
+        filePath: String?="${project!!.basePath}/.autoddl"
+    ) {
         if (sql.isBlank()) {
             showErrorMsg("生成出错啦")
             return
         }
         WriteCommandAction.runWriteCommandAction(project) {
             // 定义 .autoddl 目录
-            val autoddlDirectory = File(project!!.basePath, ".autoddl")
+            val autoddlDirectory = File(filePath)
             // 确保 .autoddl 目录存在
             if (!autoddlDirectory.exists()) {
                 autoddlDirectory.mkdir()

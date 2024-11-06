@@ -1,3 +1,6 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
@@ -5,7 +8,8 @@ plugins {
 }
 
 group = "com.addzero"
-version = "1.5.3"
+val currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+version =currentDate
 configurations.all {
     resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
 }
@@ -109,6 +113,7 @@ tasks {
         privateKey.set(System.getenv("PRIVATE_KEY"))
         password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
     }
+
 
     publishPlugin {
         token.set(System.getenv("PUBLISH_TOKEN"))

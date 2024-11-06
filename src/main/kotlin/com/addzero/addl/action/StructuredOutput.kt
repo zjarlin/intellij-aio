@@ -1,5 +1,4 @@
 import com.addzero.addl.action.StructuredInputDialog
-import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
 import com.addzero.addl.ktututil.toJson
@@ -8,7 +7,6 @@ import com.addzero.addl.util.Pojo2JsonUtil
 import com.addzero.addl.util.ShowSqlUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
-import com.addzero.addl.util.kt_util.Psi2Json
 import com.addzero.common.kt_util.isNotBlank
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -48,8 +46,8 @@ class StructuredOutput : AnAction() {
             }
             if (response.isNotBlank()) {
                 // 在新文件中打开响应结果
-                ShowSqlUtil.openSqlInEditor(
-                    project, response, fileTypeSuffix = ".json", sqlPrefix = "Structured"
+                ShowSqlUtil.openTextInEditor(
+                    project, response, sqlPrefix = "Structured", fileTypeSuffix = ".json"
                 )
             }
 

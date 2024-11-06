@@ -14,7 +14,11 @@ class FieldsTableModel : DefaultTableModel() {
     }
 
     override fun getRowCount(): Int {
-        return fields.size
+       return if (fields == null) {
+            0
+        } else {
+            fields!!.size
+        }
     }
 
     override fun getValueAt(rowIndex: Int, columnIndex: Int): Any? {

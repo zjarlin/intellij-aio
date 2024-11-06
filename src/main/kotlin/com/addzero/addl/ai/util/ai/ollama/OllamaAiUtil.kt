@@ -57,15 +57,22 @@ class OllamaAiUtil(modelName: String, question: String, promptTemplate: String =
 
     override fun ask(clazz: Class<*>): String {
         val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(question, promptTemplate, clazz)
-        val format = StrUtil.format(newPrompt, quesCtx)
-        val askqwen = askollama(question, format)
-        return askqwen ?: ""
+//        val format = StrUtil.format(newPrompt, quesCtx)
+//        val askqwen = askollama(question, format)
+
+
+        val ask = ask(newPrompt, quesCtx)
+        return ask
+
+
+//        return askqwen ?: ""
 
     }
 
     override fun ask(json: String, comment: String): String {
         val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(question, promptTemplate, json, comment)
-        return ask(newPrompt, quesCtx)
+        val ask = ask(newPrompt, quesCtx)
+        return ask
     }
 
     private fun ask(newPrompt: String, quesCtx: Map<String, String?>): String {

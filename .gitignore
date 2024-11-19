@@ -1,6 +1,10 @@
 HELP.md
 .gradle
+.autoddl
+.xcodemap
+.DS_Store
 build/
+.idea
 gradle/wrapper/gradle-8.10.2-all.zip
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -19,7 +23,6 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-.idea
 .fastRequest
 *.iws
 *.iml

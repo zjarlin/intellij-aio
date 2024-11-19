@@ -2,45 +2,44 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    id("java")
+//    id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
-    id("org.jetbrains.intellij") version "1.17.4"
+    id("org.jetbrains.intellij") version "latest.release"
+//    id("org.jetbrains.intellij.platform") version "2.1.0"
 }
+
+//pluginManagement {
+//    repositories {
+//        maven("https://oss.sonatype.org/content/repositories/snapshots/")
+//        gradlePluginPortal()
+//    }
+//}
 
 group = "com.addzero"
 val currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-version =currentDate
+version = "1.6.1"
 configurations.all {
     resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
 }
 repositories {
+    mavenCentral()
+
     mavenLocal()
     maven { url = uri("https://maven.aliyun.com/repository/public/") }
     maven { url = uri("https://mirrors.huaweicloud.com/repository/maven/") }
     maven { url = uri("https://repo.spring.io/snapshot") }
     maven { url = uri("https://repo.spring.io/milestone") }
-    mavenCentral()
 }
 
 intellij {
-//    version.set("2022.2")
-//    type.set("IC") // Target IDE Platform
     plugins.set(
         listOf(
             "com.intellij.java", "org.jetbrains.kotlin"
         )
     )
-
-
 //    localPath.set(ideahome)
     version.set("2023.2.6")
     type.set("IC") // Target IDE Platform
-//    plugins.set(
-//        listOf(
-//    "com.intellij.java", "org.jetbrains.kotlin"
-
-//        )
-//    )
 }
 //dependencyManagement {
 //    imports {

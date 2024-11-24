@@ -2,7 +2,7 @@ package com.addzero.addl.action.exceldto
 
 import JavaExcelEntityGenerator
 import KotlinExcelEntityGenerator
-import com.addzero.addl.util.ShowSqlUtil
+import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.addzero.addl.util.getParentPathAndmkdir
 import com.addzero.common.kt_util.addSuffixIfNot
@@ -23,18 +23,18 @@ class GenEasyExcelDTO : AnAction() {
 
             val filePath = virtualFile.path
             val filePath1 = filePath.getParentPathAndmkdir("dto")
-            ShowSqlUtil.openTextInEditor(
+            ShowContentUtil.openTextInEditor(
                 project, let!!, addSuffixIfNot, ".java", filePath1
             )
             return
         }
         val generateKotlinEntity = KotlinExcelEntityGenerator().generateKotlinEntity(ktClass!!, project)
         val name = ktClass?.name
-        val addSuffixIfNot = name.addSuffixIfNot("ExcelDTO")
         val filePath = virtualFile.path
         val filePath1 = filePath.getParentPathAndmkdir("dto")
-        ShowSqlUtil.openTextInEditor(
-            project, generateKotlinEntity, addSuffixIfNot, ".kt", filePath1
+
+        ShowContentUtil.openTextInEditor(
+            project, generateKotlinEntity, name.addSuffixIfNot("ExcelDTO"), ".kt", filePath1
         )
     }
 

@@ -4,7 +4,7 @@ import com.addzero.addl.ai.util.ai.ctx.AiCtx
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.Pojo2JsonUtil
-import com.addzero.addl.util.ShowSqlUtil
+import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.addzero.common.kt_util.isNotBlank
@@ -41,12 +41,12 @@ class StructuredOutput : AnAction() {
                 val callStructuredOutputInterface2 = callStructuredOutputInterface(project, question, promptTemplate)
                 callStructuredOutputInterface2
             } catch (e: Exception) {
-                ShowSqlUtil.showErrorMsg(e.message!!)
+                ShowContentUtil.showErrorMsg(e.message!!)
                 ""
             }
             if (response.isNotBlank()) {
                 // 在新文件中打开响应结果
-                ShowSqlUtil.openTextInEditor(
+                ShowContentUtil.openTextInEditor(
                     project, response, sqlPrefix = "Structured", fileTypeSuffix = ".json"
                 )
             }

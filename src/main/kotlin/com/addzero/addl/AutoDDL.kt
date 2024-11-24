@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4UserInputMetaInfo
-import com.addzero.addl.util.ShowSqlUtil
+import com.addzero.addl.util.ShowContentUtil
 import com.alibaba.fastjson2.JSON
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -31,7 +31,7 @@ class AutoDDL : AnAction() {
             val ddlResult = genDDL(formDTO)
             // 使用 IntelliJ 内置的 SQL 编辑器显示 SQL 语句
 //         ShowSqlUtil.   showDDLInTextField(project, ddlResult)
-            ShowSqlUtil.openTextInEditor(
+            ShowContentUtil.openTextInEditor(
                 project,
                 ddlResult,
                 "create_table_${formDTO.tableEnglishName}",

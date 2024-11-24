@@ -13,7 +13,7 @@ import javax.swing.JFrame
 import javax.swing.JOptionPane
 
 
-object ShowSqlUtil {
+object ShowContentUtil {
 
     fun showErrorMsg(message: String) {
         // 获取当前活跃的 Window，如果没有活跃的窗口，将创建一个新的顶层窗口
@@ -37,7 +37,7 @@ object ShowSqlUtil {
         sql: String,
         sqlPrefix: String = "",
         fileTypeSuffix: String,
-        filePath: String?="${project!!.basePath}/.autoddl"
+        filePath: String? = "${project!!.basePath}/.autoddl",
     ) {
         if (sql.isBlank()) {
             showErrorMsg("生成出错啦")
@@ -64,19 +64,5 @@ object ShowSqlUtil {
         }
     }
 
-    fun showDDLInTextField(project: Project?, ddlResult: String) {
-        // 创建一个文本域
-        val textField = JBTextField(ddlResult)
-
-        // 调用showTextAreaDialog
-        val delimiters = System.lineSeparator()
-        Messages.showTextAreaDialog(textField,                        // 第一个参数为JTextField
-            "Generated DDL",                  // 窗口标题
-            "SQL Output",                     // DimensionServiceKey
-            { input -> input.split(delimiters) },   // parser: 将输入按行解析成List
-            { lines -> lines.joinToString(delimiters) }
-//               lineJoiner: 将List连接成字符串
-        )
-    }
 
 }

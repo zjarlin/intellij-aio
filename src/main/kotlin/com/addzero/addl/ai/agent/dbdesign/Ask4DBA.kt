@@ -3,9 +3,7 @@ import com.addzero.addl.FormDTO
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.Promt.DBA
 import com.addzero.addl.ktututil.parseObject
-import com.addzero.addl.util.Dba
-import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
-import com.addzero.addl.util.ShowSqlUtil.showErrorMsg
+import com.addzero.addl.util.ShowContentUtil.showErrorMsg
 
 
 data class Qwendto(

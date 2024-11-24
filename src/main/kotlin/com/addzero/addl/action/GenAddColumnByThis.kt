@@ -7,7 +7,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.settings.MyPluginSettingsService
-import com.addzero.addl.util.ShowSqlUtil
+import com.addzero.addl.util.ShowContentUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
@@ -43,7 +43,7 @@ class GenAddColumnByThis : AnAction() {
         val s = generateCreateTableDDL + lineSeparator + lineSeparator + sql
 
         // 将生成的 SQL 语句写入到新的文件并打开
-        ShowSqlUtil.openTextInEditor(
+        ShowContentUtil.openTextInEditor(
             project,
             s,
             "alter_table_${ddlContext .tableEnglishName}",

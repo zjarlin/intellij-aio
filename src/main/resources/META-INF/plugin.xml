@@ -168,17 +168,17 @@
         <!--        </action>-->
         <action id="GenExcelDTO"
                 class="com.addzero.addl.action.exceldto.GenEasyExcelDTO"
-                text="根据当前实体生成EasyExcel实体" description="根据当前实体生成EasyExcel实体">
+                text="GenEasyExcelDTO" description="GenEasyExcelDTO">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
         </action>
 
-        <action id="GenStructuredOutput" class="StructuredOutput" text="根据当前实体并依据剪切板内容转为Json格式"
-                description="根据当前实体并依据剪切板内容转为Json格式">
+        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
+                description="GenStructuredOutput">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
         </action>
 
-        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="根据当前实体生成DDL语句"
-                description="根据当前实体生成DDL语句">
+        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
+                description="GenAddColumnByThis">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
         </action>

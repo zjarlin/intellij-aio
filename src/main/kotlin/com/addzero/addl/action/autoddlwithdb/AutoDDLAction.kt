@@ -1,11 +1,12 @@
 package com.addzero.addl.action.autoddlwithdb
 
-import com.addzero.addl.action.autoddlwithdb.scanner.findAllEntityClasses
+import com.addzero.addl.action.autoddlwithdb.scanner.findktEntityClasses
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.toDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
+import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.ShowContentUtil
@@ -137,10 +138,9 @@ class AutoDDLAction : AnAction() {
         val scanPkg = SettingContext.settings.scanPkg
         val dbType = SettingContext.settings.dbType
         //        val scanPkg = ""
-        val findAllEntityClasses = findAllEntityClasses(project)
+        val findAllEntityClasses = findktEntityClasses(project)
         val map = findAllEntityClasses.map {
-            val createDDLContext = createDDLContext(it, dbType)
-
+            val createDDLContext = createDDLContext4KtClass(it, dbType)
             createDDLContext
         }
         return map

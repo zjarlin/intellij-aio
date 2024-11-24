@@ -1,40 +1,38 @@
 package com.addzero.addl.action.autoddlwithdb.scanner
 
-import com.addzero.addl.settings.SettingContext
+import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.project.Project
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiClass
-import org.jetbrains.kotlin.asJava.toLightClass
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiManager
+import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea.base.util.KOTLIN_FILE_TYPES
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 
-fun findAllEntityClasses(project: Project): List<PsiClass> {
-    val scanPkg = SettingContext.settings.scanPkg
-    val javaChecker = JavaEntityAnnotationChecker()
+fun findktEntityClasses( project: Project): List<KtClass> {
+    val files1 = FileTypeIndex.getFiles( KotlinFileType.INSTANCE, GlobalSearchScope .projectScope(project))
     val kotlinChecker = KotlinEntityAnnotationChecker()
-
-    // 获取 JavaPsiFacade 实例
-    val javaPsiFacade = JavaPsiFacade.getInstance(project)
-    val psiPackage = javaPsiFacade.findPackage(scanPkg) ?: return emptyList()
-
-    val entityClasses = mutableListOf<PsiClass>()
-
-    // 遍历所有目录
-    psiPackage.directories.forEach { directory ->
-        // 处理 Java 类
-        val files = directory.files
-        files.filterIsInstance<PsiClass>()
-//            .filter { javaChecker.isEntityClass(it) }
-            .forEach { entityClasses.add(it) }
-
-        // 处理 Kotlin 类
-        files.filterIsInstance<KtFile>().forEach { ktFile ->
-            ktFile.declarations.filterIsInstance<KtClass>()
-//                .filter { kotlinChecker.isEntityClass(it) }
-                .mapNotNull { it.toLightClass() }
-                .forEach { entityClasses.add(it) }
-        }
+    val map = files1.flatMap {
+        val findFile = PsiManager.getInstance(project).findFile(it)
+        val b = findFile as KtFile
+        b.declarations.filterIsInstance<KtClass>()
     }
+//    .filter { kotlinChecker.isEntityClass(it) }
 
-    return entityClasses
+    return map
 }
+
+//fun findjavaEntityClasses(pkg: String, project: Project): List<KtClass> {
+//    val files1 = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+//    val kotlinChecker = JavaEntityAnnotationChecker()
+//    val map = files1.flatMap {
+//        val findFile = PsiManager.getInstance(project).findFile(it)
+//        val b = findFile as KtFile
+//        b.declarations.filterIsInstance<KtClass>()
+//    }.filter { kotlinChecker.isEntityClass(it) }
+//
+//    return map
+//}

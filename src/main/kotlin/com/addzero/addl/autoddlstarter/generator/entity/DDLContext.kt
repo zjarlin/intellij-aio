@@ -8,7 +8,8 @@ data class DDLContext(
     val databaseType: String,
     val databaseName: String = "",
     val dto: List<DDlRangeContext>,
-)
+) {
+}
 
 
 data class DDlRangeContext(
@@ -85,11 +86,11 @@ fun mockkDDLContext(): DDLContext {
             javaType = "long",
         ),
     )
-    val createDDLContext =
-        DDLContextFactory4UserInputMetaInfo.createDDLContext("用户表", "sys_user", "mysql", ddlRangeContexts)
+    val createDDLContext = DDLContextFactory4UserInputMetaInfo.createDDLContext("用户表", "sys_user", "mysql", ddlRangeContexts)
     println(createDDLContext)
     return createDDLContext
 }
+
 fun main() {
     val mockkDDLContext = mockkDDLContext()
     println(mockkDDLContext)

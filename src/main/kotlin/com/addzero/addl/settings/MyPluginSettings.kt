@@ -55,6 +55,11 @@ data class MyPluginSettings(
     @ConfigField(
         label = "数据库类型", type = FieldType.DROPDOWN, options = [MYSQL, ORACLE, POSTGRESQL, DM]
     ) @JvmField var dbType: String = MYSQL,
-) {
+
+
+
+    @ConfigField(label = "同步扫包路径") @JvmField var scanPkg: String = "/",
+
+    ) {
 
 }

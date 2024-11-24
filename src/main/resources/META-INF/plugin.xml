@@ -186,8 +186,8 @@
         </action>
         <action id="AutoDDL.WithDB.Generate"
                 class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
-                text="Auto DDL Generate"
-                description="Generate DDL from entities">
+                text="Sync From Pkg"
+                description="Generate and sync database tables from entity package">
             <add-to-group group-id="DatabaseViewPopupMenu" anchor="last"/>
         </action>
     </actions>

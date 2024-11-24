@@ -1,118 +1,177 @@
 package com.addzero.addl.action.autoddlwithdb
 
+import com.addzero.addl.action.autoddlwithdb.scanner.findAllEntityClasses
+import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
+import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
+import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
+import com.addzero.addl.autoddlstarter.generator.entity.toDDLContext
+import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
+import com.addzero.addl.ktututil.JlCollUtil.differenceBy
+import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.ShowContentUtil
+import com.intellij.database.model.DasColumn
+import com.intellij.database.model.DasNamespace
+import com.intellij.database.model.DasTable
 import com.intellij.database.psi.DbDataSource
+import com.intellij.database.psi.DbElement
 import com.intellij.database.psi.DbTable
 import com.intellij.database.util.DasUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
-import com.intellij.psi.*
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiModifier
+import org.jetbrains.annotations.Unmodifiable
 import java.sql.Connection
-import java.sql.DriverManager
 
 class AutoDDLAction : AnAction() {
 
-    override fun update(e: AnActionEvent) {
-        val elements = e.getData(LangDataKeys.PSI_ELEMENT_ARRAY)
-        val visible = elements?.size == 1 && elements[0] is DbDataSource
-        e.presentation.isVisible = visible
+    private lateinit var dataSource: DbDataSource
+
+    /**
+     * 检测是否应该显示菜单项
+     */
+    override fun update(event: AnActionEvent) {
+        val selected = event.getData(LangDataKeys.PSI_ELEMENT_ARRAY)
+        event.presentation.isVisible = selected.shouldShowMainEntry()
+    }
+
+    private fun Array<PsiElement>?.shouldShowMainEntry(): Boolean {
+        if (this == null) {
+            return false
+        }
+        return all {
+            if (it !is DbElement) {
+                return@all false
+            }
+            it.typeName in arrayOf("schema", "database")
+        }
     }
 
     override fun actionPerformed(e: AnActionEvent) {
+        val dbType = SettingContext.settings.dbType
         val project = e.project ?: return
+        val schema = e.getData(LangDataKeys.PSI_ELEMENT) as? DasNamespace ?: return
+        dataSource = findDataSource(schema) ?: return
+        val connectionConfig = dataSource.connectionConfig
 
-        val elements = e.getData(LangDataKeys.PSI_ELEMENT_ARRAY)
-        if (elements == null || elements.size != 1 || elements[0] !is DbDataSource) {
+        val pkgContext = scanDdlContext(project).flatMap { it.toDDLContext() }
+        if (pkgContext.isEmpty()) {
+            ShowContentUtil.showErrorMsg("未扫描到实体结构")
             return
         }
 
-        val dataSource = elements[0] as DbDataSource
 
-        ApplicationManager.getApplication().invokeLater {
-            val dialog = AutoDDLDialog(project)
-            dialog.hideDataSourceSelection()
-            if (!dialog.showAndGet()) {
-                return@invokeLater
-            }
 
-            val packagePath = dialog.selectedPackagePath
+        val ddlContexts = ddlContextsByDataSource(dataSource).flatMap { it.toDDLContext() }
 
-            ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Executing DDL Operations") {
-                override fun run(indicator: ProgressIndicator) {
-                    try {
-                        val url = "jdbc:dm://82.157.77.120:5236"
-                        val username = "SJZYXT"
-                        val password = "sjzyxt2024"
 
-                        indicator.text = "Connecting to database..."
-                        indicator.isIndeterminate = true
+//        pkgContext.differenceBy()
+        // 计算差集
+        val diff = pkgContext.differenceBy(
+            ddlContexts,
+            { a, b -> a.tableEnglishName == b.tableEnglishName },
+            { a, b -> a.colName == b.colName },
+//            { a, b -> a.colType == b.colType },
+        )
 
-                        DriverManager.getConnection(url, username, password).use { connection ->
-                            indicator.text = "Scanning entity classes..."
-                            val entityClasses = scanEntityClasses(project, packagePath)
-
-                            indicator.text = "Loading database metadata..."
-                            val existingTables = getDatabaseTables(dataSource)
-
-                            indicator.text = "Processing DDL operations..."
-                            indicator.isIndeterminate = false
-                            processDDLOperations(connection, entityClasses, existingTables, indicator)
-
-                            invokeLater {
-                                Messages.showInfoMessage(project,
-                                    "DDL operations completed successfully",
-                                    "Success")
-                            }
-                        }
-                    } catch (ex: Exception) {
-                        invokeLater {
-                            Messages.showErrorDialog(project,
-                                "Error: ${ex.message}",
-                                "Error")
-                        }
-                    }
-                }
-            })
+        //判断没有差异就报错
+        if (diff.isEmpty()) {
+            ShowContentUtil.showErrorMsg("实体包路径结构与数据库无差异")
+            return
         }
+
+        val toFlatDDLContext = diff.toDDLContext()
+
+
+        //未来加入实体元数据抽取工厂
+        val databaseDDLGenerator = getDatabaseDDLGenerator(dbType)
+
+
+        val map = toFlatDDLContext.joinToString(System.lineSeparator()) {
+
+            val tableEnglishName = it.tableEnglishName
+
+            //判断表是否存在
+            val isTbaleExit = isTabExit(tableEnglishName)
+
+
+            val sql = if (isTbaleExit) {
+                val addColSql = databaseDDLGenerator.generateAddColDDL(it)
+                addColSql
+            } else {
+                val generateCreateTableDDL = databaseDDLGenerator.generateCreateTableDDL(it)
+                generateCreateTableDDL
+            }
+            sql
+        }
+
+        ShowContentUtil.openTextInEditor(
+            project,
+            map,
+            "diff_ddl",
+            ".sql",
+//            project!!.basePath
+        )
+
     }
 
-    private fun getDatabaseTables(dataSource: DbDataSource): Map<String, DbTable> {
+    private fun ddlContextsByDataSource(dataSource: DbDataSource): @Unmodifiable MutableList<DDLContext> {
+        val dbms = dataSource.dbms
         val tables = DasUtil.getTables(dataSource)
-        val associateBy = tables.filterIsInstance<DbTable>().associateBy { it.name }
-        return associateBy
+
+        // 获取所有表
+        val ddlContexts = tables.map { dbTable ->
+            val columns = DasUtil.getColumns(dbTable).toList()
+            convertToDDLContext(dbTable, columns, dbms.name)
+        }.toList()
+        return ddlContexts
     }
 
-    private fun scanEntityClasses(project: Project, packagePath: String): List<PsiClass> {
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiPackage = JavaPsiFacade.getInstance(project).findPackage(packagePath)
-        val entityClasses = mutableListOf<PsiClass>()
 
-        psiPackage?.classes?.forEach { psiClass ->
-            // 检查是否是实体类（有@Entity或@Table注解）
-            if (isEntityClass(psiClass)) {
-                entityClasses.add(psiClass)
+    private fun scanDdlContext(project: Project): List<DDLContext> {
+        val scanPkg = SettingContext.settings.scanPkg
+        val dbType = SettingContext.settings.dbType
+        //        val scanPkg = ""
+        val findAllEntityClasses = findAllEntityClasses(project)
+        val map = findAllEntityClasses.map {
+            val createDDLContext = createDDLContext(it, dbType)
+
+            createDDLContext
+        }
+        return map
+    }
+
+
+    private fun convertToDDLContext(dbTable: DasTable, columns: List<DasColumn>, dbType: String): DDLContext {
+        return DDLContext(tableChineseName = dbTable.comment ?: dbTable.name, tableEnglishName = dbTable.name, databaseType = dbType, databaseName = dbTable.dasParent?.name ?: "", dto = columns.map { column ->
+            DDlRangeContext(
+                colName = column.name, colType = column.dasType.specification ?: "", colLength = "", colComment = column.comment ?: "", isPrimaryKey = if (DasUtil.isPrimary(column)) "Y" else "N", isSelfIncreasing = if (DasUtil.isAutoGenerated(column)) "Y" else "N"
+            )
+        })
+    }
+
+
+    private fun findDataSource(element: DasNamespace): DbDataSource? {
+        var current: Any? = element
+        while (current != null) {
+            if (current is DbDataSource) {
+                return current
+            }
+            current = when (current) {
+                is DasNamespace -> current.dasParent
+                else -> null
             }
         }
-
-        return entityClasses
+        return null
     }
 
-    private fun isEntityClass(psiClass: PsiClass): Boolean {
-        return psiClass.annotations.any { annotation ->
-            val qualifiedName = annotation.qualifiedName
-            qualifiedName == "javax.persistence.Entity" || qualifiedName == "jakarta.persistence.Entity" || qualifiedName == "javax.persistence.Table" || qualifiedName == "jakarta.persistence.Table"
-        }
-    }
 
-    private fun getTableName(entityClass: PsiClass): String {
+    private fun getEntityTableName(entityClass: PsiClass): String {
         // 首先查找@Table注解
         entityClass.annotations.forEach { annotation ->
             if (annotation.qualifiedName?.endsWith(".Table") == true) {
@@ -134,7 +193,7 @@ class AutoDDLAction : AnAction() {
     }
 
     private fun generateCreateTableSql(entityClass: PsiClass): String {
-        val tableName = getTableName(entityClass)
+        val tableName = getEntityTableName(entityClass)
         val columns = mutableListOf<String>()
 
         // 获取所有字段
@@ -223,14 +282,14 @@ class AutoDDLAction : AnAction() {
         connection: Connection,
         entityClasses: List<PsiClass>,
         existingTables: Map<String, DbTable>,
-        indicator: ProgressIndicator
+        indicator: ProgressIndicator,
     ) {
         val total = entityClasses.size.toDouble()
         entityClasses.forEachIndexed { index, entityClass ->
             indicator.fraction = index / total
             indicator.text2 = "Processing ${entityClass.name}"
 
-            val tableName = getTableName(entityClass)
+            val tableName = getEntityTableName(entityClass)
             if (!existingTables.containsKey(tableName?.toLowerCase())) {
                 val createTableSql = generateCreateTableSql(entityClass)
                 executeDDL(connection, createTableSql)
@@ -248,7 +307,7 @@ class AutoDDLAction : AnAction() {
 
     private fun generateAlterTableSql(entityClass: PsiClass, existingTable: DbTable): List<String> {
         val alterStatements = mutableListOf<String>()
-        val tableName = getTableName(entityClass)
+        val tableName = getEntityTableName(entityClass)
 
         // 获取现有列
         val columns = DasUtil.getColumns(existingTable)
@@ -263,7 +322,7 @@ class AutoDDLAction : AnAction() {
                     val columnDef = generateColumnDefinition(field)
                     alterStatements.add("ALTER TABLE $tableName ADD COLUMN $columnDef;")
                 }
-                // TODO: 可以添加修改列类型的逻辑
+                // TODO: 可以添加修改列类型的辑
             }
         }
 
@@ -275,6 +334,16 @@ class AutoDDLAction : AnAction() {
             connection.createStatement().use { statement ->
                 statement.execute(sql)
             }
+        }
+    }
+
+    private fun isTabExit(tableName: String): Boolean {
+        // 获取所有表
+        val tables = DasUtil.getTables(dataSource)
+
+        // 检查表名是否存在（不区分大小写）
+        return tables.any { table ->
+            table.name.equals(tableName, ignoreCase = true)
         }
     }
 }

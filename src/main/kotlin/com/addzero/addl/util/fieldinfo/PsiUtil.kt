@@ -6,12 +6,18 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
+import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.ui.PlatformIcons
+import org.jetbrains.kotlin.asJava.toLightClass
+import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
@@ -305,10 +311,30 @@ object PsiUtil {
 
         )
 
+
+    fun allpsiCtx(project: Project): PsiCtx {
+        // 获取所有 Kotlin 文件
+        val files = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+        val files1 = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+
+        files.map {
+            val psiFile = PsiManager.getInstance(project).findFile(it)
+            if (psiFile is KtFile) {
+                val toList = psiFile.declarations.filterIsInstance<KtClass>().toList()
+            }
+        }
+        return TODO("提供返回值")
+    }
+
+
+
     fun psiCtx(project: Project): PsiCtx {
-        val editor = FileEditorManager.getInstance(project).selectedTextEditor
+        val instance = FileEditorManager.getInstance(project)
+
+
+        val editor = instance.selectedTextEditor
         //        val virtualFile = editor.virtualFile
-        val virtualFile = FileEditorManager.getInstance(project).getSelectedEditor()?.file
+        val virtualFile = instance.getSelectedEditor()?.file
 
         val psiFile = PsiManager.getInstance(project).findFile(virtualFile!!)
 

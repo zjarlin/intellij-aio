@@ -5,6 +5,7 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
 class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
@@ -35,24 +36,30 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         }
 """
 
+        val settings = SettingContext.settings
+        val id = settings.id
+        val createBy = settings.createBy
+        val updateBy = settings.updateBy
+        val createTime = settings.createTime
+        val updateTime = settings.updateTime
 
         val createTableSQL = """
     create table "$tableEnglishName" (
-        "id" varchar(64) primary key,
-        "create_by" varchar(255) ,
-        "update_by" varchar(255) ,
-        "create_time" timestamp ,
-        "update_time" timestamp ,
+        "$id" varchar(64) primary key,
+        "$createBy" varchar(255) ,
+        "$updateBy" varchar(255) ,
+        "$createTime" timestamp ,
+        "$updateTime" timestamp ,
 $cols       
     );
     comment on table "$tableEnglishName" is '$tableChineseName';
  ${
             """
-            comment on column $tableEnglishName.id is '主键';
-            comment on column $tableEnglishName.create_by is '创建者';
-            comment on column $tableEnglishName.create_time is '创建时间';
-            comment on column $tableEnglishName.update_by is '更新者';
-            comment on column $tableEnglishName.update_time is '更新时间'; 
+            comment on column $tableEnglishName.$id is '主键';
+            comment on column $tableEnglishName.$createBy is '创建者';
+            comment on column $tableEnglishName.$createTime is '创建时间';
+            comment on column $tableEnglishName.$updateBy is '更新者';
+            comment on column $tableEnglishName.$updateTime is '更新时间'; 
             """.trimIndent()
         }
     $colsComments

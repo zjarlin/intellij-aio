@@ -5,6 +5,7 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
 class OracleDDLGenerator : DatabaseDDLGenerator() {
@@ -17,14 +18,21 @@ class OracleDDLGenerator : DatabaseDDLGenerator() {
         } else {
             "\"$databaseName\".\"${tableEnglishName.uppercase()}\""
         }
+        val settings = SettingContext.settings
+
+        val id = settings.id
+        val createBy = settings.createBy
+        val updateBy = settings.updateBy
+        val createTime = settings.createTime
+        val updateTime = settings.updateTime
 
         val createTableSQL = """
     CREATE TABLE $tableRef (
-        "ID" VARCHAR(64) NOT NULL,
-        "CREATE_BY" VARCHAR2(255) NOT NULL,
-        "UPDATE_BY" VARCHAR2(255) NOT NULL,
-        "CREATE_TIME" TIMESTAMP,
-        "UPDATE_TIME" TIMESTAMP,
+        "$id" VARCHAR(64) NOT NULL,
+        "$createBy" VARCHAR2(255) NOT NULL,
+        "$updateBy" VARCHAR2(255) NOT NULL,
+        "$createTime" TIMESTAMP,
+        "$updateTime" TIMESTAMP,
         ${
             dto.joinToString(System.lineSeparator()) {
                 """
@@ -44,12 +52,24 @@ class OracleDDLGenerator : DatabaseDDLGenerator() {
             COMMENT ON COLUMN $tableRef."${it.colName.uppercase()}" IS '${it.colComment}';
             """.trimIndent()
         }
+        val base = """
+            COMMENT ON COLUMN $tableRef.$id IS '主键';
+            COMMENT ON COLUMN $tableRef.$createBy IS '创建者';
+            COMMENT ON COLUMN $tableRef.$createTime IS '创建时间';
+            COMMENT ON COLUMN $tableRef.$updateBy IS '更新者';
+            COMMENT ON COLUMN $tableRef.$updateTime IS '更新时间'; 
+"""
 
-        return "$createTableSQL\n$comments"
+
+        val join = StrUtil.join(System.lineSeparator(), createTableSQL, base, comments)
+
+        return join
     }
 
     override fun generateAddColDDL(ddlContext: DDLContext): String {
         val (tableChineseName, tableEnglishName, databaseType, databaseName, dto) = ddlContext
+
+
         val dmls = dto.joinToString(System.lineSeparator()) {
 
             val tableRef = if (databaseName.isBlank()) {

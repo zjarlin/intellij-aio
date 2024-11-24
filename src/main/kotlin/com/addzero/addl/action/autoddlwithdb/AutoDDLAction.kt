@@ -10,6 +10,7 @@ import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaM
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.ShowContentUtil
+import com.addzero.addl.util.Vars
 import com.intellij.database.model.DasColumn
 import com.intellij.database.model.DasNamespace
 import com.intellij.database.model.DasTable
@@ -58,8 +59,6 @@ class AutoDDLAction : AnAction() {
         val project = e.project ?: return
         val schema = e.getData(LangDataKeys.PSI_ELEMENT) as? DasNamespace ?: return
         dataSource = findDataSource(schema) ?: return
-        val connectionConfig = dataSource.connectionConfig
-
         val pkgContext = scanDdlContext(project).flatMap { it.toDDLContext() }
         if (pkgContext.isEmpty()) {
             ShowContentUtil.showErrorMsg("未扫描到实体结构")
@@ -75,8 +74,8 @@ class AutoDDLAction : AnAction() {
         // 计算差集
         val diff = pkgContext.differenceBy(
             ddlContexts,
-            { a, b -> a.tableEnglishName == b.tableEnglishName },
-            { a, b -> a.colName == b.colName },
+            { a, b -> a.tableEnglishName.uppercase() == b.tableEnglishName.uppercase() },
+            { a, b -> a.colName.uppercase() == b.colName.uppercase() },
 //            { a, b -> a.colType == b.colType },
         )
 
@@ -114,7 +113,7 @@ class AutoDDLAction : AnAction() {
         ShowContentUtil.openTextInEditor(
             project,
             map,
-            "diff_ddl",
+            Vars.timePrefix+"diff_ddl.sql",
             ".sql",
 //            project!!.basePath
         )
@@ -135,7 +134,6 @@ class AutoDDLAction : AnAction() {
 
 
     private fun scanDdlContext(project: Project): List<DDLContext> {
-        val scanPkg = SettingContext.settings.scanPkg
         val dbType = SettingContext.settings.dbType
         //        val scanPkg = ""
         val findAllEntityClasses = findktEntityClasses(project)

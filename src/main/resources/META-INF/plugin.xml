@@ -186,9 +186,9 @@
         </action>
         <action id="AutoDDL.WithDB.Generate"
                 class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
-                text="Sync From Pkg"
+                text="Sync Database Tables From All Entities"
                 description="Generate and sync database tables from entity package">
-            <add-to-group group-id="DatabaseViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>
         </action>
     </actions>
 </idea-plugin>

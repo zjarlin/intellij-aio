@@ -4,12 +4,12 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.*
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
 fun main() {
     mockkDDLContext()
 }
-
 
 
 class DMSQLDDLGenerator : DatabaseDDLGenerator() {
@@ -23,13 +23,20 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
             "\"$databaseName\".\"${tableEnglishName.uppercase()}\""
         }
 
+        val settings = SettingContext.settings
+        val id = settings.id
+        val createBy = settings.createBy
+        val updateBy = settings.updateBy
+        val createTime = settings.createTime
+        val updateTime = settings.updateTime
+
         val createTableSQL = """
     CREATE TABLE $tableRef (
-        "ID" VARCHAR2(64) NOT NULL,
-        "CREATE_BY" VARCHAR2(255) NOT NULL,
-        "UPDATE_BY" VARCHAR2(255) NOT NULL,
-        "CREATE_TIME" TIMESTAMP,
-        "UPDATE_TIME" TIMESTAMP,
+        "$id" VARCHAR2(64) NOT NULL,
+        "$createBy" VARCHAR2(255) NOT NULL,
+        "$updateBy" VARCHAR2(255) NULL,
+        "$createTime" TIMESTAMP,
+        "$updateTime" TIMESTAMP,
         ${
             dto.joinToString(System.lineSeparator()) {
                 """
@@ -43,6 +50,7 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
     COMMENT ON TABLE "$tableEnglishName" IS '$tableChineseName';
     """.trimIndent()
 
+
         // 添加字段注释
         val comments = dto.joinToString(System.lineSeparator()) {
             """
@@ -50,20 +58,14 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
             """.trimIndent()
         }
 
-        return """$createTableSQL
-       ${
-            """
-            COMMENT ON COLUMN $tableRef.ID IS '主键';
-            COMMENT ON COLUMN $tableRef.CREATE_BY IS '创建者';
-            COMMENT ON COLUMN $tableRef.CREATE_TIME IS '创建时间';
-            COMMENT ON COLUMN $tableRef.UPDATE_BY IS '更新者';
-            COMMENT ON COLUMN $tableRef.UPDATE_TIME IS '更新时间'; 
-            """.trimIndent()
-        }
-$comments
-
-
+        val base = """
+            COMMENT ON COLUMN $tableRef.$id IS '主键';
+            COMMENT ON COLUMN $tableRef.$createBy IS '创建者';
+            COMMENT ON COLUMN $tableRef.$createTime IS '创建时间';
+            COMMENT ON COLUMN $tableRef.$updateBy IS '更新者';
+            COMMENT ON COLUMN $tableRef.$updateTime IS '更新时间'; 
 """
+        return createTableSQL + System.lineSeparator() + comments + System.lineSeparator() + base
     }
 
     override fun generateAddColDDL(ddlContext: DDLContext): String {

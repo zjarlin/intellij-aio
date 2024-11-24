@@ -6,6 +6,7 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fi
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
 
@@ -14,14 +15,20 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         val tableEnglishName = ddlContext.tableEnglishName
         val tableChineseName = ddlContext.tableChineseName
         val dto = ddlContext.dto
+        val settings = SettingContext.settings
+        val id = settings.id
+        val createBy = settings.createBy
+        val updateBy = settings.updateBy
+        val createTime = settings.createTime
+        val updateTime = settings.updateTime
 
         val createTableSQL = """
     create table `$tableEnglishName` (
-        `id` varchar(64) not null ,
-        `create_by` varchar(255) not null comment '创建者',
-        `update_by` varchar(255) null comment '更新者',
-        `create_time` datetime not null default current_timestamp comment '创建时间',
-        `update_time` datetime null default current_timestamp on update current_timestamp comment '更新时间',
+        `$id` varchar(64) not null ,
+        `$createBy` varchar(255) not null comment '创建者',
+        `$updateBy` varchar(255) null comment '更新者',
+        `$createTime` datetime not null default current_timestamp comment '创建时间',
+        `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
             dto.joinToString(System.lineSeparator()) {
                 val colLength = it.colLength

@@ -56,9 +56,11 @@ data class MyPluginSettings(
         label = "数据库类型", type = FieldType.DROPDOWN, options = [MYSQL, ORACLE, POSTGRESQL, DM]
     ) @JvmField var dbType: String = MYSQL,
 
-
-
-    @ConfigField(label = "同步扫包路径") @JvmField var scanPkg: String = "/",
+    @ConfigField(label = "规范id") @JvmField var id: String = "id",
+    @ConfigField(label = "规范create_by") @JvmField var createBy: String = "create_by",
+    @ConfigField(label = "规范update_by") @JvmField var updateBy: String = "update_by",
+    @ConfigField(label = "规范create_time") @JvmField var createTime: String = "create_time",
+    @ConfigField(label = "规范update_time") @JvmField var updateTime: String = "update_time",
 
     ) {
 

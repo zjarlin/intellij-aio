@@ -1,5 +1,6 @@
 package com.addzero.addl.action.autoddlwithdb.scanner
 
+import com.addzero.addl.util.fieldinfo.annotations
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
@@ -20,7 +21,7 @@ fun findktEntityClasses( project: Project): List<KtClass> {
         val b = findFile as KtFile
         b.declarations.filterIsInstance<KtClass>()
     }
-//    .filter { kotlinChecker.isEntityClass(it) }
+    .filter { kotlinChecker.isEntityClass(it) }
 
     return map
 }

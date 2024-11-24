@@ -6,18 +6,19 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.addzero.common.kt_util.isBlank
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.ui.PlatformIcons
-import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
@@ -120,25 +121,41 @@ object PsiUtil {
         val text = psiClass.name?.toUnderlineCase()
 
         // 获取所有注解
+        val guessTableNameByAnno = guessTableNameByAnno(psiClass)
+
+        val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
+        return firstNonBlank
+
+    }
+
+    fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
         val annotations = psiClass.annotations
 
         for (annotation in annotations) {
-            when (annotation.qualifiedName) {
+            val qualifiedName = annotation.qualifiedName
+            when (qualifiedName) {
                 "com.baomidou.mybatisplus.annotation.TableName" -> {
-                    // 处理 MyBatis Plus 的 @Table 注解
-                    val tableName = annotation.findAttributeValue("value")?.text ?: ""
-                    return tableName
+                    // 获取 MyBatis Plus 的 @TableName 注解值
+                    val tableNameValue = annotation.findAttributeValue("value")
+                    return tableNameValue?.text?.replace("\"", "")
                 }
 
                 "org.babyfish.jimmer.sql.Table" -> {
-                    // 处理 MyBatis Plus 的 @Table 注解
-                    val tableName = annotation.findAttributeValue("name")?.text ?: ""
-                    return tableName
+                    // 获取 Jimmer 的 @Table 注解值
+                    val nameValue = annotation.findAttributeValue("name")
+                    return nameValue?.text?.replace("\"", "")
                 }
 
+                "javax.persistence.Table",
+                "jakarta.persistence.Table",
+                    -> {
+                    // 获取 JPA 的 @Table 注解值
+                    val nameValue = annotation.findAttributeValue("name")
+                    return nameValue?.text?.replace("\"", "")
+                }
             }
         }
-        return text
+        return null
     }
 
 
@@ -161,10 +178,7 @@ object PsiUtil {
             val type = getJavaClassFromPsiType(returnType)
             fieldMetaInfoList.add(
                 JavaFieldMetaInfo(
-                    name = fieldName,
-                    type = type,
-                    genericType = type,
-                    comment = comment
+                    name = fieldName, type = type, genericType = type, comment = comment
                 )
             )
         }
@@ -237,29 +251,41 @@ object PsiUtil {
     fun guessTableName(psiClass: KtClass): String? {
         val text = psiClass.name?.toUnderlineCase()
         // 获取所有注解
-        val annotations = psiClass.annotations
+        val guessTableNameByAnno = guessTableNameByAnno(psiClass)
 
-        for (annotation in annotations) {
+        val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
+        return firstNonBlank
 
-            when (annotation.name) {
+    }
+
+    fun guessTableNameByAnno(psiClass: KtClass): String? {
+        val annotations = psiClass.annotationEntries
+        for (myanno in annotations) {
+            val kotlinFqName = myanno.kotlinFqName?.asString()
+            when (kotlinFqName) {
                 "com.baomidou.mybatisplus.annotation.TableName" -> {
-                    // 处理 MyBatis Plus 的 @Table 注解
-//                    val tableName = annotation.findAttributeValue("value")?.text ?: ""
-//                    return tableName
-                    return ""
+                    // 获取 MyBatis Plus 的 @TableName 注解值
+                    return myanno.valueArguments.firstOrNull()?.getArgumentExpression()?.text?.replace("\"", "")
                 }
 
                 "org.babyfish.jimmer.sql.Table" -> {
-                    // 处理 MyBatis Plus 的 @Table 注解
-//                    val tableName = annotation.findAttributeValue("name")?.text ?: ""
-//                    return tableName
-                    return ""
+                    // 获取 Jimmer 的 @Table 注解值
+                    return myanno.valueArguments.find {
+                        (it.getArgumentName()?.asName?.asString() ?: "value") == "name"
+                    }?.getArgumentExpression()?.text?.replace("\"", "")
                 }
 
+                "javax.persistence.Table",
+                "jakarta.persistence.Table",
+                    -> {
+                    // 获取 JPA 的 @Table 注解值
+                    return myanno.valueArguments.find {
+                        (it.getArgumentName()?.asName?.asString() ?: "name") == "name"
+                    }?.getArgumentExpression()?.text?.replace("\"", "")
+                }
             }
         }
-        return text
-
+        return null
     }
 
 
@@ -298,9 +324,6 @@ object PsiUtil {
     }
 
 
-
-
-
     data class PsiCtx(
         val editor: Editor?,
         val psiClass: PsiClass?,
@@ -325,7 +348,6 @@ object PsiUtil {
         }
         return TODO("提供返回值")
     }
-
 
 
     fun psiCtx(project: Project): PsiCtx {
@@ -360,7 +382,7 @@ object PsiUtil {
             null
         }
 
-        return PsiCtx(editor,psiClass, ktClass, psiFile, virtualFile,any)
+        return PsiCtx(editor, psiClass, ktClass, psiFile, virtualFile, any)
     }
 
 

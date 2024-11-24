@@ -18,6 +18,10 @@
     <change-notes><![CDATA[
     <h3>English:</h3>
 
+   <h3>Version last</h3>
+<li>The database plugin supports right-clicking on a schema to incrementally generate and synchronize DDL based on all entities in the project</li>
+
+
    <h3>Version 1.6</h3>
 
    < li > add structural output capability, call out generate context, and convert natural language into Json format corresponding to the current class < /li >
@@ -57,6 +61,9 @@
     </ul>
 
     <h3>中文：</h3>
+
+   <h3>Version last</h3>
+      <li>database插件支持右键schema,依据项目所有实体差量生成同步DDL</li>
 
    <h3>Version 1.6</h3>
     <ul>
@@ -101,7 +108,10 @@
 
     <description><![CDATA[
     <h3>English:</h3>
+
+
 <ul>
+<li>Synchronize the database incrementally based on all entities</li>
     <li>DataAgentWithStructuredOutput</li>
 <li>In IntelliJ IDEA, the CREATE TABLE statements can also be generated conveniently Users can choose to utilize the capabilities of large language models to initially generate structured form for creating tables (hereinafter referred to as the form cell metadata J for creating tables).</li>
 <li>For the form metadata J, users can still make secondary edits.</li>
@@ -117,6 +127,8 @@
 </ul>
 <h3>中文：</h3>
     <ul>
+    <li>database插件支持右键schema,依据项目所有实体差量生成同步DDL</li>
+    <li>依据所有实体差量同步数据库</li>
     <li>DataAgentWithStructuredOutput</li>
     <li>在IntelliJ IDEA中你可以便捷地生成建表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
     <li>对于表单的元数据J ,用户仍可以二次编辑</li>

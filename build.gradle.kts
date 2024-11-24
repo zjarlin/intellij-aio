@@ -35,11 +35,12 @@ intellij {
     plugins.set(
         listOf(
             "com.intellij.java", "org.jetbrains.kotlin"
+            , "com.intellij.database"
         )
     )
-//    localPath.set(ideahome)
-    version.set("2023.2.6")
-    type.set("IC") // Target IDE Platform
+//    localPath.set("/Applications/IntelliJ IDEA.app/Contents")
+    version.set("2023.2.6" )
+    type.set("IU") // Target IDE Platform
 }
 //dependencyManagement {
 //    imports {

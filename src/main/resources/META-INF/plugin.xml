@@ -136,6 +136,8 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
+    <depends>com.intellij.database</depends>
+
 
     <!--    <depends>com.intellij.java</depends>-->
     <!--    <depends>org.jetbrains.kotlin</depends>-->
@@ -181,6 +183,12 @@
                 description="GenAddColumnByThis">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
+        </action>
+        <action id="AutoDDL.WithDB.Generate"
+                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
+                text="Auto DDL Generate"
+                description="Generate DDL from entities">
+            <add-to-group group-id="DatabaseViewPopupMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

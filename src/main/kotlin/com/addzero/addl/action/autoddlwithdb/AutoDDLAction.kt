@@ -1,16 +1,21 @@
 package com.addzero.addl.action.autoddlwithdb
 
+import com.addzero.addl.action.autoddlwithdb.scanner.findJavaEntityClasses
 import com.addzero.addl.action.autoddlwithdb.scanner.findktEntityClasses
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
+import com.addzero.addl.autoddlstarter.generator.entity.DDLFLatContext
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.toDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
+import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.Vars
+import com.addzero.common.kt_util.isNotBlank
 import com.intellij.database.model.DasColumn
 import com.intellij.database.model.DasNamespace
 import com.intellij.database.model.DasTable
@@ -27,6 +32,7 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifier
+import isKotlinProject
 import org.jetbrains.annotations.Unmodifiable
 import java.sql.Connection
 
@@ -50,7 +56,9 @@ class AutoDDLAction : AnAction() {
             if (it !is DbElement) {
                 return@all false
             }
-            it.typeName in arrayOf("schema", "database")
+            val typeName = it.typeName
+//            ShowContentUtil.showErrorMsg(typeName)
+            typeName in arrayOf("schema", "database", "架构", "数据库")
         }
     }
 
@@ -65,8 +73,6 @@ class AutoDDLAction : AnAction() {
             return
         }
 
-
-
         val ddlContexts = ddlContextsByDataSource(dataSource).flatMap { it.toDDLContext() }
 
 
@@ -79,9 +85,14 @@ class AutoDDLAction : AnAction() {
 //            { a, b -> a.colType == b.colType },
         )
 
+
+        //再找出差异类型字段生成DML语句
+//        val dmls= genDML(diffTypeContext)
+
         //判断没有差异就报错
         if (diff.isEmpty()) {
-            ShowContentUtil.showErrorMsg("实体包路径结构与数据库无差异")
+            DialogUtil.showInfoMsg("实体包路径结构与数据库名称无差异(表名和列名)")
+            difftypeJson(pkgContext, ddlContexts, project)
             return
         }
 
@@ -113,11 +124,45 @@ class AutoDDLAction : AnAction() {
         ShowContentUtil.openTextInEditor(
             project,
             map,
-            Vars.timePrefix+"diff_ddl.sql",
+            Vars.timePrefix + "diff_ddl.sql",
             ".sql",
 //            project!!.basePath
         )
 
+
+        difftypeJson(pkgContext, ddlContexts, project)
+
+
+    }
+
+    private fun difftypeJson(pkgContext: List<DDLFLatContext>, ddlContexts: List<DDLFLatContext>, project: Project) {
+        val diffTypeContext = pkgContext.differenceBy(
+            ddlContexts,
+            { a, b -> a.tableEnglishName.uppercase() == b.tableEnglishName.uppercase() },
+            { a, b -> a.colName.uppercase() == b.colName.uppercase() },
+            { a, b -> a.colType.uppercase() != b.colType.uppercase() },
+    //            { a, b -> a.colType == b.colType },
+        )
+        //警告类型不同的字段
+        val toJson1 = diffTypeContext.toDDLContext().toJson()
+
+        if (toJson1.isNotBlank()) {
+            DialogUtil.showWarningMsg(
+                "实体与数据库类型存在差异，请注意修改" + "" + "(未来版本会实现类型隐式适配数据库类型ddl语句!)"
+            )
+            ShowContentUtil.openTextInEditor(
+                project,
+                toJson1,
+                Vars.timePrefix + "diff_structure_type_atypism",
+                ".json",
+    //            project!!.basePath
+            )
+
+        }
+    }
+
+    private fun genDML(diffTypeContext: List<DDLFLatContext>): String {
+        TODO("Not yet implemented")
     }
 
     private fun ddlContextsByDataSource(dataSource: DbDataSource): @Unmodifiable MutableList<DDLContext> {
@@ -136,23 +181,67 @@ class AutoDDLAction : AnAction() {
     private fun scanDdlContext(project: Project): List<DDLContext> {
         val dbType = SettingContext.settings.dbType
         //        val scanPkg = ""
-        val findAllEntityClasses = findktEntityClasses(project)
-        val map = findAllEntityClasses.map {
-            val createDDLContext = createDDLContext4KtClass(it, dbType)
-            createDDLContext
+
+        val ddlContexts = if (isKotlinProject(project)) {
+            val findAllEntityClasses = findktEntityClasses(project)
+            val map = findAllEntityClasses.map {
+                val createDDLContext = createDDLContext4KtClass(it, dbType)
+                createDDLContext
+            }
+            map
+        } else {
+            val findJavaEntityClasses = findJavaEntityClasses(project)
+            val map = findJavaEntityClasses.map {
+                val createDDLContext = createDDLContext(it, dbType)
+                createDDLContext
+            }
+            map
         }
-        return map
+
+        return ddlContexts
     }
 
 
-    private fun convertToDDLContext(dbTable: DasTable, columns: List<DasColumn>, dbType: String): DDLContext {
-        return DDLContext(tableChineseName = dbTable.comment ?: dbTable.name, tableEnglishName = dbTable.name, databaseType = dbType, databaseName = dbTable.dasParent?.name ?: "", dto = columns.map { column ->
+private fun convertToDDLContext(dbTable: DasTable, columns: List<DasColumn>, dbType: String): DDLContext {
+    return DDLContext(
+        tableChineseName = dbTable.comment ?: dbTable.name,
+        tableEnglishName = dbTable.name,
+        databaseType = dbType,
+        databaseName = dbTable.dasParent?.name ?: "",
+        dto = columns.map { column ->
+            // 解析类型和长度
+            val (type, length) = parseTypeAndLength(column.dasType.specification ?: "")
+
             DDlRangeContext(
-                colName = column.name, colType = column.dasType.specification ?: "", colLength = "", colComment = column.comment ?: "", isPrimaryKey = if (DasUtil.isPrimary(column)) "Y" else "N", isSelfIncreasing = if (DasUtil.isAutoGenerated(column)) "Y" else "N"
+                colName = column.name,
+                colType = type,
+                colLength = length,
+                colComment = column.comment ?: "",
+                isPrimaryKey = if (DasUtil.isPrimary(column)) "Y" else "N",
+                isSelfIncreasing = if (DasUtil.isAutoGenerated(column)) "Y" else "N"
             )
-        })
-    }
+        }
+    )
+}
 
+/**
+ * 解析数据类型和长度
+ * @param specification 类型规格（例如："VARCHAR(255)"）
+ * @return Pair<类型, 长度>
+ */
+private fun parseTypeAndLength(specification: String): Pair<String, String> {
+    // 使用正则表达式匹配类型和长度
+    val regex = """(\w+)\s*(?:\(([^)]+)\))?""".toRegex()
+    val matchResult = regex.find(specification)
+
+    return if (matchResult != null) {
+        val (type, length) = matchResult.destructured
+        Pair(type.trim(), length.trim())
+    } else {
+        // 如果没有匹配到长度，返回原始类型和空字符串
+        Pair(specification.trim(), "")
+    }
+}
 
     private fun findDataSource(element: DasNamespace): DbDataSource? {
         var current: Any? = element

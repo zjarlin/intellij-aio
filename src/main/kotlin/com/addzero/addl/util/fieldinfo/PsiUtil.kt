@@ -6,7 +6,10 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.addzero.addl.util.DialogUtil.showInfoMsg
+import com.addzero.addl.util.ShowContentUtil
 import com.addzero.common.kt_util.isBlank
+import com.addzero.common.kt_util.isNotBlank
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -123,6 +126,9 @@ object PsiUtil {
         // 获取所有注解
         val guessTableNameByAnno = guessTableNameByAnno(psiClass)
 
+//        todo cleancode
+//        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
+
         val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
         return firstNonBlank
 
@@ -130,7 +136,6 @@ object PsiUtil {
 
     fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
         val annotations = psiClass.annotations
-
         for (annotation in annotations) {
             val qualifiedName = annotation.qualifiedName
             when (qualifiedName) {
@@ -252,6 +257,9 @@ object PsiUtil {
         val text = psiClass.name?.toUnderlineCase()
         // 获取所有注解
         val guessTableNameByAnno = guessTableNameByAnno(psiClass)
+
+        //todo cleancode
+//        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
 
         val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
         return firstNonBlank

@@ -26,22 +26,24 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
         cols = JlStrUtil.removeLastCharOccurrence(cols, ',')
 
-
-        var colsComments = """        ${
-            dto.joinToString(System.lineSeparator()) {
-                """
- comment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
-                """.trimIndent()
-            }
-        }
-"""
-
         val settings = SettingContext.settings
         val id = settings.id
         val createBy = settings.createBy
         val updateBy = settings.updateBy
         val createTime = settings.createTime
         val updateTime = settings.updateTime
+
+        var colsComments = """        ${
+            dto
+
+                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }.joinToString(System.lineSeparator()) {
+                    """
+ comment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
+                """.trimIndent()
+                }
+        }
+"""
+
 
         val createTableSQL = """
     create table "$tableEnglishName" (

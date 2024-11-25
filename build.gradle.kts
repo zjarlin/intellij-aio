@@ -17,7 +17,7 @@ plugins {
 
 group = "com.addzero"
 val currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-version = "1.6.1"
+version = currentDate
 configurations.all {
     resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
 }

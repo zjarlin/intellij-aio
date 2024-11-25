@@ -30,7 +30,9 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         `$createTime` datetime not null default current_timestamp comment '创建时间',
         `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
-            dto.joinToString(System.lineSeparator()) {
+            dto
+                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
+            .joinToString(System.lineSeparator()) {
                 val colLength = it.colLength
                 """
                        `${it.colName.toUnderlineCase()}` ${it.colType}    $colLength    comment '${it.colComment}' ,
@@ -47,7 +49,9 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
 
     override fun generateAddColDDL(ddlContext: DDLContext): String {
         val (tableChineseName, tableEnglishName, databaseType, databaseName, dto) = ddlContext
-        val dmls = dto.joinToString(System.lineSeparator()) {
+        val dmls = dto
+
+        .joinToString(System.lineSeparator()) {
 
             // 如果 databaseName 不为空，则拼接成 databaseName.tableEnglishName
             val tableRef = if (databaseName.isBlank()) {

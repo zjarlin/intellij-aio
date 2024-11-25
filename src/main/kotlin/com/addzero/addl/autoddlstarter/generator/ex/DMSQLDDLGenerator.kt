@@ -38,7 +38,9 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
         "$createTime" TIMESTAMP,
         "$updateTime" TIMESTAMP,
         ${
-            dto.joinToString(System.lineSeparator()) {
+            dto
+                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
+            .joinToString(System.lineSeparator()) {
                 """
                     "${it.colName.uppercase()}" ${it.colType} ${it.colLength?.let { length -> "($length)" }} NOT NULL
                 """.trimIndent()

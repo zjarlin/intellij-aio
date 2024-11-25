@@ -1,7 +1,17 @@
 package com.addzero.addl.autoddlstarter.generator.entity
 
+import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
+import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
+
 fun DDLContext.toDDLContext(): List<DDLFLatContext> {
-    val map = this.dto.map {
+
+
+    val map = this.dto
+        .distinctBy { it.colName }
+        .filter { filterBaseEneity(it) }
+
+        .map {
         DDLFLatContext(this.tableChineseName, this.tableEnglishName, this.databaseType, this.databaseName, it.colName, it.colType, it.colComment, it.colLength, it.isPrimaryKey, it.isSelfIncreasing)
     }
     return map
@@ -19,7 +29,10 @@ fun List<DDLFLatContext>.toDDLContext(): List<DDLContext> {
                 DDlRangeContext(
                     colName = flatContext.colName, colType = flatContext.colType, colComment = flatContext.colComment, colLength = flatContext.colLength, isPrimaryKey = flatContext.isPrimaryKey, isSelfIncreasing = flatContext.isSelfIncreasing
                 )
-            })
+            }
+                .filter { filterBaseEneity(it) }
+            .distinctBy { it.colName }
+            )
     }
 }
 

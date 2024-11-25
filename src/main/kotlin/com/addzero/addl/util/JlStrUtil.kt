@@ -3,13 +3,54 @@ package com.addzero.addl.util
 import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.StrUtil
 import cn.hutool.extra.pinyin.PinyinUtil
+import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
+import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 import java.util.*
 
 /**
  * @author zjarlin
  * @since 2023/3/17 13:12
  */
+fun main() {
+    val excludeColumns = listOf("ID", "CREATE_BY", "UPDATE_BY", "CREATE_TIME", "UPDATE_TIME")
+    // 示例数据类
+    data class ColumnDto(
+        val colName: String,
+        val comment: String
+    )
+    // 使用中缀函数
+    println("id" ignoreCaseIn excludeColumns)      // 输出: true
+    println("name" ignoreCaseIn excludeColumns)    // 输出: false
+    println("id" ignoreCaseNotIn excludeColumns)   // 输出: false
+    println("name" ignoreCaseNotIn excludeColumns) // 输出: true
+
+    // 在过滤中使用
+    val dto = listOf(
+        ColumnDto("ID", "主键"),
+        ColumnDto("name", "姓名"),
+        ColumnDto("age", "年龄")
+    )
+
+    // 过滤不包含的列
+    val filtered = dto.filter { it.colName ignoreCaseNotIn excludeColumns }
+
+    // 过滤包含的列
+    val included = dto.filter { it.colName ignoreCaseIn excludeColumns }
+}
+
 object JlStrUtil {
+
+    /**
+     * 检查字符串是否在列表中（不区分大小写）
+     */
+    infix fun String.ignoreCaseIn(collection: Collection<String>): Boolean =
+        collection.any { it.equals(this, ignoreCase = true) }
+
+    /**
+     * 检查字符串是否不在列表中（不区分大小写）
+     */
+    infix fun String.ignoreCaseNotIn(collection: Collection<String>): Boolean =
+        collection.none { it.equals(this, ignoreCase = true) }
 
     /**
      * 删除字符串中最后一次出现的指定字符。

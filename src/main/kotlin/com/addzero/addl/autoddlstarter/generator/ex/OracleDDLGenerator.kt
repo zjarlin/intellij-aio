@@ -5,8 +5,10 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
+import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 
 class OracleDDLGenerator : DatabaseDDLGenerator() {
     override fun generateCreateTableDDL(ddlContext: DDLContext): String {
@@ -35,8 +37,9 @@ class OracleDDLGenerator : DatabaseDDLGenerator() {
         "$updateTime" TIMESTAMP,
         ${
             dto
+                .filter { filterBaseEneity(it) }
+//                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }
 
-                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
             .joinToString(System.lineSeparator()) {
                 """
                     "${it.colName.uppercase()}" ${it.colType} ${it.colLength?.let { length -> "($length)" }} NOT NULL

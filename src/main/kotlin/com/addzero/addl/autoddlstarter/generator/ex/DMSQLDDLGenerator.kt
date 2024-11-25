@@ -3,7 +3,10 @@ package com.addzero.addl.autoddlstarter.generator.ex
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
-import com.addzero.addl.autoddlstarter.generator.entity.*
+import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
+import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.entity.mockkDDLContext
+import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
@@ -39,12 +42,12 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
         "$updateTime" TIMESTAMP,
         ${
             dto
-                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
-            .joinToString(System.lineSeparator()) {
-                """
+            .filter { filterBaseEneity(it) }
+                .joinToString(System.lineSeparator()) {
+                    """
                     "${it.colName.uppercase()}" ${it.colType} ${it.colLength?.let { length -> "($length)" }} NOT NULL
                 """.trimIndent()
-            }
+                }
         },
         PRIMARY KEY ("ID")
     );

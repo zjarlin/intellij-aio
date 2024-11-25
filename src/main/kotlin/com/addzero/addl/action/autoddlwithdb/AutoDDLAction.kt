@@ -10,6 +10,8 @@ import com.addzero.addl.autoddlstarter.generator.entity.toDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
+import com.addzero.addl.ktututil.JlCollUtil.intersectBy
+import com.addzero.addl.ktututil.equalsIgnoreCase
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
@@ -136,13 +138,17 @@ class AutoDDLAction : AnAction() {
     }
 
     private fun difftypeJson(pkgContext: List<DDLFLatContext>, ddlContexts: List<DDLFLatContext>, project: Project) {
-        val diffTypeContext = pkgContext.differenceBy(
+
+        val diffTypeContext =
+
+         pkgContext.intersectBy(
             ddlContexts,
-            { a, b -> a.tableEnglishName.uppercase() == b.tableEnglishName.uppercase() },
-            { a, b -> a.colName.uppercase() == b.colName.uppercase() },
-            { a, b -> a.colType.uppercase() != b.colType.uppercase() },
-    //            { a, b -> a.colType == b.colType },
+            { a, b -> a.tableEnglishName.equals(b.tableEnglishName, ignoreCase = true) },
+            { a, b -> a.colName.equals(b.colName, ignoreCase = true) },
+            { a, b -> !a.colType.equals(b.colType, ignoreCase = true) }
         )
+
+
         //警告类型不同的字段
         val toJson1 = diffTypeContext.toDDLContext().toJson()
 

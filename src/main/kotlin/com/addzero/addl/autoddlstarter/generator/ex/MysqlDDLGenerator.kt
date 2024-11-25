@@ -5,9 +5,11 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
+import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 
 
 class MysqlDDLGenerator : DatabaseDDLGenerator() {
@@ -31,7 +33,9 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
             dto
-                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
+
+                .filter { filterBaseEneity(it) }
+//                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }
             .joinToString(System.lineSeparator()) {
                 val colLength = it.colLength
                 """

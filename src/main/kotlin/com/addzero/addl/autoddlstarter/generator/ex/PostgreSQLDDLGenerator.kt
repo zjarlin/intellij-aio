@@ -5,6 +5,7 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
@@ -34,9 +35,11 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         val updateTime = settings.updateTime
 
         var colsComments = """        ${
-            dto
+            dto.filter { filterBaseEneity(it) }
+//                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }
 
-                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }.joinToString(System.lineSeparator()) {
+//                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
+                .joinToString(System.lineSeparator()) {
                     """
  comment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
                 """.trimIndent()

@@ -15,6 +15,7 @@ import com.addzero.addl.autoddlstarter.generator.consts.DM
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.FieldMapping
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.autoddlstarter.generator.ex.DMSQLDDLGenerator
@@ -22,12 +23,32 @@ import com.addzero.addl.autoddlstarter.generator.ex.MysqlDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.OracleDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.PostgreSQLDDLGenerator
 import com.addzero.addl.ktututil.equalsIgnoreCase
+import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.*
 
+fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
+    val settings = SettingContext.settings
+    val id = settings.id
+    val createBy = settings.createBy
+    val updateBy = settings.updateBy
+    val createTime = settings.createTime
+    val updateTime = settings.updateTime
+
+    return    dDlRangeContext.colName ignoreCaseNotIn listOf(id, createBy,
+        updateBy,
+        createTime, updateTime)
+}
 interface IDatabaseGenerator {
+
+
+
+
+
+
     /**
      * 依据mysql类型推导出各种sql类型
      * @param [mysqlType]

@@ -38,15 +38,12 @@ fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
     val createTime = settings.createTime
     val updateTime = settings.updateTime
 
-    return    dDlRangeContext.colName ignoreCaseNotIn listOf(id, createBy,
-        updateBy,
-        createTime, updateTime)
+    return dDlRangeContext.colName ignoreCaseNotIn listOf(
+        id, createBy, updateBy, createTime, updateTime
+    )
 }
+
 interface IDatabaseGenerator {
-
-
-
-
 
 
     /**
@@ -75,7 +72,13 @@ interface IDatabaseGenerator {
         }
 
         fun javaType2RefType(javaType: String): String {
-            val javaClass = fieldMappings.find { it.javaClassSimple.equalsIgnoreCase(javaType) }!!.javaClassRef
+            val javaClass = fieldMappings.find {
+                val equalsIgnoreCase = it.javaClassSimple.equalsIgnoreCase(javaType)
+                equalsIgnoreCase
+            }?.javaClassRef
+            if (javaClass==null) {
+                return String::class.java.name
+            }
             return javaClass
         }
 

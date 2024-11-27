@@ -68,12 +68,14 @@ class AutoDDLAction : AnAction() {
         val project = e.project ?: return
         val schema = e.getData(LangDataKeys.PSI_ELEMENT) as? DasNamespace ?: return
         dataSource = findDataSource(schema) ?: return
+        //实体扫包获取ddl上下文
         val pkgContext = scanDdlContext(project).flatMap { it.toDDLContext() }
         if (pkgContext.isEmpty()) {
             ShowContentUtil.showErrorMsg("未扫描到实体结构")
             return
         }
 
+        //从数据库生成ddl上下文
         val ddlContexts = ddlContextsByDataSource(dataSource).flatMap { it.toDDLContext() }
 
 
@@ -138,27 +140,27 @@ class AutoDDLAction : AnAction() {
 
     private fun difftypeJson(pkgContext: List<DDLFLatContext>, ddlContexts: List<DDLFLatContext>, project: Project) {
 
-        val diffTypeContext =
+        val diffTypeContext = pkgContext.intersectBy(ddlContexts, { a, b -> a.tableEnglishName.equals(b.tableEnglishName, ignoreCase = true) }, { a, b -> a.colName.equals(b.colName, ignoreCase = true) }, { a, b -> !a.colType.equals(b.colType, ignoreCase = true) })
 
-            pkgContext.intersectBy(ddlContexts, { a, b -> a.tableEnglishName.equals(b.tableEnglishName, ignoreCase = true) }, { a, b -> a.colName.equals(b.colName, ignoreCase = true) }, { a, b -> !a.colType.equals(b.colType, ignoreCase = true) })
+        if (diffTypeContext.isNotEmpty()) {
+            //警告类型不同的字段
+            val toJson1 = diffTypeContext.toDDLContext().toJson()
+            if (toJson1.isNotBlank()) {
+                DialogUtil.showWarningMsg(
+                    "实体与数据库类型存在差异，请注意修改" + "" + "(未来版本会实现类型隐式适配数据库类型ddl语句!)"
+                )
+                ShowContentUtil.openTextInEditor(
+                    project,
+                    toJson1,
+                    Vars.timePrefix + "diff_structure_type_atypism",
+                    ".json",
+                    //            project!!.basePath
+                )
 
-
-        //警告类型不同的字段
-        val toJson1 = diffTypeContext.toDDLContext().toJson()
-
-        if (toJson1.isNotBlank()) {
-            DialogUtil.showWarningMsg(
-                "实体与数据库类型存在差异，请注意修改" + "" + "(未来版本会实现类型隐式适配数据库类型ddl语句!)"
-            )
-            ShowContentUtil.openTextInEditor(
-                project,
-                toJson1,
-                Vars.timePrefix + "diff_structure_type_atypism",
-                ".json",
-                //            project!!.basePath
-            )
-
+            }
         }
+
+
     }
 
     private fun genDML(diffTypeContext: List<DDLFLatContext>): String {

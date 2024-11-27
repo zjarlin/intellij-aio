@@ -6,10 +6,7 @@ import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ja
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
-import com.addzero.addl.util.DialogUtil.showInfoMsg
-import com.addzero.addl.util.ShowContentUtil
-import com.addzero.common.kt_util.isBlank
-import com.addzero.common.kt_util.isNotBlank
+import com.addzero.addl.util.AnnotationUtils
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -22,9 +19,12 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
+import org.jetbrains.kotlin.nj2k.postProcessing.type
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.uast.kotlin.getMaybeLightElement
+import kotlin.script.experimental.api.KotlinType
 
 
 //private const val NOCOMMENT = "no_comment_found"
@@ -222,6 +222,19 @@ object PsiUtil {
         return Pair(classComment, guessTableName(psiClass))
     }
 
+
+    fun isStaticField(field: PsiField): Boolean {
+        val hasModifierProperty = field.hasModifierProperty(PsiModifier.STATIC)
+        return hasModifierProperty
+    }
+
+    fun isStaticField(ktProperty: KtProperty): Boolean {
+        val toLightElements = ktProperty.getMaybeLightElement()
+        val psiField = toLightElements as PsiField
+        val staticField = isStaticField(psiField)
+        return staticField
+    }
+
     fun getJavaFieldMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
         if (psiClass.isInterface) {
             return extractInterfaceMetaInfo(psiClass)
@@ -230,13 +243,14 @@ object PsiUtil {
         val fieldsMetaInfo = mutableListOf<JavaFieldMetaInfo>()
 
         // 获取所有字段
-        val fields: Array<PsiField> = psiClass.allFields
+        val fields = psiClass.allFields.filter { it.isDbField() }.toList()
 
         for (field in fields) {
             val fieldName = field.name // 字段名称
+            val guessColumnName = guessColumnName(field)
+            val firstNonBlank = StrUtil.firstNonBlank(guessColumnName, fieldName)
             val fieldType: PsiType = field.type // 字段类型
             val fieldTypeName = fieldType.presentableText // 可读的类型名称
-
             // 获取字段注释
             val fieldComment = guessFieldComment(field)
 
@@ -248,10 +262,11 @@ object PsiUtil {
                 Any::class.java // 如果类未找到，使用 Any
             }
             // 创建 JavaFieldMetaInfo 对象并添加到列表
-            fieldsMetaInfo.add(JavaFieldMetaInfo(fieldName, typeClass, typeClass, fieldComment))
+            fieldsMetaInfo.add(JavaFieldMetaInfo(firstNonBlank!!, typeClass, typeClass, fieldComment))
         }
         return fieldsMetaInfo
     }
+
 
     fun guessTableName(psiClass: KtClass): String? {
         val text = psiClass.name?.toUnderlineCase()
@@ -300,9 +315,15 @@ object PsiUtil {
     fun extractInterfaceMetaInfo(psiClass: KtClass): MutableList<JavaFieldMetaInfo> {
         val fieldsMetaInfo = mutableListOf<JavaFieldMetaInfo>()
         // 获取所有字段
-        val fields = psiClass?.properties()
+        val fields = psiClass?.properties()?.filter { it.isDbField() }
         for (field in fields!!) {
             val fieldName = field.name // 字段名称
+            //这里优先使用数据库列名，如果没有，则使用字段名
+            val columnName = guessColumnName(field)
+            val finalColumn = StrUtil.firstNonBlank(columnName, fieldName)
+
+            val fieldType = field.typeReference?.text
+
             val typeReference = field.typeReference
             val ktFieldTypeName = typeReference?.text
             // 返回 Java 类型的字符串表示形式
@@ -325,10 +346,58 @@ object PsiUtil {
                 Any::class.java // 如果类未找到，使用 Any
             }
             // 创建 JavaFieldMetaInfo 对象并添加到列表
-            fieldsMetaInfo.add(JavaFieldMetaInfo(fieldName!!, typeClass, typeClass, fieldComment))
+            fieldsMetaInfo.add(JavaFieldMetaInfo(finalColumn!!, typeClass, typeClass, fieldComment))
         }
         return fieldsMetaInfo
 
+    }
+
+    private fun guessColumnName(field: PsiField): String? {
+        field.annotations.forEach { annotationEntry ->
+            val kotlinFqName = annotationEntry.qualifiedName
+            val jimmerColumnRef = "org.babyfish.jimmer.sql.Column"
+            val mpColumnRef = "com.baomidou.mybatisplus.annotation.TableField"
+
+            when (kotlinFqName) {
+
+                jimmerColumnRef -> {
+                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "name")
+                    return annotationValue
+                }
+
+                mpColumnRef -> {
+                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "value")
+                    return annotationValue
+                }
+
+            }
+        }
+        return null
+
+    }
+
+
+    fun guessColumnName(field: KtProperty): String? {
+        field.annotationEntries.forEach { annotationEntry ->
+            val kotlinFqName = annotationEntry.typeReference?.text
+            val jimmerColumnRef = "org.babyfish.jimmer.sql.Column"
+            val mpColumnRef = "com.baomidou.mybatisplus.annotation.TableField"
+
+            when (kotlinFqName) {
+
+                jimmerColumnRef -> {
+                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "name")
+                    return annotationValue
+                }
+
+                mpColumnRef -> {
+                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "value")
+                    return annotationValue
+                }
+
+            }
+        }
+        return null
     }
 
 
@@ -399,8 +468,18 @@ object PsiUtil {
         val classComment = cleanDocComment(psiClass.docComment?.text)
         // 获取类的注释
         return Pair(classComment, guessTableName(psiClass))
-
     }
+}
 
+fun KtProperty.isDbField(): Boolean {
+    val staticField = PsiUtil.isStaticField(this)
+    val collectionType = PsiTypeUtil.isCollectionType(this)
+    return !staticField&&!collectionType
+}
 
+fun PsiField.isDbField(): Boolean {
+    val staticField = PsiUtil.isStaticField(this)
+
+    val collectionType = PsiTypeUtil.isCollectionType(this)
+    return !staticField&&!collectionType
 }

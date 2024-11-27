@@ -24,6 +24,8 @@ import com.addzero.addl.autoddlstarter.generator.ex.OracleDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.PostgreSQLDDLGenerator
 import com.addzero.addl.ktututil.equalsIgnoreCase
 import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.DialogUtil
+import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
 import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -76,7 +78,11 @@ interface IDatabaseGenerator {
                 val equalsIgnoreCase = it.javaClassSimple.equalsIgnoreCase(javaType)
                 equalsIgnoreCase
             }?.javaClassRef
-            if (javaClass==null) {
+            if (javaType ignoreCaseIn listOf("clob", "object")) {
+                return String::class.java.name
+            }
+            if (javaClass == null) {
+                DialogUtil.showWarningMsg("未找到java类型${javaType} 的映射关系,请联系作者适配")
                 return String::class.java.name
             }
             return javaClass

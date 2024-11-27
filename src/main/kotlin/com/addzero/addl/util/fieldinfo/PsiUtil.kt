@@ -5,8 +5,12 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.javaType2RefType
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.ktType2RefType
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.ktututil.isCollectionType
 import com.addzero.addl.ktututil.toUnderlineCase
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.AnnotationUtils
+import com.addzero.addl.util.DialogUtil
+import com.intellij.database.dialects.cassandra.model.defaults.CassTableDefaults.comment
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -19,12 +23,10 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
-import org.jetbrains.kotlin.nj2k.postProcessing.type
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.uast.kotlin.getMaybeLightElement
-import kotlin.script.experimental.api.KotlinType
 
 
 //private const val NOCOMMENT = "no_comment_found"
@@ -50,7 +52,7 @@ object PsiUtil {
 
 
     fun guessFieldComment(ktProperty: KtProperty): String {
-        if (ktProperty.name == "id") {
+        if (ktProperty.name == SettingContext.settings.id) {
             return "主键"
         }
         // 获取 KtProperty 上的所有注解
@@ -92,7 +94,7 @@ object PsiUtil {
      * @return [String]
      */
     fun guessFieldComment(psiField: PsiField): String {
-        if (psiField.name == "id") {
+        if (psiField.name == SettingContext.settings.id) {
             return "主键"
         }
         val annotations = psiField.annotations
@@ -170,15 +172,37 @@ object PsiUtil {
         // 遍历类中所有的方法（接口中的字段会生成 getter 方法）
         val methods = psiClass.methods
 
-        methods.forEach { method ->
-            // 判断是否是 getter 方法
+        //暂时不对java做外键支持哈
+
+        methods.filter {
+            //直接排除集合
+            val collectionType = it.returnType?.isCollectionType()
+            val not = collectionType?.not()
+            val b = not ?: false
+            b
+
+        }.forEach { method ->
+            val annotation = method.getAnnotation("org.babyfish.jimmer.sql.JoinColumn")
+            if (annotation!= null) {
+                val column = annotation.findAttributeValue("name")
+                val text = column?.text
+                val s = method.name + "Id"
+                val mayColumn = StrUtil.firstNonBlank(text, s)
+
+                val comment = getCommentFunByMethod(method)
+                val type = String::class.java
+                fieldMetaInfoList.add(
+                    JavaFieldMetaInfo(
+                        name = mayColumn!!, type = type, genericType = type, comment = comment
+                    )
+                )
+
+            }
+
             val fieldName = method.name
-
             val returnType = method.returnType!!
-
             // 获取字段注释
             val comment = getCommentFunByMethod(method)
-
             // 将属性信息添加到列表中
             val type = getJavaClassFromPsiType(returnType)
             fieldMetaInfoList.add(
@@ -200,7 +224,7 @@ object PsiUtil {
 
     fun getCommentFunByMethod(method: PsiMethod): String {
         val comment = method.docComment?.text ?: NOCOMMENT
-        val equals = method.name == "id"
+        val equals = method.name ==SettingContext.settings.id
 
         // 这里应该是获取方法注释的逻辑，暂时返回 null
         return cleanDocComment(
@@ -246,10 +270,20 @@ object PsiUtil {
         val fields = psiClass.allFields.filter { it.isDbField() }.toList()
 
         for (field in fields) {
+            val fieldType = field.type // 字段类型
+            //假设字段是集合类型,多半是关联属性
+
+            if (fieldType.isCollectionType()) {
+                //直接排除集合
+
+                continue
+            }
+
             val fieldName = field.name // 字段名称
             val guessColumnName = guessColumnName(field)
             val firstNonBlank = StrUtil.firstNonBlank(guessColumnName, fieldName)
-            val fieldType: PsiType = field.type // 字段类型
+
+
             val fieldTypeName = fieldType.presentableText // 可读的类型名称
             // 获取字段注释
             val fieldComment = guessFieldComment(field)
@@ -474,12 +508,12 @@ object PsiUtil {
 fun KtProperty.isDbField(): Boolean {
     val staticField = PsiUtil.isStaticField(this)
     val collectionType = PsiTypeUtil.isCollectionType(this)
-    return !staticField&&!collectionType
+    return !staticField && !collectionType
 }
 
 fun PsiField.isDbField(): Boolean {
     val staticField = PsiUtil.isStaticField(this)
 
     val collectionType = PsiTypeUtil.isCollectionType(this)
-    return !staticField&&!collectionType
+    return !staticField && !collectionType
 }

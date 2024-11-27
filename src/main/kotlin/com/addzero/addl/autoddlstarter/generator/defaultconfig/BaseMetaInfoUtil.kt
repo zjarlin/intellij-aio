@@ -1,20 +1,21 @@
 package com.addzero.addl.autoddlstarter.generator.defaultconfig
 
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.RefUtil.extractClassMetaInfo
 import com.addzero.addl.util.RefUtil.extractInterfaceMetaInfo
 
 
 object BaseMetaInfoUtil {
     fun isPrimaryKey(fieldName: String?): String {
-        if (fieldName?.lowercase()!! == "id") {
+        if (fieldName?.lowercase()!! == SettingContext.settings.id) {
             return "Y"
         }
         return ""
     }
 
     fun isPrimaryKeyBoolean(fieldName: String?): Boolean {
-        return fieldName?.lowercase()!! == "id"
+        return fieldName?.lowercase()!! ==SettingContext.settings.id
     }
 
     fun isAutoIncrement(fieldName: String?): String {

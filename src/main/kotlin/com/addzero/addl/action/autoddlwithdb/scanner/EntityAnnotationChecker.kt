@@ -6,12 +6,6 @@ import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
 
 
-
-
-
-
-
-
 interface EntityAnnotationChecker<T> {
     fun isEntityClass(clazz: T): Boolean
 

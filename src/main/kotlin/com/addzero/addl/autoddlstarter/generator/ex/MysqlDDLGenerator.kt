@@ -1,5 +1,6 @@
 package com.addzero.addl.autoddlstarter.generator.ex
 
+import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings

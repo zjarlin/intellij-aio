@@ -1,5 +1,6 @@
 package com.addzero.addl.autoddlstarter.generator
 
+import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isBigDecimalType
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isBooleanType
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isCharType
@@ -27,6 +28,9 @@ import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
 import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
+import com.addzero.addl.util.containsAny
+import com.addzero.common.kt_util.isBlank
+import org.jetbrains.kotlin.codegen.STRING_UTF8_ENCODING_BYTE_LIMIT
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -40,9 +44,14 @@ fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
     val createTime = settings.createTime
     val updateTime = settings.updateTime
 
-    return dDlRangeContext.colName ignoreCaseNotIn listOf(
-        id, createBy, updateBy, createTime, updateTime
-    )
+    val colName = dDlRangeContext.colName
+    if (colName.isBlank()) {
+        return false
+    }
+    val arrayOf = arrayOf(id, createBy, updateBy, createTime, updateTime)
+    val containsAny = StrUtil.containsAny(colName, *arrayOf)
+    val b = !containsAny
+    return b
 }
 
 interface IDatabaseGenerator {
@@ -73,12 +82,14 @@ interface IDatabaseGenerator {
             return databaseType[dbType]!!
         }
 
-        fun javaType2RefType(javaType: String): String {
+        fun javaType2RefType(javaType: String): String? {
             val javaClass = fieldMappings.find {
                 val equalsIgnoreCase = it.javaClassSimple.equalsIgnoreCase(javaType)
                 equalsIgnoreCase
             }?.javaClassRef
-            if (javaType ignoreCaseIn listOf("clob", "object")) {
+            val containsAny = javaType.containsAny("Clob", "Object")
+            val b = javaType ignoreCaseIn listOf("clob", "object")
+            if (containsAny||b) {
                 return String::class.java.name
             }
             if (javaClass == null) {

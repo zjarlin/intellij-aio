@@ -41,16 +41,26 @@ fun main() {
 object JlStrUtil {
 
     /**
+     * 检查字符串是否不在列表中（不区分大小写）
+     */
+    infix fun String.ignoreCaseNotIn(collection: Collection<String>): Boolean {
+        val b = this ignoreCaseIn collection
+        return !b
+    }
+
+    /**
      * 检查字符串是否在列表中（不区分大小写）
      */
     infix fun String.ignoreCaseIn(collection: Collection<String>): Boolean =
         collection.any { it.equals(this, ignoreCase = true) }
 
-    /**
-     * 检查字符串是否不在列表中（不区分大小写）
-     */
-    infix fun String.ignoreCaseNotIn(collection: Collection<String>): Boolean =
-        collection.none { it.equals(this, ignoreCase = true) }
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val listOf = listOf("id", "name", "age")
+        val b = "id" ignoreCaseIn listOf
+        println(b)
+
+    }
 
     /**
      * 删除字符串中最后一次出现的指定字符。

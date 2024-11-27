@@ -34,6 +34,7 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${
             dto
+                .distinctBy { it.colName }
 
                 .filter { filterBaseEneity(it) }
 //                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }

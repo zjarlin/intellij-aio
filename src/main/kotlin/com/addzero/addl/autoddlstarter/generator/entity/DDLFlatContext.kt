@@ -22,8 +22,10 @@ fun List<DDLFLatContext>.toDDLContext(): List<DDLContext> {
     // 按 tableChineseName 和 tableEnglishName 分组
     return this.groupBy { it.databaseType to it.tableEnglishName }.map { (tableKey, flatContexts) ->
         // 提取合并后的 DDLContext
-        DDLContext(tableChineseName = tableKey.first, tableEnglishName = tableKey.second, databaseType = flatContexts.first().databaseType, // 假设所有记录 databaseType 一致
-            databaseName = flatContexts.first().databaseName, // 假设所有记录 databaseName 一致
+        val first = flatContexts.first()
+        val tableChineseName = tableKey.first
+        DDLContext(tableChineseName = first.tableChineseName, tableEnglishName = tableKey.second, databaseType = first.databaseType, // 假设所有记录 databaseType 一致
+            databaseName = first.databaseName, // 假设所有记录 databaseName 一致
             dto = flatContexts.map { flatContext ->
                 // 将每个 FlatContext 转换为 RangeContext
                 DDlRangeContext(

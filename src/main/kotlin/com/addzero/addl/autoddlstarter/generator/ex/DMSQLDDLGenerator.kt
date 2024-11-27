@@ -42,6 +42,7 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
         "$updateTime" TIMESTAMP,
         ${
             dto
+                .distinctBy { it.colName }
             .filter { filterBaseEneity(it) }
                 .joinToString(System.lineSeparator()) {
                     """

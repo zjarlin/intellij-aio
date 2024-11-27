@@ -12,6 +12,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.addzero.addl.util.removeAny
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
 
@@ -101,7 +102,7 @@ object DDLContextFactory4JavaMetaInfo {
         val isSelfIncreasing = isPrimaryKey // 这里假设主键即自增
 
         return DDlRangeContext(
-            colName,
+            colName.removeAny("\"")!!,
             colType,
             fieldComment,
             length,

@@ -37,6 +37,8 @@ class OracleDDLGenerator : DatabaseDDLGenerator() {
         "$updateTime" TIMESTAMP,
         ${
             dto
+                .distinctBy { it.colName }
+
                 .filter { filterBaseEneity(it) }
 //                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }
 

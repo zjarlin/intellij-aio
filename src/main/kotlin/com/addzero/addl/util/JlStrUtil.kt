@@ -173,6 +173,12 @@ fun CharSequence.containsAny(vararg testStrs: CharSequence): Boolean {
     val containsAny = StrUtil.containsAny(this, *testStrs)
     return containsAny
 }
+fun CharSequence.removeAny(vararg testStrs: CharSequence): String? {
+    if (this.isBlank()) {
+        return ""
+    }
+    return StrUtil.removeAny(this, *testStrs)
+}
 
 fun String.getParentPathAndmkdir(childPath: String): String {
     val parent1 = FileUtil.getParent(this, 1)

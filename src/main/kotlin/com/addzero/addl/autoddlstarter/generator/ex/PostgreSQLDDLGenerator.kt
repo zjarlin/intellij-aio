@@ -35,7 +35,10 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         val updateTime = settings.updateTime
 
         var colsComments = """        ${
-            dto.filter { filterBaseEneity(it) }
+            dto
+                .distinctBy { it.colName }
+
+                .filter { filterBaseEneity(it) }
 //                .filter { it.colName ignoreCaseNotIn listOf(id, createBy, updateBy, createTime, updateTime) }
 
 //                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }

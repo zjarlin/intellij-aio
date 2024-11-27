@@ -1,5 +1,7 @@
 package com.addzero.addl.action.autoddlwithdb
 
+import ai.grazie.utils.toDistinctTypedArray
+import cn.hutool.core.util.StrUtil
 import com.addzero.addl.action.autoddlwithdb.scanner.findJavaEntityClasses
 import com.addzero.addl.action.autoddlwithdb.scanner.findktEntityClasses
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
@@ -81,11 +83,14 @@ class AutoDDLAction : AnAction() {
 
 //        pkgContext.differenceBy()
         // 计算差集
+
+//        val diff = Streams.getGenericDiffs(pkgContext, ddlContexts, { it.tableEnglishName }, { it.colName })
         val diff = pkgContext.differenceBy(
             ddlContexts,
             { a, b -> a.tableEnglishName.uppercase() == b.tableEnglishName.uppercase() },
-            { a, b -> a.colName.uppercase() == b.colName.uppercase() },
-//            { a, b -> a.colType == b.colType },
+            { a, b ->
+                a.colName.equals(b.colName, ignoreCase = true)
+            },
         )
 
 
@@ -102,7 +107,6 @@ class AutoDDLAction : AnAction() {
         val toFlatDDLContext = diff.toDDLContext()
 
 
-        //未来加入实体元数据抽取工厂
         val databaseDDLGenerator = getDatabaseDDLGenerator(dbType)
 
 
@@ -111,7 +115,7 @@ class AutoDDLAction : AnAction() {
             val tableEnglishName = it.tableEnglishName
 
             //判断表是否存在
-            val isTbaleExit = isTabExit(tableEnglishName)
+            val isTbaleExit = isTabExit(tableEnglishName, ddlContexts)
 
 
             val sql = if (isTbaleExit) {
@@ -415,13 +419,21 @@ class AutoDDLAction : AnAction() {
         }
     }
 
-    private fun isTabExit(tableName: String): Boolean {
+    private fun isTabExit(tableName: String, ddlContexts: List<DDLFLatContext>): Boolean {
         // 获取所有表
-        val tables = DasUtil.getTables(dataSource)
+
+        val toArray = ddlContexts.map {
+            val name = it.tableEnglishName
+            name
+        }.toDistinctTypedArray()
+        val containsAny = StrUtil.containsAnyIgnoreCase(tableName, *toArray)
+        return containsAny
+
 
         // 检查表名是否存在（不区分大小写）
-        return tables.any { table ->
-            table.name.equals(tableName, ignoreCase = true)
-        }
+//        return tables.any { table ->
+//            val name = table.name
+//            name.equals(tableName, ignoreCase = true)
+//        }
     }
 }

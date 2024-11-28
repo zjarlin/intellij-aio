@@ -1,0 +1,1666 @@
+[
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "字典项文本",
+        "colLength": "(255)",
+        "colName": "item_text",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "字典项值",
+        "colLength": "(255)",
+        "colName": "item_value",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "描述",
+        "colLength": "(255)",
+        "colName": "description",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "排序",
+        "colLength": "(255)",
+        "colName": "sort_order",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "状态（1启用 0不启用）",
+        "colLength": "(255)",
+        "colName": "status",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "dictId",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> sys_dict_item <p> @author zjarlin @date 2024-09-16",
+    "tableEnglishName": "\"sys_dict_item\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "字典名称",
+        "colLength": "(255)",
+        "colName": "dict_name",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "字典编码",
+        "colLength": "(255)",
+        "colName": "dict_code",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "描述",
+        "colLength": "(255)",
+        "colName": "description",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "字典类型0为string,1为number",
+        "colLength": "(255)",
+        "colName": "type",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> sys_dict <p> @author zjarlin @date 2024-09-16",
+    "tableEnglishName": "\"sys_dict\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "手机号",
+        "colLength": "(255)",
+        "colName": "phone",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "密码",
+        "colLength": "(255)",
+        "colName": "password",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "头像",
+        "colLength": "(255)",
+        "colName": "avatar",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "昵称",
+        "colLength": "(255)",
+        "colName": "nickname",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "性别",
+        "colLength": "(255)",
+        "colName": "gender",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "@author zjarlin @date 20241103 @constructor 创建[SysUser]",
+    "tableEnglishName": "\"sys_user\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "local_date",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "localtime",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "",
+        "colName": "leaf_flag",
+        "colType": "boolean",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> 区域表 <p> @author zjarlin @date 2024-11-01",
+    "tableEnglishName": "\"biz_1datazone\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "NAME",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "节点id",
+        "colLength": "(255)",
+        "colName": "biz1datazone",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口别名",
+        "colLength": "(255)",
+        "colName": "PORT_ALIAS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口英文名",
+        "colLength": "(255)",
+        "colName": "GKYWM",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "城市",
+        "colLength": "(255)",
+        "colName": "CITY_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "主要用途",
+        "colLength": "(255)",
+        "colName": "MAIN_USES",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "封毁港计划",
+        "colLength": "(255)",
+        "colName": "FHGJH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "岸摊",
+        "colLength": "(255)",
+        "colName": "SHORE_STALL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所在水系",
+        "colLength": "(255)",
+        "colName": "SZSX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "作战分区",
+        "colLength": "(255)",
+        "colName": "ZZFQ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "长",
+        "colLength": "(255)",
+        "colName": "CHANG",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "宽",
+        "colLength": "(255)",
+        "colName": "WIDE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "位置描述",
+        "colLength": "(255)",
+        "colName": "WZMS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所属单位",
+        "colLength": "(255)",
+        "colName": "JZDW",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口说明",
+        "colLength": "(255)",
+        "colName": "GKSM",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所属单位",
+        "colLength": "(255)",
+        "colName": "AFFILIATED_UNIT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "附件",
+        "colLength": "(255)",
+        "colName": "ATTACHMENT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "拖船数量",
+        "colLength": "(255)",
+        "colName": "MAIN_TCSL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口编号",
+        "colLength": "(255)",
+        "colName": "MAIN_GKBH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "建港时间",
+        "colLength": "(255)",
+        "colName": "MAIN_JGSJ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "装卸物种类",
+        "colLength": "(255)",
+        "colName": "MAIN_ZXWZL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "高程基准",
+        "colLength": "(255)",
+        "colName": "MAIN_GCJZ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮位起算面",
+        "colLength": "(255)",
+        "colName": "MAIN_CWQSM",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "深度基准",
+        "colLength": "(255)",
+        "colName": "MAIN_SDJZ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口昼夜装载能力",
+        "colLength": "(255)",
+        "colName": "MAIN_GKZYZZNL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口约束",
+        "colLength": "(255)",
+        "colName": "MAIN_GKYS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "主航道通航能力",
+        "colLength": "(255)",
+        "colName": "MAIN_ZHDTHNL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "可开设卸载线",
+        "colLength": "(255)",
+        "colName": "MAIN_KKSXZX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "可靠泊岸线总长",
+        "colLength": "(255)",
+        "colName": "MAIN_KKBAXZC",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "卸载人员数量",
+        "colLength": "(255)",
+        "colName": "MAIN_XZRYSL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "库场_仓库_总数",
+        "colLength": "(255)",
+        "colName": "MAIN_KC_CK_ZS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "库场_危险品",
+        "colLength": "(255)",
+        "colName": "MAIN_KC_WXP",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "库场_堆场",
+        "colLength": "(255)",
+        "colName": "MAIN_KC_DC",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "建制单位",
+        "colLength": "(255)",
+        "colName": "MAIN_JZDW",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "散货船",
+        "colLength": "(255)",
+        "colName": "MAIN_SHC",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "昼夜吊装能力",
+        "colLength": "(255)",
+        "colName": "MAIN_ZYDZNL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "昼夜吊装能力_作业线数",
+        "colLength": "(255)",
+        "colName": "MAIN_ZYDZNL_ZYXS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "昼夜滚装能力",
+        "colLength": "(255)",
+        "colName": "MAIN_ZYGZNL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "昼夜滚装能力_作业线数",
+        "colLength": "(255)",
+        "colName": "MAIN_ZYGZNL_ZYXS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "主航道水深",
+        "colLength": "(255)",
+        "colName": "MAIN_ZHDSS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "水深",
+        "colLength": "(255)",
+        "colName": "MAIN_SS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "泊位数量",
+        "colLength": "(255)",
+        "colName": "MAIN_BWSL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "泊地",
+        "colLength": "(255)",
+        "colName": "MAIN_BD",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港作船舶_拖轮",
+        "colLength": "(255)",
+        "colName": "MAIN_GZCB_TL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港作船舶_拖轮数量",
+        "colLength": "(255)",
+        "colName": "MAIN_GZCB_TLSL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港作船舶_拖轮_单船最大功率",
+        "colLength": "(255)",
+        "colName": "MAIN_GZCB_TL_DCZDGL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港作船舶_驳船",
+        "colLength": "(255)",
+        "colName": "MAIN_GZCB_BC",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "水域宽",
+        "colLength": "(255)",
+        "colName": "MAIN_SYK",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "水域长",
+        "colLength": "(255)",
+        "colName": "MAIN_SYZ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "滚装泊位数量_战备滚装码头",
+        "colLength": "(255)",
+        "colName": "MAIN_GZBWSL_ZBGZMT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "滚装泊位数量_车客渡码头",
+        "colLength": "(255)",
+        "colName": "MAIN_GZBWSL_CKDMT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "滚装船_1万吨",
+        "colLength": "(255)",
+        "colName": "MAIN_GZC_1WD",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "滚装船_2万吨级",
+        "colLength": "(255)",
+        "colName": "MAIN_GZC_2WDJ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "滚装船_5千吨",
+        "colLength": "(255)",
+        "colName": "MAIN_GZC_5QD",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_平均潮差",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_PJCC",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_潮位_平均",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_CW_PJ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_潮位_最低",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_CW_ZD",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_潮位_最高",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_CW_ZG",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_潮型",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_CX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮汐_类型",
+        "colLength": "(255)",
+        "colName": "MAIN_CX_LX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头数量",
+        "colLength": "(255)",
+        "colName": "MAIN_MTSL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "标签",
+        "colLength": "(255)",
+        "colName": "TAGS1",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "附件",
+        "colLength": "(255)",
+        "colName": "IMG_PATH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "简介",
+        "colLength": "(255)",
+        "colName": "INTRODUCTION",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "审批状态",
+        "colLength": "(255)",
+        "colName": "APPROVAL_STATE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "录入人员ID",
+        "colLength": "(255)",
+        "colName": "OPERATOR_SID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "录入人员",
+        "colLength": "(255)",
+        "colName": "OPERATOR_NAME",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口级别",
+        "colLength": "(255)",
+        "colName": "PORT_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "隶属",
+        "colLength": "(255)",
+        "colName": "SUBJECTION_WH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口位置",
+        "colLength": "(255)",
+        "colName": "PORT_LOCATION",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "职工人数(人)",
+        "colLength": "(255)",
+        "colName": "NUMBER_OF_EMPLOYEES",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "装卸司机及装卸工(人)",
+        "colLength": "(255)",
+        "colName": "LOADING_AND_UNLOADING_DRIVERS_AND_WORKERS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "专业保障队伍人数(人)",
+        "colLength": "(255)",
+        "colName": "NUMBER_OF_PROFESSIONAL_SUPPORT_TEAMS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "吞吐能力年核定货(万吨)",
+        "colLength": "(255)",
+        "colName": "ANNUAL_APPROVED_ORDER_FOR_THROUGHPUT_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "吞吐能力年核定客(万人)",
+        "colLength": "(255)",
+        "colName": "ANNUAL_APPROVED_PASSENGER_THROUGHPUT_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "吞吐能力年最高货(万吨)",
+        "colLength": "(255)",
+        "colName": "ANNUAL_MAXIMUM_CARGO_THROUGHPUT_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "吞吐能力年最高客(万人)",
+        "colLength": "(255)",
+        "colName": "ANNUAL_MAXIMUM_THROUGHPUT_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "装卸公司(个)",
+        "colLength": "(255)",
+        "colName": "LOADING_AND_UNLOADING_COMPANY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "其它专业公司(个)",
+        "colLength": "(255)",
+        "colName": "OTHER_PROFESSIONAL_COMPANIES",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头线兑延长(m)",
+        "colLength": "(255)",
+        "colName": "EXTENSION_OF_DOCK_LINE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位总数",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_BERTHS_AT_THE_DOCK",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位万吨级以上(个)",
+        "colLength": "(255)",
+        "colName": "DOCK_BERTH_OF_ABOVE10000_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位万吨级(个)",
+        "colLength": "(255)",
+        "colName": "DOCK_BERTH_OF10000_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位五千吨级(个)",
+        "colLength": "(255)",
+        "colName": "DOCK_BERTH_OF5000_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位三千吨级(个)",
+        "colLength": "(255)",
+        "colName": "DOCK_BERTH_OF3000_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位一千吨级(个)",
+        "colLength": "(255)",
+        "colName": "DOCK_BERTH_OF1000_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "码头泊位小型的位(个)",
+        "colLength": "(255)",
+        "colName": "SMALL_BERTHS_AT_THE_DOCK",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "战备滚装码头",
+        "colLength": "(255)",
+        "colName": "WAR_READINESS_ROLL_ONROLL_OFF_DOCK",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "斜坡道车客渡码头",
+        "colLength": "(255)",
+        "colName": "SLOPE_ROAD_CAR_PASSENGER_FERRY_TERMINAL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "成品油码头",
+        "colLength": "(255)",
+        "colName": "FINISHED_OIL_TERMINAL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "其它码头",
+        "colLength": "(255)",
+        "colName": "OTHER_PORTS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "最大靠泊能力(t)",
+        "colLength": "(255)",
+        "colName": "MAXIMUM_BERTHING_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "仓库总数",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_WAREHOUSES",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "库场危险品(米²处)",
+        "colLength": "(255)",
+        "colName": "DANGEROUS_GOODS_IN_THE_WAREHOUSE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "堆场(米²处)",
+        "colLength": "(255)",
+        "colName": "YARD_NUMBER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "进出港航道条数",
+        "colLength": "(255)",
+        "colName": "NUMBER_OF_INBOUND_AND_OUTBOUND_WATERWAYS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "通航能力(吨)",
+        "colLength": "(255)",
+        "colName": "NAVIGATION_CAPACITY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "锚地(处)",
+        "colLength": "(255)",
+        "colName": "ANCHORAGE_NUMBER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "锚地总面积(千米²)",
+        "colLength": "(255)",
+        "colName": "TOTAL_ANCHORAGE_AREA",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "锚地泊船总数(艘)",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_ANCHORED_SHIPS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "浮筒数(个)",
+        "colLength": "(255)",
+        "colName": "NUMBER_OF_FLOATS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "系船浮筒泊位数(个)",
+        "colLength": "(255)",
+        "colName": "NUMBER_OF_BERTHS_FOR_MOORING_BUOYS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "系船浮简最大系泊(吨)",
+        "colLength": "(255)",
+        "colName": "MAXIMUM_MOORING_CAPACITY_OF_MOORING_RIG",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "疏港公路(条)",
+        "colLength": "(255)",
+        "colName": "SHUGANG_HIGHWAY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "铁路专用线(条)",
+        "colLength": "(255)",
+        "colName": "RAILWAY_DEDICATED_LINE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "铁路装卸线(米)",
+        "colLength": "(255)",
+        "colName": "RAILWAY_LOADING_AND_UNLOADING_LINE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "船舶日供应淡水(吨)",
+        "colLength": "(255)",
+        "colName": "SHIPS_DAILY_SUPPLY_OF_FRESH_WATER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "船舶日供应燃料(吨)",
+        "colLength": "(255)",
+        "colName": "DAILY_FUEL_SUPPLY_FOR_SHIPS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港作船的总数",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_SHIPS_OPERATING_IN_THE_PORT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "拖轮(总功率艘)",
+        "colLength": "(255)",
+        "colName": "TUG_NUMBER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "驳船(总载重艘)",
+        "colLength": "(255)",
+        "colName": "BARGE_NUMBER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "消防船(艘)",
+        "colLength": "(255)",
+        "colName": "FIREFIGHTING_SHIP",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "交通船(艘)",
+        "colLength": "(255)",
+        "colName": "TRANSPORTATION_VESSEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "救护船(艘)",
+        "colLength": "(255)",
+        "colName": "RESCUE_BOAT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "其它(艘)",
+        "colLength": "(255)",
+        "colName": "OTHER_BOAT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "装载机械总数",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_LOADING_MACHINERY",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "起重设备总数(台)",
+        "colLength": "(255)",
+        "colName": "TOTAL_NUMBER_OF_LIFTING_EQUIPMENT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "集装箱装卸桥60吨以上(台)",
+        "colLength": "(255)",
+        "colName": "CONTAINER_LOADING_AND_UNLOADING_BRIDGE_OVER60_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "集装箱装卸桥50-59吨(台)",
+        "colLength": "(255)",
+        "colName": "CONTAINER_LOADING_AND_UNLOADING_BRIDGE50T59_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "集装箱装卸桥40-49吨(台)",
+        "colLength": "(255)",
+        "colName": "CONTAINER_LOADING_AND_UNLOADING_BRIDGE40T49_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "集装箱装卸桥30-39吨(台)",
+        "colLength": "(255)",
+        "colName": "CONTAINER_LOADING_AND_UNLOADING_BRIDGE30T39_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "门机40吨以上(台)",
+        "colLength": "(255)",
+        "colName": "DOOR_CRANE_WEIGHING_OVER40_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "门机25-39吨(台)",
+        "colLength": "(255)",
+        "colName": "DOOR_CRANE25T39_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "门机16-24吨(台)",
+        "colLength": "(255)",
+        "colName": "DOOR_CRANE16T24_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "门机10-15吨(台)",
+        "colLength": "(255)",
+        "colName": "DOOR_CRANE10T15_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "轮胎吊100吨以上(台)",
+        "colLength": "(255)",
+        "colName": "TIRE_CRANE_WEIGHING_OVER100_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "轮胎吊50-99吨(台)",
+        "colLength": "(255)",
+        "colName": "TIRE_CRANE50T99_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "轮胎吊16-49吨(台)",
+        "colLength": "(255)",
+        "colName": "TIRE_CRANE16T49_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "浮吊300吨以上(台)",
+        "colLength": "(255)",
+        "colName": "FLOATING_CRANE_WEIGHING_OVER300_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "浮吊100-299吨(台)",
+        "colLength": "(255)",
+        "colName": "FLOATING_CRANE100T299_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "浮吊60-99吨(台)",
+        "colLength": "(255)",
+        "colName": "FLOATING_CRANE60T99_TONS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "叉车(台)",
+        "colLength": "(255)",
+        "colName": "FORKLIFT_NUMBER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "潮型",
+        "colLength": "(255)",
+        "colName": "TIDE_TYPE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "最高潮位(m)",
+        "colLength": "(255)",
+        "colName": "HIGHEST_TIDE_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "最低潮位(m)",
+        "colLength": "(255)",
+        "colName": "MINIMUM_TIDE_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "平均潮位(m)",
+        "colLength": "(255)",
+        "colName": "AVERAGE_TIDE_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "平均潮差(m)",
+        "colLength": "(255)",
+        "colName": "AVERAGE_TIDAL_RANGE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "SID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "创建人",
+        "colLength": "(255)",
+        "colName": "CREATEUSER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "创建日期",
+        "colLength": "(255)",
+        "colName": "CREATE_DATE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "更新人",
+        "colLength": "(255)",
+        "colName": "UPDATEUSER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "更新日期",
+        "colLength": "(255)",
+        "colName": "update_date",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "排序",
+        "colLength": "(255)",
+        "colName": "ORDERID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "数据来源",
+        "colLength": "(255)",
+        "colName": "DATA_SOURCE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "",
+        "colName": "DELFLAG",
+        "colType": "int",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> 港口 <p> @author zjarlin @date 2024-11-09",
+    "tableEnglishName": "\"BIZ_1PORT\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "节点id",
+        "colLength": "(255)",
+        "colName": "biz1datazone",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区名称",
+        "colLength": "(255)",
+        "colName": "PORT_AREA_NAME",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区编号",
+        "colLength": "(255)",
+        "colName": "GQBH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所属港口",
+        "colLength": "(255)",
+        "colName": "BELONGING_PORT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "位置描述",
+        "colLength": "(255)",
+        "colName": "WZMS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "地市",
+        "colLength": "(255)",
+        "colName": "CITY_LEVEL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所属单位",
+        "colLength": "(255)",
+        "colName": "AFFILIATED_UNIT",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "所在水系",
+        "colLength": "(255)",
+        "colName": "SZSX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "运输类型",
+        "colLength": "(255)",
+        "colName": "YSLX",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区装载总数",
+        "colLength": "(255)",
+        "colName": "GQZZZS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区信息说明",
+        "colLength": "(255)",
+        "colName": "GQXXSM",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区约束",
+        "colLength": "(255)",
+        "colName": "GQYS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港区图",
+        "colLength": "(255)",
+        "colName": "PORT_AREA_MAP",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "附件",
+        "colLength": "(255)",
+        "colName": "ATTR",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "港口标签",
+        "colLength": "(255)",
+        "colName": "PORT_LABELS",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "路网ID",
+        "colLength": "(255)",
+        "colName": "LW_ID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "经纬度点集",
+        "colLength": "(255)",
+        "colName": "JWDDJ",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "进出港公路",
+        "colLength": "(255)",
+        "colName": "JCGGL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "进出港铁路",
+        "colLength": "(255)",
+        "colName": "JCGTL",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "海图",
+        "colLength": "(255)",
+        "colName": "CHART",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "简介",
+        "colLength": "(255)",
+        "colName": "IMG_PATH",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "附件",
+        "colLength": "(255)",
+        "colName": "INTRODUCTION",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "(255)",
+        "colName": "SID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "创建人",
+        "colLength": "(255)",
+        "colName": "CREATEUSER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "创建日期",
+        "colLength": "(255)",
+        "colName": "CREATE_DATE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "更新人",
+        "colLength": "(255)",
+        "colName": "UPDATEUSER",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "更新日期",
+        "colLength": "(255)",
+        "colName": "update_date",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "排序",
+        "colLength": "(255)",
+        "colName": "ORDERID",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "数据来源",
+        "colLength": "(255)",
+        "colName": "DATA_SOURCE",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "",
+        "colLength": "",
+        "colName": "DELFLAG",
+        "colType": "int",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> 港区表 <p> @author zjarlin @date 2024-11-09",
+    "tableEnglishName": "\"BIZ_2PORT_AREA\""
+  },
+  {
+    "databaseName": "",
+    "databaseType": "mysql",
+    "dto": [
+      {
+        "colComment": "操作系统",
+        "colLength": "(255)",
+        "colName": "os_type",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "系统架构",
+        "colLength": "(255)",
+        "colName": "os_structure",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "定义类型",
+        "colLength": "(255)",
+        "colName": "def_type",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "名称",
+        "colLength": "(255)",
+        "colName": "name",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "值",
+        "colLength": "(255)",
+        "colName": "value",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "注释",
+        "colLength": "(255)",
+        "colName": "describtion",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "状态",
+        "colLength": "(255)",
+        "colName": "status",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      },
+      {
+        "colComment": "文件地址",
+        "colLength": "(255)",
+        "colName": "file_url",
+        "colType": "varchar",
+        "isPrimaryKey": "",
+        "isSelfIncreasing": ""
+      }
+    ],
+    "tableChineseName": "<p> 环境变量管理 <p> @author zjarlin @date 2024-10-20",
+    "tableEnglishName": "\"biz_env_vars\""
+  }
+]

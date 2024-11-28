@@ -87,9 +87,9 @@ class AutoDDLAction : AnAction() {
 //        val diff = Streams.getGenericDiffs(pkgContext, ddlContexts, { it.tableEnglishName }, { it.colName })
         val diff = pkgContext.differenceBy(
             ddlContexts,
-            { a, b -> a.tableEnglishName.uppercase() == b.tableEnglishName.uppercase() },
+            { a, b -> a.tableEnglishName.contains(b.tableEnglishName, ignoreCase = true) },
             { a, b ->
-                a.colName.equals(b.colName, ignoreCase = true)
+                a.colName.contains(b.colName, ignoreCase = true)
             },
         )
 
@@ -110,34 +110,54 @@ class AutoDDLAction : AnAction() {
         val databaseDDLGenerator = getDatabaseDDLGenerator(dbType)
 
 
-        val map = toFlatDDLContext.joinToString(System.lineSeparator()) {
-
-            val tableEnglishName = it.tableEnglishName
-
-            //判断表是否存在
-            val isTbaleExit = isTabExit(tableEnglishName, ddlContexts)
-
-
-            val sql = if (isTbaleExit) {
-                val addColSql = databaseDDLGenerator.generateAddColDDL(it)
-                addColSql
-            } else {
-                val generateCreateTableDDL = databaseDDLGenerator.generateCreateTableDDL(it)
-                generateCreateTableDDL
+// 将 DDL 语句分类收集
+        val (createTableSqls, addColumnSqls) = toFlatDDLContext.partition { context ->
+            !isTabExit(context.tableEnglishName, ddlContexts)
+        }.let { (createContexts, alterContexts) ->
+            // 生成创建表的 SQL
+            val createSqls = createContexts.map { context ->
+                databaseDDLGenerator.generateCreateTableDDL(context)
             }
-            sql
+
+            // 生成添加列的 SQL
+            val alterSqls = alterContexts.map { context ->
+                databaseDDLGenerator.generateAddColDDL(context)
+            }
+
+            createSqls to alterSqls
         }
 
+// 组合最终的 SQL，先创建表，再添加列
+        val finalSql = buildString {
+            // 添加创建表的 SQL
+            if (createTableSqls.isNotEmpty()) {
+                appendLine("-- Create Tables")
+                appendLine(createTableSqls.joinToString(System.lineSeparator()))
+            }
+
+            // 添加分隔符
+            if (createTableSqls.isNotEmpty() && addColumnSqls.isNotEmpty()) {
+                appendLine()
+                appendLine("-- ----------------------------------------")
+                appendLine()
+            }
+
+            // 添加修改表的 SQL
+            if (addColumnSqls.isNotEmpty()) {
+                appendLine("-- Add Columns")
+                appendLine(addColumnSqls.joinToString(System.lineSeparator()))
+            }
+        }
         ShowContentUtil.openTextInEditor(
             project,
-            map,
-            Vars.timePrefix + "diff_ddl.sql",
+            finalSql,
+            "diff_ddl.sql",
             ".sql",
 //            project!!.basePath
         )
 
 
-        difftypeJson(pkgContext, ddlContexts, project)
+        difftypeJsonSee(pkgContext, ddlContexts, project)
 
 
     }
@@ -148,7 +168,8 @@ class AutoDDLAction : AnAction() {
 
         if (diffTypeContext.isNotEmpty()) {
             //警告类型不同的字段
-            val toJson1 = diffTypeContext.toDDLContext().toJson()
+            val toDDLContext = diffTypeContext.toDDLContext()
+            val toJson1 = toDDLContext.toJson()
             if (toJson1.isNotBlank()) {
                 DialogUtil.showWarningMsg(
                     "实体与数据库类型存在差异，请注意修改" + "" + "(未来版本会实现类型隐式适配数据库类型ddl语句!)"
@@ -156,7 +177,7 @@ class AutoDDLAction : AnAction() {
                 ShowContentUtil.openTextInEditor(
                     project,
                     toJson1,
-                    Vars.timePrefix + "diff_structure_type_atypism",
+                    "diff_structure_type_atypism",
                     ".json",
                     //            project!!.basePath
                 )
@@ -165,6 +186,61 @@ class AutoDDLAction : AnAction() {
         }
 
 
+    }
+
+
+    private fun difftypeJsonSee(pkgContext: List<DDLFLatContext>, ddlContexts:
+    List<DDLFLatContext>, project: Project) {
+        // 使用流式语法构建类型差异JSON
+        val diffJson = pkgContext
+            .groupBy { it.tableEnglishName.lowercase() }
+            .mapValues { (tableName, entityColumns) ->
+                // 获取数据库中对应表的列类型映射
+                val dbColumnTypes = ddlContexts
+                    .filter { it.tableEnglishName.equals(tableName, ignoreCase = true) }
+                    .associate { it.colName.lowercase() to it.colType }
+
+                // 找出类型不同的列
+                entityColumns
+                    .mapNotNull { entityCol ->
+                        val colName = entityCol.colName.lowercase()
+                        dbColumnTypes[colName]?.let { dbType ->
+                            if (!entityCol.colType.equals(dbType, ignoreCase = true)) {
+                                colName to "${entityCol.colType}    <=    $dbType"
+                            } else null
+                        }
+                    }
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString(",\n") { (colName, typeDiff) ->
+                        """    "$colName": "$typeDiff""""
+                    }
+            }
+            .filterValues { it != null }
+            .takeIf { it.isNotEmpty() }
+            ?.let { diffMap ->
+                // 使用字符串模板构建最终的JSON
+                buildString {
+                    appendLine("{")
+                    append(diffMap.entries.joinToString(",\n") { (tableName, columnDiffs) ->
+                        """  "$tableName": {
+                    |$columnDiffs
+                    |  }""".trimMargin()
+                    })
+                    appendLine("\n}")
+                }
+            } ?: "{}"
+
+        if (diffJson != "{}") {
+            DialogUtil.showWarningMsg(
+                "实体与数据库类型存在差异，请注意修改(未来版本会实现类型隐式适配数据库类型ddl语句!)"
+            )
+            ShowContentUtil.openTextInEditor(
+                project,
+                diffJson,
+                "diff_structure_type_atypism",
+                ".json"
+            )
+        }
     }
 
     private fun genDML(diffTypeContext: List<DDLFLatContext>): String {

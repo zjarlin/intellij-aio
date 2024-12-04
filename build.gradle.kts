@@ -1,6 +1,7 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-
+val sinceVersion by extra("223.7571.182")
+val untilVersion by extra("243.*")
 plugins {
 //    id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
@@ -104,8 +105,8 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("222.3345.118")
-        untilBuild.set("242.*")
+        sinceBuild.set(sinceVersion)
+        untilBuild.set(untilVersion)
     }
 
     signPlugin {

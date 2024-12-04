@@ -13,11 +13,11 @@ import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaM
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
 import com.addzero.addl.ktututil.JlCollUtil.intersectBy
+import com.addzero.addl.ktututil.equalsIgnoreCase
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.ShowContentUtil
-import com.addzero.addl.util.Vars
 import com.addzero.common.kt_util.isNotBlank
 import com.intellij.database.model.DasColumn
 import com.intellij.database.model.DasNamespace
@@ -87,9 +87,9 @@ class AutoDDLAction : AnAction() {
 //        val diff = Streams.getGenericDiffs(pkgContext, ddlContexts, { it.tableEnglishName }, { it.colName })
         val diff = pkgContext.differenceBy(
             ddlContexts,
-            { a, b -> a.tableEnglishName.contains(b.tableEnglishName, ignoreCase = true) },
+            { a, b -> a.tableEnglishName.equalsIgnoreCase(b.tableEnglishName) },
             { a, b ->
-                a.colName.contains(b.colName, ignoreCase = true)
+                a.colName.equalsIgnoreCase(b.colName)
             },
         )
 
@@ -164,7 +164,7 @@ class AutoDDLAction : AnAction() {
 
     private fun difftypeJson(pkgContext: List<DDLFLatContext>, ddlContexts: List<DDLFLatContext>, project: Project) {
 
-        val diffTypeContext = pkgContext.intersectBy(ddlContexts, { a, b -> a.tableEnglishName.equals(b.tableEnglishName, ignoreCase = true) }, { a, b -> a.colName.equals(b.colName, ignoreCase = true) }, { a, b -> !a.colType.equals(b.colType, ignoreCase = true) })
+        val diffTypeContext = pkgContext.intersectBy(ddlContexts, { a, b -> a.tableEnglishName.equalsIgnoreCase(b.tableEnglishName) }, { a, b -> a.colName.equalsIgnoreCase(b.colName) }, { a, b -> !a.colType.equalsIgnoreCase(b.colType) })
 
         if (diffTypeContext.isNotEmpty()) {
             //警告类型不同的字段
@@ -189,35 +189,28 @@ class AutoDDLAction : AnAction() {
     }
 
 
-    private fun difftypeJsonSee(pkgContext: List<DDLFLatContext>, ddlContexts:
-    List<DDLFLatContext>, project: Project) {
+    private fun difftypeJsonSee(
+        pkgContext: List<DDLFLatContext>,
+        ddlContexts: List<DDLFLatContext>,
+        project: Project,
+    ) {
         // 使用流式语法构建类型差异JSON
-        val diffJson = pkgContext
-            .groupBy { it.tableEnglishName.lowercase() }
-            .mapValues { (tableName, entityColumns) ->
+        val diffJson = pkgContext.groupBy { it.tableEnglishName.lowercase() }.mapValues { (tableName, entityColumns) ->
                 // 获取数据库中对应表的列类型映射
-                val dbColumnTypes = ddlContexts
-                    .filter { it.tableEnglishName.equals(tableName, ignoreCase = true) }
-                    .associate { it.colName.lowercase() to it.colType }
+                val dbColumnTypes = ddlContexts.filter { it.tableEnglishName.equals(tableName, ignoreCase = true) }.associate { it.colName.lowercase() to it.colType }
 
                 // 找出类型不同的列
-                entityColumns
-                    .mapNotNull { entityCol ->
+                entityColumns.mapNotNull { entityCol ->
                         val colName = entityCol.colName.lowercase()
                         dbColumnTypes[colName]?.let { dbType ->
                             if (!entityCol.colType.equals(dbType, ignoreCase = true)) {
                                 colName to "${entityCol.colType}    <=    $dbType"
                             } else null
                         }
-                    }
-                    .takeIf { it.isNotEmpty() }
-                    ?.joinToString(",\n") { (colName, typeDiff) ->
+                    }.takeIf { it.isNotEmpty() }?.joinToString(",\n") { (colName, typeDiff) ->
                         """    "$colName": "$typeDiff""""
                     }
-            }
-            .filterValues { it != null }
-            .takeIf { it.isNotEmpty() }
-            ?.let { diffMap ->
+            }.filterValues { it != null }.takeIf { it.isNotEmpty() }?.let { diffMap ->
                 // 使用字符串模板构建最终的JSON
                 buildString {
                     appendLine("{")
@@ -235,10 +228,7 @@ class AutoDDLAction : AnAction() {
                 "实体与数据库类型存在差异，请注意修改(未来版本会实现类型隐式适配数据库类型ddl语句!)"
             )
             ShowContentUtil.openTextInEditor(
-                project,
-                diffJson,
-                "diff_structure_type_atypism",
-                ".json"
+                project, diffJson, "diff_structure_type_atypism", ".json"
             )
         }
     }
@@ -280,7 +270,13 @@ class AutoDDLAction : AnAction() {
             map
         }
 
-        return ddlContexts
+        val toList = ddlContexts.map {
+            val tableEnglishName = it.tableEnglishName
+            val removeSurrounding = tableEnglishName.removeSurrounding("\"")
+            it.tableEnglishName = removeSurrounding
+            it
+        }.toList()
+        return toList
     }
 
 

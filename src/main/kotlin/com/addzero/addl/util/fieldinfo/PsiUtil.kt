@@ -186,8 +186,7 @@ object PsiUtil {
             if (annotation != null) {
                 val column = annotation.findAttributeValue("name")
                 val text = column?.text
-                val s = method.name + "Id"
-                val mayColumn = StrUtil.firstNonBlank(text, s)
+                val mayColumn = StrUtil.firstNonBlank(text, method.name + "Id")
 
                 val comment = getCommentFunByMethod(method)
                 val type = String::class.java

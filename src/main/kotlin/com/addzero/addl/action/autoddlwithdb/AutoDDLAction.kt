@@ -151,7 +151,7 @@ class AutoDDLAction : AnAction() {
         ShowContentUtil.openTextInEditor(
             project,
             finalSql,
-            "diff_ddl.sql",
+            "diff_ddl",
             ".sql",
 //            project!!.basePath
         )
@@ -220,6 +220,7 @@ class AutoDDLAction : AnAction() {
                     |  }""".trimMargin()
                     })
                     appendLine("\n}")
+
                 }
             } ?: "{}"
 

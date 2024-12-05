@@ -54,6 +54,12 @@ object JlStrUtil {
      */
     infix fun String.ignoreCaseIn(collection: Collection<String>): Boolean = collection.any { it.equals(this, ignoreCase = true) }
 
+    infix fun String.ignoreCaseLike(other: String): Boolean {
+        return this.contains(other, ignoreCase = true)
+    }
+
+
+
     @JvmStatic
     fun main(args: Array<String>) {
         val listOf = listOf("id", "name", "age")

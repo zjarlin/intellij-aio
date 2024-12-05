@@ -27,13 +27,16 @@ import com.addzero.addl.ktututil.equalsIgnoreCase
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
+import com.addzero.addl.util.JlStrUtil.ignoreCaseLike
 import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 import com.addzero.addl.util.containsAny
 import com.addzero.common.kt_util.isBlank
+import org.jetbrains.eval4j.byte
 import org.jetbrains.kotlin.codegen.STRING_UTF8_ENCODING_BYTE_LIMIT
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.*
 
 fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
@@ -83,13 +86,30 @@ interface IDatabaseGenerator {
         }
 
         fun javaType2RefType(javaType: String): String? {
+            val s = when {
+                javaType ignoreCaseLike "int" -> Int::class.java.name
+                javaType ignoreCaseLike "long" -> Long::class.java.name
+                javaType ignoreCaseLike "double" -> Double::class.java.name
+                javaType ignoreCaseLike "float" -> Float::class.java.name
+                javaType ignoreCaseLike "boolean" -> Boolean::class.java.name
+                javaType ignoreCaseLike "string" -> String::class.java.name
+                javaType ignoreCaseLike "date" -> Date::class.java.name
+                javaType ignoreCaseLike "time" -> LocalTime::class.java.name
+                javaType ignoreCaseLike "timezone" -> ZoneId::class.java.name
+                javaType ignoreCaseLike "datetime" -> LocalDateTime::class.java.name
+                else -> findRefType(javaType)
+            }
+            return s
+        }
+
+        private fun findRefType(javaType: String): String? {
             val javaClass = fieldMappings.find {
                 val equalsIgnoreCase = it.javaClassSimple.equalsIgnoreCase(javaType)
                 equalsIgnoreCase
             }?.javaClassRef
             val containsAny = javaType.containsAny("Clob", "Object")
             val b = javaType ignoreCaseIn listOf("clob", "object")
-            if (containsAny||b) {
+            if (containsAny || b) {
                 return String::class.java.name
             }
             if (javaClass == null) {

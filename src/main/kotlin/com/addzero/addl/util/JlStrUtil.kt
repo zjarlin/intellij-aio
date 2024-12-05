@@ -3,8 +3,10 @@ package com.addzero.addl.util
 import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.StrUtil
 import cn.hutool.extra.pinyin.PinyinUtil
+import com.addzero.addl.util.JlStrUtil.extractTextBetweenPTags
 import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
 import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
+import com.addzero.common.kt_util.isBlank
 import java.util.*
 
 /**
@@ -13,10 +15,11 @@ import java.util.*
  */
 fun main() {
     val excludeColumns = listOf("ID", "CREATE_BY", "UPDATE_BY", "CREATE_TIME", "UPDATE_TIME")
+
     // 示例数据类
     data class ColumnDto(
         val colName: String,
-        val comment: String
+        val comment: String,
     )
     // 使用中缀函数
     println("id" ignoreCaseIn excludeColumns)      // 输出: true
@@ -26,9 +29,7 @@ fun main() {
 
     // 在过滤中使用
     val dto = listOf(
-        ColumnDto("ID", "主键"),
-        ColumnDto("name", "姓名"),
-        ColumnDto("age", "年龄")
+        ColumnDto("ID", "主键"), ColumnDto("name", "姓名"), ColumnDto("age", "年龄")
     )
 
     // 过滤不包含的列
@@ -51,8 +52,7 @@ object JlStrUtil {
     /**
      * 检查字符串是否在列表中（不区分大小写）
      */
-    infix fun String.ignoreCaseIn(collection: Collection<String>): Boolean =
-        collection.any { it.equals(this, ignoreCase = true) }
+    infix fun String.ignoreCaseIn(collection: Collection<String>): Boolean = collection.any { it.equals(this, ignoreCase = true) }
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -166,6 +166,24 @@ object JlStrUtil {
         return markdown
     }
 
+    /**
+     * 提取p标签环绕的字符串
+     * @param [input]
+     * @return [List<String>]
+     */
+    fun extractTextBetweenPTags(input: String): List<String> {
+        // 判断字符串是否包含 <p> 标签
+        if ("<p>" !in input || "</p>" !in input) {
+            return emptyList() // 如果没有 <p> 标签，返回空列表
+        }
+
+        // 定义正则表达式，用来匹配 <p> 和 </p> 之间的内容
+        val regex = Regex("<p>(.*?)</p>")
+
+        // 提取所有匹配的内容
+        return regex.findAll(input).map { it.groupValues[1] }.toList()
+    }
+
 
 }
 
@@ -173,6 +191,7 @@ fun CharSequence.containsAny(vararg testStrs: CharSequence): Boolean {
     val containsAny = StrUtil.containsAny(this, *testStrs)
     return containsAny
 }
+
 fun CharSequence.removeAny(vararg testStrs: CharSequence): String? {
     if (this.isBlank()) {
         return ""
@@ -189,4 +208,25 @@ fun String.getParentPathAndmkdir(childPath: String): String {
     //            val parent = psiFile!!.parent
     val filePath1 = mkParentDirs.path
     return filePath1
+}
+
+
+fun String?.extractMarkdownBlockContent(): String {
+    if (this.isBlank()) {
+        return ""
+    }
+
+    if (this!!.containsAny("json", "```")) {
+        val regex = Regex("```\\w*\\s*(.*?)\\s*```", RegexOption.DOT_MATCHES_ALL)
+        val matchResult = regex.find(this)
+        return matchResult?.groups?.get(1)?.value?.trim() ?: ""
+    }
+
+    val extractTextBetweenPTags = extractTextBetweenPTags(this)
+    val firstOrNull = extractTextBetweenPTags.firstOrNull()
+
+    val s = firstOrNull ?: this
+    s.removeAny("\"")
+    return s
+
 }

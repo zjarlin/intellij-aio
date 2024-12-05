@@ -121,10 +121,10 @@ interface IDatabaseGenerator {
             FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "(255)", String::class),
             FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "", String::class),
             FieldMapping(
-                ::isDateTimeType, "datetime", "timestamp", "timestamp", "TIMESTAMP", "", LocalDateTime::class
+                ::isDateTimeType, "datetime", "timestamp with time zone", "timestamp", "TIMESTAMP", "", LocalDateTime::class
             ),
             FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "", Date::class),
-            FieldMapping(::isTimeType, "time", "time", "timestamp", "TIMESTAMP", "", LocalTime::class),
+            FieldMapping(::isTimeType, "time", "time with time zone", "timestamp", "TIMESTAMP", "", LocalTime::class),
             FieldMapping(::isIntType, "int", "integer", "number", "INT", "", Integer::class),
             FieldMapping(
                 ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "(6,2)", Double::class

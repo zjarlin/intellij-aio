@@ -19,7 +19,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         var cols = """        ${
             dto.joinToString(System.lineSeparator()) {
                 """
-                    "${it.colName}" ${it.colType}  ${it.colLength},
+                    ${it.colName} ${it.colType}  ${it.colLength},
                 """.trimIndent()
             }
         }
@@ -53,11 +53,11 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
         val createTableSQL = """
     create table "$tableEnglishName" (
-        "$id" varchar(64) primary key,
-        "$createBy" varchar(255) ,
-        "$updateBy" varchar(255) ,
-        "$createTime" timestamp ,
-        "$updateTime" timestamp ,
+        $id varchar(64) primary key,
+        $createBy varchar(255) ,
+        $updateBy varchar(255) ,
+        $createTime timestamp ,
+        $updateTime timestamp ,
 $cols       
     );
     comment on table "$tableEnglishName" is '$tableChineseName';
@@ -87,9 +87,9 @@ $cols
                 "\"$databaseName\".\"$tableEnglishName\""
             }
             // 生成 ALTER 语句以及字段注释
-            val upperCaseColName = StrUtil.toUnderlineCase(it.colName).uppercase()
+            val upperCaseColName = StrUtil.toUnderlineCase(it.colName)
             """
-            alter table $tableRef add column "$upperCaseColName" ${it.colType}(${it.colLength});
+            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength};
             comment on column $tableRef."$upperCaseColName" is '${it.colComment}';
         """.trimIndent()
         }

@@ -8,8 +8,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.isCollectionType
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.settings.SettingContext
-import com.addzero.addl.util.AnnotationUtils
-import com.addzero.addl.util.isCollectionType
+import com.addzero.addl.util.*
 import com.addzero.addl.util.kt_util.hasAnnotation
 import com.addzero.addl.util.kt_util.isStatic
 import com.intellij.ide.highlighter.JavaFileType
@@ -144,13 +143,13 @@ object PsiUtil {
                 "com.baomidou.mybatisplus.annotation.TableName" -> {
                     // 获取 MyBatis Plus 的 @TableName 注解值
                     val tableNameValue = annotation.findAttributeValue("value")
-                    return tableNameValue?.text?.replace("\"", "")
+                    return tableNameValue?.text.extractMarkdownBlockContent()
                 }
 
                 "org.babyfish.jimmer.sql.Table" -> {
                     // 获取 Jimmer 的 @Table 注解值
                     val nameValue = annotation.findAttributeValue("name")
-                    return nameValue?.text?.replace("\"", "")
+                    return nameValue?.text?.extractMarkdownBlockContent()
                 }
 
                 "javax.persistence.Table",
@@ -158,7 +157,7 @@ object PsiUtil {
                     -> {
                     // 获取 JPA 的 @Table 注解值
                     val nameValue = annotation.findAttributeValue("name")
-                    return nameValue?.text?.replace("\"", "")
+                    return nameValue?.text?.extractMarkdownBlockContent()
                 }
             }
         }
@@ -310,7 +309,8 @@ object PsiUtil {
 //        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
 
         val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
-        return firstNonBlank
+        val removeAny = firstNonBlank?.removeAny("\"")
+        return removeAny
 
     }
 
@@ -319,7 +319,8 @@ object PsiUtil {
         val myTabAnno = toLightClass?.getAnnotation("org.babyfish.jimmer.sql.Table")
         val findAttributeValue = myTabAnno?.findAttributeValue("name")
         val text = findAttributeValue?.text
-        return text
+        val removeAny = text?.removeAny("\"")
+        return removeAny
 //        val annotations = psiClass.annotationEntries
 //        for (myanno in annotations) {
 //

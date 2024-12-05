@@ -46,7 +46,7 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
             .filter { filterBaseEneity(it) }
                 .joinToString(System.lineSeparator()) {
                     """
-                    "${it.colName.uppercase()}" ${it.colType} ${it.colLength?.let { length -> "($length)" }} NOT NULL
+                    "${it.colName.uppercase()}" ${it.colType} ${it.colLength} NOT NULL
                 """.trimIndent()
                 }
         },
@@ -87,7 +87,7 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
             // 生成 ALTER 语句以及字段属性
             val upperCaseColName = StrUtil.toUnderlineCase(it.colName).uppercase()
             val addColumnDDL = """
-            ALTER TABLE $tableRef ADD ("$upperCaseColName" ${it.colType}(${it.colLength})); 
+            ALTER TABLE $tableRef ADD "$upperCaseColName" ${it.colType}  ${it.colLength}; 
             """.trimIndent()
 
             val commentDDL = """

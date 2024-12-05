@@ -11,6 +11,7 @@ import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.*
 import com.addzero.addl.util.kt_util.hasAnnotation
 import com.addzero.addl.util.kt_util.isStatic
+import com.addzero.common.kt_util.isBlank
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -216,7 +217,15 @@ object PsiUtil {
     fun getJavaClassFromPsiType(psiType: PsiType): Class<*> {
         val clazz = psiType.clazz()
         val name = clazz?.name
+        if (name.isBlank()) {
+//            DialogUtil.showWarningMsg("暂不支持的PsiClass类型$name,隐式转为String")
+            return String::class.java
+        }
         val javaType2RefType = javaType2RefType(name!!)
+        if (javaType2RefType.isBlank()) {
+//            DialogUtil.showWarningMsg("暂不支持的PsiClass类型$name,隐式转为String")
+            return String::class.java
+        }
         return ClassUtil.loadClass<Any>(javaType2RefType) ?: String::class.java
     }
 
@@ -396,7 +405,7 @@ object PsiUtil {
                     }.firstOrNull()
                     map
                 } else {
-                    toUnderlineCase+"Id"
+                    toUnderlineCase + "Id"
                 }
 
 
@@ -422,16 +431,17 @@ object PsiUtil {
 
     private fun guessColumnName(field: KtProperty): String? {
         val annotationEntries = field.annotationEntries
-        val firstOrNull = annotationEntries.filter { val shortName = it.shortName
+        val firstOrNull = annotationEntries.filter {
+            val shortName = it.shortName
             val asString = shortName?.asString()
             val equals = asString.equals("Column")
             equals
-            }.map {
+        }.map {
 
             val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
             annotationValue1
         }.firstOrNull()
-        return firstOrNull?: field.name?.toUnderlineCase()
+        return firstOrNull ?: field.name?.toUnderlineCase()
     }
 
 

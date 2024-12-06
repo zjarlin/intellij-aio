@@ -28,11 +28,8 @@ import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
 import com.addzero.addl.util.JlStrUtil.ignoreCaseLike
-import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 import com.addzero.addl.util.containsAny
 import com.addzero.common.kt_util.isBlank
-import org.jetbrains.eval4j.byte
-import org.jetbrains.kotlin.codegen.STRING_UTF8_ENCODING_BYTE_LIMIT
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime

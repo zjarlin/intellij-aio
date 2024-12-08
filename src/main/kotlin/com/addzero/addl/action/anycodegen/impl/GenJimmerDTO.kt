@@ -2,6 +2,7 @@ package com.addzero.addl.action.anycodegen.impl
 
 import com.addzero.addl.action.anycodegen.AbsGen
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
+import com.addzero.addl.autoddlstarter.generator.filterBaseEntity
 import com.addzero.addl.ktututil.toCamelCase
 
 class GenJimmerDTO : AbsGen() {
@@ -9,7 +10,12 @@ class GenJimmerDTO : AbsGen() {
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg,classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
 
-        val fields = javaFieldMetaInfos?.joinToString(System.lineSeparator()) {
+
+        val filter = javaFieldMetaInfos?.filter {
+            filterBaseEntity(it.name)
+        }
+
+        val fields = filter?.joinToString(System.lineSeparator()) {
             val name = it.name
             val toCamelCase = name.toCamelCase()
             val comment = it.comment

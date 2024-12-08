@@ -24,6 +24,7 @@ import com.addzero.addl.autoddlstarter.generator.ex.MysqlDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.OracleDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.ex.PostgreSQLDDLGenerator
 import com.addzero.addl.ktututil.equalsIgnoreCase
+import com.addzero.addl.ktututil.toCamelCase
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.ignoreCaseIn
@@ -37,6 +38,12 @@ import java.time.ZoneId
 import java.util.*
 
 fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
+    val colName = dDlRangeContext.colName
+
+    return filterBaseEntity(colName)
+}
+
+ fun filterBaseEntity(colName: String): Boolean {
     val settings = SettingContext.settings
     val id = settings.id
     val createBy = settings.createBy
@@ -44,13 +51,15 @@ fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
     val createTime = settings.createTime
     val updateTime = settings.updateTime
 
-    val colName = dDlRangeContext.colName
     if (colName.isBlank()) {
         return false
     }
     val arrayOf = arrayOf(id, createBy, updateBy, createTime, updateTime)
+    val arrayOf1 = arrayOf.map { it.toCamelCase() }.toTypedArray()
+    arrayOf(id, createBy, updateBy, createTime, updateTime)
     val containsAny = StrUtil.containsAny(colName, *arrayOf)
-    val b = !containsAny
+    val containsAny1 = StrUtil.containsAny(colName, *arrayOf1)
+    val b = !(containsAny|| containsAny1)
     return b
 }
 

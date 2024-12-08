@@ -176,14 +176,53 @@
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
         </action>
-        <!--        <action id="StructuredOutput" class="com.addzero.addl.action.StructuredOutput" text="StructuredOutput"-->
-        <!--                description="StructuredOutput">-->
-        <!--            <add-to-group group-id="EditSelectWordGroup" anchor="first"/>-->
-        <!--        </action>-->
+
+
+<!--        <action id="GenJimmerAll"-->
+<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerAll"-->
+<!--                text="GenJimmerAll" description="GenJimmerAll">-->
+<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
+<!--        </action>-->
+
+
         <action id="GenExcelDTO"
-                class="com.addzero.addl.action.exceldto.GenEasyExcelDTO"
-                text="GenEasyExcelDTO" description="GenEasyExcelDTO">
+                class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
+                text="GenExcelDTO" description="GenExcelDTO">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+
+        <action id="GenJimmerDTO"
+                class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"
+                text="GenJimmerDTO" description="GenJimmerDTO">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+        <action id="GenJimmerController"
+                class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"
+                text="GenJimmerController" description="GenJimmerController">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+
+        <action id="GenJimmerBaseController"
+                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseController"
+                text="GenJimmerBaseController" description="GenJimmerBaseController">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+
+        <action id="GenJimmerBaseFastExcelApi"
+                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseFastExcelApi"
+                text="GenJimmerBaseFastExcelApi" description="GenJimmerBaseFastExcelApi">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+        </action>
+
+
+        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
+                description="GenAddColumnByThis">
+            <add-to-group group-id="GenerateGroup" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
         </action>
 
         <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
@@ -191,11 +230,7 @@
             <add-to-group group-id="GenerateGroup" anchor="first"/>
         </action>
 
-        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
-                description="GenAddColumnByThis">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
-        </action>
+
         <action id="AutoDDL.WithDB.Generate"
                 class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
                 text="Entities DDL Generator"

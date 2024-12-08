@@ -75,6 +75,7 @@ object ShowContentUtil {
         sqlPrefix: String = "",
         fileTypeSuffix: String,
         filePath: String? = "${project!!.basePath}/.autoddl",
+        focus:Boolean = true
     ) {
         if (project == null) return
         if (sql.isBlank()) {
@@ -118,7 +119,7 @@ object ShowContentUtil {
                 CodeStyleManager.getInstance(project).reformat(psiFile)
 
                 // 打开文件
-                FileEditorManager.getInstance(project).openFile(virtualFile, true)
+                FileEditorManager.getInstance(project).openFile(virtualFile, focus)
             } catch (e: Exception) {
                 showErrorMsg("文件处理出错: ${e.message}")
             }

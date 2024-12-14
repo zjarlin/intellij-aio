@@ -35,7 +35,6 @@ specification ${classname}Spec{
 
 input ${classname}SaveInputDTO{
 #allScalars(this)
--id
 }
 
 input ${classname}UpdateInputDTO{

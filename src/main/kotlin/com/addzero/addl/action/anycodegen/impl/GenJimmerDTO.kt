@@ -48,7 +48,7 @@ ${classname}ExcelWriteDTO{
 }
 
 ${classname}OutVO{
-#allScalars()
+#allScalars
 }
             """.trimIndent()
         return trimIndent

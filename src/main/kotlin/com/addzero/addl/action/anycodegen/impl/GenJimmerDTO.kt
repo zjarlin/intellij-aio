@@ -8,7 +8,7 @@ import com.addzero.addl.ktututil.toCamelCase
 class GenJimmerDTO : AbsGen() {
 
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
-        val (pkg,classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
+        val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
 
 
         val filter = javaFieldMetaInfos?.filter {
@@ -42,14 +42,22 @@ input ${classname}UpdateInputDTO{
 id!
 }
 
-${classname}ExcelWriteDTO{
-   $fields
-}
 
 ${classname}OutVO{
 #allScalars
 }
+
+
+
+
+
             """.trimIndent()
+
+
+        //${classname}ExcelWriteDTO{
+//   $fields
+//}
+
         return trimIndent
 
     }

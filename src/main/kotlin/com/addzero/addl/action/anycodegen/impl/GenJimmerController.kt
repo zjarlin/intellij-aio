@@ -12,7 +12,7 @@ class GenJimmerController : AbsGen() {
         val toCamelCase = classname?.toCamelCase()
         val lowerFirst = StrUtil.lowerFirst(classname)
         val trimIndent = """
-           package com.addzero.web.modules.xxxx
+package com.addzero.web.modules.xxxx
 import ${classname}ExcelDTO
 import com.addzero.web.infra.jimmer.base.BaseCrudController
 import com.addzero.web.infra.jimmer.base.BaseFastExcelApi

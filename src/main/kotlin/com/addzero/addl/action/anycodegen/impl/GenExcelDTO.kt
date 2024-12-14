@@ -95,11 +95,10 @@ class GenExcelDTO : AbsGen() {
         return """
             import com.alibaba.excel.annotation.ExcelProperty;
              import $pkg;
- 
+           $toentityblockk1 
             public open class ${classname}$EXCEL_READ_DTO{
                 $fields
                 $toentityblockk
-               $toentityblockk1 
             }
         """.trimIndent()
 

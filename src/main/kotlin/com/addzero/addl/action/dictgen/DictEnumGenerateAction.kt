@@ -187,8 +187,7 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
             // 检查枚举类是否已存在
             val b = directory.findFile(enumFileName) != null
             if (b) {
-
-                DialogUtil.showWarningMsg(enumFileName)
+                DialogUtil.showWarningMsg(enumFileName+"已存在,请检查文件或字典表中是否重复定义")
                 skipCount++
                 return@forEach
             }

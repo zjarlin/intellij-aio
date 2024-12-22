@@ -2,18 +2,11 @@ package com.addzero.addl.action.dictgen
 
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.action.base.BaseAction
-import com.addzero.addl.util.DialogUtil
-import com.addzero.addl.util.PinYin4JUtils
-import com.intellij.database.DataBus
-import com.intellij.database.console.session.DatabaseSessionManager
-import com.intellij.database.dataSource.LocalDataSource
-import com.intellij.database.dataSource.connection.DatabaseDepartment
+import com.addzero.addl.util.*
 import com.intellij.database.model.DasNamespace
 import com.intellij.database.psi.DbDataSource
 import com.intellij.database.psi.DbElement
-import com.intellij.database.psi.DbPsiFacade
 import com.intellij.database.util.DasUtil
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.application.ApplicationManager
@@ -25,26 +18,15 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.database.datagrid.DataConsumer
-import com.intellij.database.datagrid.DataGrid
-import com.intellij.database.datagrid.DataRequest
-import com.intellij.database.model.DasTable
-import com.intellij.database.run.ui.DataAccessType
-import com.intellij.util.QueryExecutor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.tools.projectWizard.core.entity.settings.SettingContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 import kotlin.coroutines.CoroutineContext
-import com.intellij.database.view.DatabaseView
-import com.intellij.database.util.DbImplUtil
-import com.intellij.database.util.SearchPath
-import com.intellij.database.util.ObjectPaths
-import java.sql.DriverManager
-import com.intellij.database.dataSource.DatabaseConnectionManager
 
 class DictEnumGenerateAction : BaseAction(), CoroutineScope {
     private val job = Job()
@@ -57,7 +39,7 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
 //    }
 
     private lateinit var dataSource: DbDataSource
-    private val targetPackage = "com.addzero.common.enums.dict" // 生成枚举的目标包路径
+    private val targetPackage = "com.addzero.common.enums" // 生成枚举的目标包路径
 
     override fun update(event: AnActionEvent) {
         val selected = event.getData(LangDataKeys.PSI_ELEMENT_ARRAY)
@@ -120,74 +102,72 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
     )
 
     private fun getDictData(dataSource: DbDataSource): Map<DictInfo, List<DictItemInfo>> {
-        val dictTable = DasUtil.getTables(dataSource)
-            .find { it.name.equals("sys_dict", ignoreCase = true) }
-            ?: throw IllegalStateException("未找到字典表(sys_dict)")
+        val (modelKey, modelManufacturer, modelNameOnline, ollamaUrl, modelNameOffline, temPerature, dbType, id, createBy, updateBy, createTime, updateTime, dictTableName, did1, dcode1, ddes1, itemTableName, exdictid, icode1, ides1) = com.addzero.addl.settings.SettingContext.settings
 
-        val dictItemTable = DasUtil.getTables(dataSource)
-            .find { it.name.equals("sys_dict_item", ignoreCase = true) }
-            ?: throw IllegalStateException("未找到字典项表(sys_dict_item)")
 
-        val dictInfos = mutableListOf<DictInfo>()
-        val dictItems = mutableListOf<DictItemInfo>()
+        val dictTabName =dictTableName
 
-        // 获取数据库连接
-        val localDataSource = DbImplUtil.getMaybeLocalDataSource(dataSource)
-            ?: throw IllegalStateException("Cannot get local data source")
+        val itemTabName = itemTableName
 
-        // 使用 Builder 模式获取连接
-        DatabaseConnectionManager.getInstance()
-            .build(dataSource.project, localDataSource)
-            .setAskPassword(false)  // 不询问密码，使用已保存的密码
-            .create()?.use { connectionRef ->
-                val connection = connectionRef.get()
 
-                // 查询字典表
-                DbImplUtil.executeAndGetResult(
-                    connection,
-                    """
-                    SELECT id, code, description 
-                    FROM sys_dict 
-                    WHERE del_flag = '0' 
-                    ORDER BY code
-                    """.trimIndent()
-                ) { rs ->
-                    while (rs.next()) {
-                        dictInfos.add(DictInfo(
-                            id = rs.getString("id") ?: "",
-                            code = rs.getString("code") ?: "",
-                            description = rs.getString("description") ?: ""
-                        ))
-                    }
-                    dictInfos
-                }
+        // 使用 JOIN 查询获取字典和字典项数据
+        val did = did1
+        val dcode = dcode1
+        val ddes = ddes1
 
-                // 查询字典项表
-                DbImplUtil.executeAndGetResult(
-                    connection,
-                    """
-                    SELECT dict_id, code, description 
-                    FROM sys_dict_item 
-                    WHERE del_flag = '0' 
-                    ORDER BY dict_id, sort_order
-                    """.trimIndent()
-                ) { rs ->
-                    while (rs.next()) {
-                        dictItems.add(DictItemInfo(
-                            dictId = rs.getString("dict_id") ?: "",
-                            itemCode = rs.getString("code") ?: "",
-                            itemDescription = rs.getString("description") ?: ""
-                        ))
-                    }
-                    dictItems
+
+        val idictid = exdictid
+        val icode = icode1
+        val ides = ides1
+
+
+//        val dictTable = DasUtil.getTables(dataSource)
+//            .find { it.name.equals(dictTabName, ignoreCase = true) }
+//            ?: throw IllegalStateException("未找到字典表($dictTabName)")
+//        val dictItemTable = DasUtil.getTables(dataSource)
+//            .find { it.name.equals("$itemTabName", ignoreCase = true) }
+//            ?: throw IllegalStateException("未找到字典项表($itemTabName)")
+
+        val query = QueryHandler.create<Map<DictInfo, List<DictItemInfo>>>(
+            """
+            SELECT d.$did as dict_id,
+                   d.$dcode as dict_code, 
+                   d.$ddes as dict_desc,
+                   i.$icode as item_code,
+                   i.$ides as item_desc
+            FROM $dictTabName d
+            LEFT JOIN $itemTabName i ON d.$did = i.$idictid
+            """.trimIndent()
+        ) { rs ->
+            val result = mutableMapOf<DictInfo, MutableList<DictItemInfo>>()
+
+            while (rs.next()) {
+                val dictInfo = DictInfo(
+                    id = rs.getString("dict_id") ?: "",
+                    code = rs.getString("dict_code") ?: "",
+                    description = rs.getString("dict_desc") ?: ""
+                )
+
+                val itemCode = rs.getString("item_code")
+                val itemDesc = rs.getString("item_desc")
+
+                if (itemCode != null) {
+                    val dictItem = DictItemInfo(
+                        dictId = dictInfo.id,
+                        itemCode = itemCode,
+                        itemDescription = itemDesc
+                    )
+
+                    result.getOrPut(dictInfo) { mutableListOf() } .add(dictItem)
                 }
             }
 
-        return dictInfos.associateWith { dictInfo ->
-            dictItems.filter { it.dictId == dictInfo.id }
-        }.filterValues { items ->
-            items.isNotEmpty()
+            result
         }
+
+        // 执行查询
+        return DatabaseUtil.executeQuery(dataSource, query.sqlBuilder.build(), query.handler)
+            .filterValues { items -> items.isNotEmpty() }
     }
 
     private fun generateEnums(
@@ -205,7 +185,10 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
             val enumFileName = "$enumName.kt"
 
             // 检查枚举类是否已存在
-            if (directory.findFile(enumFileName) != null) {
+            val b = directory.findFile(enumFileName) != null
+            if (b) {
+
+                DialogUtil.showWarningMsg(enumFileName)
                 skipCount++
                 return@forEach
             }
@@ -229,7 +212,7 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
         // 显示处理结果
         if (createCount > 0) {
             DialogUtil.showInfoMsg(
-                "成功生成 $createCount 个枚举类" + if (skipCount > 0) "，过 $skipCount 个已存在的枚举类" else ""
+                "成功生成 $createCount 个枚举类" + if (skipCount > 0) "，跳过 $skipCount 个已存在的枚举类" else ""
             )
         } else if (skipCount > 0) {
             DialogUtil.showWarningMsg("所有枚举类($skipCount 个)都已存在，未生成新文件")
@@ -321,6 +304,7 @@ private fun String.toPinyinUpper(): String {
     val stringToPinyin = PinYin4JUtils.hanziToPinyin(this, "_")
     val unerline = StrUtil.toUnderlineCase(stringToPinyin)
     val toUpperCase = unerline.uppercase(Locale.getDefault())
-    return toUpperCase
+    val toValidVariableName = JlStrUtil.toValidVariableName(toUpperCase, JlStrUtil.VariableType.CONSTANT)
 
+    return toValidVariableName
 }

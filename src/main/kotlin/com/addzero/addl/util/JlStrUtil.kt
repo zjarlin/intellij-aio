@@ -190,7 +190,118 @@ object JlStrUtil {
         return regex.findAll(input).map { it.groupValues[1] }.toList()
     }
 
+    /**
+     * 变量名类型
+     */
+    enum class VariableType {
+        /** 常量: 大写+下划线 (如: MAX_VALUE) */
+        CONSTANT,
+        /** 小驼峰变量名 (如: firstName) */
+        CAMEL_CASE,
+        /** ���驼峰类名 (如: UserInfo) */
+        PASCAL_CASE,
+        /** 下划线分隔 (如: user_name) */
+        SNAKE_CASE,
+        /** 中划线分隔 (如: user-name) */
+        KEBAB_CASE
+    }
 
+    /**
+     * 生成合法的变量名
+     * @param input 输入字符串
+     * @param type 变量名类型
+     * @param prefix 前缀(可选)
+     * @param suffix 后缀(可选)
+     * @return 处理后的变量名
+     */
+    fun toValidVariableName(
+        input: String,
+        type: VariableType = VariableType.CAMEL_CASE,
+        prefix: String = "",
+        suffix: String = ""
+    ): String {
+        if (input.isBlank()) return ""
+
+        // 检查是否为纯数字
+        if (input.all { it.isDigit() }) {
+            return "__${input}"  // 纯数字加双下划线前缀
+        }
+
+        // 1. 清理特殊字符，只保留字母、数字、空格、下划线、中划线
+        var result = input.replace(Regex("[^a-zA-Z0-9\\s_-]"), "")
+
+        // 2. 处理数字开头的情况
+        if (result.first().isDigit()) {
+            result = "_$result"
+        }
+
+        // 3. 分词处理（按空格、下划线、中划线分割）
+        val words = result.split(Regex("[\\s_-]+"))
+            .filter { it.isNotBlank() }
+            .map { it.lowercase() }
+
+        // 4. 根据类型格式化
+        result = when (type) {
+            VariableType.CONSTANT -> {
+                words.joinToString("_") { it.uppercase() }
+            }
+            VariableType.CAMEL_CASE -> {
+                words.first() + words.drop(1)
+                    .joinToString("") { it.capitalize() }
+            }
+            VariableType.PASCAL_CASE -> {
+                words.joinToString("") { it.capitalize() }
+            }
+            VariableType.SNAKE_CASE -> {
+                words.joinToString("_") { it.lowercase() }
+            }
+            VariableType.KEBAB_CASE -> {
+                words.joinToString("-") { it.lowercase() }
+            }
+        }
+
+        // 5. 添加前缀和后缀
+        if (prefix.isNotBlank()) {
+            result = when (type) {
+                VariableType.CONSTANT -> "${prefix.uppercase()}_$result"
+                VariableType.CAMEL_CASE -> prefix.lowercase() + result.capitalize()
+                VariableType.PASCAL_CASE -> prefix.capitalize() + result
+                VariableType.SNAKE_CASE -> "${prefix.lowercase()}_$result"
+                VariableType.KEBAB_CASE -> "${prefix.lowercase()}-$result"
+            }
+        }
+
+        if (suffix.isNotBlank()) {
+            result = when (type) {
+                VariableType.CONSTANT -> "${result}_${suffix.uppercase()}"
+                VariableType.CAMEL_CASE -> result + suffix.capitalize()
+                VariableType.PASCAL_CASE -> result + suffix.capitalize()
+                VariableType.SNAKE_CASE -> "${result}_${suffix.lowercase()}"
+                VariableType.KEBAB_CASE -> "${result}-${suffix.lowercase()}"
+            }
+        }
+
+        return result
+    }
+
+    // 只使用扩展函数形式
+    fun String.toConstantName(prefix: String = "", suffix: String = "") = 
+        toValidVariableName(this, VariableType.CONSTANT, prefix, suffix)
+
+    fun String.toCamelCase(prefix: String = "", suffix: String = "") = 
+        toValidVariableName(this, VariableType.CAMEL_CASE, prefix, suffix)
+
+    fun String.toPascalCase(prefix: String = "", suffix: String = "") = 
+        toValidVariableName(this, VariableType.PASCAL_CASE, prefix, suffix)
+
+    fun String.toSnakeCase(prefix: String = "", suffix: String = "") = 
+        toValidVariableName(this, VariableType.SNAKE_CASE, prefix, suffix)
+
+    fun String.toKebabCase(prefix: String = "", suffix: String = "") = 
+        toValidVariableName(this, VariableType.KEBAB_CASE, prefix, suffix)
+
+    private fun String.capitalize() = 
+        replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 }
 
 fun CharSequence.containsAny(vararg testStrs: CharSequence): Boolean {

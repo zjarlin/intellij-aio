@@ -62,6 +62,15 @@ data class MyPluginSettings(
     @ConfigField(label = "规范create_time") @JvmField var createTime: String = "create_time",
     @ConfigField(label = "规范update_time") @JvmField var updateTime: String = "update_time",
 
+    @ConfigField(label = "规范字典表名称") @JvmField var dictTableName: String = "sys_dict",
+    @ConfigField(label = "规范字典表id") @JvmField var did: String = "id",
+    @ConfigField(label = "规范字典表分组编码") @JvmField var dcode: String = "dict_code",
+    @ConfigField(label = "规范字典表分组名称") @JvmField var ddes: String = "dict_name",
+    @ConfigField(label = "规范字典项表名称") @JvmField var itemTableName: String = "sys_dict_item",
+    @ConfigField(label = "规范字典项外键") @JvmField var exdictid: String = "dict_id",
+    @ConfigField(label = "规范字典项code") @JvmField var icode: String = "item_value",
+    @ConfigField(label = "规范字典项name") @JvmField var ides: String = "item_text",
+
     ) {
 
 }

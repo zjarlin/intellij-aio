@@ -78,7 +78,7 @@
 
     <h3>Version 1.4</h3>
     <ul>
-        <li>新功能:自动输出实体对应的增加列(用户快速加字段),在实体的生成上下文菜单中GenAddColumnByThis(设置中请配置数据库类型,建表时可动态选择,加列时采用设置中的数据库类型)</li>
+        <li>新功能:自动输出实体对应的增加列(用户快速添加字段),在实体的生成上下文菜单中GenAddColumnByThis(设置中请配置数据库类型,建表时可动态选择,加列时采用设置中的数据库类型)</li>
         <li>生成语句可以在sql编辑器中预览,默认在项目根路径.autoddl文件夹(点开头的隐藏文件夹)中保存,注意gitignore</li>
         <li>IntelliJ IDEA设置中，加入了阿里的多个模型选择。</li>
         <li>默认采用（目前）免费的模型 <b>qwen2.5-coder-1.5b-instruct</b>。</li>
@@ -130,7 +130,7 @@
     <li>database插件支持右键schema,依据项目所有实体差量生成同步DDL</li>
     <li>依据所有实体差量同步数据库</li>
     <li>DataAgentWithStructuredOutput</li>
-    <li>在IntelliJ IDEA中你可以便捷地生成建表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
+    <li>在IntelliJ IDEA中你可以便捷地生成表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
     <li>对于表单的元数据J ,用户仍可以二次编辑</li>
    <li>-------</li>
     <li>用户只需操心Java中的类型,插件帮你自动映射为数据库建表语句</li>
@@ -171,6 +171,9 @@
         <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>
     </extensions>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
+    </extensions>
 
     <actions>
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
@@ -236,6 +239,13 @@
                 text="Entities DDL Generator"
                 description="Generate and sync database tables from entity package">
             <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>
+        </action>
+
+        <action id="DictEnum.Generate"
+                class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"
+                text="Enums  Generator"
+                description="Generate enum classes from dictionary tables">
+            <add-to-group group-id="DatabaseViewPopupMenu" anchor="after" relative-to-action="AutoDDL.WithDB.Generate"/>
         </action>
     </actions>
 </idea-plugin>

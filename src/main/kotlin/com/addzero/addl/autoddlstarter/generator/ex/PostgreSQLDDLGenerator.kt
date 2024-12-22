@@ -89,8 +89,7 @@ $cols
             // 生成 ALTER 语句以及字段注释
             val upperCaseColName = StrUtil.toUnderlineCase(it.colName)
             """
-            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength};
-            comment on column $tableRef."$upperCaseColName" is '${it.colComment}';
+            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength}; comment on column $tableRef."$upperCaseColName" is '${it.colComment}';
         """.trimIndent()
         }
 

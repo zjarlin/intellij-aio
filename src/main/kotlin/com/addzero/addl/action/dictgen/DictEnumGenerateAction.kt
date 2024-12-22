@@ -39,7 +39,7 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
 //    }
 
     private lateinit var dataSource: DbDataSource
-    private val targetPackage = "com.addzero.common.enums" // 生成枚举的目标包路径
+//    private val targetPackage = "com.addzero.common.enums" // 生成枚举的目标包路径
 
     override fun update(event: AnActionEvent) {
         val selected = event.getData(LangDataKeys.PSI_ELEMENT_ARRAY)
@@ -102,23 +102,23 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
     )
 
     private fun getDictData(dataSource: DbDataSource): Map<DictInfo, List<DictItemInfo>> {
-        val (modelKey, modelManufacturer, modelNameOnline, ollamaUrl, modelNameOffline, temPerature, dbType, id, createBy, updateBy, createTime, updateTime, dictTableName, did1, dcode1, ddes1, itemTableName, exdictid, icode1, ides1) = com.addzero.addl.settings.SettingContext.settings
+        val settings = com.addzero.addl.settings.SettingContext.settings
 
 
-        val dictTabName =dictTableName
+        val dictTabName = settings.dictTableName
 
-        val itemTabName = itemTableName
+        val itemTabName = settings.itemTableName
 
 
         // 使用 JOIN 查询获取字典和字典项数据
-        val did = did1
-        val dcode = dcode1
-        val ddes = ddes1
+        val did = settings.did
+        val dcode = settings.dcode
+        val ddes = settings.ddes
 
 
-        val idictid = exdictid
-        val icode = icode1
-        val ides = ides1
+        val idictid =settings. exdictid
+        val icode =settings. icode
+        val ides = settings.ides
 
 
 //        val dictTable = DasUtil.getTables(dataSource)
@@ -166,7 +166,8 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
         }
 
         // 执行查询
-        return DatabaseUtil.executeQuery(dataSource, query.sqlBuilder.build(), query.handler)
+        val sql = query.sqlBuilder.build()
+        return DatabaseUtil.executeQuery(dataSource, sql, query.handler)
             .filterValues { items -> items.isNotEmpty() }
     }
 
@@ -175,7 +176,10 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
         dictData: Map<DictInfo, List<DictItemInfo>>,
     ) {
         // 创建目标包目录
-        val directory = createPackageDirectory(project, targetPackage)
+
+
+        val packagePath = com.addzero.addl.settings.SettingContext.settings.enumPkg
+        val directory = createPackageDirectory(project, packagePath)
 
         var skipCount = 0
         var createCount = 0
@@ -261,7 +265,7 @@ class DictEnumGenerateAction : BaseAction(), CoroutineScope {
         }
 
         return """
-            package $targetPackage
+            package ${com.addzero.addl.settings.SettingContext.settings.enumPkg }
            import com.fasterxml.jackson.annotation.JsonCreator
            import com.fasterxml.jackson.annotation.JsonValue
  

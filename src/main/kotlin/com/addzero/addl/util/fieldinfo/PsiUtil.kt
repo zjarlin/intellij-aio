@@ -16,6 +16,7 @@ import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
@@ -563,6 +564,26 @@ object PsiUtil {
         val classComment = cleanDocComment(psiClass.docComment?.text)
         // 获取类的注释
         return Pair(classComment, guessTableName(psiClass))
+    }
+
+    // 添加判断项目类型的方法
+    fun isKotlinProject(project: Project): Boolean {
+        val buildGradle = project.guessProjectDir()?.findChild("build.gradle.kts")
+            ?: project.guessProjectDir()?.findChild("build.gradle")
+
+        return when {
+            // 检查是否有 Kotlin 构建文件
+            buildGradle != null -> {
+                val content = buildGradle.inputStream.reader().readText()
+                content.contains("kotlin") || content.contains("org.jetbrains.kotlin")
+            }
+            // 检查是否有 Kotlin 源文件
+            else -> {
+                val kotlinFiles = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+                val javaFiles = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+                kotlinFiles.size >= javaFiles.size
+            }
+        }
     }
 }
 

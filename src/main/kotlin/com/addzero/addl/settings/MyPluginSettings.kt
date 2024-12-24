@@ -70,6 +70,9 @@ data class MyPluginSettings(
     @ConfigField(label = "规范枚举项code") @JvmField var icode: String = "item_value",
     @ConfigField(label = "规范枚举项name") @JvmField var ides: String = "item_text",
 
-    ) {
+    @ConfigField(label = "枚举项注解模板(默认jimmer)",FieldType.LONG_TEXT) @JvmField var enumAnnotation: String="@EnumItem(name = \"{}\") "
+
+) {
+
 
 }

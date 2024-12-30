@@ -166,13 +166,15 @@
     <!--    </extensions>-->
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
+        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"
+
+        />
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
     </extensions>
 
-    <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>
-    </extensions>
+    <!--    <extensions defaultExtensionNs="com.intellij">-->
+    <!--        <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>-->
+    <!--    </extensions>-->
 
     <extensions defaultExtensionNs="com.intellij">
         <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
@@ -184,11 +186,11 @@
         </action>
 
 
-<!--        <action id="GenJimmerAll"-->
-<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerAll"-->
-<!--                text="GenJimmerAll" description="GenJimmerAll">-->
-<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
-<!--        </action>-->
+        <!--        <action id="GenJimmerAll"-->
+        <!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerAll"-->
+        <!--                text="GenJimmerAll" description="GenJimmerAll">-->
+        <!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
+        <!--        </action>-->
 
 
         <action id="GenExcelDTO"

@@ -2,10 +2,12 @@ package com.addzero.addl.util.kt_util
 
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
+import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTypesUtil
-import org.jetbrains.kotlin.idea.stubindex.KotlinFullClassNameIndex
+import org.jetbrains.kotlin.asJava.classes.KtLightClass
+import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
 import org.jetbrains.kotlin.psi.KtClass
 
 object Psi2Json {
@@ -101,13 +103,27 @@ object Psi2Json {
     /**
      * 查找 KtClass by 名称
      */
-
     private fun findKtClassByName(className: String, project: Project): KtClass? {
-        // 使用 Helper 查找 Kotlin 类
-        val possibleClasses =
-            KotlinFullClassNameIndex.Helper.get(className, project, GlobalSearchScope.projectScope(project))
+        // 使用 JavaPsiFacade 查找类
+        val psiFacade = JavaPsiFacade.getInstance(project)
+        val scope = GlobalSearchScope.projectScope(project)
 
-        return possibleClasses.firstOrNull() as? KtClass
+        // 先尝试直接查找完整类名
+        val psiClass = psiFacade.findClass(className, scope)
+
+        // 如果找到了类，并且是 Kotlin Light Class，则获取对应的 KtClass
+        if (psiClass is KtLightClass) {
+            return psiClass.kotlinOrigin as? KtClass
+        }
+
+        // 如果没有找到，尝试在不同的包中查找
+        val shortName = className.substringAfterLast('.')
+        val foundClasses = psiFacade.findClasses(shortName, scope)
+
+        return foundClasses
+            .filterIsInstance<KtLightClass>()
+            .firstOrNull { it.kotlinFqName!!.asString() == className }
+            ?.kotlinOrigin as? KtClass
     }
 
 }

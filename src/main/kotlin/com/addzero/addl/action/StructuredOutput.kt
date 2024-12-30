@@ -3,6 +3,7 @@ import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
+import com.addzero.addl.util.Pojo2Json4ktUtil
 import com.addzero.addl.util.Pojo2JsonUtil
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil

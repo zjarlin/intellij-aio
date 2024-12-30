@@ -11,6 +11,7 @@ import java.awt.GridBagLayout
 import java.awt.Insets
 import javax.swing.text.Document
 import javax.swing.*
+import javax.swing.border.TitledBorder
 import kotlin.reflect.full.createInstance
 import javax.swing.event.DocumentEvent
 
@@ -47,55 +48,102 @@ class MyPluginConfigurable : Configurable {
         }
     }
 
-    private fun refreshDependentComponents(dependencyField: String, component: JComponent) {
-        val dependentPair = dependentComponents[dependencyField] ?: return
-        val (dependentComboBox, predicate) = dependentPair
-
-        val dependentValue = when (component) {
-            is JTextField -> component.text
-            is JComboBox<*> -> component.selectedItem as? String
-            else -> null
-        }
-
-        val newOptions = predicate.getOptions(dependentValue ?: "")
-
-        if (dependentComboBox is JComboBox<*>) {
-            dependentComboBox.removeAllItems()
-            newOptions.forEach { dependentComboBox.addItem(it as Nothing?) }
-        }
-    }
-
     override fun createComponent(): JPanel {
-        panel = JPanel()
-        panel.layout = GridBagLayout()
-        val gbc = GridBagConstraints()
-        setupLayoutConstraints(gbc)
+        panel = JPanel(GridBagLayout())
+        val mainGbc = GridBagConstraints().apply {
+            fill = GridBagConstraints.HORIZONTAL
+            weightx = 1.0
+            gridx = 0
+            insets = Insets(5, 5, 5, 5)
+        }
 
-        for (field in MyPluginSettings::class.java.declaredFields) {
-            val annotation = field.getAnnotation(ConfigField::class.java) ?: continue
-            val label = JLabel(annotation.label)
+        // 获取类上的分组注解
+        val settingsGroup = MyPluginSettings::class.java.getAnnotation(SettingsGroup::class.java)
+        val groups = settingsGroup?.groups?.sortedBy { it.order } ?: emptyList()
 
-            val fieldValue = field.get(settings) as? String
-            val component = when (annotation.type) {
-                FieldType.TEXT -> JTextField(fieldValue ?: "")
-                FieldType.DROPDOWN -> {
-                    val items = annotation.options
-                    val comboBox = ComboBox(items)
-                    comboBox.selectedItem = fieldValue
-                    setupDependency(annotation, comboBox)
-                    comboBox
-                }
-                FieldType.LONG_TEXT -> JTextArea(fieldValue ?: "")
+        // 获取所有字段及其注解
+        val fields = MyPluginSettings::class.java.declaredFields
+            .mapNotNull { field ->
+                val annotation = field.getAnnotation(ConfigField::class.java)
+                if (annotation != null) {
+                    Triple(field, annotation, field.get(settings) as? String)
+                } else null
+            }
+            .groupBy { it.second.group }
+
+        // 为每个分组创建面板
+        groups.forEach { group ->
+            val groupPanel = createGroupPanel(group.title)
+            val groupFields = fields[group.name] ?: emptyList()
+            
+            // 按order排序字段
+            val sortedFields = groupFields.sortedBy { it.second.order }
+            
+            val gbc = GridBagConstraints().apply {
+                fill = GridBagConstraints.HORIZONTAL
+                weightx = 1.0
+                gridx = 0
+                insets = Insets(2, 5, 2, 5)
             }
 
-            addFormItem(label, component, gbc)
-            components[field.name] = component
+            sortedFields.forEach { (field, annotation, value) ->
+                val label = JLabel(annotation.label)
+                val component = createComponent(annotation, value)
+                
+                addFormItem(groupPanel, label, component, gbc)
+                components[field.name] = component
+            }
+
+            mainGbc.gridy++
+            panel.add(groupPanel, mainGbc)
         }
 
         // 注册到应用程序级别的Disposer
         Disposer.register(ApplicationManager.getApplication(), disposableManager)
 
         return panel
+    }
+
+    private fun createGroupPanel(title: String): JPanel {
+        return JPanel(GridBagLayout()).apply {
+            border = TitledBorder(title)
+        }
+    }
+
+    private fun createComponent(annotation: ConfigField, value: String?): JComponent {
+        return when (annotation.type) {
+            FieldType.TEXT -> JTextField(value ?: "")
+            FieldType.DROPDOWN -> {
+                val comboBox = ComboBox(annotation.options)
+                comboBox.selectedItem = value
+                setupDependency(annotation, comboBox)
+                comboBox
+            }
+            FieldType.LONG_TEXT -> JTextArea(value ?: "").apply {
+                rows = 3
+            }
+            FieldType.SEPARATOR -> JSeparator()
+        }
+    }
+
+    private fun addFormItem(panel: JPanel, label: JLabel, component: JComponent, gbc: GridBagConstraints) {
+        if (component is JSeparator) {
+            gbc.gridwidth = GridBagConstraints.REMAINDER
+            panel.add(component, gbc)
+            gbc.gridwidth = 1
+        } else {
+            gbc.gridx = 0
+            gbc.gridy++
+            panel.add(label, gbc)
+
+            gbc.gridx = 1
+            if (component is JTextArea) {
+                val scrollPane = JScrollPane(component)
+                panel.add(scrollPane, gbc)
+            } else {
+                panel.add(component, gbc)
+            }
+        }
     }
 
     private fun setupDependency(
@@ -135,19 +183,22 @@ class MyPluginConfigurable : Configurable {
         }
     }
 
-    private fun setupLayoutConstraints(gbc: GridBagConstraints) {
-        gbc.fill = GridBagConstraints.HORIZONTAL
-        gbc.insets = Insets(10, 10, 10, 10)
-        gbc.weightx = 1.0
-    }
+    private fun refreshDependentComponents(dependencyField: String, component: JComponent) {
+        val dependentPair = dependentComponents[dependencyField] ?: return
+        val (dependentComboBox, predicate) = dependentPair
 
-    private fun addFormItem(label: JLabel, component: JComponent, gbc: GridBagConstraints) {
-        gbc.gridx = 0
-        gbc.gridy++
-        panel.add(label, gbc)
+        val dependentValue = when (component) {
+            is JTextField -> component.text
+            is JComboBox<*> -> component.selectedItem as? String
+            else -> null
+        }
 
-        gbc.gridx = 1
-        panel.add(component, gbc)
+        val newOptions = predicate.getOptions(dependentValue ?: "")
+
+        if (dependentComboBox is JComboBox<*>) {
+            dependentComboBox.removeAllItems()
+            newOptions.forEach { dependentComboBox.addItem(it as Nothing?) }
+        }
     }
 
     override fun isModified(): Boolean {

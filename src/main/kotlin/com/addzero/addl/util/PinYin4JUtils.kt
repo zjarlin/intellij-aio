@@ -141,7 +141,6 @@ object PinYin4JUtils {
         try {
             pinyingStr = PinyinHelper.toHanYuPinyinString(hanzi, defaultFormat, separator, true)
         } catch (e: BadHanyuPinyinOutputFormatCombination) {
-            // TODO Auto-generated catch block
 
             e.printStackTrace()
         }

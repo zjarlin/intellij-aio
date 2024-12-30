@@ -1,10 +1,10 @@
 package com.addzero.addl.util
 
+import com.intellij.database.dataSource.DatabaseConnectionCore
 import com.intellij.database.dataSource.DatabaseConnectionManager
 import com.intellij.database.psi.DbDataSource
-import com.intellij.database.util.DbImplUtil
 import com.intellij.database.remote.jdbc.RemoteResultSet
-import com.intellij.database.dataSource.DatabaseConnectionCore
+import com.intellij.database.util.DbImplUtil
 
 /**
  * 数据库操作工具类
@@ -16,43 +16,34 @@ object DatabaseUtil {
     fun <T> executeQuery(
         dataSource: DbDataSource,
         sql: String,
-        handler: (rs: RemoteResultSet) -> T
+        handler: (rs: RemoteResultSet) -> T,
     ): T {
         val localDataSource = DbImplUtil.getMaybeLocalDataSource(dataSource)
-            ?: throw IllegalStateException("Cannot get local data source")
 
-        return DatabaseConnectionManager.getInstance()
-            .build(dataSource.project, localDataSource)
-            .setAskPassword(false)
-            .create()?.use { connectionRef ->
-                val connection = connectionRef.get()
-                DbImplUtil.executeAndGetResult(connection, sql, handler)
-            } ?: throw IllegalStateException("Failed to get database connection")
+        val build = localDataSource?.let { DatabaseConnectionManager.getInstance().build(dataSource.project, it) }
+        val create = build?.setAskPassword(false)?.create()
+        return create.use { connectionRef ->
+            val connection = connectionRef?.get()
+            DbImplUtil.executeAndGetResult(connection, sql, handler)
+        }
     }
 
-    /**
-     * 执行多���查询并处理结果
-     */
     fun <T> executeQueries(
         dataSource: DbDataSource,
-        queries: List<QueryHandler<T>>
-    ): List<T> {
+        queries: List<QueryHandler<T>>,
+    ): List<T>? {
         val localDataSource = DbImplUtil.getMaybeLocalDataSource(dataSource)
-            ?: throw IllegalStateException("Cannot get local data source")
 
-        return DatabaseConnectionManager.getInstance()
-            .build(dataSource.project, localDataSource)
-            .setAskPassword(false)
-            .create()?.use { connectionRef ->
-                val connection = connectionRef.get()
-                queries.map { query ->
-                    DbImplUtil.executeAndGetResult(
-                        connection,
-                        query.sqlBuilder.build(),
-                        query.handler
-                    )
-                }
-            } ?: throw IllegalStateException("Failed to get database connection")
+        val create = localDataSource?.let { DatabaseConnectionManager.getInstance().build(dataSource.project, it).setAskPassword(false).create() }
+        val use = create?.use { connectionRef ->
+            val connection = connectionRef.get()
+            queries.map { query ->
+                DbImplUtil.executeAndGetResult(
+                    connection, query.sqlBuilder.build(), query.handler
+                )
+            }
+        }
+        return use
     }
 
     /**
@@ -60,17 +51,16 @@ object DatabaseUtil {
      */
     fun <T> withConnection(
         dataSource: DbDataSource,
-        action: (connection: DatabaseConnectionCore) -> T
-    ): T {
+        action: (connection: DatabaseConnectionCore) -> T,
+    ): T? {
         val localDataSource = DbImplUtil.getMaybeLocalDataSource(dataSource)
-            ?: throw IllegalStateException("Cannot get local data source")
 
-        return DatabaseConnectionManager.getInstance()
-            .build(dataSource.project, localDataSource)
-            .setAskPassword(false)
-            .create()?.use { connectionRef ->
+        val use = localDataSource?.let {
+            DatabaseConnectionManager.getInstance().build(dataSource.project, it).setAskPassword(false).create()?.use { connectionRef ->
                 action(connectionRef.get())
-            } ?: throw IllegalStateException("Failed to get database connection")
+            }
+        }
+        return use
     }
 }
 
@@ -101,7 +91,7 @@ class SqlBuilder {
         val whereClause = if (conditions.isNotEmpty()) {
             " WHERE " + conditions.joinToString(" AND ")
         } else ""
-        
+
         return baseQuery + whereClause
     }
 }
@@ -111,17 +101,16 @@ class SqlBuilder {
  */
 data class QueryHandler<T>(
     val sqlBuilder: SqlBuilder,
-    val handler: (rs: RemoteResultSet) -> T
+    val handler: (rs: RemoteResultSet) -> T,
 ) {
     companion object {
         fun <T> create(
             baseQuery: String,
-            handler: (rs: RemoteResultSet) -> T
+            handler: (rs: RemoteResultSet) -> T,
         ): QueryHandler<T> {
             return QueryHandler(
-                SqlBuilder().setBaseQuery(baseQuery),
-                handler
+                SqlBuilder().setBaseQuery(baseQuery), handler
             )
         }
     }
-} 
+}

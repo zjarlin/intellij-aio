@@ -10,9 +10,6 @@ import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
 
-fun main() {
-    mockkDDLContext()
-}
 
 
 class DMSQLDDLGenerator : DatabaseDDLGenerator() {

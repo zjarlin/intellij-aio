@@ -59,9 +59,7 @@ class AutoDDLAction : AnAction() {
             if (it !is DbElement) {
                 return@all false
             }
-            val typeName = it.typeName
-//            ShowContentUtil.showErrorMsg(typeName)
-            typeName in arrayOf("schema", "database", "架构", "数据库")
+            it.typeName in arrayOf("schema", "database", "架构", "数据库")
         }
     }
 

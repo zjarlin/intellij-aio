@@ -19,7 +19,6 @@ object DatabaseUtil {
         handler: (rs: RemoteResultSet) -> T,
     ): T {
         val localDataSource = DbImplUtil.getMaybeLocalDataSource(dataSource)
-
         val build = localDataSource?.let { DatabaseConnectionManager.getInstance().build(dataSource.project, it) }
         val create = build?.setAskPassword(false)?.create()
         return create.use { connectionRef ->

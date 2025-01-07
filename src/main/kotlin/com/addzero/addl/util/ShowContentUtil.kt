@@ -4,12 +4,10 @@ import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.ui.components.JBTextField
 import java.awt.Component
 import java.awt.KeyboardFocusManager
 import java.io.File
@@ -75,7 +73,7 @@ object ShowContentUtil {
         sqlPrefix: String = "",
         fileTypeSuffix: String,
         filePath: String? = "${project!!.basePath}/.autoddl",
-        focus:Boolean = true
+        focus: Boolean = true,
     ) {
         if (project == null) return
         if (sql.isBlank()) {
@@ -99,19 +97,14 @@ object ShowContentUtil {
                 sqlFile.writeText(sql)
 
                 // 刷新并获取虚拟文件
-                val virtualFile = LocalFileSystem.getInstance()
-                    .refreshAndFindFileByIoFile(sqlFile)
-                    ?: return@runWriteCommandAction
+                val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(sqlFile) ?: return@runWriteCommandAction
 
                 // 获取 PsiFile
-                val psiFile = PsiManager.getInstance(project).findFile(virtualFile)
-                    ?: return@runWriteCommandAction
+                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@runWriteCommandAction
 
                 // 获取文档管理器
                 val documentManager = PsiDocumentManager.getInstance(project)
-                val document = documentManager.getDocument(psiFile)
-                    ?: return@runWriteCommandAction
-
+                val document = documentManager.getDocument(psiFile) ?: return@runWriteCommandAction
                 // 提交文档更改
                 documentManager.commitDocument(document)
 

@@ -1,5 +1,6 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
 val sinceVersion by extra("223.7571.182")
 val untilVersion by extra("243.*")
 plugins {
@@ -17,8 +18,7 @@ plugins {
 //}
 
 group = "com.addzero"
-val currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-version = currentDate
+version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
 configurations.all {
     resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
 }
@@ -35,13 +35,16 @@ repositories {
 intellij {
     plugins.set(
         listOf(
-            "com.intellij.java", "org.jetbrains.kotlin"
-            , "com.intellij.database"
+            "com.intellij.java", "org.jetbrains.kotlin", "com.intellij.database"
         )
     )
 //    localPath.set("/Applications/IntelliJ IDEA.app/Contents")
-    version.set("2023.2.6" )
-    type.set("IU") // Target IDE Platform
+//    version.set("2023.2.6")
+//    type.set("IU") // Target IDE Platform
+    version.set("2023.2.6")
+    type.set("IC") // Target IDE Platform
+
+//    type.set("IC") // Target IDE Platform
 }
 //dependencyManagement {
 //    imports {

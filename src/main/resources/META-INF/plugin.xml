@@ -213,18 +213,18 @@
         </action>
 
 
-        <action id="GenJimmerBaseController"
-                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseController"
-                text="GenJimmerBaseController" description="GenJimmerBaseController">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+<!--        <action id="GenJimmerBaseController"-->
+<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseController"-->
+<!--                text="GenJimmerBaseController" description="GenJimmerBaseController">-->
+<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
+<!--        </action>-->
 
 
-        <action id="GenJimmerBaseFastExcelApi"
-                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseFastExcelApi"
-                text="GenJimmerBaseFastExcelApi" description="GenJimmerBaseFastExcelApi">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+<!--        <action id="GenJimmerBaseFastExcelApi"-->
+<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseFastExcelApi"-->
+<!--                text="GenJimmerBaseFastExcelApi" description="GenJimmerBaseFastExcelApi">-->
+<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
+<!--        </action>-->
 
 
         <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"

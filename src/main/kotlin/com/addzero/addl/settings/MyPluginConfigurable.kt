@@ -6,6 +6,8 @@ import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Disposer
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.ui.JBUI
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -54,7 +56,7 @@ class MyPluginConfigurable : Configurable {
             fill = GridBagConstraints.HORIZONTAL
             weightx = 1.0
             gridx = 0
-            insets = Insets(5, 5, 5, 5)
+            insets = JBUI.insets(5)
         }
 
         // 获取类上的分组注解
@@ -75,21 +77,21 @@ class MyPluginConfigurable : Configurable {
         groups.forEach { group ->
             val groupPanel = createGroupPanel(group.title)
             val groupFields = fields[group.name] ?: emptyList()
-            
+
             // 按order排序字段
             val sortedFields = groupFields.sortedBy { it.second.order }
-            
+
             val gbc = GridBagConstraints().apply {
                 fill = GridBagConstraints.HORIZONTAL
                 weightx = 1.0
                 gridx = 0
-                insets = Insets(2, 5, 2, 5)
+                insets = JBUI.insets(2, 5)
             }
 
             sortedFields.forEach { (field, annotation, value) ->
                 val label = JLabel(annotation.label)
                 val component = createComponent(annotation, value)
-                
+
                 addFormItem(groupPanel, label, component, gbc)
                 components[field.name] = component
             }
@@ -138,7 +140,7 @@ class MyPluginConfigurable : Configurable {
 
             gbc.gridx = 1
             if (component is JTextArea) {
-                val scrollPane = JScrollPane(component)
+                val scrollPane = JBScrollPane(component)
                 panel.add(scrollPane, gbc)
             } else {
                 panel.add(component, gbc)

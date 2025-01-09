@@ -24,12 +24,12 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         val updateBy = settings.updateBy
         val createTime = settings.createTime
         val updateTime = settings.updateTime
-
+        val idType = settings.idType
         val createTableSQL = """
     create table `$tableEnglishName` (
-        `$id` varchar(64) not null ,
-        `$createBy` varchar(255) not null comment '创建者',
-        `$updateBy` varchar(255) null comment '更新者',
+        `$id` $idType not null ,
+        `$createBy` $idType not null comment '创建者',
+        `$updateBy` $idType null comment '更新者',
         `$createTime` datetime not null default current_timestamp comment '创建时间',
         `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
         ${

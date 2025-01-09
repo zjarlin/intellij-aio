@@ -3,7 +3,6 @@ package com.addzero.addl.settings
 import com.addzero.common.kt_util.isNotNull
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Disposer
@@ -11,12 +10,11 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.Insets
-import javax.swing.text.Document
 import javax.swing.*
 import javax.swing.border.TitledBorder
-import kotlin.reflect.full.createInstance
 import javax.swing.event.DocumentEvent
+import javax.swing.text.Document
+import kotlin.reflect.full.createInstance
 
 class MyPluginConfigurable : Configurable {
     private var settings = MyPluginSettingsService.getInstance().state
@@ -41,10 +39,18 @@ class MyPluginConfigurable : Configurable {
 
         override fun dispose() {
             documentListeners.forEach { (document, listener) ->
-                document.removeDocumentListener(listener)
+                try {
+                    document.removeDocumentListener(listener)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
             actionListeners.forEach { (comboBox, listener) ->
-                comboBox.removeActionListener(listener)
+                try {
+                    comboBox.removeActionListener(listener)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
             documentListeners.clear()
             actionListeners.clear()
@@ -79,7 +85,7 @@ class MyPluginConfigurable : Configurable {
             val groupPanel = createGroupPanel(group.title)
             val groupFields = fields[group.name] ?: emptyList()
 
-            // 按order排序字段
+            // 按 order 排序字段
             val sortedFields = groupFields.sortedBy { it.second.order }
 
             val gbc = GridBagConstraints().apply {
@@ -91,7 +97,7 @@ class MyPluginConfigurable : Configurable {
 
             sortedFields.forEach { (field, annotation, value) ->
                 val label = JLabel(annotation.label)
-                val component = createComponent(annotation, value)
+                val component = createComponent1(annotation, value)
 
                 addFormItem(groupPanel, label, component, gbc)
                 components[field.name] = component
@@ -101,7 +107,7 @@ class MyPluginConfigurable : Configurable {
             panel.add(groupPanel, mainGbc)
         }
 
-        // 注册到应用程序级别的Disposer
+        // 注册到应用程序级别的 Disposer
         val application = ApplicationManager.getApplication()
         if (application.isNotNull()) {
             Disposer.register(application, disposableManager)
@@ -116,7 +122,7 @@ class MyPluginConfigurable : Configurable {
         }
     }
 
-    private fun createComponent(annotation: ConfigField, value: String?): JComponent {
+    private fun createComponent1(annotation: ConfigField, value: String?): JComponent {
         return when (annotation.type) {
             FieldType.TEXT -> JTextField(value ?: "")
             FieldType.DROPDOWN -> {
@@ -152,10 +158,7 @@ class MyPluginConfigurable : Configurable {
         }
     }
 
-    private fun setupDependency(
-        annotation: ConfigField,
-        comboBox: ComboBox<String>
-    ) {
+    private fun setupDependency(annotation: ConfigField, comboBox: ComboBox<String>) {
         if (annotation.dependsOn.isNotEmpty()) {
             val predicate = annotation.predicateClass.createInstance()
             val pair = comboBox to predicate
@@ -165,8 +168,8 @@ class MyPluginConfigurable : Configurable {
             val dependencyField = annotation.dependsOn
             val dependencyComponent = components[dependencyField]
             if (dependencyComponent is JTextField) {
-                val document: Document = dependencyComponent.document
-                val listener = object : DocumentListener, javax.swing.event.DocumentListener {
+                val document = dependencyComponent.document
+                val listener = object : javax.swing.event.DocumentListener {
                     override fun changedUpdate(e: DocumentEvent) {
                         refreshDependentComponents(dependencyField, dependencyComponent)
                     }

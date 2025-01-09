@@ -8,6 +8,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
+import org.jetbrains.kotlin.ir.types.IrDynamicType
 
 class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
@@ -33,6 +34,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         val updateBy = settings.updateBy
         val createTime = settings.createTime
         val updateTime = settings.updateTime
+        val idType = settings.idType
 
         var colsComments = """        ${
             dto
@@ -53,9 +55,9 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
         val createTableSQL = """
     create table "$tableEnglishName" (
-        $id varchar(64) primary key,
-        $createBy varchar(255) ,
-        $updateBy varchar(255) ,
+        $id $idType primary key,
+        $createBy $idType ,
+        $updateBy $idType ,
         $createTime timestamp ,
         $updateTime timestamp ,
 $cols       

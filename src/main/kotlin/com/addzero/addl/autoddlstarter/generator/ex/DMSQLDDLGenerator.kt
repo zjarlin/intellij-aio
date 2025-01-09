@@ -29,12 +29,13 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
         val updateBy = settings.updateBy
         val createTime = settings.createTime
         val updateTime = settings.updateTime
+        val idType = settings.idType
 
         val createTableSQL = """
     CREATE TABLE $tableRef (
-        "$id" VARCHAR2(64) NOT NULL,
-        "$createBy" VARCHAR2(255) NOT NULL,
-        "$updateBy" VARCHAR2(255) NULL,
+        "$id" $idType NOT NULL,
+        "$createBy" $idType NOT NULL,
+        "$updateBy" $idType NULL,
         "$createTime" TIMESTAMP,
         "$updateTime" TIMESTAMP,
         ${

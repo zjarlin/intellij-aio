@@ -285,22 +285,22 @@ object JlStrUtil {
     }
 
     // 只使用扩展函数形式
-    fun String.toConstantName(prefix: String = "", suffix: String = "") = 
+    fun String.toConstantName(prefix: String = "", suffix: String = "") =
         toValidVariableName(this, VariableType.CONSTANT, prefix, suffix)
 
-    fun String.toCamelCase(prefix: String = "", suffix: String = "") = 
+    fun String.toCamelCase(prefix: String = "", suffix: String = "") =
         toValidVariableName(this, VariableType.CAMEL_CASE, prefix, suffix)
 
-    fun String.toPascalCase(prefix: String = "", suffix: String = "") = 
+    fun String.toPascalCase(prefix: String = "", suffix: String = "") =
         toValidVariableName(this, VariableType.PASCAL_CASE, prefix, suffix)
 
-    fun String.toSnakeCase(prefix: String = "", suffix: String = "") = 
+    fun String.toSnakeCase(prefix: String = "", suffix: String = "") =
         toValidVariableName(this, VariableType.SNAKE_CASE, prefix, suffix)
 
-    fun String.toKebabCase(prefix: String = "", suffix: String = "") = 
+    fun String.toKebabCase(prefix: String = "", suffix: String = "") =
         toValidVariableName(this, VariableType.KEBAB_CASE, prefix, suffix)
 
-    private fun String.capitalize() = 
+    private fun String.capitalize() =
         replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 }
 
@@ -326,6 +326,15 @@ fun String.getParentPathAndmkdir(childPath: String): String {
     val filePath1 = mkParentDirs.path
     return filePath1
 }
+
+fun CharSequence.removeAnyQuote(): String {
+    if (this.isBlank()) {
+        return ""
+    }
+    return StrUtil.removeAny(this, "\"")
+}
+
+
 
 
 fun String?.extractMarkdownBlockContent(): String {

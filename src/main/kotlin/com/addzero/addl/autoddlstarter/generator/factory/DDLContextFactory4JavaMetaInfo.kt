@@ -13,6 +13,7 @@ import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.removeAny
+import com.addzero.addl.util.removeAnyQuote
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
 
@@ -33,9 +34,9 @@ object DDLContextFactory4JavaMetaInfo {
             createRangeContext(field, databaseType)
         }
         return DDLContext(
-            tableChineseName = tableChineseName,
-            tableEnglishName = tableEnglishName,
-            databaseType = databaseType,
+            tableChineseName = tableChineseName.removeAnyQuote(),
+            tableEnglishName = tableEnglishName.removeAnyQuote(),
+            databaseType = databaseType.removeAnyQuote(),
             dto = rangeContexts,
         )
 
@@ -52,12 +53,13 @@ object DDLContextFactory4JavaMetaInfo {
         val javaFieldMetaInfo = PsiUtil.getJavaFieldMetaInfo(psiClass)
 
         val rangeContexts = javaFieldMetaInfo.map { field ->
-            createRangeContext(field, databaseType)
+            val createRangeContext = createRangeContext(field, databaseType)
+            createRangeContext
         }
         return DDLContext(
-            tableChineseName = tableChineseName,
-            tableEnglishName = tableEnglishName,
-            databaseType = databaseType,
+            tableChineseName = tableChineseName.removeAnyQuote(),
+            tableEnglishName = tableEnglishName.removeAnyQuote(),
+            databaseType = databaseType.removeAnyQuote(),
             dto = rangeContexts,
         )
 
@@ -102,12 +104,12 @@ object DDLContextFactory4JavaMetaInfo {
         val isSelfIncreasing = isPrimaryKey // 这里假设主键即自增
 
         return DDlRangeContext(
-            colName.removeAny("\"")!!,
-            colType,
-            fieldComment,
-            length,
-            isPrimaryKey,
-            isSelfIncreasing
+            colName.removeAnyQuote(),
+            colType.removeAnyQuote(),
+            fieldComment.removeAnyQuote(),
+            length.removeAnyQuote(),
+            isPrimaryKey.removeAnyQuote(),
+            isSelfIncreasing.removeAnyQuote(),
         )
     }
 

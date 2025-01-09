@@ -14,6 +14,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
+import com.addzero.addl.util.removeAnyQuote
 
 /**
  * @author zjarlin
@@ -30,9 +31,9 @@ object DDLContextFactory4UserInputMetaInfo {
 
         val hanziToPinyin = PinYin4JUtils.hanziToPinyin(tableChineseName, "_")
         return DDLContext(
-            tableChineseName = tableChineseName,
-            tableEnglishName = tableEngLishName.ifBlank { hanziToPinyin },
-            databaseType = databaseType,
+            tableChineseName = tableChineseName.removeAnyQuote(),
+            tableEnglishName = tableEngLishName.ifBlank { hanziToPinyin }.removeAnyQuote(),
+            databaseType = databaseType.removeAnyQuote(),
             dto = createRangeContext1(databaseType, ddlRangeContextUserInput),
         )
     }
@@ -63,7 +64,10 @@ object DDLContextFactory4UserInputMetaInfo {
             val primaryKey = BaseMetaInfoUtil.isPrimaryKey(toCamelCase)
             val autoIncrement = BaseMetaInfoUtil.isAutoIncrement(toCamelCase)
             DDlRangeContext(
-                colName.toUnderlineCase(), mapTypeByJavaType, colComment, length, primaryKey, autoIncrement
+                colName.toUnderlineCase().removeAnyQuote(), mapTypeByJavaType
+                    .removeAnyQuote(), colComment.removeAnyQuote(),
+                length.removeAnyQuote(), primaryKey.removeAnyQuote(),
+                autoIncrement.removeAnyQuote(),
             )
         }.toList()
         //重名属性的处理

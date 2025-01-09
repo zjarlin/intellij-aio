@@ -55,7 +55,7 @@ class DictEnumGenerateAction : AnAction(), CoroutineScope {
         val schema = e.getData(LangDataKeys.PSI_ELEMENT) as? DasNamespace ?: return
         dataSource = findDataSource(schema) ?: return
 
-        ApplicationManager.getApplication().invokeLater {
+        ApplicationManager.getApplication()?.invokeLater {
             try {
                 // 获取字典数据并生成枚举
                 val dictData = getDictData(dataSource)

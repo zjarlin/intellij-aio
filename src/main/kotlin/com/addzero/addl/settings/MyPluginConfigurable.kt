@@ -1,5 +1,6 @@
 package com.addzero.addl.settings
 
+import com.addzero.common.kt_util.isNotNull
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.event.DocumentListener
@@ -101,7 +102,10 @@ class MyPluginConfigurable : Configurable {
         }
 
         // 注册到应用程序级别的Disposer
-        Disposer.register(ApplicationManager.getApplication(), disposableManager)
+        val application = ApplicationManager.getApplication()
+        if (application.isNotNull()) {
+            Disposer.register(application, disposableManager)
+        }
 
         return panel
     }

@@ -22,8 +22,8 @@ class MyPluginSettingsService : PersistentStateComponent<MyPluginSettings> {
 
     companion object {
         fun getInstance(): MyPluginSettingsService {
-            return com.intellij.openapi.application.ApplicationManager.getApplication()
-                .getService(MyPluginSettingsService::class.java)
+            val application = com.intellij.openapi.application.ApplicationManager.getApplication()
+            return application?.getService(MyPluginSettingsService::class.java)!!
         }
     }
 }

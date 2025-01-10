@@ -40,7 +40,7 @@ intellij {
     )
 //    localPath.set("/Applications/IntelliJ IDEA.app/Contents")
 //    version.set("2023.2.6")
-    version.set("2024.1")
+    version.set("2022.3")
     type.set("IU") // Target IDE Platform
 //    type.set("IC") // Target IDE Platform
 

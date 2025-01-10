@@ -16,133 +16,39 @@
 
 
     <change-notes><![CDATA[
-    <h3>English:</h3>
-   <h3>Version last</h3>
 
 
-<li>The Differential synchronous enumeration</li>
-<li>The database plugin supports right-clicking on a schema to incrementally generate and synchronize DDL based on all entities in the project</li>
+   ___             _               ___     ___     _
+  /   \   _  _    | |_     ___    |   \   |   \   | |
+  | - |  | +| |   |  _|   / _ \   | |) |  | |) |  | |__
+  |_|_|   \_,_|   _\__|   \___/   |___/   |___/   |____|
+_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
+"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'
 
 
-   <h3>Version 1.6</h3>
+    <include src="CHANGE.md" />
 
-   < li > add structural output capability, call out generate context, and convert natural language into Json format corresponding to the current class < /li >
-
-
-   <h3>Version 1.5</h3>
-<ul>
-    <li>Context menu generation of ADD COLUMN statements now supports entities of the Jimmer</li>
-</ul>
-
-    <h3>Version 1.4</h3>
-    <ul>
-   <li>New Feature: Automatically output the corresponding columns to add for the entity (allowing users to quickly add fields). In the entity's generation context menu, use GenAddColumnByThis (please configure the database type in settings; it can be dynamically selected during table creation, and the database type set in settings will be used when adding columns).</li>
-<li>Generated statements can be previewed in the SQL editor and are saved by default in the .autoddl folder in the project root path (a hidden folder starting with a dot). Please note to include it in gitignore.</li>
-        <li>In IntelliJ IDEA settings, multiple Alibaba models have been added for selection.</li>
-        <li>The free model (currently) <b>qwen2.5-coder-1.5b-instruct</b> is used by default.</li>
-    </ul>
-
-    <h3>Version 1.3</h3>
-    <ul>
-        <li>Added loading effect when querying the LLM, buttons are disabled during this time for a smoother experience.</li>
-        <li>Delete button is only shown when there is data; shift for continuous selection, ctrl for jumping selection.</li>
-        <li>Form validation, table name validation, and field area validation are added.</li>
-    </ul>
-
-    <h3>Version 1.2</h3>
-    <ul>
-        <li>Fixed some database syntax errors.</li>
-        <li>Added LLM capability, allowing generation of CREATE TABLE statements in the Tools menu.</li>
-        <li>If LLM fails to fill the form, the default form is returned.</li>
-    </ul>
-
-    <h3>Version 1.0</h3>
-    <ul>
-        <li>First release of the AutoDDL plugin.</li>
-        <li>Supports generating CREATE TABLE statements in the Tools menu.</li>
-    </ul>
-
-    <h3>中文：</h3>
-
-   <h3>Version last</h3>
-      <li>database插件支持右键schema,依据项目所有实体差量生成同步DDL</li>
-
-   <h3>Version 1.6</h3>
-    <ul>
-        <li>新增结构化输出能力,呼出generate上下文,将自然语言转为当前类对应的Json格式</li>
-    </ul>
-
-    <h3>Version 1.5</h3>
-    <ul>
-        <li>上下文菜单生成ADD COLUMN语句,支持Jimmer框架实体</li>
-    </ul>
-
-
-    <h3>Version 1.4</h3>
-    <ul>
-        <li>新功能:自动输出实体对应的增加列(用户快速添加字段),在实体的生成上下文菜单中GenAddColumnByThis(设置中请配置数据库类型,建表时可动态选择,加列时采用设置中的数据库类型)</li>
-        <li>生成语句可以在sql编辑器中预览,默认在项目根路径.autoddl文件夹(点开头的隐藏文件夹)中保存,注意gitignore</li>
-        <li>IntelliJ IDEA设置中，加入了阿里的多个模型选择。</li>
-        <li>默认采用（目前）免费的模型 <b>qwen2.5-coder-1.5b-instruct</b>。</li>
-    </ul>
-
-    <h3>Version 1.3</h3>
-    <ul>
-        <li>LLM提问加载loading效果，按钮禁用，体验更加友好。</li>
-        <li>有数据时才显示删除按钮，可Shift连续选择，也可Ctrl跳跃选择删除。</li>
-        <li>表单校验，表名校验，字段区域校验。</li>
-    </ul>
-
-    <h3>Version 1.2</h3>
-    <ul>
-        <li>修复部分数据库类型语法错误。</li>
-        <li>加入LLM能力，支持在Tools菜单下生成数据库建表语句。</li>
-        <li>LLM回填表单失败，则返回默认表单。</li>
-    </ul>
-
-    <h3>Version 1.0</h3>
-    <ul>
-        <li>首次发布插件 AutoDDL。</li>
-        <li>支持在Tools菜单下生成数据库建表语句。</li>
-    </ul>
+    <include src="CHANGE.en.md" />
 ]]></change-notes>
 
 
     <description><![CDATA[
-    <h3>English:</h3>
+
 
 
 <ul>
-<li>Synchronize the database incrementally based on all entities</li>
-    <li>DataAgentWithStructuredOutput</li>
-<li>In IntelliJ IDEA, the CREATE TABLE statements can also be generated conveniently Users can choose to utilize the capabilities of large language models to initially generate structured form for creating tables (hereinafter referred to as the form cell metadata J for creating tables).</li>
-<li>For the form metadata J, users can still make secondary edits.</li>
-<li>-------</li>
-<li>Users only need to worry about the types in Java, and the plugin will automatically map them into database CREATE TABLE statements for you.</li>
-<li>Users can also directly write forms manually to generate DDL statements without invoking the LLM capabilities.</li>
-<li>------</li>
-<li>The plugin entry is under the Tools menu -> AutoDDL.</li>
-<li>Note: Users need to configure the large model KEY in the IDEA settings</li>
-<li># Currently, only Alibaba DASHSCOPE_API_KEY='sk-xxxxxxxxxx' is supported</li>
- <li>---<a href="https://dashscope.console.aliyun.com/model">Model application address</a>---</li>
+
+   ___             _               ___     ___     _
+  /   \   _  _    | |_     ___    |   \   |   \   | |
+  | - |  | +| |   |  _|   / _ \   | |) |  | |) |  | |__
+  |_|_|   \_,_|   _\__|   \___/   |___/   |___/   |____|
+_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
+"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'
+
+    <include src="DES.md" />
+    <include src="DES.en.md" />
 
 </ul>
-<h3>中文：</h3>
-    <ul>
-    <li差量同步枚举</li>
-    <li>database插件支持右键schema,依据项目所有实体差量生成同步DDL</li>
-    <li>依据所有实体差量同步数据库</li>
-    <li>DataAgentWithStructuredOutput</li>
-    <li>在IntelliJ IDEA中你可以便捷地生成表语句，用户可以选择调用AI的能力,初步生成结构化建表表单 (以下简称建表的表单元数据J)</li>
-    <li>对于表单的元数据J ,用户仍可以二次编辑</li>
-   <li>-------</li>
-    <li>用户只需操心Java中的类型,插件帮你自动映射为数据库建表语句</li>
-    <li>用户也可以不调用LLM能力,直接手动写表单来生成DDL语句</li>
-    <li>------</li>
-   <li>插件入口在Tools菜单下->AutoDDL</li>
-   <li>注: 用户需要在idea设置中配置AIKEY</li> <li>#目前只支持阿里灵积 DASHSCOPE_API_KEY='sk-xxxxxxxxxx'</li>
- <li>---<a href="https://dashscope.console.aliyun.com/model">模型申请地址</a>---</li>
-    </ul>
 
   ]]></description>
 
@@ -239,18 +145,18 @@
         </action>
 
 
-        <action id="AutoDDL.WithDB.Generate"
-                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
-                text="Entities DDL Generator"
-                description="Generate and sync database tables from entity package">
-            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>
-        </action>
+<!--        <action id="AutoDDL.WithDB.Generate"-->
+<!--                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
+<!--                text="Entities DDL Generator"-->
+<!--                description="Generate and sync database tables from entity package">-->
+<!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
+<!--        </action>-->
 
-        <action id="DictEnum.Generate"
-                class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"
-                text="Enums  Generator"
-                description="Generate enum classes from dictionary tables">
-            <add-to-group group-id="DatabaseViewPopupMenu" anchor="after" relative-to-action="AutoDDL.WithDB.Generate"/>
-        </action>
+<!--        <action id="DictEnum.Generate"-->
+<!--                class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->
+<!--                text="Enums  Generator"-->
+<!--                description="Generate enum classes from dictionary tables">-->
+<!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="after" relative-to-action="AutoDDL.WithDB.Generate"/>-->
+<!--        </action>-->
     </actions>
 </idea-plugin>

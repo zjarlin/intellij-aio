@@ -3,6 +3,7 @@ import java.time.format.DateTimeFormatter
 
 val sinceVersion by extra("223.7571.182")
 val untilVersion by extra("243.*")
+
 plugins {
 //    id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.25"
@@ -88,7 +89,13 @@ dependencies {
 
 //}
 
-
+//sourceSets {
+//    main {
+//        resources {
+//            srcDir("src/main/resources")
+//        }
+//    }
+//}
 tasks {
 // 将依赖打进jar包中
 //    jar.configure {
@@ -109,6 +116,7 @@ tasks {
     }
 
     patchPluginXml {
+
         sinceBuild.set(sinceVersion)
         untilBuild.set(untilVersion)
     }

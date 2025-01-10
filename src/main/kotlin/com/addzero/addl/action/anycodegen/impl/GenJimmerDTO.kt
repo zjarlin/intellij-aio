@@ -10,7 +10,6 @@ class GenJimmerDTO : AbsGen() {
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
 
-
         val filter = javaFieldMetaInfos?.filter {
             filterBaseEntity(it.name)
         }
@@ -27,23 +26,23 @@ class GenJimmerDTO : AbsGen() {
         }
 
         val trimIndent = """
-import cn.idev.excel.annotation.ExcelProperty
 
 specification ${classname}Spec{
 #allScalars(this)
 }
 
-input ${classname}SaveInputDTO{
+input ${classname}SaveDTO{
 #allScalars(this)
+id?
 }
 
-input ${classname}UpdateInputDTO{
+input ${classname}UpdateDTO{
 #allScalars(this)
 id!
 }
 
 
-${classname}OutVO{
+${classname}View{
 #allScalars
 }
 

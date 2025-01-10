@@ -9,8 +9,8 @@ private const val EXCEL_READ_DTO = """ExcelDTO"""
 
 class GenExcelDTO : AbsGen() {
 
-    override val pdir: String
-        get() = "dto"
+//    override val pdir: String
+//        get() = "dto"
 
     override fun genCode4Java(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo

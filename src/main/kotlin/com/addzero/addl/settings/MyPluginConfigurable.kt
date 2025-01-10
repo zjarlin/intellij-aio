@@ -16,7 +16,7 @@ import javax.swing.event.DocumentEvent
 import javax.swing.text.Document
 import kotlin.reflect.full.createInstance
 
-class MyPluginConfigurable : Configurable {
+class MyPluginConfigurable : Configurable, Disposable {
     private var settings = MyPluginSettingsService.getInstance().state
     private lateinit var panel: JPanel
     private val components = mutableMapOf<String, JComponent>()
@@ -109,9 +109,7 @@ class MyPluginConfigurable : Configurable {
 
         // 注册到应用程序级别的 Disposer
         val application = ApplicationManager.getApplication()
-        if (application.isNotNull()) {
-            Disposer.register(application, disposableManager)
-        }
+            Disposer.register(this, disposableManager)
 
         return panel
     }
@@ -240,4 +238,9 @@ class MyPluginConfigurable : Configurable {
     }
 
     override fun getDisplayName(): String = "AutoDDL设置"
+    override fun dispose() {
+        dependentComponents.clear()
+        components.clear()
+
+    }
 }

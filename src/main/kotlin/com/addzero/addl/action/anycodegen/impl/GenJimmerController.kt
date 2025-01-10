@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/$lowerFirst")
 class ${classname}Controller(
     private val kSqlClient: KSqlClient
-) : BaseCrudController<${classname}, ${classname}Spec, ${classname}SaveInputDTO, ${classname}UpdateInputDTO,  ${classname}OutVO>
+) : BaseCrudController<${classname}, ${classname}Spec, ${classname}SaveDTO, ${classname}UpdateDTO,  ${classname}View>
 , BaseFastExcelApi<${classname}, ${classname}Spec, ${classname}ExcelDTO> {
 
 }

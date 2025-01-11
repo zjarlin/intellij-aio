@@ -60,7 +60,7 @@ data class MyPluginSettings(
     @ConfigField(label = "规范update_time", group = "db", order = 7) @JvmField var updateTime: String = "update_time",
 
     // 字典配置组
-    @ConfigField(label = "枚举生成的包路径", group = "dict", order = 1) @JvmField var enumPkg: String = "com.addzero.common.enums",
+    @ConfigField(label = "枚举生成的包路径", group = "dict", order = 1) @JvmField var enumPkg: String = "./",
 
     @ConfigField(label = "规范枚举表名称", group = "dict", order = 2) @JvmField var dictTableName: String = "sys_dict",
 

@@ -23,6 +23,7 @@ import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtClass
@@ -608,6 +609,33 @@ object PsiUtil {
             }
         }
     }
+
+    /**
+     * 获取PsiElement所在文件的路径
+     */
+    fun getFilePath(element: PsiElement): String {
+        val virtualFile = element.containingFile?.virtualFile
+        return virtualFile?.parent?.path ?: ""
+    }
+    data class PsiEleInfo(val packageName:String,val directoryPath:String)
+
+    fun getFilePathPair(element: PsiElement): PsiEleInfo {
+        // 获取包名
+        val packageName = when (val containingFile = element.containingFile) {
+            is PsiJavaFile -> containingFile.packageName
+            is KtFile -> containingFile.packageFqName.asString()
+            else -> ""
+        }
+
+        // 获取文件所在目录路径
+        val virtualFile = element.containingFile?.virtualFile
+        val directoryPath = virtualFile?.parent?.path ?: ""
+
+        return PsiEleInfo(packageName, directoryPath)
+    }
+
+
+
 }
 
 fun KtProperty.isDbField(): Boolean {

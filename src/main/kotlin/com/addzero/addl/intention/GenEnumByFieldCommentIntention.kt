@@ -5,8 +5,8 @@ import com.addzero.addl.action.dictgen.DictInfo
 import com.addzero.addl.action.dictgen.DictItemInfo
 import com.addzero.addl.action.dictgen.DictTemplateUtil
 import com.addzero.addl.settings.MyPluginSettingsService
+import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.toValidVariableName
-import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
@@ -14,7 +14,6 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 
 /**
@@ -66,7 +65,13 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
             .distinctBy { it.name } // 确保 name 唯一
 
         // 如果没有有效的枚举值，则返回
-        if (enumValues.isEmpty()) return
+        if (enumValues.isEmpty()) {
+            DialogUtil.showWarningMsg("未检测到枚举注释")
+            return
+        }
+
+        // 获取文件路径
+        val filePath = PsiUtil.getFilePathPair(field as PsiElement)
 
         // 生成枚举类名
         val enumName = generateEnumName(field)
@@ -75,7 +80,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         val dictInfo = DictInfo(
             id = "", // ID可以为空
             code = enumName,
-            description = comment
+            description = comment,
         )
 
         // 将 EnumValue 转换为 DictItemInfo
@@ -91,7 +96,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         val dictData = mapOf(dictInfo to dictItemInfos)
 
         // 生成枚举类
-        DictTemplateUtil.generateEnumsByMeta(project, dictData)
+        DictTemplateUtil.generateEnumsByMeta(project, dictData, filePath)
     }
 
     /**
@@ -174,7 +179,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
             else -> "Unknown"
         }
         val upperFirst = StrUtil.upperFirst(baseName)
-        return "Enum$upperFirst"
+        return upperFirst
     }
 
 

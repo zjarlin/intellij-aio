@@ -7,6 +7,7 @@ import com.addzero.addl.util.JlStrUtil
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.addzero.common.kt_util.isNull
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -18,7 +19,6 @@ import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
-import org.bouncycastle.asn1.iana.IANAObjectIdentifiers.directory
 import org.jetbrains.kotlin.idea.KotlinFileType
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -74,6 +74,7 @@ object DictTemplateUtil {
     public fun generateEnumsByMeta(
         project: Project,
         dictData: Map<DictInfo, List<DictItemInfo>>,
+        psiEleInfo: PsiUtil.PsiEleInfo,
     ) {
 
         val isKotlin = PsiUtil.isKotlinProject(project)
@@ -83,13 +84,14 @@ object DictTemplateUtil {
             val fileName = "$enumName${if (isKotlin) ".kt" else ".java"}"
 
 
-            val enumContent = generateEnumContent(enumName, dictInfo.description, items, isKotlin)
+            val enumContent = generateEnumContent(psiEleInfo, enumName, dictInfo.description, items, isKotlin)
 
             ShowContentUtil.openTextInEditor(
                 project,
                 enumContent,
                 enumName,
-                if (isKotlin) ".kt" else ".java"
+                if (isKotlin) ".kt" else ".java",
+                filePath = psiEleInfo.directoryPath,
             )
 
 //            val fileType = if (isKotlin) KotlinFileType.INSTANCE else JavaFileType.INSTANCE
@@ -102,13 +104,6 @@ object DictTemplateUtil {
         }
 
     }
-
-
-
-
-
-
-
 
 
     private fun generateEnums(
@@ -133,12 +128,11 @@ object DictTemplateUtil {
                 return@forEach
             }
 
-            val enumContent = generateEnumContent(enumName, dictInfo.description, items, isKotlin)
+            val enumContent = generateEnumContent(null, enumName, dictInfo.description, items, isKotlin)
             val fileType = if (isKotlin) KotlinFileType.INSTANCE else JavaFileType.INSTANCE
 
             WriteCommandAction.runWriteCommandAction(project) {
-                val psiFile = PsiFileFactory.getInstance(project)
-                    .createFileFromText(fileName, fileType, enumContent)
+                val psiFile = PsiFileFactory.getInstance(project).createFileFromText(fileName, fileType, enumContent)
                 CodeStyleManager.getInstance(project).reformat(psiFile)
                 directory.add(psiFile)
                 createCount++
@@ -154,18 +148,28 @@ object DictTemplateUtil {
             DialogUtil.showWarningMsg("所有枚举类($skipCount 个)都已存在，未生成新文件")
         }
     }
+
     private fun generateEnumContent(
+        psiEleInfo: PsiUtil.PsiEleInfo?,
         enumName: String,
         description: String,
         items: List<DictItemInfo>,
-        isKotlin: Boolean
+        isKotlin: Boolean,
     ): String {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         val packageName = SettingContext.settings.enumPkg
 
+        val pkg = if (psiEleInfo == null) {
+            packageName
+        } else if (packageName == "./") {
+            psiEleInfo.packageName
+        } else {
+            packageName
+        }
+
         return when (isKotlin) {
-            true -> generateKotlinEnum(packageName, enumName, description, items, timestamp)
-            false -> generateJavaEnum(packageName, enumName, description, items, timestamp)
+            true -> generateKotlinEnum( pkg, enumName, description, items, timestamp)
+            false -> generateJavaEnum( pkg, enumName, description, items, timestamp)
         }
     }
 
@@ -174,12 +178,22 @@ object DictTemplateUtil {
         enumName: String,
         description: String,
         items: List<DictItemInfo>,
-        timestamp: String
+        timestamp: String,
     ): String {
+
+
+
+
         val enumItems = items.joinToString(",\n") { item ->
             val itemCode = item.itemCode
             val itemDescription = item.itemDescription
+
+
             val format = StrUtil.format(SettingContext.settings.enumAnnotation, itemCode)
+
+
+
+
             """
     /**
      * $itemDescription
@@ -224,8 +238,10 @@ object DictTemplateUtil {
         enumName: String,
         description: String,
         items: List<DictItemInfo>,
-        timestamp: String
+        timestamp: String,
     ): String {
+
+
         val enumItems = items.joinToString(",\n") { item ->
             val itemCode = item.itemCode
             val itemDescription = item.itemDescription

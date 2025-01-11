@@ -15,42 +15,18 @@
     <!-- 更新日志，显示在插件详情页的 "What's New" 部分 -->
 
 
-    <change-notes><![CDATA[
+<!--    <change-notes><![CDATA[-->
+<!--]]></change-notes>-->
 
 
-   ___             _               ___     ___     _
-  /   \   _  _    | |_     ___    |   \   |   \   | |
-  | - |  | +| |   |  _|   / _ \   | |) |  | |) |  | |__
-  |_|_|   \_,_|   _\__|   \___/   |___/   |___/   |____|
-_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
-"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'
+<!--    <description><![CDATA[-->
+<!--<ul>-->
+<!--    <include src="DES.md" />-->
+<!--    <include src="DES.en.md" />-->
 
+<!--</ul>-->
 
-    <include src="CHANGE.md" />
-
-    <include src="CHANGE.en.md" />
-]]></change-notes>
-
-
-    <description><![CDATA[
-
-
-
-<ul>
-
-   ___             _               ___     ___     _
-  /   \   _  _    | |_     ___    |   \   |   \   | |
-  | - |  | +| |   |  _|   / _ \   | |) |  | |) |  | |__
-  |_|_|   \_,_|   _\__|   \___/   |___/   |___/   |____|
-_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
-"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'
-
-    <include src="DES.md" />
-    <include src="DES.en.md" />
-
-</ul>
-
-  ]]></description>
+<!--  ]]></description>-->
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
@@ -75,6 +51,14 @@ _|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
         <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
         <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
+
+        <!-- 添加字段注释生成枚举类的 intention -->
+        <intentionAction>
+            <language>kotlin</language>
+            <className>com.addzero.addl.intention.GenEnumByFieldCommentIntention</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>
+        </intentionAction>
     </extensions>
 
     <!--    <extensions defaultExtensionNs="com.intellij">-->

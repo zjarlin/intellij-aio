@@ -76,4 +76,12 @@ data class MyPluginSettings(
     @ConfigField(
         label = "枚举项注解模板(默认jimmer)", type = FieldType.LONG_TEXT, group = "dict", order = 10
     ) @JvmField var enumAnnotation: String = "@EnumItem(name = \"{}\") ",
+
+    @ConfigField(
+        label = "枚举分隔符",
+        type = FieldType.TEXT,
+        order = 50,
+        group = "enum"
+    )
+    var enumSeparator: String = "-"
 )

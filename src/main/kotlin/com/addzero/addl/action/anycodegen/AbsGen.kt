@@ -1,5 +1,6 @@
 package com.addzero.addl.action.anycodegen
 
+import cn.hutool.core.util.ClassUtil.getPackagePath
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.extractMarkdownBlockContent
@@ -13,6 +14,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiNameHelper.getQualifiedClassName
 import org.jetbrains.kotlin.psi.KtFile
 
 abstract class AbsGen : AnAction() {
@@ -41,24 +43,6 @@ abstract class AbsGen : AnAction() {
         return addSuffixIfNot
     }
 
-    fun getQualifiedClassName(psiFile: PsiFile): String? {
-        val fileNameWithoutExtension = psiFile.virtualFile.nameWithoutExtension
-        val packageName = when (psiFile) {
-            is KtFile -> psiFile.packageFqName.asString()
-            is PsiJavaFile -> psiFile.packageName
-            else -> null
-        }
-        return if (packageName != null) {
-            "$packageName.$fileNameWithoutExtension"
-        } else {
-            fileNameWithoutExtension
-        }
-    }
-
-    fun getPackagePath(psiFile: PsiFile?): String? {
-        val qualifiedClassName = getQualifiedClassName(psiFile!!)
-        return qualifiedClassName
-    }
 
     override fun update(e: AnActionEvent) {
         val project = e.project
@@ -72,8 +56,8 @@ abstract class AbsGen : AnAction() {
 
     protected open fun performAction(project: Project, e: AnActionEvent) {
         val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project)
-        val packagePath = getPackagePath(psiFile)
-        val qualifiedClassName = getQualifiedClassName(psiFile!!)
+        val packagePath =PsiUtil. getPackagePath(psiFile)
+        val qualifiedClassName =PsiUtil. getQualifiedClassName(psiFile!!)
 
         val fullname = fullName(psiFile)
         if (ktClass == null) {

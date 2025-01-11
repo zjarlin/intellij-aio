@@ -36,6 +36,29 @@ private const val NOCOMMENT = ""
 
 object PsiUtil {
 
+
+    fun getQualifiedClassName(psiFile: PsiFile): String? {
+        val fileNameWithoutExtension = psiFile.virtualFile.nameWithoutExtension
+        val packageName = when (psiFile) {
+            is KtFile -> psiFile.packageFqName.asString()
+            is PsiJavaFile -> psiFile.packageName
+            else -> null
+        }
+        return if (packageName != null) {
+            "$packageName.$fileNameWithoutExtension"
+        } else {
+            fileNameWithoutExtension
+        }
+    }
+
+    fun getPackagePath(psiFile: PsiFile?): String? {
+        val qualifiedClassName = getQualifiedClassName(psiFile!!)
+        return qualifiedClassName
+    }
+
+
+
+
     private fun cleanDocComment(docComment: String?): String {
         if (docComment == null) return ""
 

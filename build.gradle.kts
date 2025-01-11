@@ -4,6 +4,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
+
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
     id("org.jetbrains.intellij.platform") version "2.2.1"
 }
@@ -58,19 +59,18 @@ intellijPlatform {
         name = "AutoDDL"
         vendor {
             name = "zjarlin"
-            email = "zjarlin@outlook.comk"
+            email = "zjarlin@outlook.com"
         }
         ideaVersion {
             sinceBuild = "223"
             untilBuild = "243.*"
         }
-
-
+        description = File(projectDir, "README.md").readText().markdownToHtml()
+        changeNotes = File(projectDir, "CHANGELOG.md").readText().markdownToHtml()
     }
     pluginVerification {
         ides {
             ide(type, sinceVersion)
-
         }
     }
 
@@ -102,5 +102,28 @@ tasks {
     test {
         systemProperty("idea.home.path", intellijPlatform.sandboxContainer.get().toString())
     }
+
+}
+
+fun String.markdownToHtml(): String {
+    return this
+//    return """
+//    <html>
+//    <body>
+//    ${
+//        this.lines().map { line ->
+//            when {
+//                line.startsWith("# ") -> "<h1>${line.substring(2)}</h1>"
+//                line.startsWith("## ") -> "<h2>${line.substring(3)}</h2>"
+//                line.startsWith("### ") -> "<h3>${line.substring(4)}</h3>"
+//                line.startsWith("- ") -> "<li>${line.substring(2)}</li>"
+//                line.isBlank() -> "<br/>"
+//                else -> "<p>$line</p>"
+//            }
+//        }
+//    }
+//    </body>
+//    </html>
+//    """.trimIndent()
 
 }

@@ -2,11 +2,11 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-
+import org.jetbrains.changelog.markdownToHTML
 plugins {
-
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
     id("org.jetbrains.intellij.platform") version "2.2.1"
+    id("org.jetbrains.changelog") version "latest.release"
 }
 
 group = "com.addzero"
@@ -65,8 +65,8 @@ intellijPlatform {
             sinceBuild = "223"
             untilBuild = "243.*"
         }
-        description = File(projectDir, "README.md").readText().markdownToHtml()
-        changeNotes = File(projectDir, "CHANGELOG.md").readText().markdownToHtml()
+        description = File(projectDir, "README.md").readText().run { markdownToHTML(this) }
+        changeNotes = File(projectDir, "CHANGELOG.md").readText().run { markdownToHTML(this) }
     }
     pluginVerification {
         ides {
@@ -105,25 +105,25 @@ tasks {
 
 }
 
-fun String.markdownToHtml(): String {
-    return this
-//    return """
-//    <html>
-//    <body>
-//    ${
-//        this.lines().map { line ->
-//            when {
-//                line.startsWith("# ") -> "<h1>${line.substring(2)}</h1>"
-//                line.startsWith("## ") -> "<h2>${line.substring(3)}</h2>"
-//                line.startsWith("### ") -> "<h3>${line.substring(4)}</h3>"
-//                line.startsWith("- ") -> "<li>${line.substring(2)}</li>"
-//                line.isBlank() -> "<br/>"
-//                else -> "<p>$line</p>"
-//            }
-//        }
-//    }
-//    </body>
-//    </html>
-//    """.trimIndent()
-
-}
+//fun String.markdownToHtml(): String {
+//    return this
+////    return """
+////    <html>
+////    <body>
+////    ${
+////        this.lines().map { line ->
+////            when {
+////                line.startsWith("# ") -> "<h1>${line.substring(2)}</h1>"
+////                line.startsWith("## ") -> "<h2>${line.substring(3)}</h2>"
+////                line.startsWith("### ") -> "<h3>${line.substring(4)}</h3>"
+////                line.startsWith("- ") -> "<li>${line.substring(2)}</li>"
+////                line.isBlank() -> "<br/>"
+////                else -> "<p>$line</p>"
+////            }
+////        }
+////    }
+////    </body>
+////    </html>
+////    """.trimIndent()
+//
+//}

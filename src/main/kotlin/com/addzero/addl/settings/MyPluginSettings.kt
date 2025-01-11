@@ -82,49 +82,6 @@ data class MyPluginSettings(
         label = "枚举项注解模板(默认jimmer)", type = FieldType.LONG_TEXT, group = "dict", order = 10
     ) @JvmField var enumAnnotation: String = "@EnumItem(name = \"{}\") ",
 
-//    @ConfigField(
-//        label = "枚举分隔符",
-//        type = FieldType.TEXT,
-//        order = 50,
-//        group = "enum"
-//    )
-//    var enumSeparator: String = "-",
 
-    @ConfigField(
-        label = "枚举模板",
-        group = "enum",
-        order = 20,
-        type = FieldType.LONG_TEXT
-    )
-    var enumTemplate: String = defaultEnumTemplate
 ) {
-    companion object {
-        private const val defaultEnumTemplate = """
-// Java模板:
-/*
-package ${'$'}{packageName};
-
-/**
- * 自动生成的枚举类
- */
-public enum ${'$'}{enumName} {
-${'$'}{enumValues}
-    ;
-${'$'}{codeField}
-}
-*/
-
-// Kotlin模板:
-/*
-package ${'$'}{packageName}
-
-/**
- * 自动生成的枚举类
- */
-enum class ${'$'}{enumName}${'$'}{constructor} {
-${'$'}{enumValues}
-${'$'}{codeField}
-}
-*/"""
-    }
 }

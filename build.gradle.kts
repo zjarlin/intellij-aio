@@ -1,63 +1,49 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-val sinceVersion by extra("223.7571.182")
-//val untilVersion by extra("243.*")
-val untilVersion by extra("24*")
-
 plugins {
-//    id("java")
-    id("org.jetbrains.kotlin.jvm") version "latest.release"
-    id("org.jetbrains.intellij") version "latest.release"
-//    id("org.jetbrains.intellij.platform") version "2.1.0"
+    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.intellij.platform") version "2.2.1"
 }
-
-//pluginManagement {
-//    repositories {
-//        maven("https://oss.sonatype.org/content/repositories/snapshots/")
-//        gradlePluginPortal()
-//    }
-//}
 
 group = "com.addzero"
 version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-configurations.all {
-    resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
-}
+
+val sinceVersion by extra("2022.3")
 repositories {
     mavenCentral()
-
+    intellijPlatform {
+        defaultRepositories()
+    }
     mavenLocal()
     maven { url = uri("https://maven.aliyun.com/repository/public/") }
     maven { url = uri("https://mirrors.huaweicloud.com/repository/maven/") }
-    maven { url = uri("https://repo.spring.io/snapshot") }
-    maven { url = uri("https://repo.spring.io/milestone") }
 }
 
-intellij {
-    plugins.set(
-        listOf(
-            "com.intellij.java", "org.jetbrains.kotlin", "com.intellij.database"
-        )
-    )
-//    localPath.set("/Applications/IntelliJ IDEA.app/Contents")
-    version.set("2023.2.6")
-//    version.set("2022.3")
-//    type.set("IU") // Target IDE Platform
-    type.set("IC") // Target IDE Platform
-
-//    type.set("IC") // Target IDE Platform
-}
-//dependencyManagement {
-//    imports {
-//        mavenBom("org.springframework.ai:spring-ai-bom:${libs.versions.spring.ai}")
-//        mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot}")
+//kotlin {
+//    jvmToolchain(17)
+//    compilerOptions {
+//        freeCompilerArgs.add("-Xjvm-default=all")
+//        freeCompilerArgs.add("-Xcontext-receivers")
+//        freeCompilerArgs.add("-Xkotlin-version=1.9")
+//        freeCompilerArgs.add("-Xuse-k2")
 //    }
 //}
-
+val type = "IC"
 dependencies {
+    intellijPlatform {
+        create(type, sinceVersion)
+        bundledPlugins(
+            "com.intellij.java", "org.jetbrains.kotlin"
+//            , "com.intellij.database"
+        )
+
+        testFramework(TestFrameworkType.Platform)
+    }
 //    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains:annotations:26.0.1")
+//    implementation("org.jetbrains:annotations:26.0.1")
     implementation("com.belerweb:pinyin4j:2.5.1")
     implementation("cn.hutool:hutool-all:5.8.25")
     implementation("com.alibaba:fastjson:2.0.52")
@@ -66,70 +52,55 @@ dependencies {
 //        exclude(group = "com.fasterxml.jackson.core")
 }
 
+intellijPlatform {
+    pluginConfiguration {
+        id = "com.addzero.AutoDDL"
+        name = "AutoDDL"
+        vendor {
+            name = "zjarlin"
+            email = "zjarlin@outlook.comk"
+        }
+        ideaVersion {
+            sinceBuild = "223"
+            untilBuild = "243.*"
+        }
 
-//    implementation(libs.spring.ai.openai)
-//    {
-//        exclude(group = "com.fasterxml.jackson.core")
-//    }
-//    implementation(libs.spring.ai.zhipuai)
-//    {
-//        exclude(group = "com.fasterxml.jackson.core")
-//    }
-//    implementation(libs.spring.ai.moonshot)
-//    {
-//        exclude(group = "com.fasterxml.jackson.core")
-//    }
-//    implementation(libs.spring.ai.alibaba)
-//    {
-//        exclude(group = "com.fasterxml.jackson.core")
-//    }
-//    implementation(libs.spring.boot)
-//    {
-//        exclude(group = "com.fasterxml.jackson.core")
-//    }
 
-//}
+    }
+    pluginVerification {
+        ides {
+            ide(type, sinceVersion)
 
-//sourceSets {
-//    main {
-//        resources {
-//            srcDir("src/main/resources")
-//        }
-//    }
-//}
+        }
+    }
+
+    publishing {
+        token = System.getenv("PUBLISH_TOKEN")
+        channels.add("Stable")
+    }
+    signing {
+        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+        privateKey = System.getenv("PRIVATE_KEY")
+        password = System.getenv("PRIVATE_KEY_PASSWORD")
+    }
+
+
+}
 tasks {
-// 将依赖打进jar包中
-//    jar.configure {
-//        duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.INCLUDE
-//        from(configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) })
-//    }
-
     // Set the JVM compatibility versions
     withType<JavaCompile> {
         sourceCompatibility = "17"
         targetCompatibility = "17"
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    withType<KotlinCompile> {
         kotlinOptions {
             jvmTarget = "17"
-            freeCompilerArgs += "-Xuse-k2" // 启用 K2 编译器
+            freeCompilerArgs = listOf("-Xjvm-default=all-compatibility")
         }
     }
 
-    patchPluginXml {
-
-        sinceBuild.set(sinceVersion)
-        untilBuild.set(untilVersion)
+    test {
+        systemProperty("idea.home.path", intellijPlatform.sandboxContainer.get().toString())
     }
 
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
-    }
-
-
-    publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
-    }
 }

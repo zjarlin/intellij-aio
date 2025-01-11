@@ -57,7 +57,7 @@ _|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
-    <depends>com.intellij.database</depends>
+<!--    <depends>com.intellij.database</depends>-->
 
 
     <!--    <depends>com.intellij.java</depends>-->
@@ -72,91 +72,67 @@ _|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|_|"""""|
     <!--    </extensions>-->
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"
-
-        />
+        <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
+        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
     </extensions>
 
     <!--    <extensions defaultExtensionNs="com.intellij">-->
     <!--        <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>-->
     <!--    </extensions>-->
 
-    <extensions defaultExtensionNs="com.intellij">
-        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
-    </extensions>
-
     <actions>
+        <!-- 主菜单 -->
         <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
         </action>
 
-
-        <!--        <action id="GenJimmerAll"-->
-        <!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerAll"-->
-        <!--                text="GenJimmerAll" description="GenJimmerAll">-->
-        <!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
-        <!--        </action>-->
-
-
-        <action id="GenExcelDTO"
-                class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
-                text="GenExcelDTO" description="GenExcelDTO">
+        <!-- 生成菜单组 -->
+        <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
 
+            <action id="GenExcelDTO"
+                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
+                    text="Generate Excel DTO"
+                    description="Generate Excel DTO"/>
 
-        <action id="GenJimmerDTO"
-                class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"
-                text="GenJimmerDTO" description="GenJimmerDTO">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+            <action id="GenJimmerDTO"
+                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"
+                    text="Generate Jimmer DTO"
+                    description="Generate Jimmer DTO"/>
 
-        <action id="GenJimmerController"
-                class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"
-                text="GenJimmerController" description="GenJimmerController">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
+            <action id="GenJimmerController"
+                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"
+                    text="GenJimmerController"
+                    description="GenJimmerController"/>
 
+            <action id="GenAddColumnByThis"
+                    class="com.addzero.addl.action.GenAddColumnByThis"
+                    text="GenAddColumnByThis"
+                    description="GenAddColumnByThis">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
+            </action>
 
-<!--        <action id="GenJimmerBaseController"-->
-<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseController"-->
-<!--                text="GenJimmerBaseController" description="GenJimmerBaseController">-->
-<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
-<!--        </action>-->
+            <action id="GenStructuredOutput"
+                    class="StructuredOutput"
+                    text="GenStructuredOutput"
+                    description="GenStructuredOutput"/>
+        </group>
 
-
-<!--        <action id="GenJimmerBaseFastExcelApi"-->
-<!--                class="com.addzero.addl.action.anycodegen.impl.GenJimmerBaseFastExcelApi"-->
-<!--                text="GenJimmerBaseFastExcelApi" description="GenJimmerBaseFastExcelApi">-->
-<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
-<!--        </action>-->
-
-
-        <action id="GenAddColumnByThis" class="com.addzero.addl.action.GenAddColumnByThis" text="GenAddColumnByThis"
-                description="GenAddColumnByThis">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
-        </action>
-
-        <action id="GenStructuredOutput" class="StructuredOutput" text="GenStructuredOutput"
-                description="GenStructuredOutput">
-            <add-to-group group-id="GenerateGroup" anchor="first"/>
-        </action>
-
-
-<!--        <action id="AutoDDL.WithDB.Generate"-->
-<!--                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
-<!--                text="Entities DDL Generator"-->
-<!--                description="Generate and sync database tables from entity package">-->
+        <!-- 数据库视图菜单组 -->
+<!--        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">-->
 <!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
-<!--        </action>-->
 
-<!--        <action id="DictEnum.Generate"-->
-<!--                class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->
-<!--                text="Enums  Generator"-->
-<!--                description="Generate enum classes from dictionary tables">-->
-<!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="after" relative-to-action="AutoDDL.WithDB.Generate"/>-->
-<!--        </action>-->
+<!--            <action id="AutoDDL.WithDB.Generate"-->
+<!--                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
+<!--                    text="Entities DDL Generator"-->
+<!--                    description="Generate and sync database tables from entity package"/>-->
+
+<!--            <action id="DictEnum.Generate"-->
+<!--                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->
+<!--                    text="Enums Generator"-->
+<!--                    description="Generate enum classes from dictionary tables"/>-->
+<!--        </group>-->
     </actions>
 </idea-plugin>

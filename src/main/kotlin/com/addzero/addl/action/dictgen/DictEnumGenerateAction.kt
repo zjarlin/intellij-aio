@@ -95,18 +95,6 @@
 //        return null
 //    }
 //
-//    private data class DictInfo(
-//        val id: String,
-//        val code: String,
-//        val description: String,
-//    )
-//
-//    private data class DictItemInfo(
-//        val dictId: String,
-//        val itemCode: String,
-//        val itemDescription: String,
-//    )
-//
 //    private fun getDictData(dataSource: DbDataSource): Map<DictInfo, List<DictItemInfo>> {
 //        val settings = com.addzero.addl.settings.SettingContext.settings
 //

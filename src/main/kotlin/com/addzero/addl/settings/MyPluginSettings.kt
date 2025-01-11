@@ -65,21 +65,21 @@ data class MyPluginSettings(
     // 字典配置组
     @ConfigField(label = "枚举生成的包路径", group = "dict", order = 1) @JvmField var enumPkg: String = "./",
 
-    @ConfigField(label = "规范枚举表名称", group = "dict", order = 2) @JvmField var dictTableName: String = "sys_dict",
-
-    @ConfigField(label = "规范枚举表id", group = "dict", order = 3) @JvmField var did: String = "id",
-
-    @ConfigField(label = "规范枚举表分组编码", group = "dict", order = 4) @JvmField var dcode: String = "dict_code",
-
-    @ConfigField(label = "规范枚举表分组名称", group = "dict", order = 5) @JvmField var ddes: String = "dict_name",
-
-    @ConfigField(label = "规范枚举项表名称", group = "dict", order = 6) @JvmField var itemTableName: String = "sys_dict_item",
-
-    @ConfigField(label = "规范枚举项外键", group = "dict", order = 7) @JvmField var exdictid: String = "dict_id",
-
-    @ConfigField(label = "规范枚举项code", group = "dict", order = 8) @JvmField var icode: String = "item_value",
-
-    @ConfigField(label = "规范枚举项name", group = "dict", order = 9) @JvmField var ides: String = "item_text",
+//    @ConfigField(label = "规范枚举表名称", group = "dict", order = 2) @JvmField var dictTableName: String = "sys_dict",
+//
+//    @ConfigField(label = "规范枚举表id", group = "dict", order = 3) @JvmField var did: String = "id",
+//
+//    @ConfigField(label = "规范枚举表分组编码", group = "dict", order = 4) @JvmField var dcode: String = "dict_code",
+//
+//    @ConfigField(label = "规范枚举表分组名称", group = "dict", order = 5) @JvmField var ddes: String = "dict_name",
+//
+//    @ConfigField(label = "规范枚举项表名称", group = "dict", order = 6) @JvmField var itemTableName: String = "sys_dict_item",
+//
+//    @ConfigField(label = "规范枚举项外键", group = "dict", order = 7) @JvmField var exdictid: String = "dict_id",
+//
+//    @ConfigField(label = "规范枚举项code", group = "dict", order = 8) @JvmField var icode: String = "item_value",
+//
+//    @ConfigField(label = "规范枚举项name", group = "dict", order = 9) @JvmField var ides: String = "item_text",
 
     @ConfigField(
         label = "枚举项注解模板(默认jimmer)", type = FieldType.LONG_TEXT, group = "dict", order = 10

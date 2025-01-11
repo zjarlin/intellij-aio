@@ -1,0 +1,85 @@
+<html lang="en">
+<body>
+<p>
+    根据字段注释中的枚举值定义自动生成对应的枚举类。
+    Generate enum class based on field comment's enum value definitions.
+</p>
+<!-- tooltip end -->
+<p>
+    支持的注释格式：
+    Supported comment formats:
+</p>
+<ul>
+    <li>
+        短横线格式：1-男, 2-女
+        Hyphen format: 1-Male, 2-Female
+    </li>
+    <li>
+        冒号格式：1:男, 2:女
+        Colon format: 1:Male, 2:Female
+    </li>
+    <li>
+        等号格式：1=男, 2=女
+        Equals format: 1=Male, 2=Female
+    </li>
+</ul>
+
+<p>
+    使用方法：
+    How to use:
+</p>
+<ol>
+    <li>
+        在字段上添加包含枚举值定义的注释
+        Add comment with enum value definitions on the field
+    </li>
+    <li>
+        将光标放在字段上，按下 Alt+Enter
+        Place cursor on the field and press Alt+Enter
+    </li>
+    <li>
+        选择 "GenEnumByFieldComment"
+        Select "GenEnumByFieldComment"
+    </li>
+    <li>
+        自动生成对应的枚举类
+        Automatically generate corresponding enum class
+    </li>
+</ol>
+
+<p>
+    示例：
+    Example:
+</p>
+<pre>
+// Java
+/** 性别：1-男, 2-女 */
+private Integer gender;
+
+// Kotlin
+/** 性别：1-男, 2-女 */
+var gender: Int? = null
+</pre>
+
+<p>
+    将生成：
+    Will generate:
+</p>
+<pre>
+enum class Gender(val code: Int, val description: String) {
+    MALE(1, "男"),
+    FEMALE(2, "女");
+
+    companion object {
+        fun of(code: Int): Gender = values().find { it.code == code }
+            ?: throw IllegalArgumentException("Invalid Gender code: $code")
+    }
+}
+</pre>
+
+<p><small>
+    注意：确保注释格式正确，且代码值和描述文本不重复
+    Note: Ensure comment format is correct and code values and descriptions are unique
+</small></p>
+</body>
+</html>

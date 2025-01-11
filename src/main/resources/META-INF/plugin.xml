@@ -64,18 +64,22 @@
         <!-- 其他配置 -->
 
         <!-- 注册 Intention Action -->
-        <intentionAction>
-            <language>kotlin</language>
-            <className>com.addzero.addl.action.dictgen.intention.AskAIIntention</className>
-            <category>Java/Kotlin</category>
-        </intentionAction>
+
+<!--        <intentionAction>-->
+<!--            <language>JAVA</language>-->
+<!--            <language>kotlin</language>-->
+<!--            <className>com.addzero.addl.action.aitoolwindow.toolwindow.AskAIIntention</className>-->
+<!--            <category>Java/Kotlin</category>-->
+<!--            <descriptionDirectoryName>AskAIIntention</descriptionDirectoryName>-->
+<!--        </intentionAction>-->
+
         <!-- 注册工具窗口 -->
-        <toolWindow
-                id="AI Chat"
-                secondary="true"
-                icon="AllIcons.General.Modified"
-                anchor="right"
-                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>
+<!--        <toolWindow-->
+<!--                id="AI Chat"-->
+<!--                secondary="true"-->
+<!--                icon="AllIcons.General.Modified"-->
+<!--                anchor="right"-->
+<!--                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>-->
     </extensions>
 
     <!--    <extensions defaultExtensionNs="com.intellij">-->

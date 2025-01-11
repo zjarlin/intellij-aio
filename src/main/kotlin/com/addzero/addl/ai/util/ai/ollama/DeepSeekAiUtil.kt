@@ -34,7 +34,6 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
         val role: String,
     )
 
-
     fun askDeepSeek(message: String, prompt: String? = ""): String? {
         val deepSeekRequest = DeepSeekRequest(
             model = "deepseek-coder", stream = false, messages = listOf(
@@ -45,11 +44,11 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
                 )
             )
         )
-
         // 发送 POST 请求
+        val modelNameOnline = settings.modelNameOnline
         val response = HttpRequest.post("https://api.deepseek.com/chat/completions").body(deepSeekRequest.toJson(), ContentType.JSON.toString()) // 设置请求体和
             // Content-Type
-            .header("Authorization", "Bearer sk-3ec7724c2c764273bf2ace9558a21d17") // 设置 Authorization
+            .header("Authorization", System.getenv("DEEPSEEK_API_KEY") ?: settings.modelKey) // 设置 Authorization
             .header("Cookie", "HWWAFSESID=8de64226e01ce83b61d; HWWAFSESTIME=1736583106731") // 设置 Cookie
             .execute() // 执行请求
         val body = response.body()

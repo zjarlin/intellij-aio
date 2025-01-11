@@ -1,6 +1,9 @@
 package com.addzero.addl.settings
 
 import com.addzero.addl.ai.consts.ChatModels.DASH_SCOPE
+import com.addzero.addl.ai.consts.ChatModels.DeepSeek
+import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModel
+import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModelCoder
 import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ai.consts.ChatModels.QWEN2_5_1_5B
 import com.addzero.addl.ai.consts.ChatModels.QWEN2_5_CODER_0_5B
@@ -27,11 +30,11 @@ data class MyPluginSettings(
     @ConfigField(label = "模型Key", group = "ai", order = 1) @JvmField var modelKey: String = "",
 
     @ConfigField(
-        label = "模型厂商", type = FieldType.DROPDOWN, options = [DASH_SCOPE, OLLAMA], group = "ai", order = 2
-    ) @JvmField var modelManufacturer: String = DASH_SCOPE,
+        label = "模型厂商", type = FieldType.DROPDOWN, options = [DASH_SCOPE, OLLAMA, DeepSeek], group = "ai", order = 2
+    ) @JvmField var modelManufacturer: String = DeepSeek,
 
     @ConfigField(
-        label = "在线模型", type = FieldType.DROPDOWN, options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX], group = "ai", order = 3
+        label = "在线模型", type = FieldType.DROPDOWN, options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX, DeepSeekOnlineModel, DeepSeekOnlineModelCoder], group = "ai", order = 3
     ) @JvmField var modelNameOnline: String = QWEN_1_5B_CODER_INSTRUCT,
 
     @ConfigField(label = "ollama远程url", group = "ai", order = 4) @JvmField var ollamaUrl: String = "http://localhost:11434",

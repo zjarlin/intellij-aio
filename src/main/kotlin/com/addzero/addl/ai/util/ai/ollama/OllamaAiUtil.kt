@@ -10,9 +10,6 @@ import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
 
 
-class Res {
-
-}
 
 // 声明两个子类
 class OllamaAiUtil(modelName: String, question: String, promptTemplate: String = "") :

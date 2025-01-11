@@ -1,4 +1,4 @@
-package com.addzero.addl.intention
+package com.addzero.addl.action.dictgen.intention
 
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.action.dictgen.DictInfo

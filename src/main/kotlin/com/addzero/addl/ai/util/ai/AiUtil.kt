@@ -2,8 +2,10 @@ package com.addzero.addl.ai.util.ai
 
 import cn.hutool.core.util.ReflectUtil
 import com.addzero.addl.ai.consts.ChatModels.DASH_SCOPE
+import com.addzero.addl.ai.consts.ChatModels.DeepSeek
 import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ai.util.ai.ollama.DashScopeAiUtil
+import com.addzero.addl.ai.util.ai.ollama.DeepSeekAiUtil
 import com.addzero.addl.ai.util.ai.ollama.OllamaAiUtil
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.fieldinfo.getSimpleFieldInfoStr
@@ -60,6 +62,7 @@ abstract class AiUtil(
             return when (modelName) {
                 OLLAMA -> OllamaAiUtil(modelName, question, promptTemplate)
                 DASH_SCOPE -> DashScopeAiUtil(modelName, question, promptTemplate)
+                DeepSeek-> DeepSeekAiUtil(modelName, question, promptTemplate)
                 else -> throw IllegalArgumentException("Unknown modelName: $modelName")
             }
         }
@@ -70,6 +73,7 @@ abstract class AiUtil(
             return when (modelManufacturer) {
                 OLLAMA -> OllamaAiUtil(modelNameOffline, question, promptTemplate)
                 DASH_SCOPE -> DashScopeAiUtil(modelNameOnline, question, promptTemplate)
+                DeepSeek-> DeepSeekAiUtil(modelNameOnline, question, promptTemplate)
                 else -> throw IllegalArgumentException("Unknown modelName")
             }
         }

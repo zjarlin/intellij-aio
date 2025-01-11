@@ -2,11 +2,12 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 val sinceVersion by extra("223.7571.182")
-val untilVersion by extra("243.*")
+//val untilVersion by extra("243.*")
+val untilVersion by extra("24*")
 
 plugins {
 //    id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.25"
+    id("org.jetbrains.kotlin.jvm") version "latest.release"
     id("org.jetbrains.intellij") version "latest.release"
 //    id("org.jetbrains.intellij.platform") version "2.1.0"
 }
@@ -40,10 +41,10 @@ intellij {
         )
     )
 //    localPath.set("/Applications/IntelliJ IDEA.app/Contents")
-//    version.set("2023.2.6")
-    version.set("2022.3")
-    type.set("IU") // Target IDE Platform
-//    type.set("IC") // Target IDE Platform
+    version.set("2023.2.6")
+//    version.set("2022.3")
+//    type.set("IU") // Target IDE Platform
+    type.set("IC") // Target IDE Platform
 
 //    type.set("IC") // Target IDE Platform
 }

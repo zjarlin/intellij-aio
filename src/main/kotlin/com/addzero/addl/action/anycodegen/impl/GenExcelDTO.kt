@@ -29,8 +29,8 @@ class GenExcelDTO : AbsGen() {
         }
         val fullClassName = """${classname}$EXCEL_READ_DTO"""
         return """
+           package $pkg;
             import com.alibaba.excel.annotation.ExcelProperty;
-            import $pkg;
             @Data
             public class $fullClassName {
                 $fields
@@ -93,8 +93,8 @@ class GenExcelDTO : AbsGen() {
         """.trimIndent()
 
         return """
+           package $pkg;
             import com.alibaba.excel.annotation.ExcelProperty;
-             import $pkg;
            $toentityblockk1 
             public open class ${classname}$EXCEL_READ_DTO{
                 $fields

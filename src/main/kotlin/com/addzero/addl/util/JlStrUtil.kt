@@ -230,6 +230,9 @@ object JlStrUtil {
         // 1. 清理特殊字符，只保留字母、数字、空格、下划线、中划线
         var result = input.replace(Regex("[^a-zA-Z0-9\\s_-]"), "")
 
+        if (result.isBlank()) {
+            return input
+        }
         // 2. 处理数字开头的情况
         if (result.first().isDigit()) {
             result = "_$result"

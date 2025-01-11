@@ -13,10 +13,15 @@ import com.addzero.addl.autoddlstarter.generator.consts.DM
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.intellij.openapi.components.State
 
 @SettingsGroup(
     groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(name = "db", title = "数据库配置", order = 2), Group(name = "dict", title = "字典配置", order = 3)]
 )
+//@State(
+//    name = "AutoDDLSettings",
+//    storages = [Storage("AutoDDLSettings.xml")]
+//)
 data class MyPluginSettings(
     // AI模型配置组
     @ConfigField(label = "模型Key", group = "ai", order = 1) @JvmField var modelKey: String = "",
@@ -77,11 +82,49 @@ data class MyPluginSettings(
         label = "枚举项注解模板(默认jimmer)", type = FieldType.LONG_TEXT, group = "dict", order = 10
     ) @JvmField var enumAnnotation: String = "@EnumItem(name = \"{}\") ",
 
+//    @ConfigField(
+//        label = "枚举分隔符",
+//        type = FieldType.TEXT,
+//        order = 50,
+//        group = "enum"
+//    )
+//    var enumSeparator: String = "-",
+
     @ConfigField(
-        label = "枚举分隔符",
-        type = FieldType.TEXT,
-        order = 50,
-        group = "enum"
+        label = "枚举模板",
+        group = "enum",
+        order = 20,
+        type = FieldType.LONG_TEXT
     )
-    var enumSeparator: String = "-"
-)
+    var enumTemplate: String = defaultEnumTemplate
+) {
+    companion object {
+        private const val defaultEnumTemplate = """
+// Java模板:
+/*
+package ${'$'}{packageName};
+
+/**
+ * 自动生成的枚举类
+ */
+public enum ${'$'}{enumName} {
+${'$'}{enumValues}
+    ;
+${'$'}{codeField}
+}
+*/
+
+// Kotlin模板:
+/*
+package ${'$'}{packageName}
+
+/**
+ * 自动生成的枚举类
+ */
+enum class ${'$'}{enumName}${'$'}{constructor} {
+${'$'}{enumValues}
+${'$'}{codeField}
+}
+*/"""
+    }
+}

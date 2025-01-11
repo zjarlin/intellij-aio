@@ -1,22 +1,21 @@
 package com.addzero.addl.intention
 
-import cn.hutool.core.util.ClassUtil.getPackagePath
 import cn.hutool.core.util.StrUtil
-import com.addzero.addl.action.anycodegen.AbsGen
+import com.addzero.addl.action.dictgen.DictInfo
+import com.addzero.addl.action.dictgen.DictItemInfo
+import com.addzero.addl.action.dictgen.DictTemplateUtil
 import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.JlStrUtil.toValidVariableName
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
-import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 /**
  * 根据字段注释生成枚举类的 Intention Action
@@ -25,12 +24,11 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
 
     private val settings = MyPluginSettingsService.getInstance().state
 
-    // 获取配置的分隔符，如果为空则使用默认值 "-"
-    private val separator: String
-        get() = settings.enumSeparator.takeIf { it.isNotBlank() } ?: "-"
 
     override fun getText() = "GenEnumByFieldComment"
     override fun getFamilyName() = text
+
+    override fun startInWriteAction(): Boolean = false
 
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         // 检查是否在字段或属性上，并且有注释
@@ -70,26 +68,30 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         // 如果没有有效的枚举值，则返回
         if (enumValues.isEmpty()) return
 
-        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project)
-        val packagePath = PsiUtil. getPackagePath(psiFile)
-        val qualifiedClassName = PsiUtil. getQualifiedClassName(psiFile!!)
-        // 获取目标包名
-
         // 生成枚举类名
         val enumName = generateEnumName(field)
 
-        // 生成枚举类代码
-        val enumCode = generateEnumCode(packagePath!!, enumName, enumValues)
-
-
-        // 将生成的 SQL 语句写入到新的文件并打开
-        ShowContentUtil.openTextInEditor(
-            project,
-            enumCode,
-            "Enum",
-            ".kt"
+        // 构造 DictInfo 和 DictItemInfo 列表
+        val dictInfo = DictInfo(
+            id = "", // ID可以为空
+            code = enumName,
+            description = comment
         )
 
+        // 将 EnumValue 转换为 DictItemInfo
+        val dictItemInfos = enumValues.map { enumValue ->
+            DictItemInfo(
+                dictId = "", // 外键ID可以为空
+                itemCode = enumValue.code,
+                itemDescription = enumValue.name.replace("_", " ").lowercase()
+            )
+        }
+
+        // 构造 dictData map
+        val dictData = mapOf(dictInfo to dictItemInfos)
+
+        // 生成枚举类
+        DictTemplateUtil.generateEnumsByMeta(project, dictData)
     }
 
     /**
@@ -179,62 +181,86 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     /**
      * 生成枚举类代码
      */
-    private fun generateEnumCode(packageName: String, enumName: String, values: List<EnumValue>): String {
-        val hasCode = values.any { it.code != null }
+    private fun generateEnumCode(packageName: String, enumName: String, values: List<EnumValue>, isKotlin: Boolean): String {
+        val hasCode = values.any { it.code.isNotBlank() }
 
-        return buildString {
-            appendLine("package $packageName;")
-            appendLine()
-            appendLine("/**")
-            appendLine(" * 自动生成的枚举类")
-            appendLine(" */")
-            appendLine("public enum $enumName {")
+        // 从模板中提取对应语言的模板
+        val templateText = settings.enumTemplate
+        val template = if (isKotlin) {
+            templateText.substringAfter("// Kotlin模板:")
+                .substringAfter("/*")
+                .substringBefore("*/")
+                .trim()
+        } else {
+            templateText.substringAfter("// Java模板:")
+                .substringAfter("/*")
+                .substringBefore("*/")
+                .trim()
+        }
 
-            // 枚举值
+        // 生成枚举值
+        val enumValues = buildString {
             values.forEachIndexed { index, value ->
-                append("    /**")
-                appendLine()
-                append("     * ${value.name.replace("_", " ").lowercase()}")
-                appendLine()
-                append("     */")
-                appendLine()
+                append("    /**\n")
+                append("     * ${value.name.replace("_", " ").lowercase()}\n")
+                append("     */\n")
                 append("    ")
                 append(value.name)
                 if (hasCode) {
                     append("(")
-                    append(value.code ?: index)
+                    append(value.code)
                     append(")")
                 }
                 if (index < values.size - 1) append(",")
                 appendLine()
             }
-            appendLine(";")
-
-            // 如果有编码，添加code字段和相关方法
-            if (hasCode) {
-                appendLine()
-                appendLine("    private final int code;")
-                appendLine()
-                appendLine("    $enumName(int code) {")
-                appendLine("        this.code = code;")
-                appendLine("    }")
-                appendLine()
-                appendLine("    public int getCode() {")
-                appendLine("        return code;")
-                appendLine("    }")
-                appendLine()
-                appendLine("    public static $enumName fromCode(int code) {")
-                appendLine("        for ($enumName value : values()) {")
-                appendLine("            if (value.code == code) {")
-                appendLine("                return value;")
-                appendLine("            }")
-                appendLine("        }")
-                appendLine("        throw new IllegalArgumentException(\"Unknown code: \" + code);")
-                appendLine("    }")
-            }
-
-            appendLine("}")
         }
+
+        // 生成代码字段相关代码
+        val codeField = if (hasCode) {
+            if (isKotlin) {
+                """
+                |    private val code: Int
+                |
+                |    companion object {
+                |        fun fromCode(code: Int): $enumName = values().find { it.code == code }
+                |            ?: throw IllegalArgumentException("Unknown code: ${'$'}code")
+                |    }
+                """.trimMargin()
+            } else {
+                """
+                |    private final int code;
+                |
+                |    ${enumName}(int code) {
+                |        this.code = code;
+                |    }
+                |
+                |    public int getCode() {
+                |        return code;
+                |    }
+                |
+                |    public static ${enumName} fromCode(int code) {
+                |        for (${enumName} value : values()) {
+                |            if (value.code == code) {
+                |                return value;
+                |            }
+                |        }
+                |        throw new IllegalArgumentException("Unknown code: " + code);
+                |    }
+                """.trimMargin()
+            }
+        } else ""
+
+        // 生成构造函数（仅Kotlin需要）
+        val constructor = if (isKotlin && hasCode) "(val code: Int)" else ""
+
+        // 替换模板中的占位符
+        return template
+            .replace("\${packageName}", packageName)
+            .replace("\${enumName}", enumName)
+            .replace("\${enumValues}", enumValues)
+            .replace("\${codeField}", codeField)
+            .replace("\${constructor}", constructor)
     }
 
     /**

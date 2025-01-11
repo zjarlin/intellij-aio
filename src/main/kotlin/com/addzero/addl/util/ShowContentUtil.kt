@@ -1,5 +1,6 @@
 package com.addzero.addl.util
 
+import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -71,7 +72,11 @@ object ShowContentUtil {
         project: Project?,
         sql: String,
         sqlPrefix: String = "",
-        fileTypeSuffix: String,
+        fileTypeSuffix: String = if (PsiUtil.isKotlinProject(project!!)) {
+            ".kt"
+        } else {
+            ".java"
+        },
         filePath: String? = "${project!!.basePath}/.autoddl",
         focus: Boolean = true,
     ) {

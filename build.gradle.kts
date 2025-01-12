@@ -40,9 +40,9 @@ dependencies {
 }
 
 // 确保在构建前编译主项目
-tasks.named("buildPlugin") {
-    dependsOn("classes")
-}
+//tasks.named("buildPlugin") {
+//    dependsOn("classes")
+//}
 
 intellijPlatform {
     pluginConfiguration {
@@ -58,7 +58,6 @@ intellijPlatform {
         }
 
         fun String.ok(): String {
-            val that = this
             val run = File(projectDir, this).readText().run {
                 val apiKey = System.getenv("DASHSCOPE_API_KEY") ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
                 val translatedContent = MarkdownTranslator.translateAndAppend(this, apiKey)

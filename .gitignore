@@ -45,4 +45,4 @@ out/
 .vscode/
 
 ### Kotlin ###
-.kotlin
+.kotlin.intellijPlatform/

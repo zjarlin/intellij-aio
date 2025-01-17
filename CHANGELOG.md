@@ -1,5 +1,5 @@
 #### Version last
-- 支持选中代码Ai聊天,支持含有枚举的注释生成相关java/kotlin代码
+- 支持含有枚举的注释生成相关java/kotlin代码
 
 #### Version 1.6
 - 新增结构化输出能力，呼出generate上下文，将自然语言转为当前类对应的Json格式。

@@ -46,7 +46,7 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "com.addzero.AutoDDL"
+        id = "com.addzero.autoddl"
         name = "AutoDDL"
         vendor {
             name = "zjarlin"

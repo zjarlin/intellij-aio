@@ -20,8 +20,9 @@ class ConvertDependencyToTomlIntention : PsiElementBaseIntentionAction(), Intent
     override fun getFamilyName() = "Gradle dependency conversion"
 
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
-        // Check if we're in a Gradle file and on a string literal
-        return element.containingFile?.name?.endsWith(".gradle.kts") == true && PsiTreeUtil.getParentOfType(element, GrString::class.java) != null
+        // Only support build.gradle.kts files
+        return element.containingFile?.name == "build.gradle.kts" && 
+               PsiTreeUtil.getParentOfType(element, GrString::class.java) != null
     }
 
 override fun invoke(project: Project, editor: Editor?, element: PsiElement) {

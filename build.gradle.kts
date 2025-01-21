@@ -30,7 +30,7 @@ dependencies {
     intellijPlatform {
         create(type, sinceVersion)
         bundledPlugins(
-            "com.intellij.java", "org.jetbrains.kotlin", "org.jetbrains.plugins.groovy"  // Add Groovy plugin support
+            "com.intellij.java", "org.jetbrains.kotlin", "org.intellij.groovy"  // Correct Groovy plugin ID
         )
         testFramework(TestFrameworkType.Platform)
     }

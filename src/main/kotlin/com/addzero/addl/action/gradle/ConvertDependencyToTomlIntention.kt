@@ -25,51 +25,47 @@ class ConvertDependencyToTomlIntention : PsiElementBaseIntentionAction(), Intent
                PsiTreeUtil.getParentOfType(element, GrString::class.java) != null
     }
 
-override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
-    val stringLiteral = PsiTreeUtil.getParentOfType(element, GrString::class.java) ?: return
+    override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
+        val stringLiteral = PsiTreeUtil.getParentOfType(element, GrString::class.java) ?: return
 
-    val dependencyString = stringLiteral.text.removeSurrounding("\"")
-    val (group, artifact, version) = parseDependencyString(dependencyString) ?: run {
-        DialogUtil.showErrorMsg("Invalid dependency format")
-        return
-    }
-
-    val tomlFile = project.basePath?.let { File(it, "gradle/libs.versions.toml") }
-    if (tomlFile == null || !tomlFile.exists()) {
-        DialogUtil.showErrorMsg("libs.versions.toml not found")
-        return
-    }
-
-    // Parse existing TOMTL content
-    val tomlParser = Toml.parse(tomlFile)
-    val libraries = tomlParser.getTable("libraries") ?: mutableMapOf<String, Map<String, String>>()
-    val versions = tomlParser.getTable("versions") ?: mutableMapOf<String, String>()
-
-    // Update or insert the new dependency
-    val libraryKey = artifact.replace("-", "").replace(".", "")
-    libraries[libraryKey] = mapOf(
-        "group" to group,
-        "name" to artifact,
-        "version.ref" to artifact
-    )
-    versions[artifact] = version
-
-    // Write updated TOML content back to the file
-    val updatedTomlContent = buildString {
-        append("[libraries]\n")
-        libraries.forEach { (key, value) ->
-            append("$key = { group = \"${value["group"]}\", name = \"${value["name"]}\", version.ref = \"${value["version.ref"]}\" }\n")
+        val dependencyString = stringLiteral.text.removeSurrounding("\"")
+        val (group, artifact, version) = parseDependencyString(dependencyString) ?: run {
+            DialogUtil.showErrorMsg("依赖格式无效，应为：group:artifact:version")
+            return
         }
-        append("\n[versions]\n")
-        versions.forEach { (key, value) ->
-            append("$key = \"$value\"\n")
-        }
-    }
-    tomlFile.writeText(updatedTomlContent)
 
-    // Replace Gradle file dependency
-    stringLiteral.replace(createTomlSnippet(project, "libs.$libraryKey"))
-}
+        // 生成 TOML 格式
+        val libraryKey = artifact.replace("-", "").replace(".", "")
+        val tomlFormat = """
+            [libraries]
+            $libraryKey = { group = "$group", name = "$artifact", version.ref = "$artifact" }
+            
+            [versions]
+            $artifact = "$version"
+        """.trimIndent()
+
+        // 显示转换结果并询问是否写入文件
+        val tomlFile = project.basePath?.let { File(it, "gradle/libs.versions.toml") }
+        if (tomlFile == null || !tomlFile.exists()) {
+            DialogUtil.showInfoMsg("""
+                转换结果：
+                $tomlFormat
+                
+                请手动创建 gradle/libs.versions.toml 文件
+            """.trimIndent())
+            return
+        }
+
+        // 替换 Gradle 文件中的依赖
+        stringLiteral.replace(createTomlSnippet(project, "libs.$libraryKey"))
+        
+        // 提示用户手动更新 TOML 文件
+        DialogUtil.showInfoMsg("""
+            已替换为版本目录引用，请手动更新 gradle/libs.versions.toml：
+            
+            $tomlFormat
+        """.trimIndent())
+    }
     private fun parseDependencyString(dependency: String): Triple<String, String, String>? {
         val parts = dependency.split(":")
         if (parts.size != 3) return null

@@ -49,8 +49,6 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
-        extensions {
-            create("org.jetbrains.kotlin.supportsKotlinPluginMode") { }
         id = "com.addzero.autoddl"
         name = "AutoDDL"
         vendor {

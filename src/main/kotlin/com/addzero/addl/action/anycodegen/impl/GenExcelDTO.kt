@@ -30,7 +30,7 @@ class GenExcelDTO : AbsGen() {
         val fullClassName = """${classname}$EXCEL_READ_DTO"""
         return """
            package $pkg;
-            import com.alibaba.excel.annotation.ExcelProperty;
+            import cn.idev.excel.annotation.ExcelProperty;
             @Data
             public class $fullClassName {
                 $fields
@@ -60,7 +60,7 @@ class GenExcelDTO : AbsGen() {
             val name = it.name
             val toCamelCase = name.toCamelCase()
             """
-                    ${toCamelCase}= this.$toCamelCase
+                    ${toCamelCase}= that.$toCamelCase
                     """
         }
 
@@ -76,6 +76,8 @@ class GenExcelDTO : AbsGen() {
 
         val toentityblockk = """
                fun toEntity(): ${classname} {
+             val that=this
+               
       return  ${classname} {
             $fields1
         }
@@ -94,7 +96,7 @@ class GenExcelDTO : AbsGen() {
 
         return """
            package $pkg;
-            import com.alibaba.excel.annotation.ExcelProperty;
+            import cn.idev.excel.annotation.ExcelProperty;
            $toentityblockk1 
             public open class ${classname}$EXCEL_READ_DTO{
                 $fields

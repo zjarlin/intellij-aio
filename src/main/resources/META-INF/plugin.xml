@@ -94,7 +94,7 @@
         <!-- 生成菜单组 -->
         <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
-            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+<!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
 
             <action id="GenExcelDTO"
                     class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"

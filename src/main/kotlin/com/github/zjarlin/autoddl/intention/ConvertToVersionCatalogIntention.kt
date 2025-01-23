@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.psi.KtFile
 class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), IntentionAction {
     override fun getFamilyName(): String = "Convert to version catalog"
 
-    override fun getText(): String = "Convert dependencies to version catalog format"
+    override fun getText(): String = "Convert to version catalog"
 
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         if (element.containingFile !is KtFile) return false

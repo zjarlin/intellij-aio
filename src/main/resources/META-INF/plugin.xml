@@ -55,11 +55,10 @@
         <!-- 添加字段注释生成枚举类的 intention -->
         <intentionAction>
             <language>kotlin</language>
-            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
+            <className>com.github.zjarlin.autoddl.intention.ConvertToVersionCatalogIntention</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>
+            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>
         </intentionAction>
-
 
         <!-- 其他配置 -->
 

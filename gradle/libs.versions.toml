@@ -1,0 +1,158 @@
+[versions]
+#kotlin = "1.9.25"
+kotlin = "2.1.0"
+ksp = "2.1.0-1.0.29"
+#2.0.21+
+#jimmer = "0.9.45"
+jimmer = "latest.release"
+
+dm = "8.1.2.79"
+#spring-boot = "3.3.7"
+
+#spring-boot = "3.4.1"
+spring-boot = "3.3.5"
+spring-dependency = "1.1.7"
+spring-ai = "1.0.0-M5"
+hutool = "5.8.26"
+minio = "8.5.8"
+x-file-storage = "2.1.0"
+fastjson2 = "2.0.53"
+pinyin4j = "2.5.1"
+fastexcel = "1.0.0" # 固化 fastexcel 版本
+latest = "latest.release"
+
+knife4j = "4.5.0"
+inputmapping = "1.1.1-beta"
+junit-jupiter = "5.8.1"
+
+
+
+[libraries]
+spring-ai-bom = { group = "org.springframework.ai", name = "spring-ai-bom", version.ref = "spring-ai" }
+spring-boot-starter-validation = { group = "org.springframework.boot", name = "spring-boot-starter-validation" }
+spring-boot-starter-web = { group = "org.springframework.boot", name = "spring-boot-starter-web" }
+jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect" }
+spring-ai-ollama-starter = { group = "org.springframework.ai", name = "spring-ai-ollama-spring-boot-starter" }
+
+
+spring-ai-openai = { group = "org.springframework.ai", name = "spring-ai-openai-spring-boot-starter" }
+#启动有问题
+spring-ai-zhipuai = { group = "org.springframework.ai", name = "spring-ai-zhipuai-spring-boot-starter" }
+spring-ai-moonshot = { group = "org.springframework.ai", name = "spring-ai-moonshot-spring-boot-starter" }
+spring-ai-alibaba = { group = "com.alibaba.cloud.ai", name = "spring-ai-alibaba-starter" }
+
+
+
+
+
+
+spring-ai-pgvector-store-starter = { group = "org.springframework.ai", name = "spring-ai-pgvector-store-spring-boot-starter" }
+spring-ai-tika-document-reader = { group = "org.springframework.ai", name = "spring-ai-tika-document-reader" }
+mysql-connector = { group = "com.mysql", name = "mysql-connector-j" }
+postgresql = { group = "org.postgresql", name = "postgresql" }
+
+dm = { group = "com.dameng", name = "DmJdbcDriver18" ,version.ref = "dm" }
+h2 = { group = "com.h2database", name = "h2" }
+
+
+
+spring-boot-starter-test = { group = "org.springframework.boot", name = "spring-boot-starter-test" }
+kotlin-test-junit5 = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit5" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+
+aspectj = { group = "org.aspectj", name = "aspectjweaver"}
+#, version.ref = "aspectj"
+#}
+
+
+jimmer = { group = "org.babyfish.jimmer", name = "jimmer-spring-boot-starter", version.ref = "jimmer" }
+jimmer-ksp = { group = "org.babyfish.jimmer", name = "jimmer-ksp", version.ref = "jimmer" }
+
+
+# Hutool
+hutool-all = { group = "cn.hutool", name = "hutool-all", version.ref = "hutool" }
+
+# Minio
+minio = { group = "io.minio", name = "minio", version.ref = "minio" }
+
+# X-File-Storage
+x-file-storage-spring = { group = "org.dromara.x-file-storage", name = "x-file-storage-spring", version.ref = "x-file-storage" }
+
+# Fastjson2
+
+fastjson2-kotlin = { group = "com.alibaba.fastjson2", name = "fastjson2-kotlin", version.ref = "fastjson2" }
+
+
+# Pinyin4j
+pinyin4j = { group = "com.belerweb", name = "pinyin4j", version.ref = "pinyin4j" }
+
+# FastExcel
+
+fastexcel = { group = "cn.idev.excel", name = "fastexcel", version.ref = "fastexcel" }
+
+
+# Knife4j
+knife4j-openapi3 = { group = "com.github.xiaoymin", name = "knife4j-openapi3-jakarta-spring-boot-starter", version.ref = "knife4j" }
+
+#knife4j-openapi3 = { group = "com.github.xingfudeshi", name = "knife4j-openapi3-jakarta-spring-boot-starter", version.ref = "knife4j" }
+
+
+inputmapping = { group = "com.google.android.libraries.play.games", name = "inputmapping", version.ref = "inputmapping" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit-jupiter" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+[bundles]
+
+spring-ai = [
+#    "spring-ai-bom",
+    "spring-ai-ollama-starter",
+#    "spring-ai-openai",
+#    "spring-ai-zhipuai",
+#    "spring-ai-moonshot",
+#    "spring-ai-alibaba",
+    "spring-ai-pgvector-store-starter",
+    "spring-ai-tika-document-reader"
+]
+
+# Spring Boot related dependencies
+spring-boot = [
+    "aspectj",
+    "spring-boot-starter-validation",
+    "spring-boot-starter-web",
+]
+
+# Tool libraries
+tools = [
+    "jackson-module-kotlin",
+    "kotlin-reflect",
+    "fastjson2-kotlin",
+    "hutool-all",
+    "minio",
+    "x-file-storage-spring",
+    "pinyin4j",
+    "fastexcel",
+   "knife4j-openapi3"
+]
+
+# Database related dependencies
+database = [
+    "mysql-connector",
+    "postgresql",
+    "dm",
+    "h2"
+]
+
+# Testing dependencies
+testing = [
+#    "junit-platform-launcher",
+    "spring-boot-starter-test",
+"kotlin-test-junit5",
+    "junit-jupiter",
+]

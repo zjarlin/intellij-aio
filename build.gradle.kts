@@ -34,6 +34,8 @@ dependencies {
         )
         testFramework(TestFrameworkType.Platform)
     }
+    implementation("org.tomlj:tomlj:1.1.1")
+
     implementation("com.belerweb:pinyin4j:2.5.1")
     implementation("cn.hutool:hutool-all:5.8.25")
     implementation("com.alibaba:fastjson:2.0.52")

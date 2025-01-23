@@ -97,8 +97,6 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
         }
 
 
-
-
 //        if (libraryKey != null) {
 //            // 将新的依赖引用复制到剪贴板
 //            val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard

@@ -30,7 +30,8 @@ dependencies {
     intellijPlatform {
         create(type, sinceVersion)
         bundledPlugins(
-            "com.intellij.java", "org.jetbrains.kotlin", "org.intellij.groovy"  // Correct Groovy plugin ID
+            "com.intellij.java", "org.jetbrains.kotlin"
+//            , "org.intellij.groovy"  // Correct Groovy plugin ID
         )
         testFramework(TestFrameworkType.Platform)
     }
@@ -48,6 +49,8 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
+        extensions {
+            create("org.jetbrains.kotlin.supportsKotlinPluginMode") { }
         id = "com.addzero.autoddl"
         name = "AutoDDL"
         vendor {

@@ -15,7 +15,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 
 
-class GenAddColumnByThis : AnAction() {
+class GenDDL : AnAction() {
 
 
     override fun actionPerformed(e: AnActionEvent) {

@@ -95,33 +95,33 @@
         <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
 <!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
+            <action id="GenAddColumnByThis"
+                    class="com.addzero.addl.action.GenDDL"
+                    text="GenDDL"
+                    description="GenDDL">
+                <!--                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>-->
+            </action>
 
-            <action id="GenExcelDTO"
-                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
-                    text="Generate Excel DTO"
-                    description="Generate Excel DTO"/>
 
             <action id="GenJimmerDTO"
                     class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"
-                    text="Generate Jimmer DTO"
-                    description="Generate Jimmer DTO"/>
+                    text="GenJimmerDTO"
+                    description="GenJimmerDTO"/>
 
-            <action id="GenJimmerController"
-                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"
-                    text="GenJimmerController"
-                    description="GenJimmerController"/>
+<!--            <action id="GenJimmerController"-->
+<!--                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"-->
+<!--                    text="GenJimmerController"-->
+<!--                    description="GenJimmerController"/>-->
 
-            <action id="GenAddColumnByThis"
-                    class="com.addzero.addl.action.GenAddColumnByThis"
-                    text="GenAddColumnByThis"
-                    description="GenAddColumnByThis">
-                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>
-            </action>
+            <action id="GenExcelDTO"
+                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
+                    text="GenExcelDTO"
+                    description="GenExcelDTO"/>
 
-            <action id="GenStructuredOutput"
-                    class="StructuredOutput"
-                    text="GenStructuredOutput"
-                    description="GenStructuredOutput"/>
+<!--            <action id="GenStructuredOutput"-->
+<!--                    class="StructuredOutput"-->
+<!--                    text="GenStructuredOutput"-->
+<!--                    description="GenStructuredOutput"/>-->
         </group>
 
         <!-- 数据库视图菜单组 -->

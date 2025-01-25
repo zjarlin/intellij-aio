@@ -2,10 +2,10 @@ package com.github.zjarlin.autoddl.intention
 
 //import org.tomlj.Toml
 //import org.tomlj.TomlParseResult
+import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.removeAnyQuote
-import com.addzero.common.kt_util.isBlank
 import com.addzero.common.kt_util.isNotBlank
 import com.github.zjarlin.autoddl.util.versioncatlogutil.*
 import com.github.zjarlin.autoddl.util.versioncatlogutil.VersionCatalogPsiUtil.wrightToToml
@@ -58,21 +58,35 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
         if (versionDto == null) {
             return
         }
+        val lb = versionDto.libraries?.firstOrNull()
+        val libraryKey = lb?.key
+        if (libraryKey == null) {
+            return
+
+        }
+
+
+        val trimIndent = """
+            $libraryKey ={group=${lb.group},name= ${lb.name},version.ref=${lb.versionRef}}
+        """.trimIndent()
         val versionCatalog = VersionCatalogPsiUtil.getVersionCatalog(project)
-        val toTomlDTO = TomlUtils.toTomlDTO(versionCatalog.absolutePath)
-        val let = versionDto?.let { TomlUtils.merge(it, toTomlDTO) }
-        val toToml = let?.toToml()
+        val readText = versionCatalog.readText()
+
+        val toToml = TomlUtils.appendAfterTag(readText, "libraries", trimIndent)
+
+//        val toTomlDTO = TomlUtils.toTomlDTO(versionCatalog.absolutePath)
+//        val let = versionDto?.let { TomlUtils.merge(it, toTomlDTO) }
+//        val toToml = let?.toToml()
 
         // 使用ApplicationManager.getApplication().invokeLater确保写操作在正确的线程上下文中执行
-        if (toToml.isBlank()) {
-            return
-        }
-        wrightToToml(project, toToml)
+//        if (toToml.isBlank()) {
+//            return
+//        }
+//        wrightToToml(project, toToml)
 
         // 替换依赖字符串为版本目录引用
-        val libraryKey = versionDto.libraries?.firstOrNull()?.key
-        val removeAnyQuote = StrUtil.replace(libraryKey, "-", ".").removeAnyQuote()
-        val depStr = "libs.$removeAnyQuote"
+//        val removeAnyQuote = StrUtil.replace(libraryKey, "-", ".").removeAnyQuote()
+//        val depStr = "libs.$removeAnyQuote"
 
 
 
@@ -81,6 +95,8 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
             WriteCommandAction.runWriteCommandAction(project) {
                 if (toToml.isNotBlank()) {
                     wrightToToml(project, toToml)
+//                    FileUtil.writeUtf8String(toToml, versionCatalog.absolutePath)
+
                 }
 
                 // 替换element的字符串为新的versionDto里的LibraryEntry的 libs.key

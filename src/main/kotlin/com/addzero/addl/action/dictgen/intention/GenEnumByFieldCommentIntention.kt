@@ -32,10 +32,16 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         // 检查是否在字段或属性上，并且有注释
         val field = when {
-            PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null ->
-                PsiTreeUtil.getParentOfType(element, PsiField::class.java)
-            PsiTreeUtil.getParentOfType(element, KtProperty::class.java) != null ->
-                PsiTreeUtil.getParentOfType(element, KtProperty::class.java)
+            PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null -> PsiTreeUtil.getParentOfType(
+                element,
+                PsiField::class.java
+            )
+
+            PsiTreeUtil.getParentOfType(element, KtProperty::class.java) != null -> PsiTreeUtil.getParentOfType(
+                element,
+                KtProperty::class.java
+            )
+
             else -> null
         }
 
@@ -45,10 +51,16 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
         // 获取字段或属性
         val field = when {
-            PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null ->
-                PsiTreeUtil.getParentOfType(element, PsiField::class.java)
-            PsiTreeUtil.getParentOfType(element, KtProperty::class.java) != null ->
-                PsiTreeUtil.getParentOfType(element, KtProperty::class.java)
+            PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null -> PsiTreeUtil.getParentOfType(
+                element,
+                PsiField::class.java
+            )
+
+            PsiTreeUtil.getParentOfType(element, KtProperty::class.java) != null -> PsiTreeUtil.getParentOfType(
+                element,
+                KtProperty::class.java
+            )
+
             else -> return
         } ?: return
 
@@ -56,12 +68,10 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         val comment = getComment(field) ?: return
 
         // 解析注释中的枚举值
-        val enumValues = parseEnumValues(comment)
-            .filter { value ->
+        val enumValues = parseEnumValues(comment).filter { value ->
                 // 过滤掉 code 或 name 为空的值
                 value.code.isNotBlank() && value.name.isNotBlank()
-            }
-            .distinctBy { it.code } // 确保 code 唯一
+            }.distinctBy { it.code } // 确保 code 唯一
             .distinctBy { it.name } // 确保 name 唯一
 
         // 如果没有有效的枚举值，则返回
@@ -87,8 +97,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         val dictItemInfos = enumValues.map { enumValue ->
             DictItemInfo(
                 dictId = "", // 外键ID可以为空
-                itemCode = enumValue.code,
-                itemDescription = enumValue.name.replace("_", " ").lowercase()
+                itemCode = enumValue.code, itemDescription = enumValue.name.replace("_", " ").lowercase()
             )
         }
 
@@ -105,13 +114,13 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     private fun getComment(element: PsiElement): String? {
         return when (element) {
             is PsiField -> {
-                element.docComment?.text
-                    ?: element.navigationElement.prevSibling?.text?.takeIf { it.startsWith("//") }
+                element.docComment?.text ?: element.navigationElement.prevSibling?.text?.takeIf { it.startsWith("//") }
             }
+
             is KtProperty -> {
-                element.docComment?.text
-                    ?: element.navigationElement.prevSibling?.text?.takeIf { it.startsWith("//") }
+                element.docComment?.text ?: element.navigationElement.prevSibling?.text?.takeIf { it.startsWith("//") }
             }
+
             else -> null
         }
     }
@@ -130,8 +139,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
      */
     private fun parseEnumValues(comment: String): List<EnumValue> {
         // 清理注释标记并分行处理
-        val cleanComment = comment
-            .replace(Regex("/\\*\\*|\\*/"), "") // 移除文档注释标记
+        val cleanComment = comment.replace(Regex("/\\*\\*|\\*/"), "") // 移除文档注释标记
             .replace(Regex("^\\s*\\*\\s*", RegexOption.MULTILINE), "") // 移除每行开头的星号
             .replace(Regex("^//\\s*"), "") // 移除行注释标记
             .trim()
@@ -149,11 +157,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         )
 
         // 按行分割，并清理每行
-        return cleanComment
-            .split("\n")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .mapNotNull { line ->
+        return cleanComment.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.mapNotNull { line ->
                 // 尝试所有支持的分隔符模式
                 for (pattern in separatorPatterns) {
                     val match = pattern.find(line)
@@ -183,12 +187,10 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     }
 
 
-
     /**
      * 枚举值数据类
      */
     private data class EnumValue(
-        val name: String,
-        val code: String
+        val name: String, val code: String
     )
 }

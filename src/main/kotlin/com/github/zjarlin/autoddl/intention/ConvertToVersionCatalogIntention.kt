@@ -100,7 +100,6 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
 //        val depStr = "libs.$removeAnyQuote"
 
 
-        ApplicationManager.getApplication().invokeLater {
             WriteCommandAction.runWriteCommandAction(project) {
                 if (toToml.isNotBlank()) {
                     wrightToToml(project, toToml1)
@@ -118,7 +117,6 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
                     element.replace(newElement)
                 }
             }
-        }
 
 
 //        if (libraryKey != null) {

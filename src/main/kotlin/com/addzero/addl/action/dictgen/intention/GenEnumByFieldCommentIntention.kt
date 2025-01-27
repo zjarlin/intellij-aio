@@ -55,7 +55,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
     }
 
     override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
-        // 获取字段或属性
+        // 获取字段或属性，并判断源文件类型
         val field = when {
             PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null -> PsiTreeUtil.getParentOfType(
                 element,
@@ -69,6 +69,9 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
 
             else -> return
         } ?: return
+
+        // 根据字段类型判断是否为Kotlin文件
+        val isKotlin = field is KtProperty
 
         // 获取注释文本
         val comment = getComment(field) ?: return
@@ -110,8 +113,8 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         // 构造 dictData map
         val dictData = mapOf(dictInfo to dictItemInfos)
 
-        // 生成枚举类
-        DictTemplateUtil.generateEnumsByMeta(project, dictData, filePath)
+        // 生成枚举类，传递isKotlin参数
+        DictTemplateUtil.generateEnumsByMeta(project, dictData, filePath, isKotlin)
     }
 
     /**

@@ -7,7 +7,6 @@ import com.addzero.addl.util.JlStrUtil
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.common.kt_util.isNull
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -75,14 +74,11 @@ object DictTemplateUtil {
         project: Project,
         dictData: Map<DictInfo, List<DictItemInfo>>,
         psiEleInfo: PsiUtil.PsiEleInfo,
+        isKotlin: Boolean
     ) {
-
-        val isKotlin = PsiUtil.isKotlinProject(project)
-
         dictData.forEach { (dictInfo, items) ->
             val enumName = dictInfo.code.toEnumName()
             val fileName = "$enumName${if (isKotlin) ".kt" else ".java"}"
-
 
             val enumContent = generateEnumContent(psiEleInfo, enumName, dictInfo.description, items, isKotlin)
 
@@ -93,18 +89,8 @@ object DictTemplateUtil {
                 if (isKotlin) ".kt" else ".java",
                 filePath = psiEleInfo.directoryPath,
             )
-
-//            val fileType = if (isKotlin) KotlinFileType.INSTANCE else JavaFileType.INSTANCE
-
-//            WriteCommandAction.runWriteCommandAction(project) {
-//                val psiFile = PsiFileFactory.getInstance(project)
-//                    .createFileFromText(fileName, fileType, enumContent)
-//                CodeStyleManager.getInstance(project).reformat(psiFile)
-//            }
         }
-
     }
-
 
     private fun generateEnums(
         project: Project,

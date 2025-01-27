@@ -201,7 +201,7 @@ object DictTemplateUtil {
              * @date $timestamp
              */
             enum class $enumName(
-                val code: String,
+                val code: String?,
                 val desc: String
             ) {
                 $enumItems;
@@ -213,7 +213,7 @@ object DictTemplateUtil {
 
                 companion object {
                     @JsonCreator
-                    fun fromCode(code: String): $enumName? = values().find { it.code == code }
+                    fun fromCode(code: String?): $enumName? = values().find { it.code == code }
                 }
             }
         """.trimIndent()

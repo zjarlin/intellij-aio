@@ -12,6 +12,7 @@ gradle/wrapper/gradle-8.10.2-all.zip
 
 !**/src/test/**/build/
 
+
 ### STS ###
 .apt_generated
 .classpath

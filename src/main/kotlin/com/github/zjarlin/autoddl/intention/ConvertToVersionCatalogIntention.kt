@@ -59,6 +59,7 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
             return
         }
         val lb = versionDto.libraries?.firstOrNull()
+        val vn = versionDto.versions?.firstOrNull()
         val libraryKey = lb?.key
         if (libraryKey == null) {
             return
@@ -67,12 +68,22 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
 
 
         val trimIndent = """
-            $libraryKey ={group=${lb.group},name= ${lb.name},version.ref=${lb.versionRef}}
+            $libraryKey ={group="${lb.group}",name= "${lb.name}",version.ref="${lb.versionRef}"}
         """.trimIndent()
         val versionCatalog = VersionCatalogPsiUtil.getVersionCatalog(project)
         val readText = versionCatalog.readText()
 
         val toToml = TomlUtils.appendAfterTag(readText, "libraries", trimIndent)
+
+        val versionRef = vn?.versionRef
+        val versionValue = vn?.version
+        val trimIndent1 = """
+          $versionRef  = "$versionValue" 
+        """.trimIndent()
+
+
+        val toToml1 = TomlUtils.appendAfterTag(toToml, "versions", trimIndent1)
+
 
 //        val toTomlDTO = TomlUtils.toTomlDTO(versionCatalog.absolutePath)
 //        val let = versionDto?.let { TomlUtils.merge(it, toTomlDTO) }
@@ -89,14 +100,11 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
 //        val depStr = "libs.$removeAnyQuote"
 
 
-
-
         ApplicationManager.getApplication().invokeLater {
             WriteCommandAction.runWriteCommandAction(project) {
                 if (toToml.isNotBlank()) {
-                    wrightToToml(project, toToml)
+                    wrightToToml(project, toToml1)
 //                    FileUtil.writeUtf8String(toToml, versionCatalog.absolutePath)
-
                 }
 
                 // 替换element的字符串为新的versionDto里的LibraryEntry的 libs.key
@@ -143,7 +151,8 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
 
         val entries = if (version == null) null else listOf(VersionEntry(versionRefKey, version))
 
-        val libraryEntry = LibraryEntry(key = key, group = groupName, name = name, version = null, versionRef = versionRefKey)
+        val libraryEntry =
+            LibraryEntry(key = key, group = groupName, name = name, version = null, versionRef = versionRefKey)
         val listOf = listOf<LibraryEntry>(libraryEntry)
 //        PluginEntry( key = TODO(), id = TODO(), version = TODO(), versionRef = TODO() )
 

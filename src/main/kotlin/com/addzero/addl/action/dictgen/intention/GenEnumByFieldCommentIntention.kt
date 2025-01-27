@@ -79,7 +79,8 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         // 解析注释中的枚举值
         val enumValues = parseEnumValues(comment).filter { value ->
                 // 过滤掉 code 或 name 为空的值
-                value.code.isNotBlank() && value.name.isNotBlank()
+//                value.code.isNotBlank() &&
+                 value.name.isNotBlank()
             }.distinctBy { it.code } // 确保 code 唯一
             .distinctBy { it.name } // 确保 name 唯一
 
@@ -155,14 +156,14 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
 
         // 支持的分隔符模式
         val separatorPatterns = listOf(
-            Regex("(\\d+)[-]\\s*([^,，\n]+)"),           // 短横线分隔
-            Regex("(\\d+)[:]\\s*([^,，\n]+)"),           // 英文冒号分隔
-            Regex("(\\d+)[：]\\s*([^,，\n]+)"),          // 中文冒号分隔
-            Regex("(\\d+)[=]\\s*([^,，\n]+)"),           // 等号分隔
-            Regex("(\\d+)[.]\\s*([^,，\n]+)"),           // 点号分隔
-            Regex("(\\d+)\\s+([^,，\n]+)"),              // 空格分隔
-            Regex("(\\d+)\\s*[\\(（]([^\\)）]+)[\\)）]"), // 括号包围（支持中英文括号）
-            Regex("(\\d+)\\s*[\\[【]([^\\]】]+)[\\]】]")  // 方括号包围（支持中英文方括号）
+            Regex("(null|[a-zA-Z0-9]+)[-]\\s*([^,，\\n]+)"),           // 短横线分隔
+            Regex("(null|[a-zA-Z0-9]+)[:]\\s*([^,，\\n]+)"),           // 英文冒号分隔
+            Regex("(null|[a-zA-Z0-9]+)[：]\\s*([^,，\\n]+)"),          // 中文冒号分隔
+            Regex("(null|[a-zA-Z0-9]+)[=]\\s*([^,，\\n]+)"),           // 等号分隔
+            Regex("(null|[a-zA-Z0-9]+)[.]\\s*([^,，\\n]+)"),           // 点号分隔
+            Regex("(null|[a-zA-Z0-9]+)\\s+([^,，\\n]+)"),              // 空格分隔
+            Regex("(null|[a-zA-Z0-9]+)\\s*[\\(（]([^\\)）]+)[\\)）]"), // 括号包围（支持中英文括号）
+            Regex("(null|[a-zA-Z0-9]+)\\s*[\\[【]([^\\]】]+)[\\]】]")  // 方括号包围（支持中英文方括号）
         )
 
         // 按行分割，并清理每行
@@ -174,7 +175,9 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
                         val (code, name) = match.destructured
                         val trimmedName = name.trim()
                         if (trimmedName.isNotEmpty()) {
-                            return@mapNotNull EnumValue(toValidVariableName(trimmedName), code.trim())
+                            val trimmedCode = code.trim()
+                            val finalCode = if (trimmedCode.equals("null", ignoreCase = true)) null else trimmedCode
+                            return@mapNotNull EnumValue(toValidVariableName(trimmedName), finalCode)
                         }
                     }
                 }
@@ -200,6 +203,6 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
      * 枚举值数据类
      */
     private data class EnumValue(
-        val name: String, val code: String
+        val name: String, val code: String?
     )
 }

@@ -49,7 +49,8 @@ object DictTemplateUtil {
         } ?: throw IllegalStateException("Cannot find source root directory")
 
         val psiManager = PsiManager.getInstance(project)
-        var currentDir = psiManager.findDirectory(sourceRoot) ?: throw IllegalStateException("Cannot find source directory")
+        var currentDir =
+            psiManager.findDirectory(sourceRoot) ?: throw IllegalStateException("Cannot find source directory")
 
         // 创建包路径目录
         packagePath.split(".").forEach { name ->
@@ -154,8 +155,8 @@ object DictTemplateUtil {
         }
 
         return when (isKotlin) {
-            true -> generateKotlinEnum( pkg, enumName, description, items, timestamp)
-            false -> generateJavaEnum( pkg, enumName, description, items, timestamp)
+            true -> generateKotlinEnum(pkg, enumName, description, items, timestamp)
+            false -> generateJavaEnum(pkg, enumName, description, items, timestamp)
         }
     }
 
@@ -168,8 +169,6 @@ object DictTemplateUtil {
     ): String {
 
 
-
-
         val enumItems = items.joinToString(",\n") { item ->
             val itemCode = item.itemCode
             val itemDescription = item.itemDescription
@@ -178,6 +177,11 @@ object DictTemplateUtil {
             val format = StrUtil.format(SettingContext.settings.enumAnnotation, itemCode)
 
 
+            val itemCodeFinalVal = if (itemCode == "null" || itemCode == null) {
+                itemCode
+            } else {
+                """"$itemCode""""
+            }
 
 
             """
@@ -185,7 +189,7 @@ object DictTemplateUtil {
      * $itemDescription
      */
      $format
-    ${itemDescription.toPinyinUpper()}("$itemCode", "$itemDescription")""".trimIndent()
+    ${itemDescription.toPinyinUpper()}($itemCodeFinalVal, "$itemDescription")""".trimIndent()
         }
 
         return """
@@ -232,12 +236,19 @@ object DictTemplateUtil {
             val itemCode = item.itemCode
             val itemDescription = item.itemDescription
             val format = StrUtil.format(SettingContext.settings.enumAnnotation, itemCode)
+
+            val itemCodeFinalVal = if (itemCode == "null" || itemCode == null) {
+                itemCode
+            } else {
+                """"$itemCode""""
+            }
+
             """
     /**
      * $itemDescription
      */
     $format
-    ${itemDescription.toPinyinUpper()}("$itemCode", "$itemDescription")""".trimIndent()
+    ${itemDescription.toPinyinUpper()}($itemCodeFinalVal, "$itemDescription")""".trimIndent()
         }
 
         return """

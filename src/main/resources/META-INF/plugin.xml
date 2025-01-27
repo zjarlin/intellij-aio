@@ -52,12 +52,21 @@
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
         <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
 
-        <!-- 添加字段注释生成枚举类的 intention -->
+        <!-- 添加gradle转versioncatalog操作 intention -->
         <intentionAction>
             <language>kotlin</language>
             <className>com.github.zjarlin.autoddl.intention.ConvertToVersionCatalogIntention</className>
             <category>Java/Kotlin</category>
             <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>
+        </intentionAction>
+
+        <!-- 添加字段注释生成枚举类的意图动作 -->
+        <intentionAction>
+            <language>JAVA</language>
+            <language>kotlin</language>
+            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>
         </intentionAction>
 
         <!-- 其他配置 -->

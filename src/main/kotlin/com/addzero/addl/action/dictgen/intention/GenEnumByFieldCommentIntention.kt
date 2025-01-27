@@ -29,23 +29,29 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
 
     override fun startInWriteAction(): Boolean = false
 
+    /**
+     * 递归查找父元素中的字段或属性
+     */
+    private fun findFieldOrProperty(element: PsiElement): PsiElement? {
+        if (element is PsiField || element is KtProperty) {
+            return element
+        }
+        
+        var parent = element.parent
+        while (parent != null) {
+            if (parent is PsiField || parent is KtProperty) {
+                return parent
+            }
+            parent = parent.parent
+        }
+        return null
+    }
+
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         // 检查是否在字段或属性上，并且有注释
-        val field = when {
-            PsiTreeUtil.getParentOfType(element, PsiField::class.java) != null -> PsiTreeUtil.getParentOfType(
-                element,
-                PsiField::class.java
-            )
-
-            PsiTreeUtil.getParentOfType(element, KtProperty::class.java) != null -> PsiTreeUtil.getParentOfType(
-                element,
-                KtProperty::class.java
-            )
-
-            else -> null
-        }
-
-        return field != null && getComment(field) != null
+        val field = findFieldOrProperty(element)
+        val b = field != null && getComment(field) != null
+        return b
     }
 
     override fun invoke(project: Project, editor: Editor?, element: PsiElement) {

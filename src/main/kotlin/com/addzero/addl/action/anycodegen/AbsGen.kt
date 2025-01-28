@@ -1,5 +1,6 @@
 package com.addzero.addl.action.anycodegen
 
+import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.ClassUtil.getPackagePath
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.util.ShowContentUtil
@@ -17,6 +18,13 @@ import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiNameHelper.getQualifiedClassName
 import org.jetbrains.kotlin.psi.KtFile
 
+fun main() {
+    "com.addzero.addl.action.anycodegen.AbsGen".let {
+        val parent = FileUtil.getParent(it, 1)
+        println(parent)
+
+    }
+}
 abstract class AbsGen : AnAction() {
     fun mapToType(type: String?): String {
         return when (type) {
@@ -70,7 +78,12 @@ abstract class AbsGen : AnAction() {
             val name = psiClass?.name
             val extractMarkdownBlockContent = psiClass?.text.extractMarkdownBlockContent()
 
-            val psiFieldMetaInfo = PsiFieldMetaInfo(packagePath, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
+
+            val lastIndexOf = packagePath?.lastIndexOf('.')
+            val packageName = lastIndexOf?.let { packagePath?.substring(0, it) }
+
+
+            val psiFieldMetaInfo = PsiFieldMetaInfo(packageName, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
             val generatedCode = genCode4Java(psiFieldMetaInfo)
 
             val filePath = virtualFile.path

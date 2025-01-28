@@ -4,6 +4,8 @@ import com.addzero.addl.action.anycodegen.AbsGen
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.autoddlstarter.generator.filterBaseEntity
 import com.addzero.addl.ktututil.toCamelCase
+import com.addzero.addl.ktututil.toUnderlineCase
+import java.util.*
 
 private const val EXCEL_READ_DTO = """ExcelDTO"""
 
@@ -18,6 +20,10 @@ class GenExcelDTO : AbsGen() {
 
         val filter = javaFieldMetaInfos?.filter {
             filterBaseEntity(it.name)
+        }?.map {
+            val toCamelCase = it.name.toUnderlineCase().lowercase(Locale.getDefault()).toCamelCase()
+            val copy = it.copy(name = toCamelCase)
+            copy
         }
 
         val fields = filter?.joinToString(System.lineSeparator()) {
@@ -31,6 +37,7 @@ class GenExcelDTO : AbsGen() {
         return """
            package $pkg;
             import cn.idev.excel.annotation.ExcelProperty;
+           import lombok.Data; 
             @Data
             public class $fullClassName {
                 $fields
@@ -41,9 +48,19 @@ class GenExcelDTO : AbsGen() {
 
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
+
+
         val filter = javaFieldMetaInfos?.filter {
             filterBaseEntity(it.name)
         }
+
+            ?.map {
+                val toCamelCase = it.name.toUnderlineCase().lowercase(Locale.getDefault()).toCamelCase()
+                val copy = it.copy(name = toCamelCase)
+                copy
+            }
+
+
         val fields = filter
 
             ?.joinToString(System.lineSeparator()) {

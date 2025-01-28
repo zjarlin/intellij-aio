@@ -63,11 +63,18 @@
         <!-- 添加字段注释生成枚举类的意图动作 -->
         <intentionAction>
             <language>kotlin</language>
+            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>
+        </intentionAction>
+
+        <intentionAction>
             <language>JAVA</language>
             <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>
+            <descriptionDirectoryName>GenJavaEnum</descriptionDirectoryName>
         </intentionAction>
+
 
 
 

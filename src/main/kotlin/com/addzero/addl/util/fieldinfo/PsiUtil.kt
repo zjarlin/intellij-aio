@@ -217,7 +217,8 @@ object PsiUtil {
                 val type = String::class.java
                 fieldMetaInfoList.add(
                     JavaFieldMetaInfo(
-                        name = mayColumn!!, type = type, genericType = type, comment = comment
+                        name = mayColumn!!.removeAnyQuote(), type = type, genericType =
+                            type, comment = comment.removeAnyQuote()
                     )
                 )
 
@@ -231,7 +232,7 @@ object PsiUtil {
             val type = getJavaClassFromPsiType(returnType)
             fieldMetaInfoList.add(
                 JavaFieldMetaInfo(
-                    name = fieldName, type = type, genericType = type, comment = comment
+                    name = fieldName.removeAnyQuote(), type = type, genericType = type, comment = comment.removeAnyQuote()
                 )
             )
         }
@@ -328,7 +329,7 @@ object PsiUtil {
                 Any::class.java // 如果类未找到，使用 Any
             }
             // 创建 JavaFieldMetaInfo 对象并添加到列表
-            fieldsMetaInfo.add(JavaFieldMetaInfo(firstNonBlank!!, typeClass, typeClass, fieldComment))
+            fieldsMetaInfo.add(JavaFieldMetaInfo(firstNonBlank!!.removeAnyQuote(), typeClass, typeClass, fieldComment.removeAnyQuote()))
         }
         return fieldsMetaInfo
     }

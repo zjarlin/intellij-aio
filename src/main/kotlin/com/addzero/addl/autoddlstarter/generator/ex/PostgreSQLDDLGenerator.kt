@@ -8,7 +8,6 @@ import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
-import org.jetbrains.kotlin.ir.types.IrDynamicType
 
 class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 

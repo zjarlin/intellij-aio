@@ -123,7 +123,7 @@
         <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
 <!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
-            <action id="GenAddColumnByThis"
+            <action id="GenDDL"
                     class="com.addzero.addl.action.GenDDL"
                     text="GenDDL"
                     description="GenDDL">
@@ -136,10 +136,10 @@
                     text="GenJimmerDTO"
                     description="GenJimmerDTO"/>
 
-<!--            <action id="GenJimmerController"-->
-<!--                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerController"-->
-<!--                    text="GenJimmerController"-->
-<!--                    description="GenJimmerController"/>-->
+            <action id="GenJimmerController"
+                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDemoController"
+                    text="GenJimmerDemoController"
+                    description="GenJimmerDemoController"/>
 
             <action id="GenExcelDTO"
                     class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"

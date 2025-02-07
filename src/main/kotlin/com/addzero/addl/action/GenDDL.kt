@@ -7,6 +7,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.settings.MyPluginSettingsService
+import com.addzero.addl.util.PsiValidateUtil
 import com.addzero.addl.util.ShowContentUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -16,6 +17,16 @@ import com.intellij.psi.PsiClass
 
 
 class GenDDL : AnAction() {
+
+    override fun update(e: AnActionEvent) {
+        val project = e.project
+        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project ?: return)
+
+        // 使用工具类检查是否为POJO或Jimmer实体
+        val isValidTarget = PsiValidateUtil.isValidTarget(ktClass, psiClass)
+
+        e.presentation.isEnabled = project != null && isValidTarget
+    }
 
 
     override fun actionPerformed(e: AnActionEvent) {

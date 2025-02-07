@@ -3,12 +3,9 @@ package com.addzero.addl.action.anycodegen
 import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.ClassUtil.getPackagePath
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
-import com.addzero.addl.util.ShowContentUtil
-import com.addzero.addl.util.extractMarkdownBlockContent
+import com.addzero.addl.util.*
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
-import com.addzero.addl.util.getParentPathAndmkdir
-import com.addzero.addl.util.removeAny
 import com.addzero.common.kt_util.addSuffixIfNot
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -25,6 +22,7 @@ fun main() {
 
     }
 }
+
 abstract class AbsGen : AnAction() {
     fun mapToType(type: String?): String {
         return when (type) {
@@ -54,7 +52,12 @@ abstract class AbsGen : AnAction() {
 
     override fun update(e: AnActionEvent) {
         val project = e.project
-        e.presentation.isEnabled = project != null
+        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project ?: return)
+
+        // 使用工具类检查是否为POJO或Jimmer实体
+        val isValidTarget = PsiValidateUtil.isValidTarget(ktClass, psiClass)
+
+        e.presentation.isEnabled = project != null && isValidTarget
     }
 
     final override fun actionPerformed(e: AnActionEvent) {
@@ -64,8 +67,8 @@ abstract class AbsGen : AnAction() {
 
     protected open fun performAction(project: Project, e: AnActionEvent) {
         val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project)
-        val packagePath =PsiUtil. getPackagePath(psiFile)
-        val qualifiedClassName =PsiUtil. getQualifiedClassName(psiFile!!)
+        val packagePath = PsiUtil.getPackagePath(psiFile)
+        val qualifiedClassName = PsiUtil.getQualifiedClassName(psiFile!!)
 
         val fullname = fullName(psiFile)
         if (ktClass == null) {
@@ -83,7 +86,8 @@ abstract class AbsGen : AnAction() {
             val packageName = lastIndexOf?.let { packagePath?.substring(0, it) }
 
 
-            val psiFieldMetaInfo = PsiFieldMetaInfo(packageName, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
+            val psiFieldMetaInfo =
+                PsiFieldMetaInfo(packageName, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
             val generatedCode = genCode4Java(psiFieldMetaInfo)
 
             val filePath = virtualFile.path
@@ -99,7 +103,8 @@ abstract class AbsGen : AnAction() {
 
         val name = ktClass.name
         val extractMarkdownBlockContent = ktClass.text.extractMarkdownBlockContent()
-        val psiFieldMetaInfo = PsiFieldMetaInfo(packagePath, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
+        val psiFieldMetaInfo =
+            PsiFieldMetaInfo(packagePath, name, extractMarkdownBlockContent, extractInterfaceMetaInfo)
 
         val generateKotlinEntity = genCode4Kt(psiFieldMetaInfo)
         val filePath = virtualFile.path

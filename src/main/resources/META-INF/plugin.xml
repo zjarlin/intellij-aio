@@ -136,10 +136,10 @@
                     text="GenJimmerDTO"
                     description="GenJimmerDTO"/>
 
-            <action id="GenJimmerController"
-                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDemoController"
-                    text="GenJimmerDemoController"
-                    description="GenJimmerDemoController"/>
+            <action id="GenController"
+                    class="com.addzero.addl.action.anycodegen.impl.GenController"
+                    text="GenController"
+                    description="GenController"/>
 
             <action id="GenExcelDTO"
                     class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"

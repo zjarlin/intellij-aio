@@ -7,6 +7,7 @@ import com.addzero.addl.util.*
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.addzero.common.kt_util.addSuffixIfNot
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
@@ -23,7 +24,16 @@ fun main() {
     }
 }
 
+
+
+
 abstract class AbsGen : AnAction() {
+
+//    override fun getActionUpdateThread(): ActionUpdateThread {
+//        return ActionUpdateThread.BGT
+//    }
+
+
     fun mapToType(type: String?): String {
         return when (type) {
             "String" -> "String"

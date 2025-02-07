@@ -19,7 +19,7 @@ import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 import com.intellij.openapi.components.State
 
 @SettingsGroup(
-    groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(name = "db", title = "数据库配置", order = 2), Group(name = "dict", title = "字典配置", order = 3)]
+    groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(name = "template", title = "模板配置", order = 2), Group(name = "db", title = "数据库配置", order = 3), Group(name = "dict", title = "字典配置", order = 4)]
 )
 //@State(
 //    name = "AutoDDLSettings",
@@ -27,6 +27,8 @@ import com.intellij.openapi.components.State
 //)
 data class MyPluginSettings(
     // AI模型配置组
+    @ConfigField(label = "控制器模板风格", type = FieldType.DROPDOWN, options = ["INHERITANCE", "STANDALONE"], group = "template", order = 1) @JvmField var controllerStyle: String = "STANDALONE",
+
     @ConfigField(label = "模型Key", group = "ai", order = 1) @JvmField var modelKey: String = "",
 
     @ConfigField(

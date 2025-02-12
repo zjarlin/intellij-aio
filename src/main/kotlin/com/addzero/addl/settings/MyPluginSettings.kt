@@ -12,10 +12,7 @@ import com.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_CODER_INSTRUCT
 import com.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_INSTRUCT
 import com.addzero.addl.ai.consts.ChatModels.QWEN_MAX
 import com.addzero.addl.ai.consts.ChatModels.QWEN_TURBO
-import com.addzero.addl.autoddlstarter.generator.consts.DM
-import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
-import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
-import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.addzero.addl.autoddlstarter.generator.consts.*
 import com.intellij.openapi.components.State
 
 @SettingsGroup(
@@ -49,7 +46,7 @@ data class MyPluginSettings(
 
     // 数据库配置组
     @ConfigField(
-        label = "数据库类型", type = FieldType.DROPDOWN, options = [MYSQL, ORACLE, POSTGRESQL, DM], group = "db", order = 1
+        label = "数据库类型", type = FieldType.DROPDOWN, options = [MYSQL, ORACLE, POSTGRESQL, DM,H2], group = "db", order = 1
     ) @JvmField var dbType: String = MYSQL,
 
     @ConfigField(label = "规范id", group = "db", order = 2) @JvmField var id: String = "id",

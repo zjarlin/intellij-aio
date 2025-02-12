@@ -14,6 +14,7 @@ data class FieldMapping(
     val pgType: String,
     val oracleType: String,
     val dmType: String,
+    val h2Type: String,
     val length: String,
     val classRef: KClass<*>,
 ){

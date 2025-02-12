@@ -12,17 +12,11 @@ import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isLongType
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isStringType
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTextType
 import com.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTimeType
-import com.addzero.addl.autoddlstarter.generator.consts.DM
-import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
-import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
-import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.addzero.addl.autoddlstarter.generator.consts.*
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.FieldMapping
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
-import com.addzero.addl.autoddlstarter.generator.ex.DMSQLDDLGenerator
-import com.addzero.addl.autoddlstarter.generator.ex.MysqlDDLGenerator
-import com.addzero.addl.autoddlstarter.generator.ex.OracleDDLGenerator
-import com.addzero.addl.autoddlstarter.generator.ex.PostgreSQLDDLGenerator
+import com.addzero.addl.autoddlstarter.generator.ex.*
 import com.addzero.addl.ktututil.equalsIgnoreCase
 import com.addzero.addl.ktututil.toCamelCase
 import com.addzero.addl.settings.SettingContext
@@ -143,21 +137,21 @@ interface IDatabaseGenerator {
 
 
         var fieldMappings: List<FieldMapping> = listOf(
-            FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "(255)", String::class),
-            FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "(255)", String::class),
-            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "", String::class),
+            FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "varchar", "(255)", String::class),
+            FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "character", "(255)", String::class),
+            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "text", "", String::class),
             FieldMapping(
-                ::isDateTimeType, "datetime", "timestamp with time zone", "timestamp", "TIMESTAMP", "", LocalDateTime::class
+                ::isDateTimeType, "datetime", "timestamp with time zone", "timestamp", "TIMESTAMP", "timestamp", "", LocalDateTime::class
             ),
-            FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "", Date::class),
-            FieldMapping(::isTimeType, "time", "time with time zone", "timestamp", "TIMESTAMP", "", LocalTime::class),
-            FieldMapping(::isIntType, "int", "integer", "number", "INT", "", Integer::class),
+            FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "date", "", Date::class),
+            FieldMapping(::isTimeType, "time", "time with time zone", "timestamp", "TIMESTAMP", "time", "", LocalTime::class),
+            FieldMapping(::isIntType, "int", "integer", "number", "INT", "integer", "", Integer::class),
             FieldMapping(
-                ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "(6,2)", Double::class
+                ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "double precision", "(6,2)", Double::class
             ),
-            FieldMapping(::isBigDecimalType, "decimal", "numeric", "number", "NUMERIC", "(19,2)", BigDecimal::class),
-            FieldMapping(::isLongType, "long", "bigint", "number", "BIGINT", "", Long::class),
-            FieldMapping(::isBooleanType, "boolean", "boolean", "number", "INT", "", Boolean::class),
+            FieldMapping(::isBigDecimalType, "decimal", "numeric", "number", "NUMERIC", "numeric", "(19,2)", BigDecimal::class),
+            FieldMapping(::isLongType, "long", "bigint", "number", "BIGINT", "bigint", "", Long::class),
+            FieldMapping(::isBooleanType, "boolean", "boolean", "number", "INT", "boolean", "", Boolean::class),
         ).onEach { mapping ->
             // 添加计算属性
             mapping.javaClassRef = mapping.classRef.java.name
@@ -169,6 +163,7 @@ interface IDatabaseGenerator {
                 put(ORACLE, OracleDDLGenerator())
                 put(POSTGRESQL, PostgreSQLDDLGenerator())
                 put(DM, DMSQLDDLGenerator())
+                put(H2, H2SQLDDLGenerator())
             }
         }
 

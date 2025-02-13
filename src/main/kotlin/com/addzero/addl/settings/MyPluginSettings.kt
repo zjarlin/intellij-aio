@@ -13,10 +13,16 @@ import com.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_INSTRUCT
 import com.addzero.addl.ai.consts.ChatModels.QWEN_MAX
 import com.addzero.addl.ai.consts.ChatModels.QWEN_TURBO
 import com.addzero.addl.autoddlstarter.generator.consts.*
-import com.intellij.openapi.components.State
 
 @SettingsGroup(
-    groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(name = "template", title = "模板配置", order = 2), Group(name = "db", title = "数据库配置", order = 3), Group(name = "dict", title = "字典配置", order = 4)]
+    groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(
+        name = "template", title = "模板配置", order = 2
+    ), Group(name = "db", title = "数据库配置", order = 3), Group(name = "dict", title = "字典配置", order = 4), Group(
+        name = "intention",
+        title = "意图配置",
+        order = 5
+    )
+    ]
 )
 //@State(
 //    name = "AutoDDLSettings",
@@ -24,7 +30,13 @@ import com.intellij.openapi.components.State
 //)
 data class MyPluginSettings(
     // AI模型配置组
-    @ConfigField(label = "控制器模板风格", type = FieldType.DROPDOWN, options = ["INHERITANCE", "STANDALONE"], group = "template", order = 1) @JvmField var controllerStyle: String = "STANDALONE",
+    @ConfigField(
+        label = "控制器模板风格",
+        type = FieldType.DROPDOWN,
+        options = ["INHERITANCE", "STANDALONE"],
+        group = "template",
+        order = 1
+    ) @JvmField var controllerStyle: String = "STANDALONE",
 
     @ConfigField(label = "模型Key", group = "ai", order = 1) @JvmField var modelKey: String = "",
 
@@ -33,20 +45,34 @@ data class MyPluginSettings(
     ) @JvmField var modelManufacturer: String = DeepSeek,
 
     @ConfigField(
-        label = "在线模型", type = FieldType.DROPDOWN, options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX, DeepSeekOnlineModel, DeepSeekOnlineModelCoder], group = "ai", order = 3
+        label = "在线模型",
+        type = FieldType.DROPDOWN,
+        options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX, DeepSeekOnlineModel, DeepSeekOnlineModelCoder],
+        group = "ai",
+        order = 3
     ) @JvmField var modelNameOnline: String = QWEN_1_5B_CODER_INSTRUCT,
 
-    @ConfigField(label = "ollama远程url", group = "ai", order = 4) @JvmField var ollamaUrl: String = "http://localhost:11434",
+    @ConfigField(
+        label = "ollama远程url", group = "ai", order = 4
+    ) @JvmField var ollamaUrl: String = "http://localhost:11434",
 
     @ConfigField(
-        label = "离线ollama模型", type = FieldType.DROPDOWN, options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B], group = "ai", order = 5
+        label = "离线ollama模型",
+        type = FieldType.DROPDOWN,
+        options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B],
+        group = "ai",
+        order = 5
     ) @JvmField var modelNameOffline: String = QWEN2_5_CODER_1_5B,
 
     @JvmField var temPerature: String = "0.4",
 
     // 数据库配置组
     @ConfigField(
-        label = "数据库类型", type = FieldType.DROPDOWN, options = [MYSQL, ORACLE, POSTGRESQL, DM,H2], group = "db", order = 1
+        label = "数据库类型",
+        type = FieldType.DROPDOWN,
+        options = [MYSQL, ORACLE, POSTGRESQL, DM, H2],
+        group = "db",
+        order = 1
     ) @JvmField var dbType: String = MYSQL,
 
     @ConfigField(label = "规范id", group = "db", order = 2) @JvmField var id: String = "id",
@@ -85,5 +111,14 @@ data class MyPluginSettings(
     ) @JvmField var enumAnnotation: String = "@EnumItem(name = \"{}\") ",
 
 
-) {
-}
+    @ConfigField(
+        label = "swagger注解",
+        type = FieldType.DROPDOWN,
+        options = [
+            Swagger3kotlin, Swagger3java, Swagger2kotlin, Swagger2java
+        ],
+        group = "intention",
+        order = 1
+    ) @JvmField var swaggerAnnotation: String = Swagger3kotlin,
+
+    ) {}

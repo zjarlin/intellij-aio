@@ -1,7 +1,10 @@
 package com.github.zjarlin.autoddl.intention
 
+import cn.hutool.core.util.StrUtil
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.PsiValidateUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
+import com.addzero.common.kt_util.isBlank
 import com.addzero.common.kt_util.isNotNull
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.project.Project
@@ -106,11 +109,15 @@ class AddSwaggerAnnotationAction : IntentionAction {
         val description = cleanDocComment(docComment)
 
         // 创建新的注解文本
-        val annotationText = "@get:Schema(description = \"$description\")"
+        val swaggerAnnotation = SettingContext.settings.swaggerAnnotation
+        val format = StrUtil.format(swaggerAnnotation, description)
+        if (format.isBlank()) {
+            return
+        }
 
         // 使用 KtPsiFactory 创建注解
         val ktPsiFactory = KtPsiFactory(project)
-        val annotation = ktPsiFactory.createAnnotationEntry(annotationText)
+        val annotation = ktPsiFactory.createAnnotationEntry(format)
 
         // 将注解添加到属性上
         property.addAnnotationEntry(annotation)

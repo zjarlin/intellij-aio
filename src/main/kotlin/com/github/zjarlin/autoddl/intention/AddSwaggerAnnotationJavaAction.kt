@@ -1,6 +1,9 @@
 package com.github.zjarlin.autoddl.intention
 
+import cn.hutool.core.util.StrUtil
+import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.PsiValidateUtil
+import com.addzero.common.kt_util.isBlank
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
@@ -58,11 +61,16 @@ class AddSwaggerAnnotationJavaAction : IntentionAction {
         val description = cleanDocComment(docComment.text)
 
         // 创建新的注解文本
-        val annotationText = "@Schema(description = \"$description\")"
+        val swaggerAnnotation = SettingContext.settings.swaggerAnnotation
+        val format = StrUtil.format(swaggerAnnotation, description)
+        if (format.isBlank()) {
+            return
+        }
+
 
         // 使用 PsiElementFactory 创建注解
         val factory = JavaPsiFacade.getElementFactory(project)
-        val annotation = factory.createAnnotationFromText(annotationText, field)
+        val annotation = factory.createAnnotationFromText(format, field)
 
         // 将注解添加到字段上方
         field.modifierList?.addBefore(annotation, field.modifierList?.firstChild)

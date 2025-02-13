@@ -18,11 +18,8 @@ import com.addzero.addl.autoddlstarter.generator.consts.*
     groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(
         name = "template", title = "模板配置", order = 2
     ), Group(name = "db", title = "数据库配置", order = 3), Group(name = "dict", title = "字典配置", order = 4), Group(
-        name = "intention",
-        title = "意图配置",
-        order = 5
-    )
-    ]
+        name = "intention", title = "意图配置", order = 5
+    )]
 )
 //@State(
 //    name = "AutoDDLSettings",
@@ -107,18 +104,27 @@ data class MyPluginSettings(
 //    @ConfigField(label = "规范枚举项name", group = "dict", order = 9) @JvmField var ides: String = "item_text",
 
     @ConfigField(
-        label = "枚举项注解模板(默认jimmer)", type = FieldType.LONG_TEXT, group = "dict", order = 10
-    ) @JvmField var enumAnnotation: String = "@EnumItem(name = \"{}\") ",
+        label = "枚举项注解模板(默认jimmer)"
+//        , type = FieldType.TEXT
+
+        , type = FieldType.DROPDOWN, options = [JimmerAnno, ""], group = "dict", order = 10
+    ) @JvmField var enumAnnotation: String = JimmerAnno,
 
 
     @ConfigField(
-        label = "swagger注解",
-        type = FieldType.DROPDOWN,
-        options = [
-            Swagger3kotlin, Swagger3java, Swagger2kotlin, Swagger2java
-        ],
-        group = "intention",
-        order = 1
-    ) @JvmField var swaggerAnnotation: String = Swagger3kotlin,
+        label = "swagger意图注解(默认swagger3)",
+//        , type = FieldType.TEXT
+        group = "intention", type = FieldType.DROPDOWN, options = [Swagger3Anno, Swagger2Anno], order = 1
+    ) @JvmField var swaggerAnnotation: String = Swagger3Anno,
 
-    ) {}
+
+
+    @ConfigField(
+        label = "excel意图注解(默认fastexcel/easyexcel)",
+//        , type = FieldType.TEXT
+        group = "intention", type = FieldType.DROPDOWN, options = [FastExcelAnno, PoiAnno], order = 2
+    ) @JvmField var excelAnnotation: String = FastExcelAnno,
+
+
+
+    )

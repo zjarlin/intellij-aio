@@ -15,25 +15,25 @@
     <!-- 更新日志，显示在插件详情页的 "What's New" 部分 -->
 
 
-<!--    <change-notes><![CDATA[-->
-<!--]]></change-notes>-->
+    <!--    <change-notes><![CDATA[-->
+    <!--]]></change-notes>-->
 
 
-<!--    <description><![CDATA[-->
-<!--<ul>-->
-<!--    <include src="DES.md" />-->
-<!--    <include src="DES.en.md" />-->
+    <!--    <description><![CDATA[-->
+    <!--<ul>-->
+    <!--    <include src="DES.md" />-->
+    <!--    <include src="DES.en.md" />-->
 
-<!--</ul>-->
+    <!--</ul>-->
 
-<!--  ]]></description>-->
+    <!--  ]]></description>-->
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
-<!--    <depends>com.intellij.database</depends>-->
+    <!--    <depends>com.intellij.database</depends>-->
 
 
     <!--    <depends>com.intellij.java</depends>-->
@@ -68,7 +68,7 @@
             <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>
         </intentionAction>
 
-
+<!--        swagger意图-->
 
         <intentionAction>
             <language>kotlin</language>
@@ -88,35 +88,58 @@
 
 
 
-<!--        <intentionAction>-->
-<!--            <language>JAVA</language>-->
-<!--            <language>kotlin</language>-->
-<!--            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>-->
-<!--            <category>Java/Kotlin</category>-->
-<!--            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>-->
-<!--        </intentionAction>-->
+<!--        excel意图-->
 
+
+        <intentionAction>
+            <language>kotlin</language>
+            <className>com.github.zjarlin.autoddl.intention.AddExcelPropertyAnnotationAction</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>AddExcelPropertyAnnotationAction</descriptionDirectoryName>
+        </intentionAction>
+
+
+        <intentionAction>
+            <language>JAVA</language>
+            <className>com.github.zjarlin.autoddl.intention.AddExcelPropertyAnnotationJavaAction</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>AddExcelPropertyAnnotationJavaAction</descriptionDirectoryName>
+        </intentionAction>
+
+
+
+
+
+
+
+        <!--        <intentionAction>-->
+        <!--            <language>JAVA</language>-->
+        <!--            <language>kotlin</language>-->
+        <!--            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>-->
+        <!--            <category>Java/Kotlin</category>-->
+        <!--            <descriptionDirectoryName>GenEnumByFieldComment</descriptionDirectoryName>-->
+        <!--        </intentionAction>-->
 
 
         <!-- 其他配置 -->
 
         <!-- 注册 Intention Action -->
 
-<!--        <intentionAction>-->
-<!--            <language>JAVA</language>-->
-<!--            <language>kotlin</language>-->
-<!--            <className>com.addzero.addl.action.aitoolwindow.toolwindow.AskAIIntention</className>-->
-<!--            <category>Java/Kotlin</category>-->
-<!--            <descriptionDirectoryName>AskAIIntention</descriptionDirectoryName>-->
-<!--        </intentionAction>-->
+        <!--        <intentionAction>-->
+        <!--            <language>JAVA</language>-->
+        <!--            <language>kotlin</language>-->
+        <!--            <className>com.addzero.addl.action.aitoolwindow.toolwindow.AskAIIntention</className>-->
+        <!--            <category>Java/Kotlin</category>-->
+        <!--            <descriptionDirectoryName>AskAIIntention</descriptionDirectoryName>-->
+        <!--        </intentionAction>-->
 
         <!-- 注册工具窗口 -->
-<!--        <toolWindow-->
-<!--                id="AI Chat"-->
-<!--                secondary="true"-->
-<!--                icon="AllIcons.General.Modified"-->
-<!--                anchor="right"-->
-<!--                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>-->
+        <!--        <toolWindow-->
+        <!--                id="AI Chat"-->
+        <!--                secondary="true"-->
+        <!--                icon="AllIcons.General.Modified"-->
+        <!--                anchor="right"-->
+        <!--                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>-->
     </extensions>
 
     <!--    <extensions defaultExtensionNs="com.intellij">-->
@@ -132,7 +155,7 @@
         <!-- 生成菜单组 -->
         <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
-<!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
+            <!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
             <action id="GenDDL"
                     class="com.addzero.addl.action.GenDDL"
                     text="GenDDL"
@@ -156,25 +179,25 @@
                     text="GenExcelDTO"
                     description="GenExcelDTO"/>
 
-<!--            <action id="GenStructuredOutput"-->
-<!--                    class="StructuredOutput"-->
-<!--                    text="GenStructuredOutput"-->
-<!--                    description="GenStructuredOutput"/>-->
+            <!--            <action id="GenStructuredOutput"-->
+            <!--                    class="StructuredOutput"-->
+            <!--                    text="GenStructuredOutput"-->
+            <!--                    description="GenStructuredOutput"/>-->
         </group>
 
         <!-- 数据库视图菜单组 -->
-<!--        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">-->
-<!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
+        <!--        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">-->
+        <!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
 
-<!--            <action id="AutoDDL.WithDB.Generate"-->
-<!--                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
-<!--                    text="Entities DDL Generator"-->
-<!--                    description="Generate and sync database tables from entity package"/>-->
+        <!--            <action id="AutoDDL.WithDB.Generate"-->
+        <!--                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
+        <!--                    text="Entities DDL Generator"-->
+        <!--                    description="Generate and sync database tables from entity package"/>-->
 
-<!--            <action id="DictEnum.Generate"-->
-<!--                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->
-<!--                    text="Enums Generator"-->
-<!--                    description="Generate enum classes from dictionary tables"/>-->
-<!--        </group>-->
+        <!--            <action id="DictEnum.Generate"-->
+        <!--                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->
+        <!--                    text="Enums Generator"-->
+        <!--                    description="Generate enum classes from dictionary tables"/>-->
+        <!--        </group>-->
     </actions>
 </idea-plugin>

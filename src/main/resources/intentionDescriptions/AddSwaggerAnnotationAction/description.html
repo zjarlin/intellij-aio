@@ -1,0 +1,34 @@
+<html>
+<body>
+Adds Swagger annotations to entity class properties based on their documentation comments.
+<p>
+    This intention automatically converts KDoc/JavaDoc comments on entity class properties into Swagger annotations (@Schema), 
+    making it easier to generate API documentation for your data models.
+</p>
+<p>
+    Useful when you need to add Swagger documentation to your entity classes or POJO classes, especially in Spring Boot 
+    applications using OpenAPI/Swagger for API documentation.
+</p>
+<p>
+    Example:
+</p>
+<pre><code>
+class User {
+    /** User's full name */
+    var name: String = ""
+}
+
+// After applying the intention:
+class User {
+    /** User's full name */
+    @get:Schema(description = "User's full name")
+    var name: String = ""
+}
+</code></pre>
+<!-- tooltip end -->
+<p>Text after this comment will only be shown in the settings of the inspection.</p>
+
+<p>To open related settings directly from the description, add a link with `settings://$` optionally followed by `?$` to
+    pre-select a UI element.</p>
+</body>
+</html>

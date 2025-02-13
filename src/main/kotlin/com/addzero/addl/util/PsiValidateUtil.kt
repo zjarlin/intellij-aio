@@ -7,11 +7,13 @@ object PsiValidateUtil {
     /**
      * 检查是否为POJO或Jimmer实体
      */
-    fun isValidTarget(ktClass: KtClass?, psiClass: PsiClass?): Boolean {
-        return when {
+    fun isValidTarget(ktClass: KtClass?, psiClass: PsiClass?): Pair<Boolean, Boolean> {
+        var iskotlin = false
+        val b1 = when {
             ktClass != null -> {
                 // 检查Kotlin类
                 val annotations = ktClass.annotationEntries.map { it.shortName?.asString() }
+                iskotlin=true
                 annotations.any { it in listOf("Entity", "Table", "Data", "Getter", "Setter") }
             }
 
@@ -26,5 +28,6 @@ object PsiValidateUtil {
 
             else -> false
         }
+        return b1 to iskotlin
     }
 }

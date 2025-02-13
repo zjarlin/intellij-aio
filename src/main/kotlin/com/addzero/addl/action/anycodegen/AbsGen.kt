@@ -67,7 +67,7 @@ abstract class AbsGen : AnAction() {
         // 使用工具类检查是否为POJO或Jimmer实体
         val isValidTarget = PsiValidateUtil.isValidTarget(ktClass, psiClass)
 
-        e.presentation.isEnabled = project != null && isValidTarget
+        e.presentation.isEnabled = project != null && isValidTarget.first
     }
 
     final override fun actionPerformed(e: AnActionEvent) {

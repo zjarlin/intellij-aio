@@ -42,3 +42,5 @@ val gender: String?
 
 2. 现在你可以在build.gradle.kts中把现有依赖upsert到libs.version.toml ,只需alt+回车Convert to 
    version catalog(最好备份一下原来的libs,因为upsert可能翻车,会覆盖掉libs中的内容)
+3.  在实体类上alt+回车基于javadoc注释添加swagger注解
+

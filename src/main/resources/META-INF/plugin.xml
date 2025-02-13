@@ -68,11 +68,21 @@
             <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>
         </intentionAction>
 
+
+
+        <intentionAction>
+            <language>kotlin</language>
+            <className>com.github.zjarlin.autoddl.intention.AddSwaggerAnnotationAction</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>AddSwaggerAnnotationAction</descriptionDirectoryName>
+        </intentionAction>
+
+
         <intentionAction>
             <language>JAVA</language>
-            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
+            <className>com.github.zjarlin.autoddl.intention.AddSwaggerAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>GenJavaEnum</descriptionDirectoryName>
+            <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>
         </intentionAction>
 
 

@@ -5,12 +5,12 @@ import com.github.zjarlin.autoddl.intention.AbstractDocCommentAnnotationAction
 
 class AddCusTomAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
     override fun getAnnotationTemplate(): String {
-        val swaggerAnnotation = SettingContext.settings.swaggerAnnotation
-        return swaggerAnnotation
+        return SettingContext.settings.customAnnotation
     }
 
     override fun getAnnotationNames(): List<String> {
         return listOf()
+
     }
 
     override fun getText(): String {

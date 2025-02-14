@@ -126,5 +126,10 @@ data class MyPluginSettings(
     ) @JvmField var excelAnnotation: String = FastExcelAnno,
 
 
+    @ConfigField(
+        label = "自定义意图注解(注释元数据生成相应注解)",
+//        , type = FieldType.TEXT
+        group = "intention", type = FieldType.TEXT, order = 3
+    ) @JvmField var customAnnotation: String = CustomAnno,
 
     )

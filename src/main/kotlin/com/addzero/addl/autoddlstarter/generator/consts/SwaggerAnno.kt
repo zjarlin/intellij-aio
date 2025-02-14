@@ -13,3 +13,5 @@ const val FastExcelAnno= "@ExcelProperty(\"{}\")"
 
 
 const val JimmerAnno = "@EnumItem(name = \"{}\") "
+
+const val CustomAnno = "@CustomAnno(\"{}\") "

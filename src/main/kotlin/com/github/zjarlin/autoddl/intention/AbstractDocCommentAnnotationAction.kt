@@ -1,5 +1,6 @@
 package com.github.zjarlin.autoddl.intention
 
+import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.util.PsiValidateUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
@@ -77,7 +78,8 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
 
 
         val hasAnnotation = property.annotationEntries.any { annotation ->
-            if (annotationNames.isEmpty()) {
+            val empty = CollUtil.isEmpty(annotationNames)
+            if (empty) {
                 //对于空的已有注解,则认定是自定义注解生成逻辑
                 false
             } else {

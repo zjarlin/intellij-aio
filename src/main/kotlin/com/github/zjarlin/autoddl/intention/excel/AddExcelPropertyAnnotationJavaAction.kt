@@ -9,7 +9,8 @@ class AddExcelPropertyAnnotationJavaAction : AbstractDocCommentAnnotationAction(
     }
 
     override fun getAnnotationNames(): List<String> {
-        return listOf("ExcelProperty")
+        return listOf("ExcelProperty","Excel")
+
     }
 
     override fun getText(): String {

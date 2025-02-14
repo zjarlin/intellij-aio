@@ -1,8 +1,9 @@
-package com.github.zjarlin.autoddl.intention
+package com.github.zjarlin.autoddl.intention.swagger
 
 import com.addzero.addl.settings.SettingContext
+import com.github.zjarlin.autoddl.intention.AbstractDocCommentAnnotationAction
 
-class AddSwaggerAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
+class AddSwaggerAnnotationAction : AbstractDocCommentAnnotationAction() {
     override fun getAnnotationTemplate(): String {
         val swaggerAnnotation = SettingContext.settings.swaggerAnnotation
         return swaggerAnnotation

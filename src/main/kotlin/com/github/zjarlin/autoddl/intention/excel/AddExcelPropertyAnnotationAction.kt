@@ -1,8 +1,9 @@
-package com.github.zjarlin.autoddl.intention
+package com.github.zjarlin.autoddl.intention.excel
 
 import com.addzero.addl.settings.SettingContext
+import com.github.zjarlin.autoddl.intention.AbstractDocCommentAnnotationAction
 
-class AddExcelPropertyAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
+class AddExcelPropertyAnnotationAction : AbstractDocCommentAnnotationAction() {
     override fun getAnnotationTemplate(): String {
         return SettingContext.settings.excelAnnotation
     }

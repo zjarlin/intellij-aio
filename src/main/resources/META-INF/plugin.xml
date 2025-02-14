@@ -68,11 +68,11 @@
             <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>
         </intentionAction>
 
-<!--        swagger意图-->
+        <!--        swagger意图-->
 
         <intentionAction>
             <language>kotlin</language>
-            <className>com.github.zjarlin.autoddl.intention.AddSwaggerAnnotationAction</className>
+            <className>com.github.zjarlin.autoddl.intention.swagger.AddSwaggerAnnotationAction</className>
             <category>Java/Kotlin</category>
             <descriptionDirectoryName>AddSwaggerAnnotationAction</descriptionDirectoryName>
         </intentionAction>
@@ -80,20 +80,36 @@
 
         <intentionAction>
             <language>JAVA</language>
-            <className>com.github.zjarlin.autoddl.intention.AddSwaggerAnnotationJavaAction</className>
+            <className>com.github.zjarlin.autoddl.intention.swagger.AddSwaggerAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
             <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>
         </intentionAction>
 
 
+        <!--        自定义意图-->
+
+        <intentionAction>
+            <language>kotlin</language>
+            <className>com.github.zjarlin.autoddl.intention.custom.AddCusTomAnnotationAction</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>AddSwaggerAnnotationAction</descriptionDirectoryName>
+        </intentionAction>
 
 
-<!--        excel意图-->
+        <intentionAction>
+            <language>JAVA</language>
+            <className>com.github.zjarlin.autoddl.intention.custom.AddCusTomAnnotationJavaAction</className>
+            <category>Java/Kotlin</category>
+            <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>
+        </intentionAction>
+
+
+        <!--        excel意图-->
 
 
         <intentionAction>
             <language>kotlin</language>
-            <className>com.github.zjarlin.autoddl.intention.AddExcelPropertyAnnotationAction</className>
+            <className>com.github.zjarlin.autoddl.intention.excel.AddExcelPropertyAnnotationAction</className>
             <category>Java/Kotlin</category>
             <descriptionDirectoryName>AddExcelPropertyAnnotationAction</descriptionDirectoryName>
         </intentionAction>
@@ -101,15 +117,10 @@
 
         <intentionAction>
             <language>JAVA</language>
-            <className>com.github.zjarlin.autoddl.intention.AddExcelPropertyAnnotationJavaAction</className>
+            <className>com.github.zjarlin.autoddl.intention.excel.AddExcelPropertyAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
             <descriptionDirectoryName>AddExcelPropertyAnnotationJavaAction</descriptionDirectoryName>
         </intentionAction>
-
-
-
-
-
 
 
         <!--        <intentionAction>-->

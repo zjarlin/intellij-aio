@@ -72,10 +72,21 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
 
     private fun processKotlinProperty(project: Project, property: KtProperty) {
         // 检查是否已有相应注解
+
+        val annotationNames = getAnnotationNames()
+
+
         val hasAnnotation = property.annotationEntries.any { annotation ->
-            val shortName = annotation.shortName
-            val name = shortName?.asString()
-            name in getAnnotationNames()
+            if (annotationNames.isEmpty()) {
+                //对于空的已有注解,则认定是自定义注解生成逻辑
+                false
+            } else {
+                val shortName = annotation.shortName
+                val name = shortName?.asString()
+                val b = name in annotationNames
+                b
+            }
+
         }
 
         if (!hasAnnotation) {

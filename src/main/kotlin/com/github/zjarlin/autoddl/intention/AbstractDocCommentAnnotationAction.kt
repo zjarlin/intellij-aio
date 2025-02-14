@@ -2,15 +2,14 @@ package com.github.zjarlin.autoddl.intention
 
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.util.PsiValidateUtil
+import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.addPsiJavaAnnotation
 import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.cleanDocComment
-import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.escapeSpecialCharacters
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtProperty
@@ -74,12 +73,13 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     private fun processKotlinProperty(project: Project, property: KtProperty) {
         // 检查是否已有相应注解
         val hasAnnotation = property.annotationEntries.any { annotation ->
-            val name = annotation.shortName?.asString()
+            val shortName = annotation.shortName
+            val name = shortName?.asString()
             name in getAnnotationNames()
         }
 
         if (!hasAnnotation) {
-            val docComment = property.docComment?.text
+            val docComment = PsiUtil.guessFieldComment(property)
             if (docComment != null) {
                 addKotlinAnnotation(project, property, docComment)
             }
@@ -94,7 +94,8 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
         }
 
         if (!hasAnnotation) {
-            val docComment = field.docComment
+            val docComment = PsiUtil.guessFieldComment(field)
+//            val docComment = field.docComment
             if (docComment != null) {
                 addPsiJavaAnnotation(project, field, docComment, getAnnotationTemplate())
             }

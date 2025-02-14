@@ -5,7 +5,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiField
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.psi.javadoc.PsiDocComment
 
 object PsiPropertyUtil {
 
@@ -23,12 +22,13 @@ object PsiPropertyUtil {
             .replace("*", "")
             .trim()
     }
-    fun addPsiJavaAnnotation(project: Project, field: PsiField, docComment:
-    PsiDocComment
-        ,annotationTemplate: String
+    fun addPsiJavaAnnotation(
+        project: Project, field: PsiField, docComment:
+        String
+        , annotationTemplate: String
     ) {
         // 清理文档注释
-        val description = cleanDocComment(docComment.text)
+        val description = cleanDocComment(docComment)
 
         // 获取注解模板并格式化
         val format = StrUtil.format(annotationTemplate, description)

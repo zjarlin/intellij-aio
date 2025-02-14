@@ -12,6 +12,7 @@ import com.addzero.addl.util.*
 import com.addzero.addl.util.kt_util.hasAnnotation
 import com.addzero.addl.util.kt_util.isStatic
 import com.addzero.common.kt_util.isBlank
+import com.addzero.common.kt_util.isNotBlank
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -23,7 +24,6 @@ import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtClass
@@ -58,8 +58,6 @@ object PsiUtil {
     }
 
 
-
-
     private fun cleanDocComment(docComment: String?): String {
         if (docComment == null) return ""
 
@@ -77,42 +75,66 @@ object PsiUtil {
 
 
     fun guessFieldComment(ktProperty: KtProperty): String {
+        // 如果是主键字段，直接返回 "主键"
         if (ktProperty.name == SettingContext.settings.id) {
             return "主键"
         }
+
         // 获取 KtProperty 上的所有注解
         val annotations = ktProperty.annotationEntries
+
         // 遍历所有注解
         for (annotation in annotations) {
-            // 获取注解的全名
-            val qualifiedName = annotation.name
+            val qualifiedName = annotation.shortName?.asString()
 
-            // 根据注解的全名进行不同的处理
-            when (qualifiedName) {
-                "io.swagger.annotations.ApiModelProperty" -> {
-                    // 获取注解的 value 属性
-                    return ""
+            val des = when (qualifiedName) {
+                "ApiModelProperty" -> {
+                    // 获取 description 参数值
+                    annotation.valueArguments.firstOrNull()?.let { arg ->
+                        val value = arg.getArgumentExpression()?.text
+                        val removeAnyQuote = value?.removeAnyQuote()
+                        removeAnyQuote
+                    }
                 }
 
-                "io.swagger.v3.oas.annotations.media.Schema" -> {
-                    // 获取注解的 description 属性
-                    return ""
-
+                "Schema" -> {
+                    // 获取 description 参数值
+                    val des =
+                        annotation.valueArguments.filter { it.getArgumentName()?.asName?.asString() == "description" }
+                            .map { it.getArgumentExpression()?.text }.firstOrNull()
+                    des
                 }
+
+                "ExcelProperty" -> {
+                    // 获取 description 参数值
+                    val des = annotation.valueArguments.filter { it.getArgumentName()?.asName?.asString() == "value" }
+                        .map { it.getArgumentExpression()?.text }.firstOrNull()
+                    des
+                }
+                else -> {
+                    null
+                }
+            }
+            if (des.isNotBlank()) {
+                return des?.removeAnyQuote()!!
             }
         }
 
-        // 如果没有找到 Swagger 注解，则尝试获取 文档注释
+        // 如果没有找到 Swagger 注解，则尝试获取文档注释
         val docComment = ktProperty.docComment
         val text = cleanDocComment(docComment?.text)
+        if (text.isBlank()) {
 
-        if (text.isNullOrBlank()) {
-            return NOCOMMENT
+//            尝试ai翻译
+            val name = ktProperty.name!!
+//            AiUtil.INIT(name, """
+//               我给出字段名(可能),你推测其含义,作为字段的注释,你的返回应该只有纯粹简洁的注释,不要返回其他内容,不要返回原有字段名
+//            """.trimIndent()).ask("","")
+            return ""
         }
 
-        return text!!
+        return text
     }
-
 
     /**
      * @param [psiField]
@@ -125,18 +147,38 @@ object PsiUtil {
         val annotations = psiField.annotations
 
         for (annotation in annotations) {
-            when (annotation.qualifiedName) {
+            val qualifiedName = annotation.qualifiedName
+            val des = when (qualifiedName) {
                 "io.swagger.annotations.ApiModelProperty" -> {
-                    return annotation.findAttributeValue("value")?.text ?: ""
+                    annotation.findAttributeValue("value")?.text ?: ""
                 }
 
                 "io.swagger.v3.oas.annotations.media.Schema" -> {
-                    return annotation.findAttributeValue("description")?.text ?: ""
+                    annotation.findAttributeValue("description")?.text ?: ""
                 }
-                // 可以添加其他 Swagger 相关的注解
-                // "other.swagger.Annotation" -> { ... }
-            }
 
+                "com.alibaba.excel.annotation.ExcelProperty" -> {
+                    // 获取ExcelProperty注解的value属性
+                    val value = annotation.findAttributeValue("value")
+                    value?.text
+                }
+
+                "cn.idev.excel.annotation.ExcelProperty" -> {
+                    // 获取ExcelProperty注解的value属性
+                    val value = annotation.findAttributeValue("value")
+                    value?.text
+                }
+
+                "cn.afterturn.easypoi.excel.annotation.Excel" -> {
+                    // 获取Excel注解的name属性
+                    annotation.findAttributeValue("name")?.text
+                }
+
+                else -> {null}
+            }
+            if (des.isNotBlank()) {
+                return des?.removeAnyQuote() ?: ""
+            }
         }
         val text = cleanDocComment(psiField.docComment?.text)
         if (StrUtil.isBlank(text)) {
@@ -217,8 +259,10 @@ object PsiUtil {
                 val type = String::class.java
                 fieldMetaInfoList.add(
                     JavaFieldMetaInfo(
-                        name = mayColumn!!.removeAnyQuote(), type = type, genericType =
-                            type, comment = comment.removeAnyQuote()
+                        name = mayColumn!!.removeAnyQuote(),
+                        type = type,
+                        genericType = type,
+                        comment = comment.removeAnyQuote()
                     )
                 )
 
@@ -232,7 +276,10 @@ object PsiUtil {
             val type = getJavaClassFromPsiType(returnType)
             fieldMetaInfoList.add(
                 JavaFieldMetaInfo(
-                    name = fieldName.removeAnyQuote(), type = type, genericType = type, comment = comment.removeAnyQuote()
+                    name = fieldName.removeAnyQuote(),
+                    type = type,
+                    genericType = type,
+                    comment = comment.removeAnyQuote()
                 )
             )
         }
@@ -329,7 +376,11 @@ object PsiUtil {
                 Any::class.java // 如果类未找到，使用 Any
             }
             // 创建 JavaFieldMetaInfo 对象并添加到列表
-            fieldsMetaInfo.add(JavaFieldMetaInfo(firstNonBlank!!.removeAnyQuote(), typeClass, typeClass, fieldComment.removeAnyQuote()))
+            fieldsMetaInfo.add(
+                JavaFieldMetaInfo(
+                    firstNonBlank!!.removeAnyQuote(), typeClass, typeClass, fieldComment.removeAnyQuote()
+                )
+            )
         }
         return fieldsMetaInfo
     }
@@ -593,8 +644,8 @@ object PsiUtil {
 
     // 添加判断项目类型的方法
     fun isKotlinProject(project: Project): Boolean {
-        val buildGradle = project.guessProjectDir()?.findChild("build.gradle.kts")
-            ?: project.guessProjectDir()?.findChild("build.gradle")
+        val buildGradle = project.guessProjectDir()?.findChild("build.gradle.kts") ?: project.guessProjectDir()
+            ?.findChild("build.gradle")
 
         return when {
             // 检查是否有 Kotlin 构建文件
@@ -604,7 +655,8 @@ object PsiUtil {
             }
             // 检查是否有 Kotlin 源文件
             else -> {
-                val kotlinFiles = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+                val kotlinFiles =
+                    FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
                 val javaFiles = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project))
                 kotlinFiles.size >= javaFiles.size
             }
@@ -618,7 +670,8 @@ object PsiUtil {
         val virtualFile = element.containingFile?.virtualFile
         return virtualFile?.parent?.path ?: ""
     }
-    data class PsiEleInfo(val packageName:String,val directoryPath:String)
+
+    data class PsiEleInfo(val packageName: String, val directoryPath: String)
 
     fun getFilePathPair(element: PsiElement): PsiEleInfo {
         // 获取包名
@@ -634,7 +687,6 @@ object PsiUtil {
 
         return PsiEleInfo(packageName, directoryPath)
     }
-
 
 
 }

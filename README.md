@@ -42,5 +42,7 @@ val gender: String?
 
 2. 现在你可以在build.gradle.kts中把现有依赖upsert到libs.version.toml ,只需alt+回车Convert to 
    version catalog(最好备份一下原来的libs,因为upsert可能翻车,会覆盖掉libs中的内容)
-3.  在实体类上alt+回车基于javadoc注释添加swagger注解
+3.  在实体类上alt+回车基于javadoc注释添加swagger注解,excel 注解,包含自定义设置的注解
+它会沿着swagger > excelproperty > javadoc > ai猜测 这个优先级猜注释
+猜到了之后,可以全局设置配生成的目标注解,已有注解不影响 
 

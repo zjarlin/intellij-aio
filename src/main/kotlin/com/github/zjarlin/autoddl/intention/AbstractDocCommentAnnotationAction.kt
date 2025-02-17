@@ -79,7 +79,6 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
             // 调用AI接口获取批量注释
             val commentMap = AiUtil.batchGetComments(noCommentFields)
 
-            // 异步处理文档注释
             noCommentFields.forEach { (fieldName, field) ->
                 val comment = commentMap?.get(fieldName) ?: ""
                 addKotlinAnnotation(project, field as KtProperty, comment)

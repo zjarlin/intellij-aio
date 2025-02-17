@@ -1,7 +1,11 @@
 #### Version last
 - 支持含有枚举的注释生成相关java/kotlin代码
 - 现在你可以在build.gradle.kts中把现有依赖upsert到libs.version.toml ,只需alt+回车 
-- 在实体类上alt+回车基于javadoc注释添加swagger注解
+- 在实体类上alt+回车基于javadoc注释添加swagger注解,excel 注解,包含自定义设置的注解
+  它会沿着swagger > excelproperty > javadoc > ai猜测 这个优先级猜注释
+  猜到了之后,可以全局设置配生成的目标注解,已有注解不影响
+
+
 
 #### Version 1.6
 - 新增结构化输出能力，呼出generate上下文，将自然语言转为当前类对应的Json格式。

@@ -74,6 +74,16 @@ object PsiUtil {
     }
 
 
+
+
+     fun addComment(project: Project, field: PsiField) {
+        // 创建新的文档注释
+        val factory = PsiElementFactory.getInstance(project)
+        val newDocComment = factory.createDocCommentFromText("/** */")
+        field.addBefore(newDocComment, field.firstChild)
+    }
+
+
     fun guessFieldComment(ktProperty: KtProperty): String {
         // 如果是主键字段，直接返回 "主键"
         if (ktProperty.name == SettingContext.settings.id) {

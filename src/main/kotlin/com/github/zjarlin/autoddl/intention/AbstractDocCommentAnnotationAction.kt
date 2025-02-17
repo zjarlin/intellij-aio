@@ -2,11 +2,15 @@ package com.github.zjarlin.autoddl.intention
 
 import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.StrUtil
+import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.util.PsiValidateUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.addzero.addl.util.fieldinfo.PsiUtil.addComment
 import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.addPsiJavaAnnotation
 import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.cleanDocComment
 import com.intellij.codeInsight.intention.IntentionAction
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
@@ -17,6 +21,9 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
 abstract class AbstractDocCommentAnnotationAction : IntentionAction {
+
+    // 存储无注释字段的集合
+    private val noCommentFields = mutableMapOf<String, Any>()
 
     override fun getFamilyName() = text
 
@@ -59,42 +66,46 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     }
 
     private fun processKotlinClass(project: Project, ktClass: KtClass) {
+        // 清空字段集合
+        noCommentFields.clear()
+
+        // 收集无注释的字段
         ktClass.getProperties().forEach { property ->
             processKotlinProperty(project, property)
+        }
+
+        // 如果有无注释的字段，批量处理
+        if (noCommentFields.isNotEmpty()) {
+            // 调用AI接口获取批量注释
+            val commentMap = AiUtil.batchGetComments(noCommentFields)
+
+            // 异步处理文档注释
+            noCommentFields.forEach { (fieldName, field) ->
+                val comment = commentMap?.get(fieldName) ?: ""
+                addKotlinAnnotation(project, field as KtProperty, comment)
+            }
         }
     }
 
     private fun processJavaClass(project: Project, psiClass: PsiClass) {
+        // 清空字段集合
+        noCommentFields.clear()
+
+        // 收集无注释的字段
         val fields = psiClass.fields
         for (field in fields) {
             processJavaField(project, field)
         }
-    }
 
-    private fun processKotlinProperty(project: Project, property: KtProperty) {
-        // 检查是否已有相应注解
+        // 如果有无注释的字段，批量处理
+        if (noCommentFields.isNotEmpty()) {
+            // 调用AI接口获取批量注释
+            val commentMap = AiUtil.batchGetComments(noCommentFields)
 
-        val annotationNames = getAnnotationNames()
-
-
-        val hasAnnotation = property.annotationEntries.any { annotation ->
-            val empty = CollUtil.isEmpty(annotationNames)
-            if (empty) {
-                //对于空的已有注解,则认定是自定义注解生成逻辑
-                false
-            } else {
-                val shortName = annotation.shortName
-                val name = shortName?.asString()
-                val b = name in annotationNames
-                b
-            }
-
-        }
-
-        if (!hasAnnotation) {
-            val docComment = PsiUtil.guessFieldComment(property)
-            if (docComment != null) {
-                addKotlinAnnotation(project, property, docComment)
+            // 异步处理文档注释
+            noCommentFields.forEach { (fieldName, field) ->
+                val comment = commentMap?.get(fieldName) ?: ""
+                addPsiJavaAnnotation(project, field as PsiField, comment, getAnnotationTemplate())
             }
         }
     }
@@ -107,10 +118,43 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
         }
 
         if (!hasAnnotation) {
-            val docComment = PsiUtil.guessFieldComment(field)
-//            val docComment = field.docComment
-            if (docComment != null) {
-                addPsiJavaAnnotation(project, field, docComment, getAnnotationTemplate())
+            // 将无注释的字段添加到集合中
+            field.name?.let { fieldName ->
+                noCommentFields[fieldName] = field
+            }
+        }
+    }
+
+
+    private fun processKotlinProperty(project: Project, property: KtProperty) {
+        // 检查是否已有相应注解
+        val annotationNames = getAnnotationNames()
+        val hasAnnotation = property.annotationEntries.any { annotation ->
+            val empty = CollUtil.isEmpty(annotationNames)
+            if (empty) {
+                //对于空的已有注解,则认定是自定义注解生成逻辑
+                false
+            } else {
+                val shortName = annotation.shortName
+                val name = shortName?.asString()
+                name in annotationNames
+            }
+        }
+
+        if (!hasAnnotation) {
+            // 获取现有的文档注释
+            val docComment = PsiUtil.guessFieldComment(property)
+
+            if (docComment.isBlank()) {
+                // 创建新的文档注释
+                val factory = KtPsiFactory(project)
+                val newDocComment = factory.createComment(docComment)
+                property.addBefore(newDocComment, property.firstChild)
+            }
+
+            // 将无注释的字段添加到集合中
+            property.name?.let { fieldName ->
+                noCommentFields[fieldName] = property
             }
         }
     }

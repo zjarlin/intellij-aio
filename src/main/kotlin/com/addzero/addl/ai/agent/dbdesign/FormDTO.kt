@@ -38,3 +38,14 @@ data class FieldDTO(
     // fieldChineseName属性，用于表示字段的中文名
     @field:JsonPropertyDescription("字段中文名") var fieldChineseName: String = "",
 )
+
+data class FieldDTOUseDoc(
+    // fieldName属性，用于表示字段的名称
+    @field:JsonPropertyDescription("字段名称") var fieldName: String? = null,
+    // fieldChineseName属性，用于表示字段的中文名
+    @field:JsonPropertyDescription("字段中文名") var fieldChineseName: String = "",
+)
+
+data class FieldDTOUseDocList(
+    @field:JsonPropertyDescription("字段信息集合") var fieldInfo: List<FieldDTOUseDoc> ? = null,
+)

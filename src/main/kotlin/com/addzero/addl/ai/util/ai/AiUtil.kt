@@ -1,12 +1,15 @@
 package com.addzero.addl.ai.util.ai
 
 import cn.hutool.core.util.ReflectUtil
+import com.addzero.addl.ai.agent.dbdesign.FieldDTOUseDocList
 import com.addzero.addl.ai.consts.ChatModels.DASH_SCOPE
 import com.addzero.addl.ai.consts.ChatModels.DeepSeek
 import com.addzero.addl.ai.consts.ChatModels.OLLAMA
 import com.addzero.addl.ai.util.ai.ollama.DashScopeAiUtil
 import com.addzero.addl.ai.util.ai.ollama.DeepSeekAiUtil
 import com.addzero.addl.ai.util.ai.ollama.OllamaAiUtil
+import com.addzero.addl.ktututil.parseObject
+import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.fieldinfo.getSimpleFieldInfoStr
 import java.util.stream.Collectors
@@ -69,7 +72,10 @@ abstract class AiUtil(
 
 
         fun INIT(question: String, promptTemplate: String = ""): AiUtil {
-            val (modelKey, modelManufacturer, modelNameOnline, ollamaUrl, modelNameOffline, temPerature, dbType) = SettingContext.settings
+            val settings = SettingContext.settings
+            val modelManufacturer = settings.modelManufacturer
+            val modelNameOffline = settings.modelNameOffline
+            val modelNameOnline = settings.modelNameOnline
             return when (modelManufacturer) {
                 OLLAMA -> OllamaAiUtil(modelNameOffline, question, promptTemplate)
                 DASH_SCOPE -> DashScopeAiUtil(modelNameOnline, question, promptTemplate)
@@ -106,6 +112,33 @@ abstract class AiUtil(
 $fieldInfosRecursive
 """.trimIndent()
             return prompt
+        }
+
+        fun batchGetComments(noCommentFields: MutableMap<String, Any>): Map<out String?, String>? {
+            val keys = noCommentFields.keys
+            val associate: Map<String, String> = keys.associateWith { it }
+
+            val ask = AiUtil.INIT(
+                keys.toJson(), """
+中括号中的字段名尽可能的推测生成对应的注释信息，字段可能是拼音命名风格,也可能是英文风格,实在推测不出字段什么意思的可以返回空字符串: 
+            """.trimIndent()
+            ).ask(FieldDTOUseDocList::class.java)
+
+            try {
+                val translated = ask.parseObject (FieldDTOUseDocList::class.java)
+
+                val fieldInfo = translated.fieldInfo
+                if (fieldInfo?.isEmpty() == true) {
+                    return null
+                }
+
+                val associate = fieldInfo?.associate { it.fieldName to it.fieldChineseName }
+                return associate
+            } catch (e: Exception) {
+                return associate
+            }
+
+
         }
 
 

@@ -68,7 +68,8 @@ class StructuredOutput : AnAction() {
 
     private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
         val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
-        val (modelKey, modelManufacturer, modelNameOnline, ollamaUrl, modelNameOffline, temPerature, dbType) = SettingContext.settings
+        val settings = SettingContext.settings
+        val modelManufacturer = settings.modelManufacturer
 
         val any = if (ktClass == null) {
             psiClass ?: return ""

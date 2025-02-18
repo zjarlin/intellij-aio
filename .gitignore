@@ -49,3 +49,4 @@ out/
 .kotlin.intellijPlatform/
 .aider*
 .intellijPlatform
+/.kotlin

@@ -1,14 +1,17 @@
 import com.addzero.gradle.utils.MarkdownTranslator
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    kotlin("jvm") version "1.9.22"
-    id("org.jetbrains.intellij.platform") version "2.2.1"
+//    kotlin("jvm") version "1.9.22"
+//    id("org.jetbrains.intellij.platform") version "2.2.1"
     id("org.jetbrains.changelog") version "latest.release"
+
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.intellij)
+
 }
 
 group = "com.addzero"
@@ -56,8 +59,8 @@ intellijPlatform {
             email = "zjarlin@outlook.com"
         }
         ideaVersion {
-            sinceBuild = "223"
-            untilBuild = "243.*"
+            sinceBuild = "232"
+            untilBuild = "262.*"
         }
 
         fun String.ok(): String {
@@ -90,16 +93,6 @@ intellijPlatform {
 }
 
 tasks {
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-    }
-    withType<KotlinCompile> {
-        kotlinOptions {
-            jvmTarget = "17"
-            freeCompilerArgs = listOf("-Xjvm-default=all-compatibility")
-        }
-    }
 
     test {
         systemProperty("idea.home.path", intellijPlatform.sandboxContainer.get().toString())

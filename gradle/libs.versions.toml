@@ -1,4 +1,8 @@
 [versions]
+fastjsonVersion  = "2.0.52" 
+hutool-allVersion  = "5.8.25" 
+pinyin4jVersion  = "2.5.1" 
+tomljVersion  = "1.1.1" 
 kotlin = "2.1.0"
 intellij = "2.2.1"
 lsp4j = "0.23.1"
@@ -10,6 +14,10 @@ antlr = "4.13.2"
 tomlj = "1.1.1"
 
 [libraries]
+com-alibaba-fastjson ={group="com.alibaba",name= "fastjson",version.ref="fastjsonVersion"}
+cn-hutool-hutool-all ={group="cn.hutool",name= "hutool-all",version.ref="hutool-allVersion"}
+com-belerweb-pinyin4j ={group="com.belerweb",name= "pinyin4j",version.ref="pinyin4jVersion"}
+org-tomlj-tomlj ={group="org.tomlj",name= "tomlj",version.ref="tomljVersion"}
 lsp4j = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j", version.ref = "lsp4j" }
 jimmer-dtoCompiler = { module = "org.babyfish.jimmer:jimmer-dto-compiler", version.ref = "jimmer" }
 jimmer-core = { module = "org.babyfish.jimmer:jimmer-core", version.ref = "jimmer" }

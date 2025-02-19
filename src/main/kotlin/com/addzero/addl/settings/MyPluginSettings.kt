@@ -118,7 +118,6 @@ data class MyPluginSettings(
     ) @JvmField var swaggerAnnotation: String = Swagger3Anno,
 
 
-
     @ConfigField(
         label = "excel意图注解(默认fastexcel/easyexcel)",
 //        , type = FieldType.TEXT

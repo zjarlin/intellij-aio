@@ -1,54 +1,48 @@
+
 import com.addzero.gradle.utils.MarkdownTranslator
 import org.jetbrains.changelog.markdownToHTML
-import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-//    kotlin("jvm") version "1.9.22"
-//    id("org.jetbrains.intellij.platform") version "2.2.1"
+//    java
     id("org.jetbrains.changelog") version "latest.release"
 
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij)
-
 }
-
 group = "com.addzero"
 version = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
 
-val sinceVersion by extra("2022.3")
 repositories {
     mavenCentral()
     intellijPlatform {
+        releases()
+        marketplace()
         defaultRepositories()
     }
-    mavenLocal()
-    maven { url = uri("https://maven.aliyun.com/repository/public/") }
-    maven { url = uri("https://mirrors.huaweicloud.com/repository/maven/") }
 }
 
-val type = "IC"
 dependencies {
     intellijPlatform {
-        create(type, sinceVersion)
+//        create("IC", "2024.2.5")
+        intellijIdeaCommunity("2024.2.5")
+//        intellijIdeaUltimate("2023.2")
+        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugins(
             "com.intellij.java", "org.jetbrains.kotlin"
 //            , "org.intellij.groovy"  // Correct Groovy plugin ID
         )
-        testFramework(TestFrameworkType.Platform)
+
     }
-    implementation("org.tomlj:tomlj:1.1.1")
 
-    implementation("com.belerweb:pinyin4j:2.5.1")
-    implementation("cn.hutool:hutool-all:5.8.25")
-    implementation("com.alibaba:fastjson:2.0.52")
+    implementation(libs.org.tomlj.tomlj)
+    implementation(libs.com.belerweb.pinyin4j)
+    implementation(libs.cn.hutool.hutool.all)
+    implementation(libs.com.alibaba.fastjson)
+
+
 }
-
-// 确保在构建前编译主项目
-//tasks.named("buildPlugin") {
-//    dependsOn("classes")
-//}
 
 intellijPlatform {
     pluginConfiguration {
@@ -58,14 +52,15 @@ intellijPlatform {
             name = "zjarlin"
             email = "zjarlin@outlook.com"
         }
-        ideaVersion {
-            sinceBuild = "232"
-            untilBuild = "262.*"
-        }
+//        ideaVersion {
+//            sinceBuild = "232"
+//            untilBuild = "262.*"
+//        }
 
         fun String.ok(): String {
             val run = File(projectDir, this).readText().run {
-                val apiKey = System.getenv("DASHSCOPE_API_KEY") ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
+                val apiKey = System.getenv("DASHSCOPE_API_KEY")
+                    ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
                 val translatedContent = MarkdownTranslator.translateAndAppend(this, apiKey)
                 markdownToHTML(translatedContent)
             }
@@ -74,27 +69,50 @@ intellijPlatform {
 
         description = "README.md".ok()
         changeNotes = "CHANGELOG.md".ok()
-    }
-    pluginVerification {
-        ides {
-            ide(type, sinceVersion)
-        }
-    }
 
-    publishing {
-        token = System.getenv("PUBLISH_TOKEN")
-        channels.add("Stable")
+
     }
-    signing {
-        certificateChain = System.getenv("CERTIFICATE_CHAIN")
-        privateKey = System.getenv("PRIVATE_KEY")
-        password = System.getenv("PRIVATE_KEY_PASSWORD")
-    }
+//    pluginVerification {
+//        ides {
+//            ide(type, sinceVersion)
+//        }
+//    }
+
+//    publishing {
+//        token = System.getenv("PUBLISH_TOKEN")
+//        channels.add("Stable")
+//    }
+//    signing {
+//        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+//        privateKey = System.getenv("PRIVATE_KEY")
+//        password = System.getenv("PRIVATE_KEY_PASSWORD")
+//    }
 }
 
 tasks {
+    // Set the JVM compatibility versions
+    withType<JavaCompile> {
+        sourceCompatibility = "21"
+        targetCompatibility = "21"
+    }
+    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+        kotlinOptions.jvmTarget = "21"
+    }
 
-    test {
-        systemProperty("idea.home.path", intellijPlatform.sandboxContainer.get().toString())
+
+
+    patchPluginXml {
+        sinceBuild.set("232")
+        untilBuild.set("262.*")
+    }
+
+    signPlugin {
+        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
+        privateKey.set(System.getenv("PRIVATE_KEY"))
+        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+    }
+
+    publishPlugin {
+        token.set(System.getenv("PUBLISH_TOKEN"))
     }
 }

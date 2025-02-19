@@ -50,14 +50,14 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
-        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>
+<!--        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>-->
 
         <!-- 添加gradle转versioncatalog操作 intention -->
         <intentionAction>
             <language>kotlin</language>
             <className>com.github.zjarlin.autoddl.intention.ConvertToVersionCatalogIntention</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>
+<!--            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>-->
         </intentionAction>
 
         <!-- 添加字段注释生成枚举类的意图动作 -->
@@ -65,7 +65,7 @@
             <language>kotlin</language>
             <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>
+<!--            <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>-->
         </intentionAction>
 
         <!--        swagger意图-->
@@ -82,7 +82,6 @@
             <language>JAVA</language>
             <className>com.github.zjarlin.autoddl.intention.swagger.AddSwaggerAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>
         </intentionAction>
 
 
@@ -100,7 +99,7 @@
             <language>JAVA</language>
             <className>com.github.zjarlin.autoddl.intention.custom.AddCusTomAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>
+<!--            <descriptionDirectoryName>AddSwaggerAnnotationJavaAction</descriptionDirectoryName>-->
         </intentionAction>
 
 
@@ -111,7 +110,7 @@
             <language>kotlin</language>
             <className>com.github.zjarlin.autoddl.intention.excel.AddExcelPropertyAnnotationAction</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>AddExcelPropertyAnnotationAction</descriptionDirectoryName>
+<!--            <descriptionDirectoryName>AddExcelPropertyAnnotationAction</descriptionDirectoryName>-->
         </intentionAction>
 
 
@@ -119,7 +118,7 @@
             <language>JAVA</language>
             <className>com.github.zjarlin.autoddl.intention.excel.AddExcelPropertyAnnotationJavaAction</className>
             <category>Java/Kotlin</category>
-            <descriptionDirectoryName>AddExcelPropertyAnnotationJavaAction</descriptionDirectoryName>
+<!--            <descriptionDirectoryName>AddExcelPropertyAnnotationJavaAction</descriptionDirectoryName>-->
         </intentionAction>
 
 
@@ -159,36 +158,28 @@
 
     <actions>
         <!-- 主菜单 -->
-        <action id="AutoDDL" class="com.addzero.addl.AutoDDL" text="AutoDDL" description="AutoDDL">
+        <action id="AutoDDL" class="com.addzero.addl.AutoDDL">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
         </action>
 
         <!-- 生成菜单组 -->
-        <group id="AutoDDL.GenerateGroup" text="AutoDDL Generate" popup="true">
+        <group id="AutoDDL.GenerateGroup" popup="true">
             <add-to-group group-id="GenerateGroup" anchor="first"/>
             <!--            <add-to-group group-id="EditorPopupMenu" anchor="first"/>-->
             <action id="GenDDL"
-                    class="com.addzero.addl.action.GenDDL"
-                    text="GenDDL"
-                    description="GenDDL">
+                    class="com.addzero.addl.action.GenDDL">
                 <!--                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>-->
             </action>
 
 
             <action id="GenJimmerDTO"
-                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"
-                    text="GenJimmerDTO"
-                    description="GenJimmerDTO"/>
+                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"/>
 
             <action id="GenController"
-                    class="com.addzero.addl.action.anycodegen.impl.GenController"
-                    text="GenController"
-                    description="GenController"/>
+                    class="com.addzero.addl.action.anycodegen.impl.GenController"/>
 
             <action id="GenExcelDTO"
-                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"
-                    text="GenExcelDTO"
-                    description="GenExcelDTO"/>
+                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"/>
 
             <!--            <action id="GenStructuredOutput"-->
             <!--                    class="StructuredOutput"-->
@@ -211,4 +202,5 @@
         <!--                    description="Generate enum classes from dictionary tables"/>-->
         <!--        </group>-->
     </actions>
+    <resource-bundle>application</resource-bundle>
 </idea-plugin>

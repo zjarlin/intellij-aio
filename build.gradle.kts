@@ -57,8 +57,18 @@ intellijPlatform {
 //            untilBuild = "262.*"
 //        }
 
-        description = File(projectDir, "README.md").readText().let { markdownToHTML(it) }
-        changeNotes = File(projectDir, "CHANGELOG.md").readText().let { markdownToHTML(it) }
+        fun String.ok(): String {
+            val run = File(projectDir, this).readText().run {
+                val apiKey = System.getenv("DASHSCOPE_API_KEY")
+                    ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
+                val translatedContent = MarkdownTranslator.translateAndAppend(this, apiKey)
+                markdownToHTML(translatedContent)
+            }
+            return run
+        }
+
+        description = "README.md".ok()
+        changeNotes = "CHANGELOG.md".ok()
 
 
     }
@@ -104,17 +114,5 @@ tasks {
 
     publishPlugin {
         token.set(System.getenv("PUBLISH_TOKEN"))
-        doFirst {
-            val apiKey = System.getenv("DASHSCOPE_API_KEY") ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
-            val readmeContent = File(projectDir, "README.md").readText()
-            val translatedReadme = MarkdownTranslator.translateAndAppend(readmeContent, apiKey)
-            val changelogContent = File(projectDir, "CHANGELOG.md").readText()
-            val translatedChangelog = MarkdownTranslator.translateAndAppend(changelogContent, apiKey)
-            
-            intellijPlatform.pluginConfiguration {
-                description = markdownToHTML(translatedReadme)
-                changeNotes = markdownToHTML(translatedChangelog)
-            }
-        }
     }
 }

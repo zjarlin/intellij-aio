@@ -10,6 +10,7 @@ class GenJimmerDTO : AbsGen() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
+
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
 
         val filter = javaFieldMetaInfos?.filter {

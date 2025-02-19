@@ -1,4 +1,4 @@
-package com.github.zjarlin.autoddl.util.versioncatlogutil
+package com.addzero.addl.util.catalogutil
 
 import cn.hutool.core.io.FileUtil
 import com.addzero.common.kt_util.isBlank
@@ -26,7 +26,7 @@ object VersionCatalogPsiUtil {
 
     fun getVersionCatalog(project: Project): File {
         val basePath = project.basePath
-        var libsVersionsFile = VersionCatalogPsiUtil.getLibsVersionsTomlFile(project)
+        var libsVersionsFile = getLibsVersionsTomlFile(project)
         if (libsVersionsFile == null) {
             val gradleDir = basePath?.let { File(it, "gradle") }
             gradleDir?.mkdirs()

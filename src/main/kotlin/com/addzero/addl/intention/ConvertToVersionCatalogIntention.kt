@@ -1,17 +1,15 @@
-package com.github.zjarlin.autoddl.intention
+package com.addzero.addl.intention
 
 //import org.tomlj.Toml
 //import org.tomlj.TomlParseResult
-import cn.hutool.core.io.FileUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.util.DialogUtil
+import com.addzero.addl.util.catalogutil.*
 import com.addzero.addl.util.removeAnyQuote
 import com.addzero.common.kt_util.isNotBlank
-import com.github.zjarlin.autoddl.util.versioncatlogutil.*
-import com.github.zjarlin.autoddl.util.versioncatlogutil.VersionCatalogPsiUtil.wrightToToml
+import com.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project

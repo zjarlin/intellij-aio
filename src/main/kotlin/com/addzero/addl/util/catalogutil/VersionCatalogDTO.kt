@@ -1,4 +1,4 @@
-package com.github.zjarlin.autoddl.util.versioncatlogutil
+package com.addzero.addl.util.catalogutil
 
 data class VersionCatalogDTO(
     val versions: List<VersionEntry>?,

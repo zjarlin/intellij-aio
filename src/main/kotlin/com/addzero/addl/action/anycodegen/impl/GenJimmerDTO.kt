@@ -4,8 +4,10 @@ import com.addzero.addl.action.anycodegen.AbsGen
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.autoddlstarter.generator.filterBaseEntity
 import com.addzero.addl.ktututil.toCamelCase
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 
 class GenJimmerDTO : AbsGen() {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo

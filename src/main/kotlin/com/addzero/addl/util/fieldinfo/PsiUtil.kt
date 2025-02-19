@@ -14,6 +14,7 @@ import com.addzero.addl.util.kt_util.isStatic
 import com.addzero.common.kt_util.isBlank
 import com.addzero.common.kt_util.isNotBlank
 import com.intellij.ide.highlighter.JavaFileType
+import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -26,6 +27,7 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
@@ -37,6 +39,14 @@ private const val NOCOMMENT = ""
 
 object PsiUtil {
 
+    fun getCurrentPsiElement(
+        editor: Editor?, file: PsiFile?
+    ): PsiElement? {
+        if (editor == null || file == null) return null
+        val offset = editor.caretModel.offset
+        val element = file.findElementAt(offset)
+        return element
+    }
 
     fun getQualifiedClassName(psiFile: PsiFile): String? {
         val fileNameWithoutExtension = psiFile.virtualFile.nameWithoutExtension
@@ -74,9 +84,7 @@ object PsiUtil {
     }
 
 
-
-
-     fun addComment(project: Project, field: PsiField) {
+    fun addComment(project: Project, field: PsiField) {
         // 创建新的文档注释
         val factory = PsiElementFactory.getInstance(project)
         val newDocComment = factory.createDocCommentFromText("/** */")
@@ -121,6 +129,7 @@ object PsiUtil {
                         .map { it.getArgumentExpression()?.text }.firstOrNull()
                     des
                 }
+
                 else -> {
                     null
                 }
@@ -184,7 +193,9 @@ object PsiUtil {
                     annotation.findAttributeValue("name")?.text
                 }
 
-                else -> {null}
+                else -> {
+                    null
+                }
             }
             if (des.isNotBlank()) {
                 return des?.removeAnyQuote() ?: ""
@@ -606,6 +617,47 @@ object PsiUtil {
             }
         }
         return TODO("提供返回值")
+    }
+
+    fun isJavaPojo(
+        element: PsiElement?
+    ): Boolean {
+        val psiClass = PsiTreeUtil.getParentOfType(element, PsiClass::class.java)
+        val b = psiClass != null && PsiValidateUtil.isValidTarget(null, psiClass).first
+        return b
+    }
+
+    fun isJavaPojo(
+        editor: Editor?, file: PsiFile?
+    ): Boolean {
+        val element = getCurrentPsiElement(editor, file)
+        val javaPojo = isJavaPojo(element)
+        val b1 = file?.language is JavaLanguage
+        return javaPojo && b1
+    }
+
+
+    fun isKotlinPojo(
+        element: PsiElement?
+    ): Boolean {
+        // 检查是否为Kotlin文件
+        val ktClass = PsiTreeUtil.getParentOfType(element, KtClass::class.java)
+        if (ktClass != null) {
+            val first = PsiValidateUtil.isValidTarget(ktClass, null).first
+            return first
+        }
+        return false
+    }
+
+
+    fun isKotlinPojo(
+        editor: Editor?, file: PsiFile?
+    ): Boolean {
+        // 检查是否为Kotlin文件
+        val element = getCurrentPsiElement(editor, file)
+        val kotlinPojo = isKotlinPojo(element)
+        val b = file?.language is KotlinLanguage
+        return kotlinPojo && b
     }
 
 

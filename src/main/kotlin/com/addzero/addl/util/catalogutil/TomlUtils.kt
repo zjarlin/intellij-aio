@@ -1,4 +1,4 @@
-package com.github.zjarlin.autoddl.util.versioncatlogutil
+package com.addzero.addl.util.catalogutil
 
 import cn.hutool.core.io.FileUtil
 import org.tomlj.Toml

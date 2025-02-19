@@ -9,14 +9,16 @@ import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaM
 import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.PsiValidateUtil
 import com.addzero.addl.util.ShowContentUtil
+import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 
 
 class GenDDL : AnAction() {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val project = e.project

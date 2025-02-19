@@ -1,20 +1,15 @@
 package com.addzero.addl.action.anycodegen
 
 import cn.hutool.core.io.FileUtil
-import cn.hutool.core.util.ClassUtil.getPackagePath
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.util.*
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.addzero.common.kt_util.addSuffixIfNot
-import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiNameHelper.getQualifiedClassName
-import org.jetbrains.kotlin.psi.KtFile
 
 fun main() {
     "com.addzero.addl.action.anycodegen.AbsGen".let {
@@ -23,8 +18,6 @@ fun main() {
 
     }
 }
-
-
 
 
 abstract class AbsGen : AnAction() {

@@ -9,6 +9,8 @@ import com.addzero.addl.settings.SettingContext
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 
 class GenController : AbsGen() {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
         val toCamelCase = classname?.toCamelCase()
@@ -33,8 +35,8 @@ class ${classname}Controller(
 }
  
         """.trimIndent()
-        if (SettingContext.settings.controllerStyle== "INHERITANCE") {
-            return  trimIndent
+        if (SettingContext.settings.controllerStyle == "INHERITANCE") {
+            return trimIndent
         }
 
         return """

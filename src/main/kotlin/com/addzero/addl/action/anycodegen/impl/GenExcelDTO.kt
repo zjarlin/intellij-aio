@@ -6,13 +6,12 @@ import com.addzero.addl.autoddlstarter.generator.filterBaseEntity
 import com.addzero.addl.ktututil.toCamelCase
 import com.addzero.addl.ktututil.toUnderlineCase
 import java.util.*
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 
 private const val EXCEL_READ_DTO = """ExcelDTO"""
 
 class GenExcelDTO : AbsGen() {
-
-//    override val pdir: String
-//        get() = "dto"
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun genCode4Java(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo

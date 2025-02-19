@@ -1,4 +1,4 @@
-package com.github.zjarlin.autoddl.intention.psipropertyutil
+package com.addzero.addl.intention.psipropertyutil
 
 import cn.hutool.core.util.StrUtil
 import com.intellij.openapi.project.Project

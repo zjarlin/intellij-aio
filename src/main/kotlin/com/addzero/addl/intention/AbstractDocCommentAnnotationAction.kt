@@ -1,16 +1,20 @@
-package com.github.zjarlin.autoddl.intention
+package com.addzero.addl.intention
 
 import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.ai.util.ai.AiUtil
-import com.addzero.addl.util.PsiValidateUtil
+import com.addzero.addl.intention.psipropertyutil.PsiPropertyUtil.addPsiJavaAnnotation
+import com.addzero.addl.intention.psipropertyutil.PsiPropertyUtil.cleanDocComment
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.addPsiJavaAnnotation
-import com.github.zjarlin.autoddl.intention.psipropertyutil.PsiPropertyUtil.cleanDocComment
+import com.addzero.addl.util.fieldinfo.PsiUtil.getCurrentPsiElement
+import com.addzero.addl.util.fieldinfo.PsiUtil.isJavaPojo
+import com.addzero.addl.util.fieldinfo.PsiUtil.isKotlinPojo
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
-import com.intellij.psi.*
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiFile
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtClass
@@ -25,20 +29,14 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     override fun getFamilyName() = text
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile?): Boolean {
-        if (editor == null || file == null) return false
-        val offset = editor.caretModel.offset
-        val element = file.findElementAt(offset)
-
-        // 检查是否为Kotlin文件
-        val ktClass = PsiTreeUtil.getParentOfType(element, KtClass::class.java)
-        if (ktClass != null) {
-            return PsiValidateUtil.isValidTarget(ktClass, null).first
-        }
-
+        val element =getCurrentPsiElement(editor, file)
+        val kotlinPojo = isKotlinPojo(element)
         // 检查是否为Java文件
-        val psiClass = PsiTreeUtil.getParentOfType(element, PsiClass::class.java)
-        return psiClass != null && PsiValidateUtil.isValidTarget(null, psiClass).first
+        val javaPojo = isJavaPojo(element)
+        return javaPojo||kotlinPojo
     }
+
+
 
     override fun startInWriteAction() = true
 
@@ -133,7 +131,7 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
                 field.name?.let { fieldName ->
                     noCommentFields[fieldName] = field
                 }
-                
+
             }
 
         }

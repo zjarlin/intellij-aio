@@ -1,58 +1,16 @@
-<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
     <id>com.addzero.autoddl</id>
 
-    <!-- Public plugin name should be written in Title Case.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
     <name>AutoDDL</name>
-    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin/autoddl-idea-plugin.git">zjarlin</vendor>
 
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
-    <!-- 更新日志，显示在插件详情页的 "What's New" 部分 -->
-
-
-    <!--    <change-notes><![CDATA[-->
-    <!--]]></change-notes>-->
-
-
-    <!--    <description><![CDATA[-->
-    <!--<ul>-->
-    <!--    <include src="DES.md" />-->
-    <!--    <include src="DES.en.md" />-->
-
-    <!--</ul>-->
-
-    <!--  ]]></description>-->
-
-    <!-- Product and plugin compatibility requirements.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
-    <!--    <depends>com.intellij.database</depends>-->
-
-
-    <!--    <depends>com.intellij.java</depends>-->
-    <!--    <depends>org.jetbrains.kotlin</depends>-->
-
-    <!--    <depends>com.intellij.modules.all</depends>-->
-
-    <!-- Extension points defined by the plugin.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
-    <!--    <extensions defaultExtensionNs="com.intellij">-->
-    <!--        <projectConfigurable instance="com.addzero.addl.settings.MyPluginSettingsConfigurable" displayName="AutoDDL设置"/>-->
-    <!--    </extensions>-->
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
-<!--        <errorHandler implementation="com.addzero.addl.error.GlobalErrorReporter"/>-->
-
-        <!-- 添加gradle转versioncatalog操作 intention -->
         <intentionAction>
             <language>kotlin</language>
             <className>com.github.zjarlin.autoddl.intention.ConvertToVersionCatalogIntention</className>

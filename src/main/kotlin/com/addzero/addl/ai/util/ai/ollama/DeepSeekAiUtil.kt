@@ -11,18 +11,13 @@ import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
 import com.addzero.common.kt_util.addPrefixIfNot
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-
+import com.alibaba.fastjson.JSON
 
 
 // 声明两个子类
 class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String = "") : AiUtil(modelName, question, promptTemplate) {
 
     val settings = SettingContext.settings
-//    private val url: String? = settings.ollamaUrl
-//    private val model: String? = settings.modelNameOffline
-
-
 
     data class DeepSeekRequest(
         val messages: List<Message>,
@@ -56,31 +51,24 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
             .execute() // 执行请求
         val body = response.body()
 
-        // 创建 ObjectMapper 实例
-        val mapper = jacksonObjectMapper()
-
-        // 解析 JSON
-        val rootNode = mapper.readTree(body)
-        val content =
-
-        try {// 提取 content 字段
-            rootNode["choices"][0]["message"]["content"].asText()
+        try {
+            // 使用FastJson解析响应
+            val jsonObject = JSON.parseObject(body)
+            val string = jsonObject.getJSONArray("choices")
+                ?.getJSONObject(0)
+                ?.getJSONObject("message")
+                ?.getString("content")
+            return string
         } catch (e: Exception) {
             return null
         }
-
-        return content
     }
 
 
     override fun ask(clazz: Class<*>): String {
         val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(question, promptTemplate, clazz)
-//        val format = StrUtil.format(newPrompt, quesCtx)
-//        val askqwen = askollama(question, format)
-
         val ask = ask(newPrompt, quesCtx)
         return ask
-
     }
 
     override fun ask(json: String, comment: String): String {

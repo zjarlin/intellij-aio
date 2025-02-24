@@ -6,7 +6,8 @@ import java.time.format.DateTimeFormatter
 
 plugins {
 //    java
-    id("org.jetbrains.changelog") version "latest.release"
+//    id("org.jetbrains.changelog") version "latest.release"
+    id("org.jetbrains.changelog") version "+"
 
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij)
@@ -59,9 +60,7 @@ intellijPlatform {
 
         fun String.ok(): String {
             val run = File(projectDir, this).readText().run {
-                val apiKey = System.getenv("DASHSCOPE_API_KEY")
-                    ?: throw IllegalStateException("DASHSCOPE_API_KEY environment variable is not set")
-                val translatedContent = MarkdownTranslator.translateAndAppend(this, apiKey)
+                val translatedContent = MarkdownTranslator.translateAndAppend(this)
                 markdownToHTML(translatedContent)
             }
             return run

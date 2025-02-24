@@ -218,6 +218,7 @@ object DictTemplateUtil {
                 companion object {
                     @JsonCreator
                     fun fromCode(code: String?): $enumName? = values().find { it.code == code }
+                    fun fromDesc(desc: String?): $enumName? = values().find { it.desc == desc }
                 }
             }
         """.trimIndent()

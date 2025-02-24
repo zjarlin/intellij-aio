@@ -12,11 +12,23 @@ import com.intellij.codeInsight.intention.IntentionManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 
+
 class AddActionAndIntentions : ProjectActivity {
 //    override fun runActivity(project: Project) {
 //    }
 
     override suspend fun execute(project: Project) {
+
+//        val intentionBaseClass = JavaPsiFacade.getInstance(project)
+//            .findClass("com.intellij.codeInsight.intention.IntentionAction", GlobalSearchScope.allScope(project))
+//        intentionBaseClass ?: return
+//        val toList =
+//            ClassInheritorsSearch.search(intentionBaseClass, ProjectScope.getContentScope(project), false, false, false)
+//                .toList()
+//        println()
+
+
+
         registerIntentions()
 //        registerActions()
 
@@ -41,6 +53,9 @@ private fun registerIntentions() {
     intentionManager.addAction(AddExcelPropertyAnnotationAction())
     intentionManager.addAction(AddCusTomAnnotationAction())
     intentionManager.addAction(ConvertToVersionCatalogIntention())
+//    intentionManager.addAction(KotlinLambdaIntentionAction())
+
+
 //    intentionManager.addAction(GenEnumByFieldCommentIntention())
 }
 

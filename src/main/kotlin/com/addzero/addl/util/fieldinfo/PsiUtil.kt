@@ -38,10 +38,6 @@ private const val NOCOMMENT = ""
 
 
 object PsiUtil {
-
-
-
-
     fun getCurrentPsiElement(
         editor: Editor?, file: PsiFile?
     ): PsiElement? {

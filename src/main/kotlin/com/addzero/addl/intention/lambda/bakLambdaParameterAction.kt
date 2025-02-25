@@ -4,9 +4,11 @@
 //import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 //import com.intellij.openapi.editor.Editor
 //import com.intellij.openapi.project.Project
-//import com.intellij.psi.util.PsiTreeUtil
 //import com.intellij.openapi.ui.Messages
-//import com.intellij.psi.*
+//import com.intellij.psi.PsiClassType
+//import com.intellij.psi.PsiElement
+//import com.intellij.psi.PsiLambdaExpression
+//import com.intellij.psi.util.PsiTreeUtil
 //
 //class LambdaParameterIntentionAction : PsiElementBaseIntentionAction(), IntentionAction {
 //

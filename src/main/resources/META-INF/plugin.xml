@@ -13,20 +13,20 @@
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
 
 
-<!--        <intentionAction>-->
-<!--            <language>kotlin</language>-->
-<!--            <className>com.addzero.addl.intention.ConvertToVersionCatalogIntention</className>-->
-<!--            <category>Java/Kotlin</category>-->
-<!--&lt;!&ndash;            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>&ndash;&gt;-->
-<!--        </intentionAction>-->
+        <!--        <intentionAction>-->
+        <!--            <language>kotlin</language>-->
+        <!--            <className>com.addzero.addl.intention.ConvertToVersionCatalogIntention</className>-->
+        <!--            <category>Java/Kotlin</category>-->
+        <!--&lt;!&ndash;            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>&ndash;&gt;-->
+        <!--        </intentionAction>-->
 
         <!-- 添加字段注释生成枚举类的意图动作 -->
-<!--        <intentionAction>-->
-<!--            <language>kotlin</language>-->
-<!--            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>-->
-<!--            <category>Java/Kotlin</category>-->
-<!--&lt;!&ndash;            <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>&ndash;&gt;-->
-<!--        </intentionAction>-->
+        <!--        <intentionAction>-->
+        <!--            <language>kotlin</language>-->
+        <!--            <className>com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention</className>-->
+        <!--            <category>Java/Kotlin</category>-->
+        <!--&lt;!&ndash;            <descriptionDirectoryName>GenKotlinEnum</descriptionDirectoryName>&ndash;&gt;-->
+        <!--        </intentionAction>-->
 
         <!--        swagger意图-->
 
@@ -64,56 +64,63 @@
         <!--                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>-->
     </extensions>
 
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <!--   <extensions defaultExtensionNs="org.jetbrains.kotlin">-->
+    <!--    <supportsKotlinPluginMode supportsK1="false" supportsK2="true" />-->
+    <!--</extensions> -->
     <!--    <extensions defaultExtensionNs="com.intellij">-->
     <!--        <applicationService serviceImplementation="com.addzero.addl.his.HistoryService"/>-->
     <!--    </extensions>-->
 
-<!--    <actions>-->
-<!--        &lt;!&ndash; 主菜单 &ndash;&gt;-->
-<!--        <action id="AutoDDL" class="com.addzero.addl.AutoDDL">-->
-<!--            <add-to-group group-id="ToolsMenu" anchor="first"/>-->
-<!--        </action>-->
+    <!--    <actions>-->
+    <!--        &lt;!&ndash; 主菜单 &ndash;&gt;-->
+    <!--        <action id="AutoDDL" class="com.addzero.addl.AutoDDL">-->
+    <!--            <add-to-group group-id="ToolsMenu" anchor="first"/>-->
+    <!--        </action>-->
 
-<!--        &lt;!&ndash; 生成菜单组 &ndash;&gt;-->
-<!--        <group id="AutoDDL.GenerateGroup" popup="true">-->
-<!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
-<!--            &lt;!&ndash;            <add-to-group group-id="EditorPopupMenu" anchor="first"/>&ndash;&gt;-->
-<!--            <action id="GenDDL"-->
-<!--                    class="com.addzero.addl.action.GenDDL">-->
-<!--                &lt;!&ndash;                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>&ndash;&gt;-->
-<!--            </action>-->
+    <!--        &lt;!&ndash; 生成菜单组 &ndash;&gt;-->
+    <!--        <group id="AutoDDL.GenerateGroup" popup="true">-->
+    <!--            <add-to-group group-id="GenerateGroup" anchor="first"/>-->
+    <!--            &lt;!&ndash;            <add-to-group group-id="EditorPopupMenu" anchor="first"/>&ndash;&gt;-->
+    <!--            <action id="GenDDL"-->
+    <!--                    class="com.addzero.addl.action.GenDDL">-->
+    <!--                &lt;!&ndash;                <keyboard-shortcut keymap="$default" first-keystroke="ctrl ENTER"/>&ndash;&gt;-->
+    <!--            </action>-->
 
 
-<!--            <action id="GenJimmerDTO"-->
-<!--                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"/>-->
+    <!--            <action id="GenJimmerDTO"-->
+    <!--                    class="com.addzero.addl.action.anycodegen.impl.GenJimmerDTO"/>-->
 
-<!--            <action id="GenController"-->
-<!--                    class="com.addzero.addl.action.anycodegen.impl.GenController"/>-->
+    <!--            <action id="GenController"-->
+    <!--                    class="com.addzero.addl.action.anycodegen.impl.GenController"/>-->
 
-<!--            <action id="GenExcelDTO"-->
-<!--                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"/>-->
+    <!--            <action id="GenExcelDTO"-->
+    <!--                    class="com.addzero.addl.action.anycodegen.impl.GenExcelDTO"/>-->
 
-<!--            &lt;!&ndash;            <action id="GenStructuredOutput"&ndash;&gt;-->
-<!--            &lt;!&ndash;                    class="StructuredOutput"&ndash;&gt;-->
-<!--            &lt;!&ndash;                    text="GenStructuredOutput"&ndash;&gt;-->
-<!--            &lt;!&ndash;                    description="GenStructuredOutput"/>&ndash;&gt;-->
-<!--        </group>-->
+    <!--            &lt;!&ndash;            <action id="GenStructuredOutput"&ndash;&gt;-->
+    <!--            &lt;!&ndash;                    class="StructuredOutput"&ndash;&gt;-->
+    <!--            &lt;!&ndash;                    text="GenStructuredOutput"&ndash;&gt;-->
+    <!--            &lt;!&ndash;                    description="GenStructuredOutput"/>&ndash;&gt;-->
+    <!--        </group>-->
 
-<!--        &lt;!&ndash; 数据库视图菜单组 &ndash;&gt;-->
-<!--        &lt;!&ndash;        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">&ndash;&gt;-->
-<!--        &lt;!&ndash;            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>&ndash;&gt;-->
+    <!--        &lt;!&ndash; 数据库视图菜单组 &ndash;&gt;-->
+    <!--        &lt;!&ndash;        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">&ndash;&gt;-->
+    <!--        &lt;!&ndash;            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>&ndash;&gt;-->
 
-<!--        &lt;!&ndash;            <action id="AutoDDL.WithDB.Generate"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    text="Entities DDL Generator"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    description="Generate and sync database tables from entity package"/>&ndash;&gt;-->
+    <!--        &lt;!&ndash;            <action id="AutoDDL.WithDB.Generate"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    text="Entities DDL Generator"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    description="Generate and sync database tables from entity package"/>&ndash;&gt;-->
 
-<!--        &lt;!&ndash;            <action id="DictEnum.Generate"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    text="Enums Generator"&ndash;&gt;-->
-<!--        &lt;!&ndash;                    description="Generate enum classes from dictionary tables"/>&ndash;&gt;-->
-<!--        &lt;!&ndash;        </group>&ndash;&gt;-->
-<!--    </actions>-->
+    <!--        &lt;!&ndash;            <action id="DictEnum.Generate"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    text="Enums Generator"&ndash;&gt;-->
+    <!--        &lt;!&ndash;                    description="Generate enum classes from dictionary tables"/>&ndash;&gt;-->
+    <!--        &lt;!&ndash;        </group>&ndash;&gt;-->
+    <!--    </actions>-->
 
     <actions>
         <!-- 主菜单 -->
@@ -161,8 +168,6 @@
         <!--                    description="Generate enum classes from dictionary tables"/>-->
         <!--        </group>-->
     </actions>
-
-
 
 
     <resource-bundle>application</resource-bundle>

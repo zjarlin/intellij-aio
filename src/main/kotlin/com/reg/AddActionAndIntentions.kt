@@ -2,6 +2,7 @@ package com.reg
 
 import com.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention
 import com.addzero.addl.intention.ConvertToVersionCatalogIntention
+//import com.addzero.addl.intention.RemoveShitCodeIntention
 import com.addzero.addl.intention.custom.AddCusTomAnnotationAction
 import com.addzero.addl.intention.custom.AddCusTomAnnotationJavaAction
 import com.addzero.addl.intention.excel.AddExcelPropertyAnnotationAction
@@ -53,6 +54,8 @@ private fun registerIntentions() {
     intentionManager.addAction(AddExcelPropertyAnnotationAction())
     intentionManager.addAction(AddCusTomAnnotationAction())
     intentionManager.addAction(ConvertToVersionCatalogIntention())
+
+//    intentionManager.addAction(RemoveShitCodeIntention())
 //    intentionManager.addAction(KotlinLambdaIntentionAction())
 
 

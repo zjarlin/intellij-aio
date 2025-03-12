@@ -12,13 +12,20 @@
         <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="com.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
 
+        <!-- 注册垃圾代码工具窗口 -->
+        <toolWindow id="ShitCode"
+                    anchor="right"
+                    factoryClass="com.addzero.addl.toolwindow.ShitCodeToolWindow"
+                    icon="AllIcons.General.Remove"
+                    secondary="false"
+                    order="last"/>
 
-        <!--        <intentionAction>-->
-        <!--            <language>kotlin</language>-->
-        <!--            <className>com.addzero.addl.intention.ConvertToVersionCatalogIntention</className>-->
-        <!--            <category>Java/Kotlin</category>-->
-        <!--&lt;!&ndash;            <descriptionDirectoryName>ConvertToVersionCatalog</descriptionDirectoryName>&ndash;&gt;-->
-        <!--        </intentionAction>-->
+
+<!--        <intentionAction>-->
+<!--            <language>kotlin</language>-->
+<!--            <className>com.addzero.addl.intention.RemoveShitCodeIntention</className>-->
+<!--            <category>Java/Kotlin</category>-->
+<!--        </intentionAction>-->
 
         <!-- 添加字段注释生成枚举类的意图动作 -->
         <!--        <intentionAction>-->

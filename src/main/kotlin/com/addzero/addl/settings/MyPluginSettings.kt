@@ -131,4 +131,11 @@ data class MyPluginSettings(
         group = "intention", type = FieldType.TEXT, order = 3
     ) @JvmField var customAnnotation: String = CustomAnno,
 
+    @ConfigField(
+        label = "垃圾代码注解",
+        group = "intention",
+        type = FieldType.TEXT,
+        order = 4
+    ) @JvmField var shitAnnotation: String = "Shit",
+
     )

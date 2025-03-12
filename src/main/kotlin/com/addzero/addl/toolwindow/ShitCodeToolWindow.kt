@@ -2,15 +2,15 @@ package com.addzero.addl.toolwindow
 
 import com.addzero.addl.settings.SettingContext
 import com.intellij.icons.AllIcons
-import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.psi.*
-import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.NavigatablePsiElement
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.ui.components.JBScrollPane
@@ -136,8 +136,7 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         val psiManager = PsiManager.getInstance(project)
 
         ApplicationManager.getApplication().runReadAction {
-            // 扫描Kotlin文件
-            val ktFiles = FileTypeIndex.getFiles(
+            val ktFiles = com.intellij.psi.search.FileTypeIndex.getFiles(
                 KotlinFileType.INSTANCE,
                 scope
             )
@@ -150,30 +149,6 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
                             if (element is KtAnnotated && element.annotationEntries.any {
                                 it.shortName?.asString() == SettingContext.settings.shitAnnotation
                             }) {
-                                elements.add(element)
-                            }
-                        }
-                    }
-                    true
-                }
-            }
-
-            // 扫描Java文件
-            val javaFiles = FileTypeIndex.getFiles(
-                JavaFileType.INSTANCE,
-                scope
-            )
-
-            for (file in javaFiles) {
-                val javaFile = psiManager.findFile(file) ?: continue
-                PsiTreeUtil.processElements(javaFile) { element ->
-                    when (element) {
-                        is PsiClass, is PsiMethod, is PsiField -> {
-                            if (element is PsiModifierListOwner &&
-                                element.modifierList?.annotations?.any { 
-                                    it.qualifiedName?.endsWith(SettingContext.settings.shitAnnotation) == true 
-                                } == true
-                            ) {
                                 elements.add(element)
                             }
                         }
@@ -221,14 +196,14 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         )
 
         if (result == Messages.YES) {
-            try {
-                WriteCommandAction.runWriteCommandAction(project) {
+            WriteCommandAction.runWriteCommandAction(project) {
+                try {
                     elementsToDelete.forEach { it.delete() }
                     refreshTree()
+                    Messages.showInfoMessage("删除成功", "提示")
+                } catch (e: Exception) {
+                    Messages.showErrorDialog("删除失败: ${e.message}", "错误")
                 }
-                Messages.showInfoMessage("删除成功", "提示")
-            } catch (e: Exception) {
-                Messages.showErrorDialog("删除失败: ${e.message}", "错误")
             }
         }
     }
@@ -240,9 +215,6 @@ data class ElementInfo(val element: PsiElement) {
             is KtClass -> "类: ${element.name}"
             is KtFunction -> "函数: ${element.name}"
             is KtProperty -> "属性: ${element.name}"
-            is PsiClass -> "类: ${element.name}"
-            is PsiMethod -> "方法: ${element.name}"
-            is PsiField -> "字段: ${element.name}"
             else -> element.text
         }
     }

@@ -4,8 +4,7 @@
 - 在实体类上alt+回车基于javadoc注释添加swagger注解,excel 注解,包含自定义设置的注解
   它会沿着swagger > excelproperty > javadoc > ai猜测 这个优先级猜注释
   猜到了之后,可以全局设置配生成的目标注解,已有注解不影响
-
-
+- 屎山代码面板(可以在项目中定义@Shit注解,插件会扫描被注解标记的💩屎山代码)
 
 #### Version 1.6
 - 新增结构化输出能力，呼出generate上下文，将自然语言转为当前类对应的Json格式。

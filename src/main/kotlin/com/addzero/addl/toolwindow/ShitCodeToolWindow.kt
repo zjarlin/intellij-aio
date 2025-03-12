@@ -228,14 +228,24 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         )
 
         if (result == Messages.YES) {
+            var success = true
+            var errorMessage: String? = null
+            
             WriteCommandAction.runWriteCommandAction(project) {
                 try {
                     elementsToDelete.forEach { it.delete() }
                     refreshTree()
-                    Messages.showInfoMessage("删除成功", "提示")
                 } catch (e: Exception) {
-                    Messages.showErrorDialog("删除失败: ${e.message}", "错误")
+                    success = false
+                    errorMessage = e.message
                 }
+            }
+
+            // 在写操作之外显示消息对话框
+            if (success) {
+                Messages.showInfoMessage("删除成功", "提示")
+            } else {
+                Messages.showErrorDialog("删除失败: $errorMessage", "错误")
             }
         }
     }

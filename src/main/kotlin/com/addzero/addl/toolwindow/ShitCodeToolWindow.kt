@@ -1,6 +1,7 @@
 package com.addzero.addl.toolwindow
 
 import com.addzero.addl.settings.SettingContext
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
@@ -29,6 +30,7 @@ import javax.swing.tree.TreeSelectionModel
 
 class ShitCodeToolWindow : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+        toolWindow.setIcon(AllIcons.General.Warning)
         val contentManager = toolWindow.contentManager
         val content = contentManager.factory.createContent(
             ShitCodePanel(project),

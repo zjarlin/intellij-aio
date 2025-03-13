@@ -22,7 +22,7 @@ class AddSwaggerAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
     }
 
     override fun getText(): String {
-        return "Add Swagger Annotation"
+        return "Add Swagger Annotation for Java"
     }
 
 

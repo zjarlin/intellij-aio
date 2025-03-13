@@ -22,7 +22,7 @@ class AddCusTomAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
     }
 
     override fun getText(): String {
-        return "Add Custom Annotation"
+        return "Add Custom Annotation for Java"
     }
 
 

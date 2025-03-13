@@ -22,7 +22,7 @@ class AddExcelPropertyAnnotationJavaAction : AbstractDocCommentAnnotationAction(
     }
 
     override fun getText(): String {
-        return "Add ExcelProperty Annotation"
+        return "Add ExcelProperty Annotation for Java"
     }
 
 

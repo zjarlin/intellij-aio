@@ -21,6 +21,7 @@ class AddSwaggerAnnotationJavaAction : AbstractDocCommentAnnotationAction() {
         return  kotlinPojo
     }
 
+
     override fun getText(): String {
         return "Add Swagger Annotation for Java"
     }

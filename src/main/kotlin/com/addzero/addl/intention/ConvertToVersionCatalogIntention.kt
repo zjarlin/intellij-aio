@@ -3,11 +3,10 @@ package com.addzero.addl.intention
 //import org.tomlj.Toml
 //import org.tomlj.TomlParseResult
 import cn.hutool.core.util.StrUtil
-import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.catalogutil.*
+import com.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
 import com.addzero.addl.util.removeAnyQuote
 import com.addzero.common.kt_util.isNotBlank
-import com.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -133,7 +132,7 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
     private fun psiTextToTomlDTO(callText: String): VersionCatalogDTO? {
         val split = callText.split(":")
         if (split.size == 1) {
-            DialogUtil.showErrorMsg("只支持group:name:version这种格式")
+//            DialogUtil.showErrorMsg("只支持group:name:version这种格式")
             return null
         }
         val groupName = split.getOrNull(0) ?: ""

@@ -2,7 +2,6 @@
 
 - Shit代码面板(可以在项目中定义@Shit注解,插件可以批量删除@Shit标记的代码
 - 支持含有枚举的注释生成相关java/kotlin代码
-- 现在你可以在build.gradle.kts中把现有依赖upsert到libs.version.toml ,只需alt+回车
 - 在实体类上alt+回车基于javadoc注释添加swagger注解,excel 注解,包含自定义设置的注解
   它会沿着swagger > excelproperty > javadoc > ai猜测 这个优先级猜注释
   猜到了之后,可以全局设置配生成的目标注解,已有注解不影响
@@ -20,4 +19,3 @@
 - 添加了LLM能力，支持在Tools菜单下生成CREATE TABLE语句。
 - 若LLM填充表单失败，则返回默认表单。
 - 支持在Tools菜单下生成CREATE TABLE语句。
- 

@@ -38,6 +38,9 @@ class DashScopeAiUtil(modelName: String, question: String, promptTemplate: Strin
             .execute()
         // 返回响应内容
         val body = response.body()
+        if (body.contains("\"error\":{\"code\":\"")) {
+            throw RuntimeException(body)
+        }
 
         val parseObject = body?.parseObject(Dba::class.java)
         val joinToString = parseObject?.choices?.map {

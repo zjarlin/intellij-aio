@@ -1,6 +1,7 @@
 
 import com.addzero.gradle.utils.MarkdownTranslator
 import org.jetbrains.changelog.markdownToHTML
+import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -86,6 +87,11 @@ intellijPlatform {
 //        privateKey = System.getenv("PRIVATE_KEY")
 //        password = System.getenv("PRIVATE_KEY_PASSWORD")
 //    }
+}
+tasks.named<RunIdeTask>("runIde") {
+    jvmArgumentProviders += CommandLineArgumentProvider {
+        listOf("-Didea.kotlin.plugin.use.k2=true")
+    }
 }
 
 tasks {

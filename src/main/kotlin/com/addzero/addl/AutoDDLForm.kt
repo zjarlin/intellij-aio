@@ -10,11 +10,13 @@ import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 import com.addzero.addl.his.HistoryService
 import com.addzero.addl.settings.MyPluginSettingsService
+import com.addzero.common.kt_util.isNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.table.JBTable
+import defaultdTO
 import quesDba
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -432,6 +434,9 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         val quesDba = quesDba(inputText)
         // 这里实现你调用大模型的逻辑
         // 返回表单实体对象
+        if (quesDba.isNull()) {
+            return defaultdTO()
+        }
         val quesDba1 = quesDba!!
         //智能处理表单中的值
 //        handleVal(formDTO)

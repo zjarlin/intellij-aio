@@ -3,6 +3,8 @@ package com.addzero.addl.ai.util.ai.ollama
 import cn.hutool.core.util.StrUtil
 import cn.hutool.http.ContentType
 import cn.hutool.http.HttpRequest
+import com.addzero.addl.FormDTO
+import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModel
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.Promt.AICODER
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
@@ -31,8 +33,14 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
     )
 
     fun askDeepSeek(message: String, prompt: String? = ""): String? {
+        var modelNameOnline = settings.modelNameOnline
+        if (modelNameOnline.contains("qwen")) {
+            modelNameOnline=DeepSeekOnlineModel
+        }
+
+
         val deepSeekRequest = DeepSeekRequest(
-            model = "deepseek-coder", stream = false, messages = listOf(
+            model = modelNameOnline, stream = false, messages = listOf(
                 Message(
                     role = "system", content = AICODER.trimIndent()
                 ), Message(
@@ -41,15 +49,24 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
             )
         )
         // 发送 POST 请求
-        val modelNameOnline = settings.modelNameOnline
-        val apikey = System.getenv("DEEPSEEK_API_KEY") ?: settings.modelKey
+        val apikey = settings.modelKey .ifBlank { System.getenv("DEEPSEEK_API_KEY") ?: "" }
+
+        if (apikey.isBlank()) {
+//            DialogUtil.showErrorMsg("DEEPSEEK_API_KEY未配置")
+            throw RuntimeException("DEEPSEEK_API_KEY未配置")
+            return null
+        }
+
         val addPrefixIfNot = apikey.addPrefixIfNot("Bearer ")
         val response = HttpRequest.post("https://api.deepseek.com/chat/completions").body(deepSeekRequest.toJson(), ContentType.JSON.toString()) // 设置请求体和
             // Content-Type
             .header("Authorization", addPrefixIfNot) // 设置 Authorization
-            .header("Cookie", "HWWAFSESID=8de64226e01ce83b61d; HWWAFSESTIME=1736583106731") // 设置 Cookie
+//            .header("Cookie", "HWWAFSESID=8de64226e01ce83b61d; HWWAFSESTIME=1736583106731") // 设置 Cookie
             .execute() // 执行请求
         val body = response.body()
+        if (body.contains("{\"error\":{\"message")) {
+            throw RuntimeException(body)
+        }
 
         try {
             // 使用FastJson解析响应
@@ -82,9 +99,9 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
         val askqwen = askDeepSeek(question, format)
 
         val s = try {
-            val parseObject = askqwen?.parseObject(OllamaResponse::class.java)
-            val response = parseObject?.response
-            val extractMarkdownBlockContent = response?.let { extractMarkdownBlockContent(it) }
+//            val parseObject = askqwen?.parseObject(OllamaResponse::class.java)
+//            val response = parseObject?.response
+            val extractMarkdownBlockContent = askqwen?.let { extractMarkdownBlockContent(it) }
             extractMarkdownBlockContent
         } catch (e: Exception) {
             askqwen
@@ -93,4 +110,49 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
         return s ?: ""
     }
 
+}
+
+fun main() {
+    val parseObject = """
+       {
+  "dbName" : "",
+  "dbType" : "mysql",
+  "fields" : [ {
+    "fieldName" : "id",
+    "fieldChineseName" : "用户ID",
+    "javaType" : "Integer"
+  }, {
+    "fieldName" : "username",
+    "fieldChineseName" : "用户名",
+    "javaType" : "String"
+  }, {
+    "fieldName" : "password",
+    "fieldChineseName" : "密码",
+    "javaType" : "String"
+  }, {
+    "fieldName" : "email",
+    "fieldChineseName" : "电子邮箱",
+    "javaType" : "String"
+  }, {
+    "fieldName" : "phone",
+    "fieldChineseName" : "手机号码",
+    "javaType" : "String"
+  }, {
+    "fieldName" : "create_time",
+    "fieldChineseName" : "创建时间",
+    "javaType" : "LocalDateTime"
+  }, {
+    "fieldName" : "update_time",
+    "fieldChineseName" : "更新时间",
+    "javaType" : "LocalDateTime"
+  }, {
+    "fieldName" : "status",
+    "fieldChineseName" : "状态",
+    "javaType" : "Integer"
+  } ],
+  "tableEnglishName" : "user",
+  "tableName" : "用户表"
+} 
+    """.trimIndent().parseObject(FormDTO::class.java)
+    println()
 }

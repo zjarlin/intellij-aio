@@ -238,7 +238,21 @@ fun KtClass.properties(): List<KtProperty> {
                 it.qualifiedName in listOf(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS)
             }
         }
-    return getProperties() + supers.map(KtSuperTypeListEntry::properties).flatten()
+    // 使用K2兼容的API获取属性
+    val properties = try {
+        // 尝试使用K2兼容的方式获取属性
+        this.body?.declarations?.filterIsInstance<KtProperty>() ?: emptyList()
+    } catch (e: Exception) {
+        try {
+            // 如果K2方式失败，回退到K1方式
+            @Suppress("DEPRECATION")
+            getProperties()
+        } catch (e: Exception) {
+            // 如果两种方式都失败，返回空列表
+            emptyList()
+        }
+    }
+    return properties + supers.map(KtSuperTypeListEntry::properties).flatten()
 }
 
 fun PsiClass.hasAnnotation(vararg annotations: String) = annotations.any { hasAnnotation(it) }
@@ -249,7 +263,24 @@ fun KtClass.hasAnnotation(vararg annotations: String) =
 private val KtSuperTypeListEntry.properties: List<KtProperty>
     get() {
         val context = analyze()
-        return context[BindingContext.TYPE, typeReference]?.clazz()?.properties() ?: emptyList()
+        val ktClass = context[BindingContext.TYPE, typeReference]?.clazz()
+        return if (ktClass != null) {
+            try {
+                // 尝试使用K2兼容的方式获取属性
+                ktClass.body?.declarations?.filterIsInstance<KtProperty>() ?: emptyList()
+            } catch (e: Exception) {
+                try {
+                    // 如果K2方式失败，回退到K1方式
+                    @Suppress("DEPRECATION")
+                    ktClass.properties()
+                } catch (e: Exception) {
+                    // 如果两种方式都失败，返回空列表
+                    emptyList()
+                }
+            }
+        } else {
+            emptyList()
+        }
     }
 
 private val KtClass.supers: List<KtClass>

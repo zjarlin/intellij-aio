@@ -1,9 +1,10 @@
+
 import com.addzero.addl.FieldDTO
 import com.addzero.addl.FormDTO
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.Promt.DBA
 import com.addzero.addl.ktututil.parseObject
-import com.addzero.addl.util.ShowContentUtil.showErrorMsg
+import com.addzero.common.kt_util.isNull
 
 
 data class Qwendto(
@@ -26,9 +27,15 @@ fun quesDba(question: String): FormDTO? {
         val init = AiUtil.INIT(question, DBA)
         val dbask = init.ask(FormDTO::class.java)
         val parseObject1 = dbask.parseObject(FormDTO::class.java)
+
+        if (parseObject1.isNull()&&dbask.isNotBlank()) {
+            throw RuntimeException("解析出错了但AI原始回答Json为：$dbask")
+        }
+
         return parseObject1
     } catch (e: Exception) {
-        showErrorMsg(e.message.toString())
+//        showErrorMsg(e.message.toString())
+        throw e
         return defaultdTO()
     }
 }

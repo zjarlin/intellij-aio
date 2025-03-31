@@ -3,12 +3,10 @@ package com.addzero.addl.ai.util.ai.ollama
 import cn.hutool.core.util.StrUtil
 import cn.hutool.http.ContentType
 import cn.hutool.http.HttpRequest
-import com.addzero.addl.FormDTO
 import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModel
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.ai.util.ai.Promt.AICODER
 import com.addzero.addl.ai.util.ai.ctx.AiCtx
-import com.addzero.addl.ktututil.parseObject
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil.extractMarkdownBlockContent
@@ -112,47 +110,3 @@ class DeepSeekAiUtil(modelName: String, question: String, promptTemplate: String
 
 }
 
-fun main() {
-    val parseObject = """
-       {
-  "dbName" : "",
-  "dbType" : "mysql",
-  "fields" : [ {
-    "fieldName" : "id",
-    "fieldChineseName" : "用户ID",
-    "javaType" : "Integer"
-  }, {
-    "fieldName" : "username",
-    "fieldChineseName" : "用户名",
-    "javaType" : "String"
-  }, {
-    "fieldName" : "password",
-    "fieldChineseName" : "密码",
-    "javaType" : "String"
-  }, {
-    "fieldName" : "email",
-    "fieldChineseName" : "电子邮箱",
-    "javaType" : "String"
-  }, {
-    "fieldName" : "phone",
-    "fieldChineseName" : "手机号码",
-    "javaType" : "String"
-  }, {
-    "fieldName" : "create_time",
-    "fieldChineseName" : "创建时间",
-    "javaType" : "LocalDateTime"
-  }, {
-    "fieldName" : "update_time",
-    "fieldChineseName" : "更新时间",
-    "javaType" : "LocalDateTime"
-  }, {
-    "fieldName" : "status",
-    "fieldChineseName" : "状态",
-    "javaType" : "Integer"
-  } ],
-  "tableEnglishName" : "user",
-  "tableName" : "用户表"
-} 
-    """.trimIndent().parseObject(FormDTO::class.java)
-    println()
-}

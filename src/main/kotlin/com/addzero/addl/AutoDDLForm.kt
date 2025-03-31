@@ -4,12 +4,10 @@ import FieldsTableModel
 import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.ArrayUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.javaTypesEnum
-import com.addzero.addl.autoddlstarter.generator.consts.DM
-import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
-import com.addzero.addl.autoddlstarter.generator.consts.ORACLE
-import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+import com.addzero.addl.autoddlstarter.generator.consts.*
 import com.addzero.addl.his.HistoryService
 import com.addzero.addl.settings.MyPluginSettingsService
+import com.addzero.addl.settings.SettingContext
 import com.addzero.common.kt_util.isNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -89,7 +87,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         formPanel.add(tableNameField)
 
         formPanel.add(JLabel("*数据库类型:"))
-        dbTypeComboBox = ComboBox(arrayOf(MYSQL, POSTGRESQL, DM, ORACLE))
+        dbTypeComboBox = ComboBox(arrayOf(MYSQL, POSTGRESQL, DM, ORACLE,H2))
         // 设置默认值为设置中的
         dbTypeComboBox!!.selectedItem = MyPluginSettingsService.getInstance().state.dbType
         formPanel.add(dbTypeComboBox)
@@ -421,7 +419,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
     private fun loadFormByFormDTO(formEntity: FormDTO) {
         tableNameField!!.text = formEntity.tableName
         tableEnglishNameField!!.text = formEntity.tableEnglishName
-        dbTypeComboBox!!.selectedItem = formEntity.dbType
+        dbTypeComboBox!!.selectedItem = formEntity.dbType.ifBlank { SettingContext.settings.dbType }
         dbNameField!!.text = formEntity.dbName
 
         // 确保字段可以二次编辑

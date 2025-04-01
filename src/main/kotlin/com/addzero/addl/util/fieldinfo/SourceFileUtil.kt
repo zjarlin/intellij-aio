@@ -3,25 +3,20 @@
  */
 package com.addzero.addl.util.fieldinfo
 
+// K2兼容API导入
 import com.addzero.addl.util.meta.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
-import com.intellij.psi.search.ProjectScope
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.PsiUtil
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.idea.caches.resolve.analyze
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
-import org.jetbrains.kotlin.nj2k.postProcessing.type
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtSuperTypeListEntry
-import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
-import org.jetbrains.kotlin.resolve.BindingContext
-import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
-import org.jetbrains.kotlin.types.KotlinType
 
 /**
  * 获取类文件中的类名Element
@@ -53,7 +48,8 @@ fun VirtualFile.annotations(project: Project): List<String> {
             }
 
             Language.Kotlin -> {
-                ktClass(project)?.annotationEntries?.map(KtAnnotationEntry::qualifiedName)
+                val file = this
+                file.ktClass(project)?.annotationEntries?.map(KtAnnotationEntry::qualifiedName)
             }
         }
     } catch (e: IllegalFileFormatException) {
@@ -62,76 +58,8 @@ fun VirtualFile.annotations(project: Project): List<String> {
     return annotations ?: emptyList()
 }
 
-/**
- * 获取DTO文件对应实体的属性列表
- */
-//fun VirtualFile.properties(project: Project, propPath: List<String> = emptyList()): List<Property> {
-//    val classFile = entityFile(project) ?: return emptyList()
-//    val properties = try {
-//        when (classFile.language) {
-//            Language.Java -> {
-//                classFile.psiClass(project, propPath)?.methods()?.map { property ->
-//                        val annotatedNullable = property.annotations.any {
-//                            it.qualifiedName?.substringAfterLast('.') in arrayOf(
-//                                "Null", "Nullable"
-//                            )
-//                        }
-//                        val returnType = property.returnType ?: return emptyList()
-//                        Property(property.name,
-//                            returnType.presentableText,
-//                            annotatedNullable || returnType.nullable,
-//                            property.annotations.map { it.qualifiedName ?: "" })
-//                    }
-//            }
-//
-//            Language.Kotlin -> {
-//                classFile.ktClass(project, propPath)?.properties()?.map { property ->
-//                        val type = property.type()!!
-//                        Property(
-//                            property.name!!,
-//                            type.toString(),
-//                            type.isMarkedNullable,
-//                            property.annotationEntries.map(KtAnnotationEntry::qualifiedName)
-//                        )
-//                    }
-//            }
-//        }
-//    } catch (e: IllegalFileFormatException) {
-//        null
-//    }
-//    return properties ?: emptyList()
-//}
-
-/**
- * 获取实体类文件中实体类的基类型列表
- */
-fun VirtualFile.supers(project: Project): List<String> {
-    val supers = try {
-        when (language) {
-            Language.Java -> {
-                psiClass(project)?.supers()
-                    ?.filter { it.hasAnnotation(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS) }
-                    ?.mapNotNull { it.name }?.filter { it != "Object" }
-            }
-
-            Language.Kotlin -> {
-                ktClass(project)?.supers()
-                    ?.filter { it.hasAnnotation(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS) }
-                    ?.mapNotNull(KtClass::getName)
-            }
-        }
-    } catch (e: IllegalFileFormatException) {
-        null
-    }
-    return supers ?: emptyList()
-}
-
 fun PsiClass.supers(): List<PsiClass> {
     return supers.toList() + supers.map { it.supers.toList() }.flatten()
-}
-
-fun KtClass.supers(): List<KtClass> {
-    return supers + supers.map { it.supers }.flatten()
 }
 
 
@@ -158,30 +86,34 @@ fun PsiClass.prop(propPath: List<String>, level: Int): PsiMethod? {
     }
 }
 
+fun getKtClassesFromVirtualFile(project: Project, virtualFile: VirtualFile): List<KtClass> {
+    val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return emptyList()
+
+    return analyze(psiFile) {
+        psiFile.declarations.filterIsInstance<KtClass>()
+    }
+}
+
 /**
  * 获取Kotlin类文件中的实体类定义
  *
  * @param propPath 进一步获取[propPath]属性的类型的类定义
  */
-fun VirtualFile.ktClass(project: Project, propPath: List<String> = emptyList()): KtClass? {
+fun VirtualFile.ktClass(project: Project): KtClass? {
     val ktClass = toPsiFile(project)?.clazz<KtClass>()
-    return if (propPath.isNotEmpty()) {
-        val prop = ktClass?.prop(propPath, 0) ?: return null
-        prop.analyze()[BindingContext.TYPE, prop.typeReference]?.clazz()
-    } else {
-        ktClass
-    }
+    return ktClass
 }
 
-fun KtClass.prop(propPath: List<String>, level: Int): KtProperty? {
-    val property = properties().find { it.name == propPath[level] } ?: return null
-    return if (propPath.lastIndex == level) {
-        property
-    } else {
-        val propertyClass = property.analyze()[BindingContext.TYPE, property.typeReference]?.clazz()
-        propertyClass?.prop(propPath, level + 1)
+
+/**
+ * 获取KtAnnotationEntry对应注解的全限定名
+ */
+private val KtAnnotationEntry.qualifiedName: String
+    get() {
+        val shortName = typeReference?.text ?: return ""
+// 解析为 FqName（需要解析导入）
+        return FqName(shortName).asString()
     }
-}
 
 val PsiType.nullable: Boolean
     get() = presentableText in JavaNullableType.values().map { it.name }
@@ -196,63 +128,28 @@ fun PsiType.clazz(): PsiClass? {
     }
 }
 
-fun KotlinType.clazz(): KtClass? {
-    return if (arguments.isEmpty()) {
-        val typeDescriptor = constructor.declarationDescriptor as? ClassDescriptor ?: return null
-        DescriptorToSourceUtils.getSourceFromDescriptor(typeDescriptor) as? KtClass
-    } else {
-        arguments[0].type.clazz()
-    }
-}
 
 inline fun <reified T : PsiNameIdentifierOwner> PsiFile.clazz(): T? {
     return PsiTreeUtil.findChildOfType(originalElement, T::class.java)
 }
 
-/**
- * 获取KtAnnotationEntry对应注解的全限定名
- */
-private val KtAnnotationEntry.qualifiedName: String
-    get() {
-        // 解析注解条目，获取上下文
-        val context = analyze()
-        // 获取注解全限定类名
-        return context[BindingContext.ANNOTATION, this]?.fqName?.asString() ?: ""
-    }
-
 fun PsiClass.methods(): List<PsiMethod> {
     val supers = interfaces.filter { interfaceClass ->
-            interfaceClass.annotations.any {
-                it.qualifiedName in listOf(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS)
-            }
+        interfaceClass.annotations.any {
+            it.qualifiedName in listOf(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS)
         }
+    }
     return methods.toList() + supers.map { it.methods() }.flatten()
 }
 
 fun KtClass.properties(): List<KtProperty> {
-    val supers = superTypeListEntries.filter { superType ->
-            val context = superType.analyze()
-            val annotations =
-                context[BindingContext.TYPE, superType.typeReference]?.clazz()?.annotationEntries ?: return@filter false
-            annotations.any {
-                it.qualifiedName in listOf(Constant.Annotation.ENTITY, Constant.Annotation.MAPPED_SUPERCLASS)
-            }
+
+    return this.getProperties()
+        .map {
+            it
         }
-    // 使用K2兼容的API获取属性
-    val properties = try {
-        // 尝试使用K2兼容的方式获取属性
-        this.body?.declarations?.filterIsInstance<KtProperty>() ?: emptyList()
-    } catch (e: Exception) {
-        try {
-            // 如果K2方式失败，回退到K1方式
-            @Suppress("DEPRECATION")
-            getProperties()
-        } catch (e: Exception) {
-            // 如果两种方式都失败，返回空列表
-            emptyList()
-        }
-    }
-    return properties + supers.map(KtSuperTypeListEntry::properties).flatten()
+
+
 }
 
 fun PsiClass.hasAnnotation(vararg annotations: String) = annotations.any { hasAnnotation(it) }
@@ -260,33 +157,5 @@ fun PsiClass.hasAnnotation(vararg annotations: String) = annotations.any { hasAn
 fun KtClass.hasAnnotation(vararg annotations: String) =
     annotations.any { annotationEntries.map(KtAnnotationEntry::qualifiedName).contains(it) }
 
-private val KtSuperTypeListEntry.properties: List<KtProperty>
-    get() {
-        val context = analyze()
-        val ktClass = context[BindingContext.TYPE, typeReference]?.clazz()
-        return if (ktClass != null) {
-            try {
-                // 尝试使用K2兼容的方式获取属性
-                ktClass.body?.declarations?.filterIsInstance<KtProperty>() ?: emptyList()
-            } catch (e: Exception) {
-                try {
-                    // 如果K2方式失败，回退到K1方式
-                    @Suppress("DEPRECATION")
-                    ktClass.properties()
-                } catch (e: Exception) {
-                    // 如果两种方式都失败，返回空列表
-                    emptyList()
-                }
-            }
-        } else {
-            emptyList()
-        }
-    }
 
-private val KtClass.supers: List<KtClass>
-    get() {
-        return superTypeListEntries.mapNotNull {
-                val context = it.analyze()
-                context[BindingContext.TYPE, it.typeReference]?.clazz()
-            }
-    }
+

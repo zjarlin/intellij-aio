@@ -1,6 +1,8 @@
 package com.addzero.addl.settings
 
+import com.addzero.addl.ai.consts.ChatModels.CODEGEMMA
 import com.addzero.addl.ai.consts.ChatModels.DASH_SCOPE
+import com.addzero.addl.ai.consts.ChatModels.DEEPSEEK_R1
 import com.addzero.addl.ai.consts.ChatModels.DeepSeek
 import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModel
 import com.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModelCoder
@@ -12,6 +14,7 @@ import com.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_CODER_INSTRUCT
 import com.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_INSTRUCT
 import com.addzero.addl.ai.consts.ChatModels.QWEN_MAX
 import com.addzero.addl.ai.consts.ChatModels.QWEN_TURBO
+import com.addzero.addl.ai.consts.ChatModels.QWQ
 import com.addzero.addl.autoddlstarter.generator.consts.*
 
 @SettingsGroup(
@@ -47,7 +50,7 @@ data class MyPluginSettings(
         options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX, DeepSeekOnlineModel, DeepSeekOnlineModelCoder],
         group = "ai",
         order = 3
-    ) @JvmField var modelNameOnline: String = QWEN_1_5B_CODER_INSTRUCT,
+    ) @JvmField var modelNameOnline: String = DeepSeekOnlineModel,
 
     @ConfigField(
         label = "ollama远程url", group = "ai", order = 4
@@ -56,10 +59,11 @@ data class MyPluginSettings(
     @ConfigField(
         label = "离线ollama模型",
         type = FieldType.DROPDOWN,
-        options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B],
+        options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B, CODEGEMMA , DEEPSEEK_R1 , QWQ, ]
+        ,
         group = "ai",
         order = 5
-    ) @JvmField var modelNameOffline: String = QWEN2_5_CODER_1_5B,
+    ) @JvmField var modelNameOffline: String = DEEPSEEK_R1,
 
     @JvmField var temPerature: String = "0.4",
 

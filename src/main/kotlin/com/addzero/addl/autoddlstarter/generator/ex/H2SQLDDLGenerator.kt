@@ -18,7 +18,7 @@ class H2SQLDDLGenerator : DatabaseDDLGenerator() {
         var cols = """        ${
             dto.joinToString(System.lineSeparator()) {
                 """
-                    ${it.colName} ${it.colType}  ${it.colLength},
+                    `${it.colName}` ${it.colType}  ${it.colLength},
                 """.trimIndent()
             }
         }
@@ -36,11 +36,11 @@ class H2SQLDDLGenerator : DatabaseDDLGenerator() {
 
         val createTableSQL = """
     create table "$tableEnglishName" (
-        $id $idType primary key,
-        $createBy $idType ,
-        $updateBy $idType ,
-        $createTime timestamp ,
-        $updateTime timestamp ,
+        `$id` $idType primary key,
+        `$createBy` $idType ,
+        `$updateBy` $idType ,
+        `$createTime` timestamp ,
+        `$updateTime` timestamp ,
 $cols       
     );
     comment on table "$tableEnglishName" is '$tableChineseName';
@@ -52,16 +52,16 @@ $cols
             .filter { filterBaseEneity(it) }
             .joinToString(System.lineSeparator()) {
                 """
-                comment on column $tableEnglishName.${it.colName} is '${it.colComment}';
+                comment on column "$tableEnglishName".`${it.colName}` is '${it.colComment}';
                 """.trimIndent()
             }
 
         val baseComments = """
-            comment on column $tableEnglishName.$id is '主键';
-            comment on column $tableEnglishName.$createBy is '创建者';
-            comment on column $tableEnglishName.$createTime is '创建时间';
-            comment on column $tableEnglishName.$updateBy is '更新者';
-            comment on column $tableEnglishName.$updateTime is '更新时间';
+            comment on column "$tableEnglishName".`$id` is '主键';
+            comment on column "$tableEnglishName".`$createBy` is '创建者';
+            comment on column "$tableEnglishName".`$createTime` is '创建时间';
+            comment on column "$tableEnglishName".`$updateBy` is '更新者';
+            comment on column "$tableEnglishName".`$updateTime` is '更新时间';
         """.trimIndent()
 
         return createTableSQL + System.lineSeparator() + baseComments + System.lineSeparator() + comments
@@ -80,8 +80,8 @@ $cols
             // 生成 ALTER 语句以及字段注释
             val upperCaseColName = StrUtil.toUnderlineCase(it.colName)
             """
-            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength};
-            comment on column $tableRef."$upperCaseColName" is '${it.colComment}';
+            alter table $tableRef add column `$upperCaseColName` ${it.colType}${it.colLength};
+            comment on column $tableRef.`$upperCaseColName` is '${it.colComment}';
         """.trimIndent()
         }
 

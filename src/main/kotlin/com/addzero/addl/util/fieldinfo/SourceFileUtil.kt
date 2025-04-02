@@ -10,12 +10,10 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.PsiUtil
-import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 
 /**
@@ -86,13 +84,14 @@ fun PsiClass.prop(propPath: List<String>, level: Int): PsiMethod? {
     }
 }
 
-fun getKtClassesFromVirtualFile(project: Project, virtualFile: VirtualFile): List<KtClass> {
-    val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return emptyList()
-
-    return analyze(psiFile) {
-        psiFile.declarations.filterIsInstance<KtClass>()
-    }
-}
+//fun getKtClassesFromVirtualFile(project: Project, virtualFile: VirtualFile): List<KtClass> {
+//    val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return emptyList()
+//
+//    val filterIsInstance = psiFile.declarations.filterIsInstance<KtClass>()
+//    return filterIsInstance
+////    return analyze(psiFile) {
+////    }
+//}
 
 /**
  * 获取Kotlin类文件中的实体类定义

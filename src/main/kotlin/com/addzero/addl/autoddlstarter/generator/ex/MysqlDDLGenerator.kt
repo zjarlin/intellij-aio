@@ -1,6 +1,5 @@
 package com.addzero.addl.autoddlstarter.generator.ex
 
-import cn.hutool.core.collection.CollUtil
 import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
@@ -10,7 +9,6 @@ import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
-import com.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 
 
 class MysqlDDLGenerator : DatabaseDDLGenerator() {
@@ -26,7 +24,7 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         val updateTime = settings.updateTime
         val idType = settings.idType
         val createTableSQL = """
-    create table `$tableEnglishName` (
+    create table if not exists `$tableEnglishName` (
         `$id` $idType not null ,
         `$createBy` $idType not null comment '创建者',
         `$updateBy` $idType null comment '更新者',

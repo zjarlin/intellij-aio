@@ -53,7 +53,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 
 
         val createTableSQL = """
-    create table "$tableEnglishName" (
+    create table if not exists "$tableEnglishName" (
         $id $idType primary key,
         $createBy $idType ,
         $updateBy $idType ,

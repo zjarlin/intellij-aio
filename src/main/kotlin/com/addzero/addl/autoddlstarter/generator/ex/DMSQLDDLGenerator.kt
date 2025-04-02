@@ -5,11 +5,9 @@ import com.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
-import com.addzero.addl.autoddlstarter.generator.entity.mockkDDLContext
 import com.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.JlStrUtil
-
 
 
 class DMSQLDDLGenerator : DatabaseDDLGenerator() {
@@ -32,7 +30,7 @@ class DMSQLDDLGenerator : DatabaseDDLGenerator() {
         val idType = settings.idType
 
         val createTableSQL = """
-    CREATE TABLE $tableRef (
+    CREATE TABLE IF NOT EXISTS $tableRef (
         "$id" $idType NOT NULL,
         "$createBy" $idType NOT NULL,
         "$updateBy" $idType NULL,

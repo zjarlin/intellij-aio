@@ -9,7 +9,6 @@ plugins {
 //    java
 //    id("org.jetbrains.changelog") version "latest.release"
     id("org.jetbrains.changelog") version "+"
-
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij)
 }

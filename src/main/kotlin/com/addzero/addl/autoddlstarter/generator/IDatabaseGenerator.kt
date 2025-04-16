@@ -137,18 +137,14 @@ interface IDatabaseGenerator {
 
 
         var fieldMappings: List<FieldMapping> = listOf(
+            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "text", "", String::class),
             FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "varchar", "(255)", String::class),
             FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "character", "(255)", String::class),
-            FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "text", "", String::class),
-            FieldMapping(
-                ::isDateTimeType, "datetime", "timestamp with time zone", "timestamp", "TIMESTAMP", "timestamp", "", LocalDateTime::class
-            ),
+            FieldMapping( ::isDateTimeType, "datetime", "timestamp with time zone", "timestamp", "TIMESTAMP", "timestamp", "", LocalDateTime::class ),
             FieldMapping(::isDateType, "date", "date", "date", "TIMESTAMP", "date", "", Date::class),
             FieldMapping(::isTimeType, "time", "time with time zone", "timestamp", "TIMESTAMP", "time", "", LocalTime::class),
             FieldMapping(::isIntType, "int", "integer", "number", "INT", "integer", "", Integer::class),
-            FieldMapping(
-                ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "double precision", "(6,2)", Double::class
-            ),
+            FieldMapping( ::isDoubleType, "double", "double precision", "binary_double", "DOUBLE", "double precision", "(6,2)", Double::class ),
             FieldMapping(::isBigDecimalType, "decimal", "numeric", "number", "NUMERIC", "numeric", "(19,2)", BigDecimal::class),
             FieldMapping(::isLongType, "long", "bigint", "number", "BIGINT", "bigint", "", Long::class),
             FieldMapping(::isBooleanType, "boolean", "boolean", "number", "INT", "boolean", "", Boolean::class),

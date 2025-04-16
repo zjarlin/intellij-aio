@@ -2,7 +2,9 @@ package com.addzero.addl.autoddlstarter.generator
 
 import cn.hutool.core.date.DateTime
 import cn.hutool.core.util.StrUtil
+import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
+import com.addzero.addl.settings.SettingContext
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -29,8 +31,19 @@ object FieldPredicateUtil {
      * @return [Boolean]
      */
     fun isTextType(f: JavaFieldMetaInfo): Boolean {
+
+
         val fieldName = f.name
         val javaType = f.type
+
+        val isPg = SettingContext.settings.dbType == POSTGRESQL
+
+        val assignableFrom = String::class.java.isAssignableFrom(javaType)
+
+        if (isPg && assignableFrom) {
+            return true
+        }
+
         return StrUtil.containsAnyIgnoreCase(
             fieldName,
             "url",
@@ -38,7 +51,7 @@ object FieldPredicateUtil {
             "text",
             "path",
             "introduction"
-        ) && isType(f, arrayOf(String::class.java)) && String::class.java.isAssignableFrom(javaType)
+        ) && isType(f, arrayOf(String::class.java)) && assignableFrom
     }
 
     fun isStringType(f: JavaFieldMetaInfo): Boolean {

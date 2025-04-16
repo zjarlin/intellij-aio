@@ -51,7 +51,6 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         }
 """
 
-
         val createTableSQL = """
     create table if not exists "$tableEnglishName" (
         $id $idType primary key,
@@ -98,7 +97,8 @@ $cols
     }
 
     override fun mapTypeByMysqlType(mysqlType: String): String {
-        return fieldMappings.find { it.mysqlType.equals(mysqlType, ignoreCase = true) }?.pgType!!
+        val pgType = fieldMappings.find { it.mysqlType.equals(mysqlType, ignoreCase = true) }?.pgType
+        return pgType!!
     }
 
     override fun mapTypeByJavaType(javaFieldMetaInfo: JavaFieldMetaInfo): String {

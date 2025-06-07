@@ -7,6 +7,7 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
+<!--<depends>com.intellij.database</depends>-->
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.addzero.addl.settings.MyPluginSettingsService"/>
@@ -20,12 +21,20 @@
                     secondary="false"
                     order="last"/>
 
+        <!-- 注册AutoDDL工具窗口 -->
+        <toolWindow id="AutoDDL"
+                    anchor="right"
+                    factoryClass="com.addzero.addl.action.autoddlwithdb.toolwindow.AutoDDLToolWindowFactory"
+                    icon="AllIcons.Actions.Refresh"
+                    secondary="false"
+                    order="last"/>
 
-<!--        <intentionAction>-->
-<!--            <language>kotlin</language>-->
-<!--            <className>com.addzero.addl.intention.RemoveShitCodeIntention</className>-->
-<!--            <category>Java/Kotlin</category>-->
-<!--        </intentionAction>-->
+
+        <!--        <intentionAction>-->
+        <!--            <language>kotlin</language>-->
+        <!--            <className>com.addzero.addl.intention.RemoveShitCodeIntention</className>-->
+        <!--            <category>Java/Kotlin</category>-->
+        <!--        </intentionAction>-->
 
         <!-- 添加字段注释生成枚举类的意图动作 -->
         <!--        <intentionAction>-->
@@ -164,10 +173,9 @@
         <!--        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">-->
         <!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
 
-        <!--            <action id="AutoDDL.WithDB.Generate"-->
-        <!--                    class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
-        <!--                    text="Entities DDL Generator"-->
-        <!--                    description="Generate and sync database tables from entity package"/>-->
+        <action id="AutoDDL.WithDB.Generate"
+                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
+        />
 
         <!--            <action id="DictEnum.Generate"-->
         <!--                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->

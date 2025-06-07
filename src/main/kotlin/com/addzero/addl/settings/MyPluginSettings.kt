@@ -59,13 +59,25 @@ data class MyPluginSettings(
     @ConfigField(
         label = "离线ollama模型",
         type = FieldType.DROPDOWN,
-        options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B, CODEGEMMA , DEEPSEEK_R1 , QWQ, ]
-        ,
+        options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B, CODEGEMMA, DEEPSEEK_R1, QWQ],
         group = "ai",
         order = 5
     ) @JvmField var modelNameOffline: String = DEEPSEEK_R1,
 
     @JvmField var temPerature: String = "0.4",
+
+//    @ConfigField(
+//        label = "模块路径(单模块不填,多模块例  backend/service)", group = "db", order = 0
+//    )
+//    @JvmField
+//    var modulePath: String = "",
+
+    @ConfigField(label = "flayway文件保存路径(多模块在src前加相对路径即可)", group = "db", order = 0) @JvmField
+    var flaywayPath: String = "src/main/resources/db/migration/autoddl",
+
+    @ConfigField(label = "ddl元数据保存路径(多模块在src前加相对路径即可)", group = "db", order = 0)
+    @JvmField
+    var entityDdlContextMetaJsonPath: String = "src/main/resources/db/meta",
 
     // 数据库配置组
     @ConfigField(
@@ -142,4 +154,6 @@ data class MyPluginSettings(
         order = 4
     ) @JvmField var shitAnnotation: String = "Shit",
 
-    )
+
+    ) {
+}

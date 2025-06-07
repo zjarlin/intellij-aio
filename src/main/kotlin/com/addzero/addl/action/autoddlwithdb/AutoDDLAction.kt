@@ -2,15 +2,12 @@
 //
 //import ai.grazie.utils.toDistinctTypedArray
 //import cn.hutool.core.util.StrUtil
-//import com.addzero.addl.action.autoddlwithdb.scanner.findJavaEntityClasses
-//import com.addzero.addl.action.autoddlwithdb.scanner.findktEntityClasses
+//import com.addzero.addl.action.autoddlwithdb.toolwindow.scanDdlContext
 //import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 //import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 //import com.addzero.addl.autoddlstarter.generator.entity.DDLFLatContext
 //import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 //import com.addzero.addl.autoddlstarter.generator.entity.toDDLContext
-//import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
-//import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 //import com.addzero.addl.ktututil.JlCollUtil.differenceBy
 //import com.addzero.addl.ktututil.JlCollUtil.intersectBy
 //import com.addzero.addl.ktututil.equalsIgnoreCase
@@ -35,13 +32,14 @@
 //import com.intellij.psi.PsiElement
 //import com.intellij.psi.PsiField
 //import com.intellij.psi.PsiModifier
-//import isKotlinProject
 //import org.jetbrains.annotations.Unmodifiable
 //import java.sql.Connection
+//
 //
 //class AutoDDLAction : AnAction() {
 //
 //    private lateinit var dataSource: DbDataSource
+//
 //
 //    /**
 //     * 检测是否应该显示菜单项
@@ -64,7 +62,6 @@
 //    }
 //
 //    override fun actionPerformed(e: AnActionEvent) {
-//        val dbType = SettingContext.settings.dbType
 //        val project = e.project ?: return
 //        val schema = e.getData(LangDataKeys.PSI_ELEMENT) as? DasNamespace ?: return
 //        dataSource = findDataSource(schema) ?: return
@@ -96,16 +93,16 @@
 ////        val dmls= genDML(diffTypeContext)
 //
 //        //判断没有差异就报错
-//        if (diff.isEmpty()) {
-//            DialogUtil.showInfoMsg("实体包路径结构与数据库名称无差异(表名和列名)")
-//            difftypeJson(pkgContext, ddlContexts, project)
-//            return
-//        }
+////        if (diff.isEmpty()) {
+////            DialogUtil.showInfoMsg("实体包路径结构与数据库名称无差异(表名和列名)")
+////            difftypeJson(pkgContext, ddlContexts, project)
+////            return
+////        }
 //
 //        val toFlatDDLContext = diff.toDDLContext()
 //
 //
-//        val databaseDDLGenerator = getDatabaseDDLGenerator(dbType)
+//        val databaseDDLGenerator = getDatabaseDDLGenerator(SettingContext.settings.dbType)
 //
 //
 //// 将 DDL 语句分类收集
@@ -114,55 +111,95 @@
 //        }.let { (createContexts, alterContexts) ->
 //            // 生成创建表的 SQL
 //            val createSqls = createContexts.map { context ->
-//                databaseDDLGenerator.generateCreateTableDDL(context)
+//                val generateCreateTableDDL = databaseDDLGenerator.generateCreateTableDDL(context)
+//                SingleTableDDLResult(context, generateCreateTableDDL)
+////                generateCreateTableDDL
 //            }
 //
 //            // 生成添加列的 SQL
 //            val alterSqls = alterContexts.map { context ->
-//                databaseDDLGenerator.generateAddColDDL(context)
+//                val generateAddColDDL = databaseDDLGenerator.generateAddColDDL(context)
+//                SingleTableAlterDDLResult(context, generateAddColDDL)
 //            }
 //
 //            createSqls to alterSqls
 //        }
 //
+//
+//        genMultiCode(createTableSqls, addColumnSqls, project)
+//
+//
 //// 组合最终的 SQL，先创建表，再添加列
-//        val finalSql = buildString {
-//            // 添加创建表的 SQL
-//            if (createTableSqls.isNotEmpty()) {
-//                appendLine("-- Create Tables")
-//                appendLine(createTableSqls.joinToString(System.lineSeparator()))
-//            }
+////        val finalSql = buildString {
+////            // 添加创建表的 SQL
+////            if (createTableSqls.isNotEmpty()) {
+////                appendLine("-- Create Tables")
+////                appendLine(createTableSqls.joinToString(System.lineSeparator()))
+////            }
+////
+////            // 添加分隔符
+////            if (createTableSqls.isNotEmpty() && addColumnSqls.isNotEmpty()) {
+////                appendLine()
+////                appendLine("-- ----------------------------------------")
+////                appendLine()
+////            }
+////
+////            // 添加修改表的 SQL
+////            if (addColumnSqls.isNotEmpty()) {
+////                appendLine("-- Add Columns")
+////                appendLine(addColumnSqls.joinToString(System.lineSeparator()))
+////            }
+////        }
 //
-//            // 添加分隔符
-//            if (createTableSqls.isNotEmpty() && addColumnSqls.isNotEmpty()) {
-//                appendLine()
-//                appendLine("-- ----------------------------------------")
-//                appendLine()
-//            }
 //
-//            // 添加修改表的 SQL
-//            if (addColumnSqls.isNotEmpty()) {
-//                appendLine("-- Add Columns")
-//                appendLine(addColumnSqls.joinToString(System.lineSeparator()))
-//            }
+//    }
+//
+//    private fun genMultiCode(
+//        createTableSqls: List<SingleTableDDLResult>,
+//        addColumnSqls: List<SingleTableAlterDDLResult>,
+//        project: Project
+//    ) {
+//
+//        val filePath = "${project.basePath}/${SettingContext.settings.flaywayPath} "
+//
+//        createTableSqls.forEach {
+//            val tableEnglishName = it.context.tableEnglishName
+//            val finalSql = it.generateCreateTableDDL
+//
+//            ShowContentUtil.genCode(
+//                project, finalSql,
+//                "V${System.currentTimeMillis()}__${tableEnglishName}_init",
+//                ".sql",
+//                filePath = "$filePath/init"
+//            )
+//
 //        }
-//        ShowContentUtil.openTextInEditor(
-//            project,
-//            finalSql,
-//            "diff_ddl",
-//            ".sql",
-////            project!!.basePath
-//        )
 //
 //
-//        difftypeJsonSee(pkgContext, ddlContexts, project)
+//        addColumnSqls.forEach {
+//            val tableEnglishName = it.context.tableEnglishName
+//            val finalSql = it.generateAddColDDL
+//
+//            ShowContentUtil.genCode(
+//                project, finalSql,
+//                "V${System.currentTimeMillis()}__${tableEnglishName}_change",
+//                ".sql",
+//                filePath = "$filePath/change"
+//            )
+//
+//
+//        }
 //
 //
 //    }
 //
 //    private fun difftypeJson(pkgContext: List<DDLFLatContext>, ddlContexts: List<DDLFLatContext>, project: Project) {
 //
-//        val diffTypeContext = pkgContext.intersectBy(ddlContexts, { a, b -> a.tableEnglishName.equalsIgnoreCase(b.tableEnglishName) }, { a, b -> a.colName.equalsIgnoreCase(b.colName) }, { a, b -> !a.colType.equalsIgnoreCase(b.colType) })
+//        val diffTypeContext = pkgContext.intersectBy(
+//            ddlContexts,
+//            { a, b -> a.tableEnglishName.equalsIgnoreCase(b.tableEnglishName) },
+//            { a, b -> a.colName.equalsIgnoreCase(b.colName) },
+//            { a, b -> !a.colType.equalsIgnoreCase(b.colType) })
 //
 //        if (diffTypeContext.isNotEmpty()) {
 //            //警告类型不同的字段
@@ -172,6 +209,8 @@
 //                DialogUtil.showWarningMsg(
 //                    "实体与数据库类型存在差异，请注意修改" + "" + "(未来版本会实现类型隐式适配数据库类型ddl语句!)"
 //                )
+//
+//
 //                ShowContentUtil.openTextInEditor(
 //                    project,
 //                    toJson1,
@@ -194,33 +233,34 @@
 //    ) {
 //        // 使用流式语法构建类型差异JSON
 //        val diffJson = pkgContext.groupBy { it.tableEnglishName.lowercase() }.mapValues { (tableName, entityColumns) ->
-//                // 获取数据库中对应表的列类型映射
-//                val dbColumnTypes = ddlContexts.filter { it.tableEnglishName.equals(tableName, ignoreCase = true) }.associate { it.colName.lowercase() to it.colType }
+//            // 获取数据库中对应表的列类型映射
+//            val dbColumnTypes = ddlContexts.filter { it.tableEnglishName.equals(tableName, ignoreCase = true) }
+//                .associate { it.colName.lowercase() to it.colType }
 //
-//                // 找出类型不同的列
-//                entityColumns.mapNotNull { entityCol ->
-//                        val colName = entityCol.colName.lowercase()
-//                        dbColumnTypes[colName]?.let { dbType ->
-//                            if (!entityCol.colType.equals(dbType, ignoreCase = true)) {
-//                                colName to "${entityCol.colType}    <=    $dbType"
-//                            } else null
-//                        }
-//                    }.takeIf { it.isNotEmpty() }?.joinToString(",\n") { (colName, typeDiff) ->
-//                        """    "$colName": "$typeDiff""""
-//                    }
-//            }.filterValues { it != null }.takeIf { it.isNotEmpty() }?.let { diffMap ->
-//                // 使用字符串模板构建最终的JSON
-//                buildString {
-//                    appendLine("{")
-//                    append(diffMap.entries.joinToString(",\n") { (tableName, columnDiffs) ->
-//                        """  "$tableName": {
+//            // 找出类型不同的列
+//            entityColumns.mapNotNull { entityCol ->
+//                val colName = entityCol.colName.lowercase()
+//                dbColumnTypes[colName]?.let { dbType ->
+//                    if (!entityCol.colType.equals(dbType, ignoreCase = true)) {
+//                        colName to "${entityCol.colType}    <=    $dbType"
+//                    } else null
+//                }
+//            }.takeIf { it.isNotEmpty() }?.joinToString(",\n") { (colName, typeDiff) ->
+//                """    "$colName": "$typeDiff""""
+//            }
+//        }.filterValues { it != null }.takeIf { it.isNotEmpty() }?.let { diffMap ->
+//            // 使用字符串模板构建最终的JSON
+//            buildString {
+//                appendLine("{")
+//                append(diffMap.entries.joinToString(",\n") { (tableName, columnDiffs) ->
+//                    """  "$tableName": {
 //                    |$columnDiffs
 //                    |  }""".trimMargin()
-//                    })
-//                    appendLine("\n}")
+//                })
+//                appendLine("\n}")
 //
-//                }
-//            } ?: "{}"
+//            }
+//        } ?: "{}"
 //
 //        if (diffJson != "{}") {
 //            DialogUtil.showWarningMsg(
@@ -249,45 +289,25 @@
 //    }
 //
 //
-//    private fun scanDdlContext(project: Project): List<DDLContext> {
-//        val dbType = SettingContext.settings.dbType
-//        //        val scanPkg = ""
-//
-//        val ddlContexts = if (isKotlinProject(project)) {
-//            val findAllEntityClasses = findktEntityClasses(project)
-//            val map = findAllEntityClasses.map {
-//                val createDDLContext = createDDLContext4KtClass(it, dbType)
-//                createDDLContext
-//            }
-//            map
-//        } else {
-//            val findJavaEntityClasses = findJavaEntityClasses(project)
-//            val map = findJavaEntityClasses.map {
-//                val createDDLContext = createDDLContext(it, dbType)
-//                createDDLContext
-//            }
-//            map
-//        }
-//
-//        val toList = ddlContexts.map {
-//            val tableEnglishName = it.tableEnglishName
-//            val removeSurrounding = tableEnglishName.removeSurrounding("\"")
-//            it.tableEnglishName = removeSurrounding
-//            it
-//        }.toList()
-//        return toList
-//    }
-//
-//
 //    private fun convertToDDLContext(dbTable: DasTable, columns: List<DasColumn>, dbType: String): DDLContext {
-//        return DDLContext(tableChineseName = dbTable.comment ?: dbTable.name, tableEnglishName = dbTable.name, databaseType = dbType, databaseName = dbTable.dasParent?.name ?: "", dto = columns.map { column ->
-//            // 解析类型和长度
-//            val (type, length) = parseTypeAndLength(column.dasType.specification ?: "")
+//        return DDLContext(
+//            tableChineseName = dbTable.comment ?: dbTable.name,
+//            tableEnglishName = dbTable.name,
+//            databaseType = dbType,
+//            databaseName = dbTable.dasParent?.name ?: "",
+//            dto = columns.map { column ->
+//                // 解析类型和长度
+//                val (type, length) = parseTypeAndLength(column.dasType.specification ?: "")
 //
-//            DDlRangeContext(
-//                colName = column.name, colType = type, colLength = length, colComment = column.comment ?: "", isPrimaryKey = if (DasUtil.isPrimary(column)) "Y" else "N", isSelfIncreasing = if (DasUtil.isAutoGenerated(column)) "Y" else "N"
-//            )
-//        })
+//                DDlRangeContext(
+//                    colName = column.name,
+//                    colType = type,
+//                    colLength = length,
+//                    colComment = column.comment ?: "",
+//                    isPrimaryKey = if (DasUtil.isPrimary(column)) "Y" else "N",
+//                    isSelfIncreasing = if (DasUtil.isAutoGenerated(column)) "Y" else "N"
+//                )
+//            })
 //    }
 //
 //    /**
@@ -501,10 +521,24 @@
 //        return containsAny
 //
 //
-//        // 检查表名是否存在（不区分大小写）
+//        // 检查表名是否存在（不区分大小写  ）
 ////        return tables.any { table ->
 ////            val name = table.name
 ////            name.equals(tableName, ignoreCase = true)
 ////        }
 //    }
+//}
+//
+//data class SingleTableAlterDDLResult(
+//    val context: DDLContext,
+//    val generateAddColDDL: String
+//) {
+//
+//}
+//
+//data class SingleTableDDLResult(
+//    val context: DDLContext,
+//    val generateCreateTableDDL: String
+//) {
+//
 //}

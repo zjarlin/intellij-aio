@@ -2,6 +2,7 @@ package com.addzero.addl.ktututil
 
 import cn.hutool.core.util.StrUtil
 import com.alibaba.fastjson2.JSON
+import com.alibaba.fastjson2.JSONWriter
 import org.apache.commons.lang3.StringUtils
 
 fun CharSequence.toCamelCase(): String {
@@ -22,7 +23,7 @@ fun String.upperCase(): String {
 }
 
 fun Any.toJson(): String {
-    return JSON.toJSONString(this)
+    return JSON.toJSONString(this, JSONWriter.Feature.PrettyFormat)
 }
 
 fun <T> String.parseObject(clazz: Class<T>): T {

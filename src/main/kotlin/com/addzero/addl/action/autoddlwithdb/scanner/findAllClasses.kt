@@ -1,7 +1,6 @@
 package com.addzero.addl.action.autoddlwithdb.scanner
 
 import com.addzero.addl.util.fieldinfo.PsiUtil.guessTableNameByAnno
-import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.psi.PsiClass
@@ -20,7 +19,8 @@ fun findktEntityClasses(project: Project): List<KtClass> {
         val findFile = PsiManager.getInstance(project).findFile(it)
         val b = findFile as KtFile
         b.declarations.filterIsInstance<KtClass>()
-    }.filter { kotlinChecker.isEntityClass(it) }
+    }
+    .filter { kotlinChecker.isEntityClass(it) }
 
     return filter
 }
@@ -29,10 +29,10 @@ fun findktEntityClasses(project: Project): List<KtClass> {
 
 fun findktEntityClassesMap(project: Project): Map<KtClass, @NlsSafe String?> {
     val findktEntityClasses = findktEntityClasses(project)
-    val map = findktEntityClasses.associate {
+    val map = findktEntityClasses.associateWith {
         val toLightClass = it.toLightClass() as PsiClass
         val guessTableNameByAnno = guessTableNameByAnno(toLightClass)
-     it to   guessTableNameByAnno
+        guessTableNameByAnno
     }
     return map
 

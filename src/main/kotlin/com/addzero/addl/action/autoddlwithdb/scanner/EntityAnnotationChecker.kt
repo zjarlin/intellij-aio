@@ -10,9 +10,23 @@ interface EntityAnnotationChecker<T> {
     fun isEntityClass(clazz: T): Boolean
 
     companion object {
+//        val ENTITY_ANNOTATIONS = listOf(
+//            "org.babyfish.jimmer.sql.Entity",
+//            "org.babyfish.jimmer.sql.Table",
+//            "com.baomidou.mybatisplus.annotation.TableName",
+//            "javax.persistence.Entity",
+//            "jakarta.persistence.Entity",
+//            "javax.persistence.Table",
+//            "jakarta.persistence.Table",
+//        )
+
+
         val ENTITY_ANNOTATIONS = listOf(
-            "javax.persistence.Entity", "jakarta.persistence.Entity", "javax.persistence.Table", "jakarta.persistence.Table", "org.babyfish.jimmer.sql.Table", "com.baomidou.mybatisplus.annotation.TableName"
+            "Entity",
+            "Table",
+            "TableName",
         )
+
     }
 }
 

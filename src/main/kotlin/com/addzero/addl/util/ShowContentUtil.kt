@@ -1,5 +1,6 @@
 package com.addzero.addl.util
 
+import cn.hutool.core.io.FileUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.command.WriteCommandAction
@@ -88,18 +89,8 @@ object ShowContentUtil {
 
         WriteCommandAction.runWriteCommandAction(project) {
             try {
-                // 定义 .autoddl 目录
-                val autoddlDirectory = File(filePath)
-                // 确保 .autoddl 目录存在
-                if (!autoddlDirectory.exists()) {
-                    autoddlDirectory.mkdir()
-                }
 
-                // 创建 SQL 文件的名称
-                val fileName = "$sqlPrefix$fileTypeSuffix"
-                val sqlFile = File(autoddlDirectory, fileName)
-                // 写入 SQL 到文件
-                sqlFile.writeText(sql)
+                val sqlFile = genCode(project, sql, sqlPrefix, fileTypeSuffix, filePath)
 
                 // 刷新并获取虚拟文件
                 val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(sqlFile) ?: return@runWriteCommandAction
@@ -125,4 +116,38 @@ object ShowContentUtil {
     }
 
 
+    fun genCode(
+        project: Project,
+        content: String,
+        fileNamePre: String = "",
+        fileTypeSuffix: String = if (PsiUtil.isKotlinProject(project!!)) {
+            ".kt"
+        } else {
+            ".java"
+        },
+        filePath: String? = "${project!!.basePath}/.autoddl",
+        ): File {
+
+        // 定义 .autoddl 目录
+        val autoddlDirectory = File(filePath)
+        // 确保 .autoddl 目录存在
+        if (!autoddlDirectory.exists()) {
+            autoddlDirectory.mkdir()
+        }
+
+        // 创建 SQL 文件的名称
+        val removeAnyQuote = fileNamePre.removeAnyQuote()
+        val removeAny = removeAnyQuote.removeAny("\\")
+
+        val fileName = "$removeAny$fileTypeSuffix"
+        val file = FileUtil.file(autoddlDirectory, fileName)
+//        val sqlFile = File(autoddlDirectory, fileName)
+        val writeUtf8String = FileUtil.writeUtf8String(content, file)
+        // 写入 SQL 到文件
+//        sqlFile.writeText(content)
+        return writeUtf8String
+
+
+
+    }
 }

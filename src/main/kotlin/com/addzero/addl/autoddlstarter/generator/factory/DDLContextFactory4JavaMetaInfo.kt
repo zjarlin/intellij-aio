@@ -12,7 +12,6 @@ import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
 import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.addl.util.removeAny
 import com.addzero.addl.util.removeAnyQuote
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
@@ -20,9 +19,6 @@ import org.jetbrains.kotlin.psi.KtClass
 private const val UNKNOWN_TABLE_NAME = "unknown_table_name"
 
 object DDLContextFactory4JavaMetaInfo {
-
-
-
     fun createDDLContext4KtClass(psiClass: KtClass ,databaseType: String = MYSQL): DDLContext {
         var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (psiClass)
         tableEnglishName= tableEnglishName!!.ifBlank { UNKNOWN_TABLE_NAME }

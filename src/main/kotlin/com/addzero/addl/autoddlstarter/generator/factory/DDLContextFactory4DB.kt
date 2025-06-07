@@ -9,7 +9,6 @@ object DDLContextFactory4DB {
 
 
     fun createDDLContext4DB(psiClass: KtClass, databaseType: String = MYSQL): DDLContext {
-        // TODO:
 
         return mockkDDLContext()
 

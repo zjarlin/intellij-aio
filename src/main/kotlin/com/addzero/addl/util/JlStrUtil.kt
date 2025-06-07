@@ -312,11 +312,11 @@ fun CharSequence.containsAny(vararg testStrs: CharSequence): Boolean {
     return containsAny
 }
 
-fun CharSequence.removeAny(vararg testStrs: CharSequence): String? {
+fun CharSequence.removeAny(vararg testStrs: CharSequence): String {
     if (this.isBlank()) {
         return ""
     }
-    return StrUtil.removeAny(this, *testStrs)
+    return StrUtil.removeAny(this, *testStrs)?:""
 }
 
 fun String.getParentPathAndmkdir(childPath: String): String {
@@ -334,7 +334,7 @@ fun CharSequence.removeAnyQuote(): String {
     if (this.isBlank()) {
         return ""
     }
-    return StrUtil.removeAny(this, "\"")
+    return StrUtil.removeAny(this, "\"","\\")
 }
 
 

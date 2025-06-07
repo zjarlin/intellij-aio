@@ -173,9 +173,9 @@
         <!--        <group id="AutoDDL.DatabaseGroup" text="AutoDDL Database" popup="true">-->
         <!--            <add-to-group group-id="DatabaseViewPopupMenu" anchor="first"/>-->
 
-        <action id="AutoDDL.WithDB.Generate"
-                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"
-        />
+<!--        <action id="AutoDDL.WithDB.Generate"-->
+<!--                class="com.addzero.addl.action.autoddlwithdb.AutoDDLAction"-->
+<!--        />-->
 
         <!--            <action id="DictEnum.Generate"-->
         <!--                    class="com.addzero.addl.action.dictgen.DictEnumGenerateAction"-->

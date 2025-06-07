@@ -72,10 +72,10 @@ data class MyPluginSettings(
 //    @JvmField
 //    var modulePath: String = "",
 
-    @ConfigField(label = "flayway文件保存路径(多模块在src前加相对路径即可)", group = "db", order = 0) @JvmField
+    @ConfigField(label = "flayway文件保存路径", group = "db", order = 0) @JvmField
     var flaywayPath: String = "src/main/resources/db/migration/autoddl",
 
-    @ConfigField(label = "ddl元数据保存路径(多模块在src前加相对路径即可)", group = "db", order = 0)
+    @ConfigField(label = "ddl元数据保存路径", group = "db", order = 0)
     @JvmField
     var entityDdlContextMetaJsonPath: String = "src/main/resources/db/meta",
 

@@ -1,9 +1,6 @@
 package com.addzero.addl.util.fieldinfo
 
 import com.intellij.openapi.project.Project
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
-import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.decompiler.psi.text.getAllModifierLists
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -13,27 +10,6 @@ import org.jetbrains.kotlin.psi.*
  * K2模式下的属性工具类
  */
 object K2PropertyUtil {
-
-    /**
-     * 过滤出包含指定注解的属性
-     * @param ktClass Kotlin类
-     * @param annotationFqNames 注解全限定名列表
-     * @return 包含指定注解的属性列表
-     */
-    fun filterPropertiesByAnnotations(
-        ktClass: KtClass, annotationFqNames: List<String>
-    ): List<KtProperty> {
-        return analyze(ktClass) {
-            ktClass.getProperties().filter { property ->
-                val symbol = property.symbol
-                if (symbol is KaPropertySymbol) {
-                    symbol.annotations.any { annotation ->
-                        annotation.classId?.asSingleFqName()?.asString() in annotationFqNames
-                    }
-                } else false
-            }
-        }
-    }
 
 
     /**
@@ -65,42 +41,6 @@ object K2PropertyUtil {
 
 
     /**
-     * 获取属性的类型
-     * @param property Kotlin属性
-     * @return 属性类型的字符串表示
-     */
-    fun getPropertyType(property: KtProperty): String {
-        return analyze(property) {
-            property.symbol.returnType.toString()
-        }
-    }
-
-    /**
-     * 获取属性的所有注解
-     * @param property Kotlin属性
-     * @return 注解全限定名列表
-     */
-    fun getPropertyAnnotations(property: KtProperty): List<String> {
-        return analyze(property) {
-            val symbol = property.symbol
-            if (symbol is KaPropertySymbol) {
-                symbol.annotations.mapNotNull { it.classId?.asSingleFqName()?.asString() }
-            } else emptyList()
-        }
-    }
-
-    /**
-     * 检查属性是否可空
-     * @param property Kotlin属性
-     * @return 是否可空
-     */
-    fun isNullable(property: KtProperty): Boolean {
-        return analyze(property) {
-            property.symbol.returnType.isMarkedNullable
-        }
-    }
-
-    /**
      * 获取属性的默认值
      * @param property Kotlin属性
      * @return 默认值字符串，如果没有则返回null
@@ -121,18 +61,6 @@ object K2PropertyUtil {
         val factory = KtPsiFactory(project)
         val annotation = factory.createAnnotationEntry(annotationText)
         property.addAnnotationEntry(annotation)
-    }
-
-    /**
-     * 获取属性的可见性修饰符
-     * @param property Kotlin属性
-     * @return 可见性修饰符字符串
-     */
-    fun getPropertyVisibility(property: KtProperty): String {
-        val analyze = analyze(property) {
-            property.symbol.visibility.name
-        }
-        return analyze
     }
 
     /**
@@ -203,34 +131,6 @@ object K2PropertyUtil {
     }
 
 
-    /**
-     * 获取属性的注解信息
-     * @param property Kotlin属性
-     * @return 注解信息列表
-     */
-    fun getPropertyAnnotationInfo(property: KtProperty): List<AnnotationInfo> {
-        return analyze(property) {
-            val symbol = property.symbol
-            if (symbol is KaPropertySymbol) {
-                symbol.annotations.map { annotation ->
-                    AnnotationInfo(
-                        ktProperty = property,
-                        name = annotation.classId?.asSingleFqName()?.asString() ?: "",
-                        arguments = annotation.arguments.map { arg ->
-                            AnnotationArgument(
-                                name = arg.name?.asString(),
-                                ktProperty = property,
-                                value = when (val value = arg.expression) {
-                                    is KaConstantValue -> value.value.toString()
-                                    else -> value.toString()
-                                }
-                            )
-                        })
-                }
-            } else emptyList()
-        }
-    }
-
     fun processKotlinAnnotation(annotation: KtAnnotationEntry): List<AnnotationArgument> {
         // 获取所有参数
         val valueArguments = annotation.valueArguments
@@ -278,46 +178,6 @@ object K2PropertyUtil {
     data class AnnotationArgument(
         var ktProperty: KtProperty?, val name: String?, val value: String
     )
-
-    /**
-     * 获取指定注解的参数值
-     * @param property Kotlin属性
-     * @param annotationName 注解全限定名
-     * @param paramName 参数名
-     * @return 参数值，如果不存在则返回null
-     */
-    fun getAnnotationParameterValue(
-        property: KtProperty, annotationName: String, paramName: String
-    ): String? {
-        return analyze(property) {
-            val symbol = property.symbol
-            if (symbol is KaPropertySymbol) {
-                symbol.annotations.find {
-                    it.classId?.asSingleFqName()?.asString() == annotationName
-                }?.arguments?.find { it.name?.asString() == paramName }?.let { arg ->
-                    when (val value = arg.expression) {
-                        is KaConstantValue -> value.value.toString()
-                        else -> value.toString()
-                    }
-                }
-            } else null
-        }
-    }
-
-    /**
-     * 检查属性是否有指定注解
-     * @param property Kotlin属性
-     * @param annotationName 注解全限定名
-     * @return 是否有该注解
-     */
-    fun hasAnnotation(property: KtProperty, annotationName: String): Boolean {
-        return analyze(property) {
-            val symbol = property.symbol
-            if (symbol is KaPropertySymbol) {
-                symbol.annotations.any { it.classId?.asSingleFqName()?.asString() == annotationName }
-            } else false
-        }
-    }
 
 
 }

@@ -21,7 +21,7 @@ fun scanDdlContext(project: Project): List<DDLContext> {
 
         val findAllEntityClasses = findktEntityClasses(project)
         //处理多对多中间表的生成
-        val aaad= genMany2ManyDDLContext(findAllEntityClasses)
+//        val aaad= genMany2ManyDDLContext(findAllEntityClasses)
 
         val map = findAllEntityClasses.map {
 

@@ -1,7 +1,5 @@
 package com.addzero.addl.util.fieldinfo
 
-import com.example.demo.modules.ai.util.fieldinfo.FieldInfo
-import com.example.demo.modules.ai.util.fieldinfo.toSimpleString
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import java.lang.reflect.Field
 import java.lang.reflect.ParameterizedType

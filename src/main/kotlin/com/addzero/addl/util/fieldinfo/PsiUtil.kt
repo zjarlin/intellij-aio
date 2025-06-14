@@ -38,6 +38,7 @@ private const val NOCOMMENT = ""
 
 
 object PsiUtil {
+
     fun getCurrentPsiElement(
         editor: Editor?, file: PsiFile?
     ): PsiElement? {
@@ -694,6 +695,7 @@ object PsiUtil {
 
         return PsiCtx(editor, psiClass, ktClass, psiFile, virtualFile, any)
     }
+
 
 
     fun getClassMetaInfo4KtClass(psiClass: KtClass): Pair<String, String?> {

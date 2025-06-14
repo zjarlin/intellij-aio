@@ -19,16 +19,36 @@ import org.jetbrains.kotlin.psi.KtClass
 private const val UNKNOWN_TABLE_NAME = "unknown_table_name"
 
 object DDLContextFactory4JavaMetaInfo {
-    fun createDDLContext4KtClass(psiClass: KtClass ,databaseType: String = MYSQL): DDLContext {
-        var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (psiClass)
+    fun createDDLContext4KtClass(ktClass: KtClass, databaseType: String = MYSQL): DDLContext {
+        var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (ktClass)
         tableEnglishName= tableEnglishName!!.ifBlank { UNKNOWN_TABLE_NAME }
         tableChineseName=tableChineseName.ifBlank { tableEnglishName!! }
 
-        val javaFieldMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)
+        val javaFieldMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
 
         val rangeContexts = javaFieldMetaInfo.map { field ->
             createRangeContext(field, databaseType)
         }
+        //解析ktclass字段上的ManyToMany注解,如果有@ManyToMany 再看看是否有@JoinTable 注解 如果有的话,提取表名和两个字段名也形成DDLContext
+
+//        @ManyToMany
+//    @JoinTable(
+//        name = "BOOK_AUTHOR_MAPPING",
+//        joinColumnName = "BOOK_ID",
+//        inverseJoinColumnName = "AUTHOR_ID"
+//    )
+
+
+//        ktClass.getProperties()
+//            .filter { it.annotationEntries.map {  } }
+//        .map {
+
+//        }
+
+
+
+
+
         return DDLContext(
             tableChineseName = tableChineseName.removeAnyQuote(),
             tableEnglishName = tableEnglishName.removeAnyQuote(),

@@ -78,6 +78,8 @@
         <!--                icon="AllIcons.General.Modified"-->
         <!--                anchor="right"-->
         <!--                factoryClass="com.addzero.addl.action.aitoolwindow.toolwindow.AIChatToolWindowFactory"/>-->
+
+        <notificationGroup id="AutoDDL Notifications" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

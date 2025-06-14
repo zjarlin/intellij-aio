@@ -51,9 +51,11 @@ class AutoDDLToolWindowFactory : ToolWindowFactory {
         panel.add(buttonPanel, BorderLayout.NORTH)
         panel.add(scrollPane, BorderLayout.CENTER)
 
+
         // 设置扫描按钮事件
         scanButton.addActionListener {
             val pkgContext = scanDdlContext(project)
+
             if (pkgContext.isEmpty()) {
                 ShowContentUtil.showErrorMsg("未扫描到实体结构")
                 return@addActionListener

@@ -37,31 +37,28 @@ class AddActionAndIntentions : ProjectActivity {
 }
 
 private fun registerIntentions() {
+    // 在插件启动时注册所有意图动作
     val intentionManager = IntentionManager.getInstance()
 
-    // 检查并注册Java意图
-    val javaIntentions = listOf(
-        AddSwaggerAnnotationJavaAction(),
-        AddExcelPropertyAnnotationJavaAction(),
-        AddCusTomAnnotationJavaAction(),
-        GenEnumByFieldCommentIntention()
-    )
 
-    // 检查并注册Kotlin意图
-    val kotlinIntentions = listOf(
-        AddSwaggerAnnotationAction(),
-        AddExcelPropertyAnnotationAction(),
-        AddCusTomAnnotationAction(),
-//        ConvertToVersionCatalogIntention()
-    )
+    //注册java意图
+    intentionManager.addAction(AddSwaggerAnnotationJavaAction())
+    intentionManager.addAction(AddExcelPropertyAnnotationJavaAction())
+    intentionManager.addAction(AddCusTomAnnotationJavaAction())
+    intentionManager.addAction(GenEnumByFieldCommentIntention())
 
-    // 注册所有意图，避免重复
-    (javaIntentions + kotlinIntentions).forEach { intention ->
-        val existingIntentions = intentionManager.availableIntentions
-        if (!existingIntentions.any { it.javaClass == intention.javaClass }) {
-            intentionManager.addAction(intention)
-        }
-    }
+
+    //注册kt意图
+    intentionManager.addAction(AddSwaggerAnnotationAction())
+    intentionManager.addAction(AddExcelPropertyAnnotationAction())
+    intentionManager.addAction(AddCusTomAnnotationAction())
+//    intentionManager.addAction(ConvertToVersionCatalogIntention())
+
+//    intentionManager.addAction(RemoveShitCodeIntention())
+//    intentionManager.addAction(KotlinLambdaIntentionAction())
+
+
+//    intentionManager.addAction(GenEnumByFieldCommentIntention())
 }
 
 

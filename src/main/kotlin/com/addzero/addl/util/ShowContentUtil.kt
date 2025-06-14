@@ -12,62 +12,18 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import java.awt.Component
 import java.awt.KeyboardFocusManager
+import java.awt.Window
 import java.io.File
 import javax.swing.JFrame
 import javax.swing.JOptionPane
 
-
 object ShowContentUtil {
-
     fun showErrorMsg(message: String) {
-        // 获取当前活跃的 Window，如果没有活跃的窗口，将创建一个新的顶层窗口
-        var component: Component? = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusedWindow
-        if (component == null) {
-            // 如果没有找到活跃的窗口，就使用一个临时的 JFrame 作为父窗口
-            component = JFrame()
-            (component as JFrame).setSize(300, 200)
-            (component as JFrame).setLocationRelativeTo(null)
-            (component as JFrame).isVisible = true
-        }
-
-        // 显示错误消息对话框
+        val component = findOrCreateWindow()
         JOptionPane.showMessageDialog(
             component, "出现错误: $message", "错误", JOptionPane.ERROR_MESSAGE
         )
     }
-
-//    fun openTextInEditor(
-//        project: Project?,
-//        sql: String,
-//        sqlPrefix: String = "",
-//        fileTypeSuffix: String,
-//        filePath: String? = "${project!!.basePath}/.autoddl",
-//    ) {
-//        if (sql.isBlank()) {
-//            showErrorMsg("生成出错啦")
-//            return
-//        }
-//        WriteCommandAction.runWriteCommandAction(project) {
-//            // 定义 .autoddl 目录
-//            val autoddlDirectory = File(filePath)
-//            // 确保 .autoddl 目录存在
-//            if (!autoddlDirectory.exists()) {
-//                autoddlDirectory.mkdir()
-//            }
-//            // 创建 SQL 文件的名称
-//            val fileName = "$sqlPrefix$fileTypeSuffix"
-//            val sqlFile = File(autoddlDirectory, fileName)
-//            // 写入 SQL 到文件
-//            sqlFile.writeText(sql)
-//
-//            // 打开 SQL 文件
-//            val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance().refreshAndFindFileByIoFile(sqlFile)
-//            if (virtualFile != null) {
-//                FileEditorManager.getInstance(project!!).openFile(virtualFile, true)
-//            }
-//        }
-//    }
-
 
     fun openTextInEditor(
         project: Project?,
@@ -89,25 +45,13 @@ object ShowContentUtil {
 
         WriteCommandAction.runWriteCommandAction(project) {
             try {
-
                 val sqlFile = genCode(project, sql, sqlPrefix, fileTypeSuffix, filePath)
-
-                // 刷新并获取虚拟文件
                 val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(sqlFile) ?: return@runWriteCommandAction
-
-                // 获取 PsiFile
                 val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@runWriteCommandAction
-
-                // 获取文档管理器
                 val documentManager = PsiDocumentManager.getInstance(project)
                 val document = documentManager.getDocument(psiFile) ?: return@runWriteCommandAction
-                // 提交文档更改
                 documentManager.commitDocument(document)
-
-                // 格式化代码
                 CodeStyleManager.getInstance(project).reformat(psiFile)
-
-                // 打开文件
                 FileEditorManager.getInstance(project).openFile(virtualFile, focus)
             } catch (e: Exception) {
                 showErrorMsg("文件处理出错: ${e.message}")
@@ -115,39 +59,37 @@ object ShowContentUtil {
         }
     }
 
-
     fun genCode(
         project: Project,
         content: String,
         fileNamePre: String = "",
-        fileTypeSuffix: String = if (PsiUtil.isKotlinProject(project!!)) {
+        fileTypeSuffix: String = if (PsiUtil.isKotlinProject(project)) {
             ".kt"
         } else {
             ".java"
         },
-        filePath: String? = "${project!!.basePath}/.autoddl",
-        ): File {
-
-        // 定义 .autoddl 目录
+        filePath: String? = "${project.basePath}/.autoddl",
+    ): File {
         val autoddlDirectory = File(filePath)
-        // 确保 .autoddl 目录存在
         if (!autoddlDirectory.exists()) {
             autoddlDirectory.mkdir()
         }
-
-        // 创建 SQL 文件的名称
         val removeAnyQuote = fileNamePre.removeAnyQuote()
         val removeAny = removeAnyQuote.removeAny("\\")
-
         val fileName = "$removeAny$fileTypeSuffix"
         val file = FileUtil.file(autoddlDirectory, fileName)
-//        val sqlFile = File(autoddlDirectory, fileName)
-        val writeUtf8String = FileUtil.writeUtf8String(content, file)
-        // 写入 SQL 到文件
-//        sqlFile.writeText(content)
-        return writeUtf8String
+        return FileUtil.writeUtf8String(content, file)
+    }
 
-
-
+    private fun findOrCreateWindow(): Component {
+        var component: Component? = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusedWindow
+        if (component == null) {
+            component = JFrame().apply {
+                setSize(300, 200)
+                setLocationRelativeTo(null)
+                isVisible = true
+            }
+        }
+        return component
     }
 }

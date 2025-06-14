@@ -1,4 +1,4 @@
-package com.example.demo.modules.ai.util.fieldinfo
+package com.addzero.addl.util.fieldinfo
 
 import java.lang.reflect.Field
 

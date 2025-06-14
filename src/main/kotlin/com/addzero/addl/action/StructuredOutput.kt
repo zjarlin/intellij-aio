@@ -19,6 +19,7 @@ import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
+import com.addzero.addl.util.NotificationUtil
 
 class StructuredOutput : AnAction() {
 
@@ -42,7 +43,7 @@ class StructuredOutput : AnAction() {
                 val callStructuredOutputInterface2 = callStructuredOutputInterface(project, question, promptTemplate)
                 callStructuredOutputInterface2
             } catch (e: Exception) {
-                ShowContentUtil.showErrorMsg(e.message!!)
+                NotificationUtil.showError(project, e.message!!)
                 ""
             }
             if (response.isNotBlank()) {

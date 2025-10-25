@@ -160,6 +160,7 @@ interface IDatabaseGenerator {
                 put(POSTGRESQL, PostgreSQLDDLGenerator())
                 put(DM, DMSQLDDLGenerator())
                 put(H2, H2SQLDDLGenerator())
+                put(TDENGINE, TDengineDDLGenerator())
             }
         }
 

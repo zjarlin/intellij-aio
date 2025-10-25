@@ -83,7 +83,7 @@ data class MyPluginSettings(
     @ConfigField(
         label = "数据库类型",
         type = FieldType.DROPDOWN,
-        options = [MYSQL, ORACLE, POSTGRESQL, DM, H2],
+        options = [MYSQL, ORACLE, POSTGRESQL, DM, H2,TDENGINE],
         group = "db",
         order = 1
     ) @JvmField var dbType: String = MYSQL,

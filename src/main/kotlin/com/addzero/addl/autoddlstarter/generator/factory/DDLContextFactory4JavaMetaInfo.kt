@@ -10,7 +10,6 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.ktututil.toUnderlineCase
-import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.addl.util.removeAnyQuote
 import com.intellij.psi.PsiClass

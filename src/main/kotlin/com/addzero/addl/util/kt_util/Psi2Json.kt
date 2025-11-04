@@ -1,5 +1,11 @@
 package com.addzero.addl.util.kt_util
 
+// 为了保持向后兼容性，提供对新模块中工具类的引用
+import com.addzero.util.kt_util.Psi2Json
+
+// 为保持兼容性，创建类型别名
+typealias Psi2Json = com.addzero.util.kt_util.Psi2Json
+
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade

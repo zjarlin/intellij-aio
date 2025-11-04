@@ -1,56 +1,17 @@
 package com.addzero.addl.util.meta
 
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
-import com.intellij.openapi.module.ModuleUtil
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ModuleRootManager
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.PsiElement
-import org.jetbrains.jps.model.java.JavaSourceRootType
+// 为了保持向后兼容性，提供对新模块中工具类的引用
+import com.addzero.util.meta.language
+import com.addzero.util.meta.generateRoot
+import com.addzero.util.meta.sourceRoot
+import com.addzero.util.meta.dtoRoot
+import com.addzero.util.meta.root
 
-val VirtualFile.language: Language
-    get() {
-        return when (val fileType = extension) {
-            "java" -> Language.Java
-            "kt" -> Language.Kotlin
-            else -> throw IllegalFileFormatException(fileType ?: "<no-type>")
-        }
-    }
+// 为保持兼容性，创建函数和属性别名
+val com.intellij.openapi.vfs.VirtualFile.language: com.addzero.addl.util.meta.Language
+    get() = this.language as com.addzero.addl.util.meta.Language
 
-fun generateRoot(element: PsiElement): VirtualFile? {
-    val generateRoot by lazy {
-        root(element).firstOrNull { file -> "generated-sources" in file.path || "generated" in file.path }
-    }
-    return generateRoot
-}
-
-fun sourceRoot(element: PsiElement): VirtualFile? {
-    val sourceRoot by lazy {
-        root(element).firstOrNull { file -> "src" in file.path }
-    }
-    return sourceRoot
-}
-
-fun dtoRoot(element: PsiElement): VirtualFile? {
-    val dtoRootPath = sourceRoot(element)?.toNioPath()?.resolveSibling("dto") ?: return null
-    return VirtualFileManager.getInstance().findFileByNioPath(dtoRootPath)
-}
-
-fun root(element: PsiElement): List<VirtualFile> {
-    val roots by lazy {
-        val module = ModuleUtil.findModuleForPsiElement(element) ?: return@lazy emptyList()
-        ModuleRootManager
-                .getInstance(module)
-                .getSourceRoots(JavaSourceRootType.SOURCE)
-    }
-    return roots
-}
-
-//fun Project.notification(content: String, type: NotificationType = NotificationType.INFORMATION) {
-//    NotificationGroupManager.getInstance()
-//            .getNotificationGroup("JimmerDTO Notification Group")
-//            .createNotification(content, type)
-//            .notify(this)
-//}
+fun generateRoot(element: com.intellij.psi.PsiElement) = generateRoot(element)
+fun sourceRoot(element: com.intellij.psi.PsiElement) = sourceRoot(element)
+fun dtoRoot(element: com.intellij.psi.PsiElement) = dtoRoot(element)
+fun root(element: com.intellij.psi.PsiElement) = root(element)

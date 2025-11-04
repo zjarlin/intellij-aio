@@ -3,7 +3,7 @@
 //import cn.hutool.core.util.StrUtil
 //import com.addzero.addl.settings.SettingContext
 //import com.addzero.addl.util.*
-//import com.addzero.addl.util.fieldinfo.PsiUtil
+//import com.addzero.util.psi.PsiUtil
 //import com.intellij.database.model.DasNamespace
 //import com.intellij.database.psi.DbDataSource
 //import com.intellij.database.psi.DbElement

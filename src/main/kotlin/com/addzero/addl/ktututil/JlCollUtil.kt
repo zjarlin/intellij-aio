@@ -3,43 +3,7 @@ package com.addzero.addl.ktututil
 import com.addzero.addl.ktututil.JlCollUtil.differenceBy
 import com.addzero.addl.ktututil.JlCollUtil.intersectBy
 
-data class Person(
-    val id: Int,
-    val name: String,
-    val age: Int
-)
 
-fun main() {
-    val list1 = listOf(
-        Person(1, "Alice", 20),
-        Person(2, "Bob", 25),
-        Person(3, "Charlie", 30)
-    )
-
-    val list2 = listOf(
-        Person(1, "Alice", 20),
-        Person(4, "David", 35),
-        Person(5, "Eve", 28)
-    )
-
-    // 使用多个条件找出交集
-    val intersection = list1.intersectBy(list2,
-        { p1, p2 -> p1.name == p2.name },
-        { p1, p2 -> p1.age == p2.age }
-    )
-
-    println("交集：")
-    intersection.forEach { println(it) }
-
-    // 使用多个条件找出差集
-    val difference = list1.differenceBy(list2,
-        { p1, p2 -> p1.name == p2.name },
-        { p1, p2 -> p1.age == p2.age }
-    )
-
-    println("\n差集：")
-    difference.forEach { println(it) }
-}
 object JlCollUtil {
     /**
      * 根据多个比较条件计算两个集合的差集。

@@ -4,7 +4,6 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil
-import com.addzero.addl.util.PinYin4JUtils
 import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.intellij.ide.highlighter.JavaFileType

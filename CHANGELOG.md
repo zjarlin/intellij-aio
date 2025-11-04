@@ -1,6 +1,5 @@
 #### Version last
 
-- Shit代码面板(可以在项目中定义@Shit注解,插件可以批量删除@Shit标记的代码
 - 支持含有枚举的注释生成相关java/kotlin代码
 - 在实体类上alt+回车基于javadoc注释添加swagger注解,excel 注解,包含自定义设置的注解
   它会沿着swagger > excelproperty > javadoc > ai猜测 这个优先级猜注释

@@ -1,12 +1,7 @@
 package com.addzero.addl.util.meta
 
-object Constant {
-    const val NAME = "JimmerDTO"
+// 为了保持向后兼容性，提供对新模块中工具类的引用
+import com.addzero.util.meta.Constant
 
-    const val EXTENSION = "dto"
-
-    object Annotation {
-        const val ENTITY = "org.babyfish.jimmer.sql.Entity"
-        const val MAPPED_SUPERCLASS = "org.babyfish.jimmer.sql.MappedSuperclass"
-    }
-}
+// 为保持兼容性，创建类型别名
+typealias Constant = com.addzero.util.meta.Constant

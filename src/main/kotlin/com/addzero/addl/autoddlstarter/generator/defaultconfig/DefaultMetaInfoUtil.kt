@@ -58,7 +58,6 @@ object DefaultMetaInfoUtil : IMetaInfoUtil {
     }
 
     override fun getTableEnglishNameFun(clazz: Class<*>): String {
-        //暂时没引入Jimmer框架先随便写
         val annotation = AnnotationUtil.getAnnotation(clazz, Comment::class.java)
         return annotation?.value ?: ""
     }

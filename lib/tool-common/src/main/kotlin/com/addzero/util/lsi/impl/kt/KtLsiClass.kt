@@ -4,11 +4,14 @@ import com.addzero.util.lsi.LsiAnnotation
 import com.addzero.util.lsi.LsiClass
 import com.addzero.util.lsi.LsiField
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtProperty
 
 /**
  * 基于 Kotlin PSI 的 LsiClass 实现
  */
 class KtLsiClass(private val ktClass: KtClass) : LsiClass {
+
+
     override val name: String?
         get() = ktClass.name
 

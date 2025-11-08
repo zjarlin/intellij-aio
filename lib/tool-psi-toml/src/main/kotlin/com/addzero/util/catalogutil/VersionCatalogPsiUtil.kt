@@ -1,9 +1,8 @@
-package com.addzero.addl.util.catalogutil
+package com.addzero.util.catalogutil
 
-import cn.hutool.core.io.FileUtil
-import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.project.Project
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 
 /**
@@ -30,23 +29,21 @@ object VersionCatalogPsiUtil {
         if (libsVersionsFile == null) {
             val gradleDir = basePath?.let { File(it, "gradle") }
             gradleDir?.mkdirs()
-            val file = FileUtil.file(gradleDir, "libs.versions.toml")
-            val createNewFile = file.createNewFile()
+            val file = File(gradleDir, "libs.versions.toml")
+            file.createNewFile()
             libsVersionsFile =file
         }
-        return libsVersionsFile!!
+        return libsVersionsFile
     }
-    fun wrightToToml(project: Project, content: String?): Unit {
-        if (content.isBlank()) {
+
+    fun wrightToToml(project: Project, content: String?) {
+        if (content.isNullOrBlank()) {
             return
         }
         val basePath = project.basePath
         val gradleDir = basePath?.let { File(it, "gradle") }
         gradleDir?.mkdirs()
-        val file = FileUtil.file(gradleDir, "libs.versions.toml")
-        FileUtil.writeUtf8String(content, file)
+        val file = File(gradleDir, "libs.versions.toml")
+        file.writeText(content, StandardCharsets.UTF_8)
     }
-
-
-
 }

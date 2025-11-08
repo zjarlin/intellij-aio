@@ -54,4 +54,12 @@ interface LsiType {
      * 判断是否为数组类型
      */
     val isArray: Boolean
+
+    /**
+     * 获取类型对应的PsiClass（如果是类类型）
+     */
+    val psiClass: LsiClass?
+
+
+
 }

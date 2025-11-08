@@ -1,8 +1,6 @@
 package com.addzero.addl
 
 import FieldsTableModel
-import cn.hutool.core.collection.CollUtil
-import cn.hutool.core.util.ArrayUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.javaTypesEnum
 import com.addzero.addl.autoddlstarter.generator.consts.*
 import com.addzero.addl.his.HistoryService
@@ -14,8 +12,6 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.table.JBTable
-import defaultdTO
-import quesDba
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GridLayout
@@ -179,7 +175,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         historyCombo.addActionListener {
             val selectedIndex = historyCombo.selectedIndex
             if (selectedIndex >= 0) {
-                currentSelectedDTO = CollUtil.get(historyList, selectedIndex)    // 选择的历史记录
+                currentSelectedDTO = historyList.getOrNull(selectedIndex)    // 选择的历史记录
                 loadFormByFormDTO(currentSelectedDTO!!)  // 回填表单数据
             }
         }
@@ -203,7 +199,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         historyCombo.addActionListener {
             val selectedIndex = historyCombo.selectedIndex
             if (selectedIndex >= 0) {
-                currentSelectedDTO = CollUtil.get(historyList, selectedIndex)    // 选择的历史记录
+                currentSelectedDTO = historyList.getOrNull(selectedIndex)    // 选择的历史记录
                 loadFormByFormDTO(currentSelectedDTO!!)  // 回填表单数据
             }
         }
@@ -309,11 +305,8 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         if (selectedRows.isNotEmpty()) {
             // 按倒序删除选中行，以避免索引问题
             for (i in selectedRows.size - 1 downTo 0) {
-                val index = ArrayUtil.get<Int>(selectedRows, i)
-                if (index != null) {
-                    fieldsTableModel!!.fields.removeAt(index)
-//                    fieldsTableModel!!.removeRow(index)
-                }
+                val index = selectedRows[i]
+                fieldsTableModel!!.fields.removeAt(index)
             }
             fieldsTableModel!!.fireTableDataChanged() // 通知表格模型数据已经更改
         }

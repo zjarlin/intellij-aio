@@ -5,6 +5,8 @@ package com.addzero.util.psi
 
 // K2兼容API导入
 import com.addzero.util.meta.*
+import com.addzero.util.meta.VirtualFileUtils.language
+import com.addzero.util.psi.clazz
 import com.addzero.util.psi.javaclass.PsiClassUtil
 import com.addzero.util.psi.ktclass.KtClassUtil
 import com.intellij.openapi.project.Project
@@ -26,11 +28,11 @@ fun VirtualFile.nameIdentifier(project: Project): PsiNameIdentifierOwner? {
     return try {
         when (language) {
             Language.Java -> {
-                psiClass(project)
+                psiClass(project) as PsiNameIdentifierOwner?
             }
 
             Language.Kotlin -> {
-                ktClass(project)
+                ktClass(project) as PsiNameIdentifierOwner?
             }
         }
     } catch (e: IllegalFileFormatException) {
@@ -43,14 +45,14 @@ fun VirtualFile.nameIdentifier(project: Project): PsiNameIdentifierOwner? {
  */
 fun VirtualFile.annotations(project: Project): List<String> {
     val annotations = try {
-        when (language) {
+        when (this.language) {
             Language.Java -> {
                 psiClass(project)?.annotations?.map { it.qualifiedName ?: "" }
             }
 
             Language.Kotlin -> {
                 val file = this
-                file.ktClass(project)?.annotationEntries?.map(KtAnnotationEntry::qualifiedName)
+                file.ktClass(project)?.annotationEntries?.map { it.qualifiedName }
             }
         }
     } catch (e: IllegalFileFormatException) {
@@ -59,32 +61,7 @@ fun VirtualFile.annotations(project: Project): List<String> {
     return annotations ?: emptyList()
 }
 
-fun PsiClass.supers(): List<PsiClass> {
-    return supers.toList() + supers.map { it.supers.toList() }.flatten()
-}
 
-/**
- * 获取Java类文件中的实体类定义
- *
- * @param propPath 进一步获取[propPath]属性的类型的类定义
- */
-fun VirtualFile.psiClass(project: Project, propPath: List<String> = emptyList()): PsiClass? {
-    val psiClass = toPsiFile(project)?.clazz<PsiClass>()
-    return if (propPath.isNotEmpty()) {
-        psiClass?.prop(propPath, 0)?.returnType?.clazz()
-    } else {
-        psiClass
-    }
-}
-
-fun PsiClass.prop(propPath: List<String>, level: Int): PsiMethod? {
-    val prop = methods().find { it.name == propPath[level] }
-    return if (propPath.lastIndex == level) {
-        prop
-    } else {
-        prop?.returnType?.clazz()?.prop(propPath, level + 1)
-    }
-}
 
 /**
  * 获取Kotlin类文件中的实体类定义
@@ -92,7 +69,8 @@ fun PsiClass.prop(propPath: List<String>, level: Int): PsiMethod? {
  * @param propPath 进一步获取[propPath]属性的类型的类定义
  */
 fun VirtualFile.ktClass(project: Project): KtClass? {
-    val ktClass = toPsiFile(project)?.clazz<KtClass>()
+    val toPsiFile = toPsiFile(project)
+    val ktClass = toPsiFile?.clazz<KtClass>()
     return ktClass
 }
 
@@ -105,19 +83,6 @@ private val KtAnnotationEntry.qualifiedName: String
 // 解析为 FqName（需要解析导入）
         return FqName(shortName).asString()
     }
-
-val PsiType.nullable: Boolean
-    get() = presentableText in JavaNullableType.values().map { it.name }
-
-fun PsiType.clazz(): PsiClass? {
-    val generic = PsiUtil.resolveGenericsClassInType(this)
-    return if (generic.substitutor == PsiSubstitutor.EMPTY) {
-        generic.element
-    } else {
-        val propTypeParameters = generic.element?.typeParameters ?: return null
-        generic.substitutor.substitute(propTypeParameters[0])?.clazz()
-    }
-}
 
 inline fun <reified T : PsiNameIdentifierOwner> PsiFile.clazz(): T? {
     return PsiTreeUtil.findChildOfType(originalElement, T::class.java)
@@ -138,8 +103,3 @@ fun KtClass.properties(): List<KtProperty> {
             it
         }
 }
-
-fun PsiClass.hasAnnotation(vararg annotations: String) = annotations.any { PsiModifierListOwner.hasAnnotation(it) }
-
-fun KtClass.hasAnnotation(vararg annotations: String) =
-    annotations.any { annotationEntries.map(KtAnnotationEntry::qualifiedName).contains(it) }

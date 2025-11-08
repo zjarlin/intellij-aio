@@ -2,8 +2,6 @@ package com.addzero.addl.autoddlstarter.generator.defaultconfig
 
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.settings.SettingContext
-import com.addzero.addl.util.RefUtil.extractClassMetaInfo
-import com.addzero.addl.util.RefUtil.extractInterfaceMetaInfo
 
 
 object BaseMetaInfoUtil {

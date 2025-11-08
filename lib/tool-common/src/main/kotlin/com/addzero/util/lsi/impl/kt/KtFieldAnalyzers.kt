@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
  * Kotlin字段分析器集合
  */
 object KtFieldAnalyzers {
-    
+
     /**
      * 静态字段分析器
      */
@@ -68,6 +68,90 @@ object KtFieldAnalyzers {
 
             // 检查是否为集合类型
             return COLLECTION_TYPE_FQ_NAMES.any { fqName.startsWith(it) }
+        }
+    }
+
+    /**
+     * 列名分析器
+     */
+    object ColumnNameAnalyzer {
+        fun getColumnName(ktProperty: KtProperty): String? {
+            val annotationEntries = ktProperty.annotationEntries
+            return annotationEntries
+                .filter { it.shortName?.asString() == "Column" }.firstNotNullOfOrNull { annotation ->
+                    // 尝试获取 name 参数
+                    annotation.valueArguments
+                        .find { it.getArgumentName()?.asName?.asString() == "name" }
+                        ?.getArgumentExpression()?.text
+                        ?.trim('"')
+                }
+        }
+    }
+
+    /**
+     * 注释分析器 - 从注解或文档注释中提取字段描述
+     */
+    object CommentAnalyzer {
+        fun getComment(ktProperty: KtProperty): String? {
+            // 首先尝试从注解中获取描述
+            ktProperty.annotationEntries.forEach { annotation ->
+                val shortName = annotation.shortName?.asString()
+                val description = when (shortName) {
+                    "ApiModelProperty" -> {
+                        // 获取第一个参数（value）
+                        annotation.valueArguments.firstOrNull()
+                            ?.getArgumentExpression()?.text
+                    }
+                    "Schema" -> {
+                        // 获取 description 参数
+                        annotation.valueArguments
+                            .find { it.getArgumentName()?.asName?.asString() == "description" }
+                            ?.getArgumentExpression()?.text
+                    }
+                    "ExcelProperty" -> {
+                        // 获取 value 参数
+                        annotation.valueArguments
+                            .find {
+                                val argName = it.getArgumentName()?.asName?.asString()
+                                argName == "value" || argName == null
+                            }
+                            ?.getArgumentExpression()?.text
+                    }
+                    "Excel" -> {
+                        // 获取 name 参数
+                        annotation.valueArguments
+                            .find { it.getArgumentName()?.asName?.asString() == "name" }
+                            ?.getArgumentExpression()?.text
+                    }
+                    else -> null
+                }
+
+                if (!description.isNullOrBlank()) {
+                    return cleanQuotes(description)
+                }
+            }
+
+            // 如果注解中没有，则返回清理后的文档注释
+            return cleanDocComment(ktProperty.docComment?.text)
+        }
+
+        private fun cleanQuotes(text: String): String {
+            return text.trim().removeSurrounding("\"")
+        }
+
+        private fun cleanDocComment(docComment: String?): String? {
+            if (docComment == null) return null
+
+            val cleaned = docComment
+                .replace(Regex("""/\*\*?"""), "")  // 去除开头的 /* 或 /**
+                .replace(Regex("""\*"""), "")      // 去除行内的 *
+                .replace(Regex("""\*/"""), "")     // 去除结尾的 */
+                .replace(Regex("""/"""), "")       // 去除结尾的 /
+                .replace(Regex("""\n"""), " ")     // 将换行替换为空格
+                .replace(Regex("""\s+"""), " ")    // 合并多个空格为一个
+                .trim()
+
+            return if (cleaned.isBlank()) null else cleaned
         }
     }
 }

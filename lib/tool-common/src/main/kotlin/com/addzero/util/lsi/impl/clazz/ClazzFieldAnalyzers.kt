@@ -44,8 +44,99 @@ object ClazzFieldAnalyzers {
      */
     object ConstantFieldAnalyzer {
         fun isConstantField(field: Field): Boolean {
-            return java.lang.reflect.Modifier.isFinal(field.modifiers) && 
+            return java.lang.reflect.Modifier.isFinal(field.modifiers) &&
                    java.lang.reflect.Modifier.isStatic(field.modifiers)
+        }
+    }
+
+    /**
+     * 列名分析器（反射版本）
+     */
+    object ColumnNameAnalyzer {
+        fun getColumnName(field: Field): String? {
+            // 尝试获取注解
+            field.annotations.forEach { annotation ->
+                val annotationClass = annotation.annotationClass.java
+                when (annotationClass.name) {
+                    "org.babyfish.jimmer.sql.Column" -> {
+                        try {
+                            val nameMethod = annotationClass.getDeclaredMethod("name")
+                            val name = nameMethod.invoke(annotation) as? String
+                            if (!name.isNullOrBlank()) {
+                                return name
+                            }
+                        } catch (e: Exception) {
+                            // 忽略异常
+                        }
+                    }
+                    "com.baomidou.mybatisplus.annotation.TableField" -> {
+                        try {
+                            val valueMethod = annotationClass.getDeclaredMethod("value")
+                            val value = valueMethod.invoke(annotation) as? String
+                            if (!value.isNullOrBlank()) {
+                                return value
+                            }
+                        } catch (e: Exception) {
+                            // 忽略异常
+                        }
+                    }
+                }
+            }
+            return null
+        }
+    }
+
+    /**
+     * 注释分析器（反射版本）- 从注解中提取字段描述
+     * 注意：反射无法获取文档注释，只能从注解中提取
+     */
+    object CommentAnalyzer {
+        fun getComment(field: Field): String? {
+            // 尝试从注解中获取描述
+            field.annotations.forEach { annotation ->
+                val annotationClass = annotation.annotationClass.java
+                val description = when (annotationClass.name) {
+                    "io.swagger.annotations.ApiModelProperty" -> {
+                        try {
+                            val valueMethod = annotationClass.getDeclaredMethod("value")
+                            valueMethod.invoke(annotation) as? String
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    "io.swagger.v3.oas.annotations.media.Schema" -> {
+                        try {
+                            val descMethod = annotationClass.getDeclaredMethod("description")
+                            descMethod.invoke(annotation) as? String
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    "com.alibaba.excel.annotation.ExcelProperty",
+                    "cn.idev.excel.annotation.ExcelProperty" -> {
+                        try {
+                            val valueMethod = annotationClass.getDeclaredMethod("value")
+                            valueMethod.invoke(annotation) as? String
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    "cn.afterturn.easypoi.excel.annotation.Excel" -> {
+                        try {
+                            val nameMethod = annotationClass.getDeclaredMethod("name")
+                            nameMethod.invoke(annotation) as? String
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    else -> null
+                }
+
+                if (!description.isNullOrBlank()) {
+                    return description
+                }
+            }
+            return null
         }
     }
 }

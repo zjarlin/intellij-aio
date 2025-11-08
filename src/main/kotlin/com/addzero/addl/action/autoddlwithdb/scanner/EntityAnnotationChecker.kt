@@ -1,7 +1,9 @@
 package com.addzero.addl.action.autoddlwithdb.scanner
 
 import com.addzero.addl.action.autoddlwithdb.scanner.EntityAnnotationChecker.Companion.ENTITY_ANNOTATIONS
-import com.addzero.addl.util.fieldinfo.hasAnnotation
+import com.addzero.util.lsi.LsiClass
+import com.addzero.util.lsi.impl.kt.KtLsiClass
+import com.addzero.util.lsi.impl.psi.PsiLsiClass
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
 
@@ -32,8 +34,9 @@ interface EntityAnnotationChecker<T> {
 
 class KotlinEntityAnnotationChecker : EntityAnnotationChecker<KtClass> {
     override fun isEntityClass(clazz: KtClass): Boolean {
+        val lsiClass: LsiClass = KtLsiClass(clazz)
         val any = ENTITY_ANNOTATIONS.any {
-            clazz.hasAnnotation(it)
+            lsiClass.hasAnnotation(it)
         }
         return any
     }
@@ -41,8 +44,9 @@ class KotlinEntityAnnotationChecker : EntityAnnotationChecker<KtClass> {
 
 class JavaEntityAnnotationChecker : EntityAnnotationChecker<PsiClass> {
     override fun isEntityClass(clazz: PsiClass): Boolean {
+        val lsiClass: LsiClass = PsiLsiClass(clazz)
         val any = ENTITY_ANNOTATIONS.any {
-            clazz.hasAnnotation(it)
+            lsiClass.hasAnnotation(it)
         }
         return any
     }

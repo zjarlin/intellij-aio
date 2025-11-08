@@ -1,19 +1,20 @@
 package com.addzero.addl.action.anycodegen
 
-import cn.hutool.core.io.FileUtil
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.util.*
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
 import com.addzero.common.kt_util.addSuffixIfNot
+import com.addzero.util.psi.PsiUtil.getPackagePath
+import com.addzero.util.psi.PsiUtil.getQualifiedClassName
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
+import java.io.File
 
 fun main() {
     "com.addzero.addl.action.anycodegen.AbsGen".let {
-        val parent = FileUtil.getParent(it, 1)
+        val parent = File(it).parent
         println(parent)
 
     }
@@ -70,8 +71,8 @@ abstract class AbsGen : AnAction() {
 
     protected open fun performAction(project: Project, e: AnActionEvent) {
         val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project)
-        val packagePath = PsiUtil.getPackagePath(psiFile)
-        val qualifiedClassName = PsiUtil.getQualifiedClassName(psiFile!!)
+        val packagePath = psiFile.getPackagePath()
+        val qualifiedClassName = psiFile!!.getQualifiedClassName()
 
         val fullname = fullName(psiFile)
         if (ktClass == null) {

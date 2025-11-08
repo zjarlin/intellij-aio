@@ -1,17 +1,13 @@
 package com.addzero.util.lsi.impl.psi
 
-import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiType
-import com.intellij.psi.CommonClassNames
-import com.intellij.psi.PsiTypes
+import com.intellij.psi.*
 import com.intellij.psi.util.InheritanceUtil
 
 /**
  * Java类型分析器集合
  */
 object PsiTypeAnalyzers {
-    
+
     /**
      * 集合类型分析器
      */
@@ -43,7 +39,7 @@ object PsiTypeAnalyzers {
             }
         }
     }
-    
+
     /**
      * 可空性分析器
      */
@@ -51,18 +47,18 @@ object PsiTypeAnalyzers {
         fun isNullable(psiType: PsiType): Boolean {
             // Void类型总是可空的
             if (psiType == PsiTypes.voidType()) return true
-            
+
             // 基本类型不可空
             if (psiType is PsiPrimitiveType) return false
-            
+
             // 检查是否有 Nullable 注解
             for (annotation in psiType.annotations) {
                 val shortName = annotation.nameReferenceElement?.referenceName
-                if (shortName != null && shortName.contains("Nullable")) {
+                if (shortName != null && shortName.contains("Null", ignoreCase = true)) {
                     return true
                 }
             }
-            
+
             // 默认情况下，非基本类型可以为空
             return true
         }

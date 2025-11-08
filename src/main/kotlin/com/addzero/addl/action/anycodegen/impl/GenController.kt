@@ -1,6 +1,5 @@
 package com.addzero.addl.action.anycodegen.impl
 
-import cn.hutool.core.util.StrUtil
 import com.addzero.addl.action.anycodegen.AbsGen
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
@@ -14,7 +13,7 @@ class GenController : AbsGen() {
     override fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String {
         val (pkg, classname, classcomment, javaFieldMetaInfos) = psiFieldMetaInfo
         val toCamelCase = classname?.toCamelCase()
-        val lowerFirst = StrUtil.lowerFirst(classname)
+        val lowerFirst = classname?.replaceFirstChar { it.lowercase() } ?: ""
         val trimIndent = """
 package $pkg
 import $pkg.${classname}ExcelDTO

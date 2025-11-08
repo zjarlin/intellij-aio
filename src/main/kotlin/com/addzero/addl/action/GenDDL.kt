@@ -1,6 +1,5 @@
 package com.addzero.addl.action
 
-import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
@@ -74,7 +73,7 @@ class GenDDL : AnAction() {
     private fun defaultDbType(): String {
         val settings = MyPluginSettingsService.getInstance().state
         val defaultDbType = settings.dbType
-        if (StrUtil.isBlank(defaultDbType)) {
+        if (defaultDbType.isNullOrBlank()) {
             return MYSQL
         }
         return defaultDbType

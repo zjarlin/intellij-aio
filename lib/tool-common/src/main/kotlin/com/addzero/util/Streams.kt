@@ -1,6 +1,5 @@
 package com.addzero.util
 
-import cn.hutool.core.collection.CollUtil
 import com.addzero.common.kt_util.removeIf
 import java.util.*
 import java.util.function.BiFunction
@@ -83,9 +82,7 @@ interface Streams {
             val diffset = aks.stream().filter { a: Any? -> !bks.contains(a) }.collect(Collectors.toSet())
             val collect = `as`.stream().filter { a: A -> diffset.contains(aK.apply(a)) }.collect(Collectors.toList())
             return Optional.of<List<A>>(collect).filter { collection: List<A>? ->
-                CollUtil.isNotEmpty(
-                    collection
-                )
+                collection != null && collection.isNotEmpty()
             }.orElseGet { ArrayList() }
         }
 
@@ -106,7 +103,7 @@ interface Streams {
             aK: Function<A, *>,
             bK: Function<B, *>?,
         ): List<A> {
-            if (CollUtil.isEmpty(bs)) {
+            if (bs.isEmpty()) {
                 return `as` as List<A>
             }
             val aks = `as`.stream().map(aK).collect(Collectors.toSet())
@@ -114,9 +111,7 @@ interface Streams {
             val diffset = aks.stream().filter { o: Any? -> bks.contains(o) }.collect(Collectors.toSet())
             val collect = `as`.stream().filter { a: A -> diffset.contains(aK.apply(a)) }.collect(Collectors.toList())
             return Optional.of<List<A>>(collect).filter { collection: List<A>? ->
-                CollUtil.isNotEmpty(
-                    collection
-                )
+                collection != null && collection.isNotEmpty()
             }.orElseGet { ArrayList() }
         }
 
@@ -182,7 +177,7 @@ interface Streams {
             bK: Function<B, *>,
             mapstructMethod: BiFunction<A, B?, R>,
         ): List<R> {
-            if (CollUtil.isEmpty(`as`)) {
+            if (`as`.isEmpty()) {
                 return emptyList()
             }
             val fastret =
@@ -190,11 +185,11 @@ interface Streams {
                     .distinct().collect(
                         Collectors.toList()
                     )
-            if (CollUtil.isEmpty(bs)) {
+            if (bs.isEmpty()) {
                 return fastret
             }
             val genericIntersection = getGenericIntersection(`as`, bs, aK, bK)
-            if (CollUtil.isEmpty(genericIntersection)) {
+            if (genericIntersection.isEmpty()) {
                 return fastret
             }
             //getGenericIntersection(collect, collect1);
@@ -217,9 +212,9 @@ interface Streams {
                 Collectors.toList<R>()
             )
             ).filter { collection: List<R>? ->
-                CollUtil.isNotEmpty(collection)
+                collection != null && collection.isNotEmpty()
             }.orElseGet { ArrayList() }
-            if (CollUtil.isEmpty(rs)) {
+            if (rs.isEmpty()) {
                 return fastret
             }
             rs.removeIf { obj: R -> Objects.isNull(obj) }
@@ -245,7 +240,7 @@ interface Streams {
             bK: Function<B, *>,
             mapstructMethod: BiFunction<A, B?, R>,
         ): List<R> {
-            if (CollUtil.isEmpty(bs)) {
+            if (bs.isEmpty()) {
                 return `as` as List<R>
             }
             val relation: Map<*, B> = bs.stream().collect(Collectors.toMap(bK, Function.identity()))

@@ -2,6 +2,8 @@ package com.addzero.util.psi.ktclass
 
 import com.addzero.util.kt_util.isCollectionType
 import com.addzero.util.kt_util.isStatic
+import com.addzero.util.lsi.toLsiField
+import com.addzero.util.psi.javaclass.PsiClassUtil.cleanDocComment
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.psi.PsiElement
@@ -15,7 +17,7 @@ import org.jetbrains.kotlin.psi.KtProperty
  * Kotlin KtClass 相关工具类
  */
 object KtClassUtil {
-    
+
     fun guessTableName(psiClass: KtClass): String? {
         val text = psiClass.name?.toUnderlineCase()
         // 获取所有注解
@@ -69,8 +71,8 @@ object KtClassUtil {
             }
 
 
-            if (field.hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
-                val joingColumn = if (field.hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
+            if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
+                val joingColumn = if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
                     val map = field.annotationEntries.filter { it.shortName?.asString() == "JoinColumn" }.map {
                         val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
                         annotationValue1
@@ -88,7 +90,7 @@ object KtClassUtil {
             }
             val fieldName = field.name // 字段名称
             //这里优先使用数据库列名，如果没有，则使用字段名
-            val columnName = guessColumnName(field)
+            val columnName = field.toLsiField().columnName
             val finalColumn = cn.hutool.core.util.StrUtil.firstNonBlank(columnName, fieldName)
 
 
@@ -98,21 +100,6 @@ object KtClassUtil {
         }
         return fieldsMetaInfo
 
-    }
-
-    private fun guessColumnName(field: KtProperty): String? {
-        val annotationEntries = field.annotationEntries
-        val firstOrNull = annotationEntries.filter {
-            val shortName = it.shortName
-            val asString = shortName?.asString()
-            val equals = asString.equals("Column")
-            equals
-        }.map {
-
-            val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
-            annotationValue1
-        }.firstOrNull()
-        return firstOrNull ?: field.name?.toUnderlineCase()
     }
 
     fun KtProperty.guessFieldComment(idName: String): String {
@@ -170,20 +157,6 @@ object KtClassUtil {
         return text
     }
 
-    private fun cleanDocComment(docComment: String?): String {
-        if (docComment == null) return ""
-
-        // 使用正则表达式去除注释符号和多余空格
-        val trim = docComment.replace(Regex("""/\*\*?"""), "")  // 去除开头的 /* 或 /**
-            .replace(Regex("""\*"""), "")      // 去除行内的 *
-            .replace(Regex("""\*/"""), "")     // 去除结尾的 */
-            .replace(Regex("""/"""), "")     // 去除结尾的 */
-            .replace(Regex("""\n"""), " ")      // 将换行替换为空格
-            .replace(Regex("""\s+"""), " ")    // 合并多个空格为一个
-            .trim()
-
-        return trim                             // 去除首尾空格
-    }
 
     fun getClassMetaInfo4KtClass(psiClass: KtClass): Pair<String, String?> {
         // 获取类名
@@ -222,10 +195,4 @@ object KtClassUtil {
         val element = file.findElementAt(offset)
         return element
     }
-}
-
-fun KtProperty.isDbField(): Boolean {
-    val staticField = this.isStatic()
-    val collectionType = this.isCollectionType()
-    return !staticField && !collectionType
 }

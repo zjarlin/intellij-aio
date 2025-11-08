@@ -1,7 +1,5 @@
 package com.addzero.util
 
-import cn.hutool.core.io.FileUtil
-import com.addzero.common.kt_util.isBlank
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -9,11 +7,14 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
+import site.addzero.util.str.removeAny
+import site.addzero.util.str.removeAnyQuote
 import java.awt.Component
 import java.awt.KeyboardFocusManager
 import java.io.File
 import javax.swing.JFrame
 import javax.swing.JOptionPane
+import java.nio.charset.StandardCharsets
 
 object ShowContentUtil {
     fun showErrorMsg(message: String) {
@@ -65,10 +66,11 @@ object ShowContentUtil {
             autoddlDirectory.mkdir()
         }
         val removeAnyQuote = fileNamePre.removeAnyQuote()
-        val removeAny = removeAnyQuote.removeAny("\\")
+        val removeAny = removeAny(removeAnyQuote, "\\")
         val fileName = "$removeAny$fileTypeSuffix"
-        val file = FileUtil.file(autoddlDirectory, fileName)
-        return FileUtil.writeUtf8String(content, file)
+        val file = File(autoddlDirectory, fileName)
+        file.writeText(content, StandardCharsets.UTF_8)
+        return file
     }
 
     private fun findOrCreateWindow(): Component {

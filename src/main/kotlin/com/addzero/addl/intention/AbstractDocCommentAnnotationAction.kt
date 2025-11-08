@@ -5,10 +5,8 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.ai.util.ai.AiUtil
 import com.addzero.addl.intention.psipropertyutil.PsiPropertyUtil.addPsiJavaAnnotation
 import com.addzero.addl.intention.psipropertyutil.PsiPropertyUtil.cleanDocComment
-import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.addl.util.fieldinfo.PsiUtil.getCurrentPsiElement
-import com.addzero.addl.util.fieldinfo.PsiUtil.isJavaPojo
-import com.addzero.addl.util.fieldinfo.PsiUtil.isKotlinPojo
+import com.addzero.util.psi.PsiUtil.getCurrentPsiElement
+import com.addzero.util.psi.PsiUtil.guessFieldComment
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
@@ -29,7 +27,7 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     override fun getFamilyName() = text
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile?): Boolean {
-        val element =getCurrentPsiElement(editor, file)
+        val element = file.getCurrentPsiElement(editor)
         val kotlinPojo = isKotlinPojo(element)
         // 检查是否为Java文件
         val javaPojo = isJavaPojo(element)
@@ -123,7 +121,7 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
         }
 
         // 将无注释的字段添加到集合中
-        val comment = PsiUtil.guessFieldComment(field)
+        val comment = field.guessFieldComment()
         if (!hasAnnotation) {
             if (comment.isNotBlank()) {
                 addPsiJavaAnnotation(project, field as PsiField, comment, getAnnotationTemplate())
@@ -156,7 +154,7 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
 
         if (!hasAnnotation) {
             // 获取现有的文档注释
-            val docComment = PsiUtil.guessFieldComment(property)
+            val docComment = property.guessFieldComment()
 
             if (docComment.isNotBlank()) {
                 addKotlinAnnotation(project, property, docComment)

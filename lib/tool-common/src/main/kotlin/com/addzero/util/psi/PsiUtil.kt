@@ -1,8 +1,12 @@
 package com.addzero.util.psi
 
 import com.addzero.util.psi.javaclass.PsiClassUtil
+import com.addzero.util.psi.javaclass.PsiClassUtil.extractInterfaceMetaInfo
+import com.addzero.util.psi.javaclass.PsiClassUtil.getJavaClassFromPsiType
+import com.addzero.util.psi.javaclass.PsiClassUtil.guessTableName
+import com.addzero.util.psi.javaclass.PsiClassUtil.guessTableNameByAnno
+import com.addzero.util.psi.javaclass.PsiClassUtil.isJavaPojo
 import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -62,19 +66,19 @@ object PsiUtil {
     }
 
     fun guessTableName(psiClass: PsiClass): String? {
-        return PsiClassUtil.guessTableName(psiClass)
+        return psiClass.guessTableName()
     }
 
     fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
-        return PsiClassUtil.guessTableNameByAnno(psiClass)
+        return psiClass.guessTableNameByAnno()
     }
 
     fun extractInterfaceMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
-        return PsiClassUtil.extractInterfaceMetaInfo(psiClass)
+        return psiClass.extractInterfaceMetaInfo()
     }
 
     fun getJavaClassFromPsiType(psiType: PsiType): Class<*> {
-        return PsiClassUtil.getJavaClassFromPsiType(psiType)
+        return psiType.getJavaClassFromPsiType()
     }
 
     fun getCommentFunByMethod(method: PsiMethod): String {
@@ -83,10 +87,6 @@ object PsiUtil {
 
     fun getClassMetaInfo(psiClass: PsiClass): Pair<String, String?> {
         return PsiClassUtil.getClassMetaInfo(psiClass)
-    }
-
-    fun isStaticField(field: PsiField): Boolean {
-        return PsiClassUtil.isStaticField(field)
     }
 
     fun getJavaFieldMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
@@ -115,13 +115,13 @@ object PsiUtil {
     fun isJavaPojo(
         element: PsiElement?
     ): Boolean {
-        return PsiClassUtil.isJavaPojo(element)
+        return element.isJavaPojo()
     }
 
     fun isJavaPojo(
         editor: Editor?, file: PsiFile?
     ): Boolean {
-        return PsiClassUtil.isJavaPojo(editor, file)
+        return file.isJavaPojo(editor)
     }
 
     fun psiCtx(project: Project): PsiCtx {
@@ -186,8 +186,4 @@ object PsiUtil {
 
         return PsiEleInfo(packageName, directoryPath)
     }
-}
-
-fun PsiField.isDbField(): Boolean {
-    return PsiClassUtil.isDbField(this)
 }

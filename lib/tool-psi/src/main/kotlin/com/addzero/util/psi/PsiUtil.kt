@@ -1,5 +1,7 @@
 package com.addzero.util.psi
 
+import com.addzero.util.entity.JavaFieldMetaInfo
+import com.addzero.util.lsi.toLsiField
 import com.addzero.util.psi.PsiTypeUtil.isCollectionType
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.lang.java.JavaLanguage
@@ -13,12 +15,15 @@ import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.apache.commons.lang3.StringUtils.firstNonBlank
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
+import site.addzero.util.str.removeAnyQuote
+import site.addzero.util.str.toUnderLineCase
 
 
 //private const val NOCOMMENT = "no_comment_found"
@@ -27,20 +32,20 @@ private const val NOCOMMENT = ""
 
 object PsiUtil {
 
-    fun getCurrentPsiElement(
-        editor: Editor?, file: PsiFile?
+    fun PsiFile?.getCurrentPsiElement(
+        editor: Editor?
     ): PsiElement? {
-        if (editor == null || file == null) return null
+        if (editor == null || this == null) return null
         val offset = editor.caretModel.offset
-        val element = file.findElementAt(offset)
+        val element = this.findElementAt(offset)
         return element
     }
 
-    fun getQualifiedClassName(psiFile: PsiFile): String? {
-        val fileNameWithoutExtension = psiFile.virtualFile.nameWithoutExtension
-        val packageName = when (psiFile) {
-            is KtFile -> psiFile.packageFqName.asString()
-            is PsiJavaFile -> psiFile.packageName
+    fun PsiFile.getQualifiedClassName(): String? {
+        val fileNameWithoutExtension = this.virtualFile.nameWithoutExtension
+        val packageName = when (this) {
+            is KtFile -> this.packageFqName.asString()
+            is PsiJavaFile -> this.packageName
             else -> null
         }
         return if (packageName != null) {
@@ -50,8 +55,8 @@ object PsiUtil {
         }
     }
 
-    fun getPackagePath(psiFile: PsiFile?): String? {
-        val qualifiedClassName = getQualifiedClassName(psiFile!!)
+    fun PsiFile?.getPackagePath(): String? {
+        val qualifiedClassName = this!!.getQualifiedClassName()
         return qualifiedClassName
     }
 
@@ -142,14 +147,14 @@ object PsiUtil {
     }
 
     /**
-     * @param [psiField]
+     * @param [this@guessFieldComment]
      * @return [String]
      */
-    fun guessFieldComment(psiField: PsiField): String {
-        if (psiField.name == SettingContext.settings.id) {
+    fun PsiField.guessFieldComment(idName: String): String {
+        if (this.name == idName) {
             return "主键"
         }
-        val annotations = psiField.annotations
+        val annotations = this.annotations
 
         for (annotation in annotations) {
             val qualifiedName = annotation.qualifiedName
@@ -187,17 +192,17 @@ object PsiUtil {
                 return des?.removeAnyQuote() ?: ""
             }
         }
-        val text = cleanDocComment(psiField.docComment?.text)
-        if (StrUtil.isBlank(text)) {
+        val text = cleanDocComment(this.docComment?.text)
+        if (text.isBlank()) {
             return NOCOMMENT
         }
-        return text!!
+        return text
 
     }
 
 
     fun guessTableName(psiClass: PsiClass): String? {
-        val text = psiClass.name?.toUnderlineCase()
+        val text = psiClass.name?.toUnderLineCase()
 
         // 获取所有注解
         val guessTableNameByAnno = guessTableNameByAnno(psiClass)
@@ -205,38 +210,12 @@ object PsiUtil {
 //        todo cleancode
 //        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
 
-        val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
+        val firstNonBlank = firstNonBlank(guessTableNameByAnno, text)
         return firstNonBlank
 
     }
 
     fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
-        val annotations = psiClass.annotations
-        for (annotation in annotations) {
-            val qualifiedName = annotation.qualifiedName
-            when (qualifiedName) {
-                "com.baomidou.mybatisplus.annotation.TableName" -> {
-                    // 获取 MyBatis Plus 的 @TableName 注解值
-                    val tableNameValue = annotation.findAttributeValue("value")
-                    return tableNameValue?.text.extractMarkdownBlockContent()
-                }
-
-                "org.babyfish.jimmer.sql.Table" -> {
-                    // 获取 Jimmer 的 @Table 注解值
-                    val nameValue = annotation.findAttributeValue("name")
-                    return nameValue?.text?.extractMarkdownBlockContent()
-                }
-
-                "javax.persistence.Table",
-                "jakarta.persistence.Table",
-                    -> {
-                    // 获取 JPA 的 @Table 注解值
-                    val nameValue = annotation.findAttributeValue("name")
-                    return nameValue?.text?.extractMarkdownBlockContent()
-                }
-            }
-        }
-        return null
     }
 
 
@@ -334,18 +313,6 @@ object PsiUtil {
     }
 
 
-    fun isStaticField(field: PsiField): Boolean {
-        val hasModifierProperty = field.hasModifierProperty(PsiModifier.STATIC)
-        return hasModifierProperty
-    }
-
-//    fun isStaticField(ktProperty: KtProperty): Boolean {
-//        val toLightElements = ktProperty.getMaybeLightElement()
-//        val psiField = toLightElements as PsiField
-//        val staticField = isStaticField(psiField)
-//        return staticField
-//    }
-
     fun getJavaFieldMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
         if (psiClass.isInterface) {
             return extractInterfaceMetaInfo(psiClass)
@@ -367,13 +334,13 @@ object PsiUtil {
             }
 
             val fieldName = field.name // 字段名称
-            val guessColumnName = guessColumnName(field)
+            val guessColumnName = field.toLsiField().columnName
             val firstNonBlank = StrUtil.firstNonBlank(guessColumnName, fieldName)
 
 
             val fieldTypeName = fieldType.presentableText // 可读的类型名称
             // 获取字段注释
-            val fieldComment = guessFieldComment(field)
+            val fieldComment = field.guessFieldComment()
 
             // 获取字段的类对象
             val typeClass = try {
@@ -481,8 +448,8 @@ object PsiUtil {
             }
 
 
-            if (field.hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
-                val joingColumn = if (field.hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
+            if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
+                val joingColumn = if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
                     val map = field.annotationEntries.filter { it.shortName?.asString() == "JoinColumn" }.map {
                         val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
                         annotationValue1
@@ -500,7 +467,7 @@ object PsiUtil {
             }
             val fieldName = field.name // 字段名称
             //这里优先使用数据库列名，如果没有，则使用字段名
-            val columnName = guessColumnName(field)
+            val columnName = field.toLsiField().columnName
             val finalColumn = StrUtil.firstNonBlank(columnName, fieldName)
 
 
@@ -509,47 +476,6 @@ object PsiUtil {
             fieldsMetaInfo.add(element)
         }
         return fieldsMetaInfo
-
-    }
-
-
-    private fun guessColumnName(field: KtProperty): String? {
-        val annotationEntries = field.annotationEntries
-        val firstOrNull = annotationEntries.filter {
-            val shortName = it.shortName
-            val asString = shortName?.asString()
-            val equals = asString.equals("Column")
-            equals
-        }.map {
-
-            val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
-            annotationValue1
-        }.firstOrNull()
-        return firstOrNull ?: field.name?.toUnderlineCase()
-    }
-
-
-    private fun guessColumnName(field: PsiField): String? {
-        field.annotations.forEach { annotationEntry ->
-            val kotlinFqName = annotationEntry.qualifiedName
-            val jimmerColumnRef = "org.babyfish.jimmer.sql.Column"
-            val mpColumnRef = "com.baomidou.mybatisplus.annotation.TableField"
-
-            when (kotlinFqName) {
-
-                jimmerColumnRef -> {
-                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "name")
-                    return annotationValue
-                }
-
-                mpColumnRef -> {
-                    val annotationValue = AnnotationUtils.getAnnotationValue(annotationEntry, "value")
-                    return annotationValue
-                }
-
-            }
-        }
-        return null
 
     }
 
@@ -616,7 +542,7 @@ object PsiUtil {
     fun isJavaPojo(
         editor: Editor?, file: PsiFile?
     ): Boolean {
-        val element = getCurrentPsiElement(editor, file)
+        val element = file.getCurrentPsiElement(editor)
         val javaPojo = isJavaPojo(element)
         val b1 = file?.language is JavaLanguage
         return javaPojo && b1
@@ -640,7 +566,7 @@ object PsiUtil {
         editor: Editor?, file: PsiFile?
     ): Boolean {
         // 检查是否为Kotlin文件
-        val element = getCurrentPsiElement(editor, file)
+        val element = file.getCurrentPsiElement(editor)
         val kotlinPojo = isKotlinPojo(element)
         val b = file?.language is KotlinLanguage
         return kotlinPojo && b
@@ -738,17 +664,4 @@ object PsiUtil {
     }
 
 
-}
-
-fun KtProperty.isDbField(): Boolean {
-    val staticField = this.isStatic()
-    val collectionType = this.isCollectionType()
-    return !staticField && !collectionType
-}
-
-fun PsiField.isDbField(): Boolean {
-    val staticField = PsiUtil.isStaticField(this)
-
-    val collectionType = PsiTypeUtil.isCollectionType(this)
-    return !staticField && !collectionType
 }

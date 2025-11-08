@@ -1,6 +1,7 @@
 package com.addzero.util.lsi.impl.psi
 
 import com.addzero.util.lsi.LsiAnnotation
+import com.addzero.util.lsi.LsiClass
 import com.addzero.util.lsi.LsiField
 import com.addzero.util.lsi.LsiType
 import com.intellij.psi.PsiField
@@ -19,7 +20,7 @@ class PsiLsiField(private val psiField: PsiField) : LsiField {
         get() = psiField.type.presentableText
 
     override val comment: String?
-        get() = psiField.docComment?.text
+        get() = PsiFieldAnalyzers.CommentAnalyzer.getComment(psiField)
 
     override val annotations: List<LsiAnnotation>
         get() = psiField.annotations.map { PsiLsiAnnotation(it) }
@@ -30,11 +31,53 @@ class PsiLsiField(private val psiField: PsiField) : LsiField {
     override val isConstant: Boolean
         get() = PsiFieldAnalyzers.ConstantFieldAnalyzer.isConstantField(psiField)
 
+    override val isVar: Boolean
+        get() = !psiField.hasModifierProperty(com.intellij.psi.PsiModifier.FINAL)
+
+    override val isLateInit: Boolean
+        get() = false  // Java 不支持 lateinit
+
     override val isCollectionType: Boolean
         get() = PsiFieldAnalyzers.CollectionTypeAnalyzer.isCollectionType(psiField)
 
     override val defaultValue: String?
         get() = psiField.initializer?.text
-        
+
     override fun isCollectionType(): Boolean = isCollectionType
+
+    override val columnName: String?
+        get() = PsiFieldAnalyzers.ColumnNameAnalyzer.getColumnName(psiField)
+
+    // 新增属性的实现
+
+    override val declaringClass: LsiClass?
+        get() = psiField.containingClass?.let { PsiLsiClass(it) }
+    
+    override val fieldTypeClass: LsiClass?
+        get() = when (val psiType = psiField.type) {
+            is com.intellij.psi.PsiClassType -> psiType.resolve()?.let { PsiLsiClass(it) }
+            else -> null
+        }
+    
+    override val isNestedObject: Boolean
+        get() = when (val psiType = psiField.type) {
+            is com.intellij.psi.PsiClassType -> {
+                val psiClass = psiType.resolve()
+                psiClass != null && !psiClass.isEnum && !psiClass.isInterface && !psiClass.qualifiedName.isNullOrEmpty()
+            }
+            else -> false
+        }
+    
+    override val children: List<LsiField>
+        get() = when (val psiType = psiField.type) {
+            is com.intellij.psi.PsiClassType -> {
+                val psiClass = psiType.resolve()
+                if (psiClass != null && !psiClass.isEnum && !psiClass.isInterface) {
+                    psiClass.allFields.map { PsiLsiField(it) }
+                } else {
+                    emptyList()
+                }
+            }
+            else -> emptyList()
+        }
 }

@@ -54,20 +54,48 @@ interface LsiClass {
      * 获取实现的接口
      */
     val interfaces: List<LsiClass>
-}
 
-/**
- * 字段信息数据类，包含字段及其嵌套信息
- */
-data class FieldInfo(
-    val declaringClass: LsiClass,
-    val field: LsiField,
-    val description: String?,
-    val fieldType: LsiClass?,
-    val isNestedObject: Boolean,
-    val children: List<FieldInfo> = emptyList()
-) {
-    fun toSimpleString(): String {
-        return "${field.name}: ${fieldType?.name ?: field.typeName}${if (description != null) " ($description)" else ""}"
+
+    /**
+     * 检查类是否具有指定的注解
+     * @param annotationNames 注解全限定名数组
+     * @return 如果类具有其中任何一个注解，则返回true，否则返回false
+     */
+    fun hasAnnotation(vararg annotationNames: String): Boolean {
+        return annotationNames.any { annotationName ->
+            annotations.any { annotation ->
+                annotation.qualifiedName == annotationName
+            }
+        }
     }
+
+    /**
+     * 获取数据库字段列表
+     * 过滤掉静态字段、集合类型字段
+     * @return 数据库字段列表
+     */
+    val dbFields: List<LsiField>
+        get() = fields.filter { it.isDbField }
+
+    /**
+     * 获取所有数据库字段（包括继承的字段）
+     * 这个方法会递归获取父类的字段
+     * @return 所有数据库字段列表
+     */
+    fun getAllDbFields(): List<LsiField> {
+        val result = mutableListOf<LsiField>()
+
+        // 添加当前类的数据库字段
+        result.addAll(dbFields)
+
+        // 递归添加父类的数据库字段
+        superClasses.forEach { superClass ->
+            result.addAll(superClass.getAllDbFields())
+        }
+
+        return result
+    }
+
+    val guessTableName: String
+    val methods: List<LsiMethod>
 }

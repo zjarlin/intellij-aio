@@ -2,13 +2,19 @@ package com.addzero.util.psi
 
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.analysis.decompiler.psi.text.getAllModifierLists
-import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 
 /**
  * K2模式下的属性工具类
+ *
+ * @deprecated 此类中的大部分方法已经迁移到 LSI 层，请使用 LSI 相关方法替代
+ * - 使用 KtClass.toLsiClass() 转换为 LsiClass
+ * - 使用 KtProperty.toLsiField() 转换为 LsiField
+ * - 使用 LsiField.hasAnnotation() 检查注解
+ * - 使用 KtClass.filterPropertiesByAnnotations() 过滤带注解的属性
  */
+@Deprecated("Use LSI layer instead", ReplaceWith("com.addzero.util.lsi.*"))
 object K2PropertyUtil {
 
 
@@ -17,7 +23,17 @@ object K2PropertyUtil {
      * @param ktClass Kotlin类
      * @param annotationFqNames 注解全限定名列表
      * @return 包含指定注解的属性列表
+     *
+     * @deprecated 使用 KtClass.filterPropertiesByAnnotations(*annotationFqNames) 替代
+     * 注意：此方法使用字符串匹配，不准确。新方法使用正确的全限定名匹配
      */
+    @Deprecated(
+        "Use KtClass.filterPropertiesByAnnotations() from LsiExtensions instead",
+        ReplaceWith(
+            "ktClass.filterPropertiesByAnnotations(*annotationFqNames.toTypedArray())",
+            "com.addzero.util.lsi.filterPropertiesByAnnotations"
+        )
+    )
     fun filterPropertiesByAnnotations2(
         ktClass: KtClass, annotationFqNames: List<String>
     ): List<KtProperty> {
@@ -39,12 +55,17 @@ object K2PropertyUtil {
 
     }
 
-
     /**
      * 获取属性的默认值
      * @param property Kotlin属性
      * @return 默认值字符串，如果没有则返回null
+     *
+     * @deprecated 使用 LsiField.defaultValue 替代
      */
+    @Deprecated(
+        "Use LsiField.defaultValue instead",
+        ReplaceWith("property.toLsiField().defaultValue", "com.addzero.util.lsi.toLsiField")
+    )
     fun getPropertyDefaultValue(property: KtProperty): String? {
         return property.initializer?.text
     }
@@ -54,7 +75,10 @@ object K2PropertyUtil {
      * @param property Kotlin属性
      * @param annotationText 注解文本
      * @param project 项目实例
+     *
+     * @deprecated 此方法不属于元数据提取范畴，应该放在专门的 PSI 修改工具类中
      */
+    @Deprecated("This method should be in a dedicated PSI modification utility class")
     fun addAnnotationToProperty(
         property: KtProperty, annotationText: String, project: Project
     ) {
@@ -67,7 +91,13 @@ object K2PropertyUtil {
      * 检查属性是否是var
      * @param property Kotlin属性
      * @return 是否是var
+     *
+     * @deprecated 使用 LsiField.isVar 替代
      */
+    @Deprecated(
+        "Use LsiField.isVar instead",
+        ReplaceWith("property.toLsiField().isVar", "com.addzero.util.lsi.toLsiField")
+    )
     fun isVar(property: KtProperty): Boolean {
         return property.isVar
     }
@@ -76,7 +106,13 @@ object K2PropertyUtil {
      * 获取属性的文档注释
      * @param property Kotlin属性
      * @return 文档注释文本，如果没有则返回null
+     *
+     * @deprecated 使用 LsiField.comment 替代
      */
+    @Deprecated(
+        "Use LsiField.comment instead",
+        ReplaceWith("property.toLsiField().comment", "com.addzero.util.lsi.toLsiField")
+    )
     fun getPropertyDocComment(property: KtProperty): String? {
         return property.docComment?.text
     }
@@ -85,7 +121,10 @@ object K2PropertyUtil {
      * 检查属性是否是顶层属性
      * @param property Kotlin属性
      * @return 是否是顶层属性
+     *
+     * @deprecated 简单包装，直接使用 property.isTopLevel
      */
+    @Deprecated("Use property.isTopLevel directly", ReplaceWith("property.isTopLevel"))
     fun isTopLevel(property: KtProperty): Boolean {
         return property.parent is KtFile
     }
@@ -94,7 +133,10 @@ object K2PropertyUtil {
      * 获取属性的所有修饰符
      * @param property Kotlin属性
      * @return 修饰符列表
+     *
+     * @deprecated 返回字符串列表不够结构化，建议根据具体需求使用 LsiField 的属性
      */
+    @Deprecated("Use specific LsiField properties like isStatic, isVar, isLateInit instead")
     fun getPropertyModifiers(property: KtProperty): List<String> {
         val modifierList = property.modifierList
         val allModifierLists = modifierList?.getAllModifierLists()
@@ -105,7 +147,13 @@ object K2PropertyUtil {
      * 检查属性是否是const
      * @param property Kotlin属性
      * @return 是否是const
+     *
+     * @deprecated 使用 LsiField.isConstant 替代
      */
+    @Deprecated(
+        "Use LsiField.isConstant instead",
+        ReplaceWith("property.toLsiField().isConstant", "com.addzero.util.lsi.toLsiField")
+    )
     fun isConst(property: KtProperty): Boolean {
         return property.modifierList?.hasModifier(KtTokens.CONST_KEYWORD) ?: false
     }
@@ -114,7 +162,10 @@ object K2PropertyUtil {
      * 获取属性的getter和setter
      * @param property Kotlin属性
      * @return Pair<getter文本, setter文本>
+     *
+     * @deprecated 返回文本形式的访问器用途不明确，建议根据具体需求重新设计
      */
+    @Deprecated("Returning text form of accessors is not useful, redesign based on specific needs")
     fun getPropertyAccessors(property: KtProperty): Pair<String?, String?> {
         return Pair(
             property.getter?.text, property.setter?.text
@@ -125,56 +176,34 @@ object K2PropertyUtil {
      * 检查属性是否是延迟初始化
      * @param property Kotlin属性
      * @return 是否是延迟初始化
+     *
+     * @deprecated 使用 LsiField.isLateInit 替代
      */
+    @Deprecated(
+        "Use LsiField.isLateInit instead",
+        ReplaceWith("property.toLsiField().isLateInit", "com.addzero.util.lsi.toLsiField")
+    )
     fun isLateInit(property: KtProperty): Boolean {
         return property.modifierList?.hasModifier(KtTokens.LATEINIT_KEYWORD) ?: false
     }
 
 
-    fun processKotlinAnnotation(annotation: KtAnnotationEntry): List<AnnotationArgument> {
-        // 获取所有参数
-        val valueArguments = annotation.valueArguments
-        val map = valueArguments.map {
-            val argName = it.getArgumentName()?.asName?.identifier // 参数名（如 "value"）
-            val argValue = it.getArgumentExpression()?.text // 参数值（如 "42" 或 "\"text\""）
-            AnnotationArgument(
-                ktProperty = null, name = argName, value = argValue.toString()
-            )
-
-        }
-        return map
-    }
-
-    /**
-     * 获取属性的注解信息
-     * @param property Kotlin属性
-     * @return 注解信息列表
-     */
-    fun getPropertyAnnotationInfo2(property: KtProperty): List<AnnotationInfo> {
-        val map1 = property.annotationEntries.map { annotation ->
-            val processKotlinAnnotation = processKotlinAnnotation(annotation)
-            processKotlinAnnotation.forEach { it.ktProperty = property }
-            AnnotationInfo(
-                ktProperty = property,
-                name = annotation.kotlinFqName?.asString() ?: "",
-                arguments = processKotlinAnnotation
-            )
-        }
-
-        return map1
-    }
-
-
     /**
      * 注解信息数据类
+     *
+     * @deprecated 使用 LsiAnnotation 替代
      */
+    @Deprecated("Use LsiAnnotation instead", ReplaceWith("LsiAnnotation", "com.addzero.util.lsi.LsiAnnotation"))
     data class AnnotationInfo(
         val ktProperty: KtProperty, val name: String, val arguments: List<AnnotationArgument>
     )
 
     /**
      * 注解参数数据类
+     *
+     * @deprecated 使用 LsiAnnotation.parameters 替代
      */
+    @Deprecated("Use LsiAnnotation.parameters instead")
     data class AnnotationArgument(
         var ktProperty: KtProperty?, val name: String?, val value: String
     )
@@ -182,53 +211,3 @@ object K2PropertyUtil {
 
 }
 
-/**
- * 使用示例
- */
-//fun example(ktClass: KtClass) {
-//    // 过滤出带有特定注解的属性
-//    val propertiesWithAnnotation = K2PropertyUtil.filterPropertiesByAnnotations(
-//        ktClass,
-//        listOf("javax.persistence.Column", "jakarta.persistence.Column")
-//    )
-//
-//    // 处理每个属性
-//    propertiesWithAnnotation.forEach { property ->
-//        // 获取属性类型
-//        val type = K2PropertyUtil.getPropertyType(property)
-//
-//        // 获取属性注解
-//        val annotations = K2PropertyUtil.getPropertyAnnotations(property)
-//
-//        // 检查是否可空
-//        val isNullable = K2PropertyUtil.isNullable(property)
-//
-//        // 获取文档注释
-//        val docComment = K2PropertyUtil.getPropertyDocComment(property)
-//
-//        // 获取可见性
-//        val visibility = K2PropertyUtil.getPropertyVisibility(property)
-//
-//        // 获取修饰符
-//        val modifiers = K2PropertyUtil.getPropertyModifiers(property)
-//
-//        // 获取访问器
-//        val (getter, setter) = K2PropertyUtil.getPropertyAccessors(property)
-//
-//        // 获取类型参数
-////        val typeParameters = K2PropertyUtil.getPropertyTypeParameters(property)
-//
-//        // 使用这些信息进行后续处理
-//        println("""
-//            属性名: ${property.name}
-//            类型: $type
-//            注解: $annotations
-//            可空: $isNullable
-//            文档: $docComment
-//            可见性: $visibility
-//            修饰符: $modifiers
-//            Getter: $getter
-//            Setter: $setter
-//        """.trimIndent())
-//    }
-//}

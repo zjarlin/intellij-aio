@@ -43,7 +43,3 @@ object KtUtil {
         return KtClassUtil.isKotlinPojo(editor, file)
     }
 }
-
-fun KtProperty.isDbField(): Boolean {
-    return KtClassUtil.isDbField(this)
-}

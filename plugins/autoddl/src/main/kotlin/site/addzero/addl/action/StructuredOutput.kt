@@ -1,0 +1,124 @@
+import site.addzero.addl.action.StructuredInputDialog
+import site.addzero.addl.ai.util.ai.AiUtil
+import site.addzero.addl.ai.util.ai.ctx.AiCtx
+import site.addzero.addl.ktututil.toJson
+import site.addzero.addl.settings.SettingContext
+import site.addzero.addl.util.Pojo2Json4ktUtil
+import site.addzero.addl.util.fieldinfo.PsiUtil
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.LangDataKeys
+import com.intellij.openapi.actionSystem.PlatformDataKeys
+import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiClass
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.io.IOException
+import site.addzero.addl.util.NotificationUtil
+import site.addzero.util.ShowContentUtil.openTextInEditor
+import site.addzero.util.psi.PsiUtil.psiCtx
+
+class StructuredOutput : AnAction() {
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project
+        val editor = e.getData(PlatformDataKeys.EDITOR)
+        val psiFile = e.getData(LangDataKeys.PSI_FILE)
+        if (project == null || editor == null || psiFile == null) {
+            return
+        }
+        // 获取剪贴板的文本
+        val clipboardText = getClipboardText()
+        // 打开自定义的多行输入对话框
+        val dialog = StructuredInputDialog(project, clipboardText)
+        if (dialog.showAndGet()) {
+            val question = dialog.getContextText()
+            val promptTemplate = dialog.getPromptText()
+
+            // 调用结构化输出接口
+            val response = try {
+                val callStructuredOutputInterface2 = callStructuredOutputInterface(project, question, promptTemplate)
+                callStructuredOutputInterface2
+            } catch (e: Exception) {
+                NotificationUtil.showError(project, e.message!!)
+                ""
+            }
+            if (response.isNotBlank()) {
+                // 在新文件中打开响应结果
+                project.openTextInEditor(
+                    response, sqlPrefix = "Structured", fileTypeSuffix = ".json"
+                )
+            }
+
+        }
+    }
+
+    private fun getClipboardText(): String {
+        return try {
+            Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as String
+        } catch (e: UnsupportedFlavorException) {
+            ""
+        } catch (e: IOException) {
+            ""
+        }
+    }
+
+
+    private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
+        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = project.psiCtx()
+        val settings = SettingContext.settings
+        val modelManufacturer = settings.modelManufacturer
+
+        val any = if (ktClass == null) {
+            psiClass ?: return ""
+            val (jsonString, buildStructureOutPutPrompt) = javaPromt(
+                psiClass!!, project, question, promptTemplate
+            )
+            val ask = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
+            ask
+        } else {
+//            val jsonobj = Psi2Json.ktClassToJson(toKtClass, project)
+//            val jsonString = jsonobj.toJson()
+            val generateMap = Pojo2Json4ktUtil.generateMap(ktClass, project)
+            val jsonString = generateMap.toJson()
+            val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
+
+            val associateBy = extractInterfaceMetaInfo.associateBy({ it.comment }, { it.name })
+            val buildStructureOutPutPrompt = AiUtil.buildStructureOutPutPrompt(associateBy)
+
+            val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(
+                question, promptTemplate, buildStructureOutPutPrompt, buildStructureOutPutPrompt
+            )
+            val ask1 = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
+            ask1
+        }
+
+//        PsiUtil.
+//        val toJson = any.toJson()
+//        return toJson
+        return any
+    }
+
+    private fun javaPromt(
+        psiClass: PsiClass,
+        project: Project,
+        question: String,
+        promptTemplate: String,
+    ): Pair<String, String> {
+//        val psiClassToJson = Psi2Json.psiClassToJson(psiClass, project)
+//        val jsonString = psiClassToJson.toJson()
+
+        val generateMap = psiClass.generateMap(project)
+        val jsonString = generateMap.toJson()
+        val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)
+
+        val associateBy = extractInterfaceMetaInfo.associateBy({ it.comment }, { it.name })
+        val buildStructureOutPutPrompt = AiUtil.buildStructureOutPutPrompt(associateBy)
+
+        val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(
+            question, promptTemplate, buildStructureOutPutPrompt, buildStructureOutPutPrompt
+        )
+        return Pair(jsonString, buildStructureOutPutPrompt)
+    }
+}

@@ -1,6 +1,7 @@
 package site.addzero.util.lsi_impl.impl.kt.clazz
 
 import site.addzero.util.lsi.assist.getDefaultValueForType
+import site.addzero.util.lsi.assist.getDefaultAnyValueForType
 import site.addzero.util.lsi.assist.isCollectionType
 import site.addzero.util.lsi.assist.isCustomObjectType
 import site.addzero.util.lsi.constant.DATA_ANNOTATIONS_SHORT
@@ -167,29 +168,22 @@ private fun handleArrayType(
 
 /**
  * 获取基本类型或自定义类型的示例值
+ * 使用统一的类型默认值函数
  */
 private fun getPrimitiveOrCustomValue(typeName: String, project: Project, depth: Int): Any? {
     if (depth > MAX_RECURSION_DEPTH) return null
 
-    return when (typeName) {
-        "Int", "Integer" -> 0
-        "Boolean" -> false
-        "Byte" -> 0.toByte()
-        "Char", "Character" -> ' '
-        "Double" -> 0.0
-        "Float" -> 0.0f
-        "Long" -> 0L
-        "Short" -> 0.toShort()
-        "String" -> ""
-        "LocalDate" -> "2024-03-22"
-        "LocalDateTime" -> "2024-03-22 12:00:00"
-        "BigDecimal" -> "0.00"
-        else -> {
-            // 处理自定义类型 - 根据类名查找并递归生成
-            val targetClass = project.findKtClassByName(typeName)
-            targetClass?.generateMap(project, depth + 1)
-                ?: mapOf("type" to typeName)
-        }
+    // 先尝试使用统一的类型默认值函数
+    val defaultValue = getDefaultAnyValueForType(typeName)
+
+    // 如果返回的是类型名本身（表示不是已知的基本类型），则尝试解析为自定义类
+    return if (defaultValue == typeName) {
+        // 处理自定义类型 - 根据类名查找并递归生成
+        val targetClass = project.findKtClassByName(typeName)
+        targetClass?.generateMap(project, depth + 1)
+            ?: mapOf("type" to typeName)
+    } else {
+        defaultValue
     }
 }
 

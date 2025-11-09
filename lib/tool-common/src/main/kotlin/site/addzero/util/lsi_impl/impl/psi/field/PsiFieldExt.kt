@@ -1,12 +1,14 @@
 package site.addzero.util.lsi_impl.impl.psi.field
 
 import site.addzero.util.lsi.assist.getDefaultValueForType
+import site.addzero.util.lsi.assist.getDefaultAnyValueForType
 import site.addzero.util.lsi.constant.JIMMER_COLUMN
 import site.addzero.util.lsi.constant.MP_TABLE_FIELD
 import site.addzero.util.lsi_impl.impl.psi.anno.getArg
 import site.addzero.util.lsi_impl.impl.psi.anno.guessFieldCommentOrNull
 import site.addzero.util.lsi_impl.impl.psi.clazz.toDefaultValueMap
 import site.addzero.util.lsi_impl.impl.psi.clazz.toMap
+import site.addzero.util.lsi_impl.impl.psi.clazz.resolveClassByName
 import site.addzero.util.lsi_impl.impl.psi.type.handleListDefaultValue
 import site.addzero.util.lsi_impl.impl.psi.type.isCollectionType
 import site.addzero.util.lsi_impl.impl.psi.type.isListType
@@ -53,52 +55,32 @@ fun PsiField.isConstantField(): Boolean {
 
 fun PsiField.defaultValue(project: Project): Any {
     val type = this.type
+
+    // 处理基本类型
     if (type is PsiPrimitiveType) {
-        return if (type == PsiType.INT) {
-            0
-        } else if (type == PsiType.BOOLEAN) {
-            java.lang.Boolean.TRUE
-        } else if (type == PsiType.BYTE) {
-            "1".toByte()
-        } else if (type == PsiType.CHAR) {
-            '-'
-        } else if (type == PsiType.DOUBLE) {
-            0.0
-        } else if (type == PsiType.FLOAT) {
-            0.0f
-        } else if (type == PsiType.LONG) {
-            0L
-        } else {
-            if (type == PsiType.SHORT) "0".toShort() else type.getPresentableText()
-        }
-    } else {
-        val typeName = type.presentableText
-        if (typeName != "Integer" && typeName != "Long") {
-            if (typeName != "Double" && typeName != "Float") {
-                if (typeName == "Boolean") {
-                    return java.lang.Boolean.TRUE
-                } else if (typeName == "Byte") {
-                    return "1".toByte()
-                } else if (typeName == "String") {
-                    return "str"
-                } else if (typeName == "Date") {
-                    return (Date()).time
-                } else if (typeName.startsWith("List")) {
-                    return handleList(type, project, this.containingClass!!)
-                } else {
-                    val fieldClass = this.detectCorrectClassByName(
-                        typeName,
-                        this.containingClass!!, project
-                    )
-                    return if (fieldClass != null) fieldClass.toMap() else typeName
-                }
-            } else {
-                return 0.0f
-            }
-        } else {
-            return 0
-        }
+        val typeName = type.name
+        return getDefaultAnyValueForType(typeName)
     }
+
+    // 处理引用类型
+    val typeName = type.presentableText
+
+    // 先尝试获取默认值
+    val defaultValue = getDefaultAnyValueForType(typeName)
+
+    // 如果是已知的基本类型，直接返回
+    if (defaultValue != typeName) {
+        return defaultValue
+    }
+
+    // 处理 List 类型
+    if (typeName.startsWith("List")) {
+        return handleList(type, project, this.containingClass!!)
+    }
+
+    // 处理自定义类型 - 使用 containingClass.resolveClassByName
+    val fieldClass = this.containingClass?.resolveClassByName(typeName, project)
+    return fieldClass?.toMap() ?: typeName
 }
 
 private fun handleList(psiType: PsiType, project: Project, containingClass: PsiClass): Any {
@@ -109,9 +91,10 @@ private fun handleList(psiType: PsiType, project: Project, containingClass: PsiC
         val subType = subTypes[0]
         val subTypeName = subType.presentableText
         if (subTypeName.startsWith("List")) {
-            list.add(this.handleList(subType, project, containingClass))
+            list.add(handleList(subType, project, containingClass))
         } else {
-            val targetClass = this.detectCorrectClassByName(subTypeName, containingClass, project)
+            // 使用 containingClass.resolveClassByName 代替 detectCorrectClassByName
+            val targetClass = containingClass.resolveClassByName(subTypeName, project)
             if (targetClass != null) {
                 list.add(targetClass.toMap())
             } else if (subTypeName == "String") {
@@ -131,29 +114,25 @@ private fun handleList(psiType: PsiType, project: Project, containingClass: PsiC
 fun PsiField.getDefaultValue(): Any {
     val canonicalText = type.canonicalText
     if (type is PsiPrimitiveType) {
-        return getDefaultValueForType(canonicalText)
+        return getDefaultAnyValueForType(canonicalText)
     }
-    val defaultValueForFqType = getDefaultValueForFqType(canonicalText)
-    return defaultValueForFqType
-}
+    val defaultValue = getDefaultAnyValueForType(canonicalText)
 
-fun PsiField.getDefaultValueForFqType(canonicalText: String): Any {
-    val any = when {
-        canonicalText == "java.lang.Integer" || canonicalText == "java.lang.Long" -> 0
-        canonicalText == "java.lang.Double" || canonicalText == "java.lang.Float" -> 0.0
-        canonicalText == "java.lang.Boolean" -> true
-        canonicalText == "java.lang.Byte" -> 1.toByte()
-        canonicalText == "java.lang.String" -> "str"
-        canonicalText == "java.util.Date" -> Date().time
-
-        type.isListType() -> type.handleListDefaultValue(project, this.containingClass!!)
-        else -> {
-            val resolvedClass = PsiTypesUtil.getPsiClass(type)
-            resolvedClass?.toDefaultValueMap() ?: canonicalText
+    // 如果返回的是类型名本身（表示不是已知的基本类型），则处理特殊情况
+    return if (defaultValue == canonicalText) {
+        when {
+            type.isListType() -> type.handleListDefaultValue(project, this.containingClass!!)
+            else -> {
+                val resolvedClass = PsiTypesUtil.getPsiClass(type)
+                resolvedClass?.toDefaultValueMap() ?: canonicalText
+            }
         }
+    } else {
+        defaultValue
     }
-    return any
 }
+
+// 移除 getDefaultValueForFqType 函数，因为它的逻辑已经整合到统一的 getDefaultAnyValueForType 函数中
 
 
 fun PsiField.addComment(project: Project) {

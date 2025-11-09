@@ -1,6 +1,7 @@
 package site.addzero.util.lsi_impl.impl.psi.clazz
 
 import site.addzero.util.lsi.constant.*
+import site.addzero.util.lsi.assist.getDefaultAnyValueForType
 import site.addzero.util.lsi_impl.impl.kt.anno.guessTableName
 import site.addzero.util.lsi_impl.impl.psi.field.getDefaultValue
 import com.intellij.openapi.project.Project
@@ -247,30 +248,24 @@ private fun PsiClassType.isCollectionType(): Boolean {
 
 /**
  * 获取基本类型或自定义类型的示例值
+ * 使用统一的类型默认值函数
  */
 private fun PsiType.getPrimitiveOrCustomValue(project: Project, depth: Int): Any? {
     if (depth > MAX_RECURSION_DEPTH) return null
 
     val presentableText = presentableText
-    return when (presentableText) {
-        "int", "Integer" -> 0
-        "boolean", "Boolean" -> false
-        "byte", "Byte" -> 0.toByte()
-        "char", "Character" -> ' '
-        "double", "Double" -> 0.0
-        "float", "Float" -> 0.0f
-        "long", "Long" -> 0L
-        "short", "Short" -> 0.toShort()
-        "String" -> ""
-        "LocalDate" -> "2024-03-22"
-        "LocalDateTime" -> "2024-03-22 12:00:00"
-        "BigDecimal" -> "0.00"
-        else -> {
-            // 处理自定义类型 - 使用 resolve() 获取类定义并递归生成
-            val targetClass = (this as? PsiClassType)?.resolve()
-            targetClass?.generateMap(project, depth + 1)
-                ?: mapOf("type" to presentableText)
-        }
+
+    // 先尝试使用统一的类型默认值函数
+    val defaultValue = getDefaultAnyValueForType(presentableText)
+
+    // 如果返回的是类型名本身（表示不是已知的基本类型），则尝试解析为自定义类
+    return if (defaultValue == presentableText) {
+        // 处理自定义类型 - 使用 resolve() 获取类定义并递归生成
+        val targetClass = (this as? PsiClassType)?.resolve()
+        targetClass?.generateMap(project, depth + 1)
+            ?: mapOf("type" to presentableText)
+    } else {
+        defaultValue
     }
 }
 

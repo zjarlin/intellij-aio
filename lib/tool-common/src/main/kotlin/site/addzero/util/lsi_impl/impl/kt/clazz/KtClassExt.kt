@@ -65,7 +65,14 @@ fun KtClass.guessTableNameByAnno(): String? {
     return annotations.guessTableName()
 }
 
-fun KtClass.ktClassToJson(project: Project): JsonObject {
+/**
+ * 将 KtClass 转换为 JsonObject 结构
+ * 支持嵌套对象和 List 类型
+ *
+ * @return JsonObject 表示的类结构
+ */
+fun KtClass.ktClassToJson(): JsonObject {
+    val project = this.project
     val jsonObject = JsonObject()
     // 提取 KtClass 的属性
     getProperties().forEach { property ->
@@ -75,7 +82,7 @@ fun KtClass.ktClassToJson(project: Project): JsonObject {
         // 检查是否是嵌套对象或 List
         if (isCustomObjectType(propertyType)) {
             val nestedClass = project.findKtClassByName(propertyType)
-            nestedClass?.let { jsonObject.add(propertyName, it.ktClassToJson(project)) }
+            nestedClass?.let { jsonObject.add(propertyName, it.ktClassToJson()) }
         } else if (propertyType.startsWith("List<")) {
             val elementType = propertyType.removePrefix("List<").removeSuffix(">")
             jsonObject.add(propertyName, project.createListJson(elementType))
@@ -95,13 +102,13 @@ private const val MAX_RECURSION_DEPTH = 3
  * 将 KtClass 转换为 Map 结构，支持嵌套对象和集合类型
  * 使用递归深度限制防止无限递归
  *
- * @param project IntelliJ 项目实例
  * @param depth 当前递归深度，默认为 0
  * @return 表示类结构的 Map，key 为字段名，value 为示例值
  */
-fun KtClass.generateMap(project: Project, depth: Int = 0): Map<String, Any?> {
+fun KtClass.generateMap(depth: Int = 0): Map<String, Any?> {
     if (depth > MAX_RECURSION_DEPTH) return emptyMap()
 
+    val project = this.project
     val outputMap = LinkedHashMap<String, Any?>()
 
     getProperties().forEach { property ->
@@ -180,7 +187,7 @@ private fun getPrimitiveOrCustomValue(typeName: String, project: Project, depth:
     return if (defaultValue == typeName) {
         // 处理自定义类型 - 根据类名查找并递归生成
         val targetClass = project.findKtClassByName(typeName)
-        targetClass?.generateMap(project, depth + 1)
+        targetClass?.generateMap(depth + 1)
             ?: mapOf("type" to typeName)
     } else {
         defaultValue

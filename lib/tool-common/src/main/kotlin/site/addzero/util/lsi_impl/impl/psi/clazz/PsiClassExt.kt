@@ -71,7 +71,15 @@ fun PsiClass.comment(): String? {
     return string
 }
 
-fun PsiClass.resolveClassByName(className: String, project: Project): PsiClass? {
+/**
+ * 根据类名解析 PsiClass
+ * 支持从当前类的导入语句中查找
+ *
+ * @param className 要查找的类名（简单名或全限定名）
+ * @return 找到的 PsiClass，未找到返回 null
+ */
+fun PsiClass.resolveClassByName(className: String): PsiClass? {
+    val project = this.project
     val classes = PsiShortNamesCache.getInstance(project)
         .getClassesByName(className, GlobalSearchScope.projectScope(project))
 
@@ -167,20 +175,20 @@ private const val MAX_RECURSION_DEPTH = 3
  * 将 PsiClass 转换为 Map 结构，支持嵌套对象和集合类型
  * 使用递归深度限制防止无限递归
  *
- * @param project IntelliJ 项目实例
  * @param depth 当前递归深度，默认为 0
  * @return 表示类结构的 Map，key 为字段名，value 为示例值
  */
-fun PsiClass.generateMap(project: Project, depth: Int = 0): Map<String, Any?> {
+fun PsiClass.generateMap(depth: Int = 0): Map<String, Any?> {
     if (depth > MAX_RECURSION_DEPTH) return emptyMap()
 
+    val project = this.project
     val outputMap = LinkedHashMap<String, Any?>()
 
     allFields.forEach { field ->
         val fieldType = field.type
         val fieldName = field.name
         if (fieldName != null) {
-            outputMap[fieldName] = fieldType.getObjectForType(project, this, depth + 1)
+            outputMap[fieldName] = fieldType.getObjectForType(this, depth + 1)
         }
     }
 
@@ -192,16 +200,15 @@ fun PsiClass.generateMap(project: Project, depth: Int = 0): Map<String, Any?> {
  * 支持基本类型、集合类型、数组类型和自定义类型
  */
 private fun PsiType.getObjectForType(
-    project: Project,
     containingClass: PsiClass,
     depth: Int = 0
 ): Any? {
     if (depth > MAX_RECURSION_DEPTH) return null
 
     return when {
-        this is PsiArrayType -> handleArrayType(project, containingClass, depth)
-        this is PsiClassType && isCollectionType() -> handleCollectionType(project, containingClass, depth)
-        else -> getPrimitiveOrCustomValue(project, depth)
+        this is PsiArrayType -> handleArrayType(containingClass, depth)
+        this is PsiClassType && isCollectionType() -> handleCollectionType(containingClass, depth)
+        else -> getPrimitiveOrCustomValue(containingClass, depth)
     }
 }
 
@@ -209,13 +216,12 @@ private fun PsiType.getObjectForType(
  * 处理数组类型
  */
 private fun PsiArrayType.handleArrayType(
-    project: Project,
     containingClass: PsiClass,
     depth: Int
 ): List<Any?> {
     if (depth > MAX_RECURSION_DEPTH) return emptyList()
 
-    val sampleValue = componentType.getObjectForType(project, containingClass, depth + 1)
+    val sampleValue = componentType.getObjectForType(containingClass, depth + 1)
     return listOf(sampleValue)
 }
 
@@ -223,14 +229,13 @@ private fun PsiArrayType.handleArrayType(
  * 处理集合类型（List、Set、Collection 等）
  */
 private fun PsiClassType.handleCollectionType(
-    project: Project,
     containingClass: PsiClass,
     depth: Int
 ): List<Any?> {
     if (depth > MAX_RECURSION_DEPTH) return emptyList()
 
     val elementType = parameters.firstOrNull()
-    val sampleValue = elementType?.getObjectForType(project, containingClass, depth + 1)
+    val sampleValue = elementType?.getObjectForType(containingClass, depth + 1)
     return listOfNotNull(sampleValue)
 }
 
@@ -250,7 +255,7 @@ private fun PsiClassType.isCollectionType(): Boolean {
  * 获取基本类型或自定义类型的示例值
  * 使用统一的类型默认值函数
  */
-private fun PsiType.getPrimitiveOrCustomValue(project: Project, depth: Int): Any? {
+private fun PsiType.getPrimitiveOrCustomValue(containingClass: PsiClass, depth: Int): Any? {
     if (depth > MAX_RECURSION_DEPTH) return null
 
     val presentableText = presentableText
@@ -262,7 +267,7 @@ private fun PsiType.getPrimitiveOrCustomValue(project: Project, depth: Int): Any
     return if (defaultValue == presentableText) {
         // 处理自定义类型 - 使用 resolve() 获取类定义并递归生成
         val targetClass = (this as? PsiClassType)?.resolve()
-        targetClass?.generateMap(project, depth + 1)
+        targetClass?.generateMap(depth + 1)
             ?: mapOf("type" to presentableText)
     } else {
         defaultValue

@@ -1,23 +1,25 @@
-import site.addzero.addl.action.StructuredInputDialog
-import site.addzero.addl.ai.util.ai.AiUtil
-import site.addzero.addl.ai.util.ai.ctx.AiCtx
-import site.addzero.addl.ktututil.toJson
-import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.fieldinfo.PsiUtil
+
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
+import site.addzero.addl.action.StructuredInputDialog
+import site.addzero.addl.ai.util.ai.AiUtil
+import site.addzero.addl.ai.util.ai.ctx.AiCtx
+import site.addzero.addl.ktututil.toJson
+import site.addzero.addl.settings.SettingContext
+import site.addzero.addl.util.fieldinfo.PsiUtil
+import site.addzero.util.NotificationUtil
+import site.addzero.util.ShowContentUtil.openTextInEditor
+import site.addzero.util.lsi_impl.impl.kt.clazz.generateMap
+import site.addzero.util.lsi_impl.impl.psi.clazz.generateMap
+import site.addzero.util.psi.PsiUtil.psiCtx
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
-import site.addzero.addl.util.NotificationUtil
-import site.addzero.util.ShowContentUtil.openTextInEditor
-import site.addzero.util.psi.PsiUtil.psiCtx
-import site.addzero.util.lsi_impl.impl.kt.clazz.generateMap
 
 class StructuredOutput : AnAction() {
 
@@ -80,7 +82,7 @@ class StructuredOutput : AnAction() {
         } else {
 //            val jsonobj = Psi2Json.ktClassToJson(toKtClass, project)
 //            val jsonString = jsonobj.toJson()
-            val generateMap = ktClass.generateMap(project)
+            val generateMap = ktClass.generateMap()
             val jsonString = generateMap.toJson()
             val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
 
@@ -109,7 +111,7 @@ class StructuredOutput : AnAction() {
 //        val psiClassToJson = Psi2Json.psiClassToJson(psiClass, project)
 //        val jsonString = psiClassToJson.toJson()
 
-        val generateMap = psiClass.generateMap(project)
+        val generateMap = psiClass.generateMap()
         val jsonString = generateMap.toJson()
         val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)
 

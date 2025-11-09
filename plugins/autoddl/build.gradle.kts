@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":lib:tool-psi-toml"))
     implementation(project(":lib:tool-common"))
     implementation("site.addzero:tool-jvmstr:+")
+    implementation("site.addzero:tool-ai:+")
     implementation("site.addzero:tool-io-codegen:+")
     implementation("site.addzero:tool-str:0.0.674")
     implementation("site.addzero:tool-coll:+")

@@ -74,7 +74,7 @@ fun PsiField.getDefaultValue(): Any {
     // 对于未知的复杂类型，进一步处理
     // 处理集合类型（List、Set、Collection 等）
     if (type.isListType()) {
-        return type.handleListDefaultValue(project, this.containingClass!!)
+        return type.handleListDefaultValue(this.containingClass!!)
     }
     // 处理自定义类型 - 尝试解析类并生成其默认值 Map
     val resolvedClass = type.toPsiClass()

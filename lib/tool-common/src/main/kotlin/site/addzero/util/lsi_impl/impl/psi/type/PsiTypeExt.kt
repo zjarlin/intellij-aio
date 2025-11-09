@@ -1,6 +1,5 @@
 package site.addzero.util.lsi_impl.impl.psi.type
 
-import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.util.InheritanceUtil
 import com.intellij.psi.util.PsiTypesUtil
@@ -34,7 +33,15 @@ fun PsiType.isNullable(): Boolean {
     return true
 }
 
-fun PsiType.handleListDefaultValue(project: Project, containingClass: PsiClass): Any {
+/**
+ * 处理 List 类型的默认值生成
+ * 从 containingClass 推导 project，无需显式传入
+ *
+ * @param containingClass 包含该类型的类
+ * @return 包含一个示例元素的 List
+ */
+fun PsiType.handleListDefaultValue(containingClass: PsiClass): Any {
+    val project = containingClass.project
     val list: MutableList<Any?> = ArrayList()
     if (this !is PsiClassType) return list
 
@@ -45,7 +52,7 @@ fun PsiType.handleListDefaultValue(project: Project, containingClass: PsiClass):
     val subTypeCanonicalText = subType.canonicalText
 
     val value = when {
-        subType.isListType() -> subType.handleListDefaultValue(project, containingClass)
+        subType.isListType() -> subType.handleListDefaultValue(containingClass)
         subTypeCanonicalText == "java.lang.String" -> "str"
         subTypeCanonicalText == "java.util.Date" -> Date().time
         else -> {

@@ -4,10 +4,7 @@ import site.addzero.util.lsi.constant.*
 import site.addzero.util.lsi_impl.impl.kt.anno.guessTableName
 import site.addzero.util.lsi_impl.impl.psi.field.getDefaultValue
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifier
+import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiShortNamesCache
 import site.addzero.util.str.cleanDocComment
@@ -159,6 +156,122 @@ fun PsiClass.jimmerProperty(): List<PsiMethod> {
         }
     }
     return methods.toList() + supers.map { it.jimmerProperty() }.flatten()
+}
+
+// ============ JSON/Map 生成相关 ============
+
+private const val MAX_RECURSION_DEPTH = 3
+
+/**
+ * 将 PsiClass 转换为 Map 结构，支持嵌套对象和集合类型
+ * 使用递归深度限制防止无限递归
+ *
+ * @param project IntelliJ 项目实例
+ * @param depth 当前递归深度，默认为 0
+ * @return 表示类结构的 Map，key 为字段名，value 为示例值
+ */
+fun PsiClass.generateMap(project: Project, depth: Int = 0): Map<String, Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyMap()
+
+    val outputMap = LinkedHashMap<String, Any?>()
+
+    allFields.forEach { field ->
+        val fieldType = field.type
+        val fieldName = field.name
+        if (fieldName != null) {
+            outputMap[fieldName] = fieldType.getObjectForType(project, this, depth + 1)
+        }
+    }
+
+    return outputMap
+}
+
+/**
+ * 根据 PsiType 生成对应的示例值
+ * 支持基本类型、集合类型、数组类型和自定义类型
+ */
+private fun PsiType.getObjectForType(
+    project: Project,
+    containingClass: PsiClass,
+    depth: Int = 0
+): Any? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+
+    return when {
+        this is PsiArrayType -> handleArrayType(project, containingClass, depth)
+        this is PsiClassType && isCollectionType() -> handleCollectionType(project, containingClass, depth)
+        else -> getPrimitiveOrCustomValue(project, depth)
+    }
+}
+
+/**
+ * 处理数组类型
+ */
+private fun PsiArrayType.handleArrayType(
+    project: Project,
+    containingClass: PsiClass,
+    depth: Int
+): List<Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyList()
+
+    val sampleValue = componentType.getObjectForType(project, containingClass, depth + 1)
+    return listOf(sampleValue)
+}
+
+/**
+ * 处理集合类型（List、Set、Collection 等）
+ */
+private fun PsiClassType.handleCollectionType(
+    project: Project,
+    containingClass: PsiClass,
+    depth: Int
+): List<Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyList()
+
+    val elementType = parameters.firstOrNull()
+    val sampleValue = elementType?.getObjectForType(project, containingClass, depth + 1)
+    return listOfNotNull(sampleValue)
+}
+
+/**
+ * 判断是否为集合类型
+ */
+private fun PsiClassType.isCollectionType(): Boolean {
+    val qualifiedName = resolve()?.qualifiedName ?: return false
+    return qualifiedName.startsWith("java.util.") && (
+            qualifiedName.contains("List") ||
+                    qualifiedName.contains("Set") ||
+                    qualifiedName.contains("Collection")
+            )
+}
+
+/**
+ * 获取基本类型或自定义类型的示例值
+ */
+private fun PsiType.getPrimitiveOrCustomValue(project: Project, depth: Int): Any? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+
+    val presentableText = presentableText
+    return when (presentableText) {
+        "int", "Integer" -> 0
+        "boolean", "Boolean" -> false
+        "byte", "Byte" -> 0.toByte()
+        "char", "Character" -> ' '
+        "double", "Double" -> 0.0
+        "float", "Float" -> 0.0f
+        "long", "Long" -> 0L
+        "short", "Short" -> 0.toShort()
+        "String" -> ""
+        "LocalDate" -> "2024-03-22"
+        "LocalDateTime" -> "2024-03-22 12:00:00"
+        "BigDecimal" -> "0.00"
+        else -> {
+            // 处理自定义类型 - 使用 resolve() 获取类定义并递归生成
+            val targetClass = (this as? PsiClassType)?.resolve()
+            targetClass?.generateMap(project, depth + 1)
+                ?: mapOf("type" to presentableText)
+        }
+    }
 }
 
 

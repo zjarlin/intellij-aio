@@ -86,3 +86,110 @@ fun KtClass.ktClassToJson(project: Project): JsonObject {
     return jsonObject
 }
 
+// ============ Map 生成相关 ============
+
+private const val MAX_RECURSION_DEPTH = 3
+
+/**
+ * 将 KtClass 转换为 Map 结构，支持嵌套对象和集合类型
+ * 使用递归深度限制防止无限递归
+ *
+ * @param project IntelliJ 项目实例
+ * @param depth 当前递归深度，默认为 0
+ * @return 表示类结构的 Map，key 为字段名，value 为示例值
+ */
+fun KtClass.generateMap(project: Project, depth: Int = 0): Map<String, Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyMap()
+
+    val outputMap = LinkedHashMap<String, Any?>()
+
+    getProperties().forEach { property ->
+        val propertyType = property.typeReference?.text
+        val propertyName = property.name
+        if (propertyName != null) {
+            outputMap[propertyName] = propertyType.getObjectForType(project, this, depth + 1)
+        }
+    }
+
+    return outputMap
+}
+
+/**
+ * 根据类型名称生成对应的示例值
+ * 支持基本类型、集合类型、数组类型和自定义类型
+ */
+private fun String?.getObjectForType(
+    project: Project,
+    containingClass: KtClass,
+    depth: Int = 0
+): Any? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+
+    return when {
+        this == null -> null
+        startsWith("List<") -> handleListType(this, project, containingClass, depth)
+        startsWith("Array<") -> handleArrayType(this, project, containingClass, depth)
+        else -> getPrimitiveOrCustomValue(this, project, depth)
+    }
+}
+
+/**
+ * 处理 List 类型
+ */
+private fun handleListType(
+    typeName: String,
+    project: Project,
+    containingClass: KtClass,
+    depth: Int
+): List<Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyList()
+
+    val elementType = typeName.substringAfter("List<").substringBeforeLast(">")
+    val sampleValue = elementType.getObjectForType(project, containingClass, depth + 1)
+    return listOf(sampleValue)
+}
+
+/**
+ * 处理 Array 类型
+ */
+private fun handleArrayType(
+    typeName: String,
+    project: Project,
+    containingClass: KtClass,
+    depth: Int
+): List<Any?> {
+    if (depth > MAX_RECURSION_DEPTH) return emptyList()
+
+    val elementType = typeName.substringAfter("Array<").substringBeforeLast(">")
+    val sampleValue = elementType.getObjectForType(project, containingClass, depth + 1)
+    return listOf(sampleValue)
+}
+
+/**
+ * 获取基本类型或自定义类型的示例值
+ */
+private fun getPrimitiveOrCustomValue(typeName: String, project: Project, depth: Int): Any? {
+    if (depth > MAX_RECURSION_DEPTH) return null
+
+    return when (typeName) {
+        "Int", "Integer" -> 0
+        "Boolean" -> false
+        "Byte" -> 0.toByte()
+        "Char", "Character" -> ' '
+        "Double" -> 0.0
+        "Float" -> 0.0f
+        "Long" -> 0L
+        "Short" -> 0.toShort()
+        "String" -> ""
+        "LocalDate" -> "2024-03-22"
+        "LocalDateTime" -> "2024-03-22 12:00:00"
+        "BigDecimal" -> "0.00"
+        else -> {
+            // 处理自定义类型 - 根据类名查找并递归生成
+            val targetClass = project.findKtClassByName(typeName)
+            targetClass?.generateMap(project, depth + 1)
+                ?: mapOf("type" to typeName)
+        }
+    }
+}
+

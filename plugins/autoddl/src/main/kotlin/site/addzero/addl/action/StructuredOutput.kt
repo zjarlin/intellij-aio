@@ -3,7 +3,6 @@ import site.addzero.addl.ai.util.ai.AiUtil
 import site.addzero.addl.ai.util.ai.ctx.AiCtx
 import site.addzero.addl.ktututil.toJson
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.Pojo2Json4ktUtil
 import site.addzero.addl.util.fieldinfo.PsiUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -18,6 +17,7 @@ import java.io.IOException
 import site.addzero.addl.util.NotificationUtil
 import site.addzero.util.ShowContentUtil.openTextInEditor
 import site.addzero.util.psi.PsiUtil.psiCtx
+import site.addzero.util.lsi_impl.impl.kt.clazz.generateMap
 
 class StructuredOutput : AnAction() {
 
@@ -80,7 +80,7 @@ class StructuredOutput : AnAction() {
         } else {
 //            val jsonobj = Psi2Json.ktClassToJson(toKtClass, project)
 //            val jsonString = jsonobj.toJson()
-            val generateMap = Pojo2Json4ktUtil.generateMap(ktClass, project)
+            val generateMap = ktClass.generateMap(project)
             val jsonString = generateMap.toJson()
             val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
 

@@ -2,27 +2,20 @@ package site.addzero.util.lsi_impl.impl.psi.project
 
 import com.google.gson.JsonObject
 import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.patterns.PlatformPatterns.psiFile
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
+import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtFile
 import site.addzero.util.lsi.assist.getDefaultValueForType
 import site.addzero.util.lsi.assist.isCustomObjectType
-import site.addzero.util.lsi_impl.impl.intellij.virtualfile.toKtClass
 import site.addzero.util.lsi_impl.impl.kt.clazz.ktClassToJson
 import site.addzero.util.lsi_impl.impl.psi.model.PsiCtx
 
@@ -36,23 +29,14 @@ fun Project.allpsiCtx(): PsiCtx {
     return TODO("提供返回值")
 }
 
-
 fun Project.psiCtx(): PsiCtx {
-    val instance = FileEditorManager.getInstance(this)
-    val editor = instance.selectedTextEditor
-    val virtualFile = instance.getSelectedEditor()?.file
-    val psiFile = PsiManager.getInstance(this).findFile(virtualFile!!)
-
-    val ktClass = virtualFile.toKtClass(this)
-
-    val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java)
-
+    val editor = this.toEditor()
+    val virtualFile = toVirtualFile()
+    val psiFile = virtualFile?.toPsiFile(this)
+    val psiClass = psiFile?.toPsiClass()
     val any = if (psiFile is PsiJavaFile) {
         // 一个文件中可能会定义有多个Class，因此返回的是一个数组
-        val classes = psiFile.classes
-        classes
-    } else if (psiFile is KtFile) {
-        val classes = psiFile.classes
+        val classes: Array<PsiClass> = psiFile.getClasses()
         classes
     } else {
         null
@@ -64,22 +48,25 @@ fun Project.psiCtx(): PsiCtx {
         virtualFile = virtualFile,
         any
     )
+
 }
+
 
 fun PsiFile.toPsiClass(): PsiClass? {
    return  PsiTreeUtil.findChildOfType(this, PsiClass::class.java)
 }
 
 
-fun Project.toEditor(): FileEditor? {
+fun Project.toEditor(): Editor? {
     val instance = FileEditorManager.getInstance(this)
-    return instance.selectedEditor
+    return instance.selectedTextEditor
+
 }
 
 
 fun Project.toVirtualFile   (): VirtualFile? {
     val instance = FileEditorManager.getInstance(this)
-    val file = instance.selectedEditor.file
+    val file = instance.selectedEditor?.file
     return file
 }
 
@@ -109,7 +96,7 @@ fun Project.isKotlinProject(): Boolean {
 fun Project.createListJson(elementType: String): JsonObject {
     val listJson = JsonObject()
     if (isCustomObjectType(elementType)) {
-        val elementClass = findKtClassByName(elementType, this)
+        val elementClass = findKtClassByName(elementType)
         elementClass?.let { listJson.add("element", it.ktClassToJson(this)) }
     } else {
         listJson.addProperty("element", getDefaultValueForType(elementType))

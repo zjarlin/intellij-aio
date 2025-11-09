@@ -11,6 +11,6 @@ data class PsiCtx(
     val editor: Editor?,
     val psiClass: PsiClass?,
     val psiFile: PsiFile?,
-    val virtualFile: VirtualFile,
+    val virtualFile: VirtualFile?,
     val any: Array<PsiClass>?,
 )

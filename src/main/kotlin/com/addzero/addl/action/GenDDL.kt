@@ -6,9 +6,8 @@ import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
 import com.addzero.addl.settings.MyPluginSettingsService
-import com.addzero.addl.util.PsiValidateUtil
-import com.addzero.addl.util.ShowContentUtil
-import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
+import com.addzero.util.ShowContentUtil.openTextInEditor
+import com.addzero.util.psi.PsiUtil.psiCtx
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -21,7 +20,7 @@ class GenDDL : AnAction() {
 
     override fun update(e: AnActionEvent) {
         val project = e.project
-        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project ?: return)
+        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = (project ?: return).psiCtx()
 
         // 使用工具类检查是否为POJO或Jimmer实体
         val isValidTarget = PsiValidateUtil.isValidTarget(ktClass, psiClass)
@@ -33,7 +32,7 @@ class GenDDL : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         // 获取当前项目和编辑器上下文
         val project: Project = e.project ?: return
-        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = psiCtx(project)
+        val (editor, psiClass, ktClass, psiFile, virtualFile, classPath) = project.psiCtx()
 
         val ddlContext = if (ktClass == null) {
             psiClass ?: return
@@ -55,8 +54,7 @@ class GenDDL : AnAction() {
         val s = generateCreateTableDDL + lineSeparator + lineSeparator + sql
 
         // 将生成的 SQL 语句写入到新的文件并打开
-        ShowContentUtil.openTextInEditor(
-            project,
+        project.openTextInEditor(
             s,
             "alter_table_${ddlContext .tableEnglishName}",
             ".sql"

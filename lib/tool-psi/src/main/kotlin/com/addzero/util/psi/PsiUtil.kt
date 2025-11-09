@@ -1,12 +1,14 @@
 package com.addzero.util.psi
 
 import com.addzero.util.entity.JavaFieldMetaInfo
-import com.addzero.util.lsi.toLsiField
+import com.addzero.util.lsi.impl.psi.isDbField
+import com.addzero.util.lsi.impl.psi.toLsiField
+import com.addzero.util.lsi.impl.kt.isDbField as ktIsDbField
+import com.addzero.util.lsi.impl.kt.toLsiField as ktToLsiField
 import com.addzero.util.psi.PsiTypeUtil.isCollectionType
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.NlsSafe
@@ -15,13 +17,15 @@ import com.intellij.psi.*
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.apache.commons.lang3.AnnotationUtils
 import org.apache.commons.lang3.StringUtils.firstNonBlank
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinFileType
-import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.tools.projectWizard.core.entity.settings.SettingContext
+import site.addzero.util.str.removeAny
 import site.addzero.util.str.removeAnyQuote
 import site.addzero.util.str.toUnderLineCase
 
@@ -29,7 +33,14 @@ import site.addzero.util.str.toUnderLineCase
 //private const val NOCOMMENT = "no_comment_found"
 private const val NOCOMMENT = ""
 
-
+/**
+ * PSI 工具类
+ *
+ * @deprecated 此类中的大部分方法已经迁移到 LSI 层，请使用 LSI 相关方法替代
+ * - 元数据提取相关方法已迁移到 LsiClass、LsiField、LsiMethod
+ * - 保留的方法包括：PSI 导航、上下文管理、JavaFieldMetaInfo 桥接
+ */
+@Deprecated("Most methods migrated to LSI layer, use LsiClass/LsiField/LsiMethod instead")
 object PsiUtil {
 
     fun PsiFile?.getCurrentPsiElement(
@@ -61,6 +72,15 @@ object PsiUtil {
     }
 
 
+    /**
+     * 清理文档注释
+     *
+     * @deprecated 此方法已在 LSI 的各个 CommentAnalyzer 中实现，不再需要直接调用
+     */
+    @Deprecated(
+        "Use LsiField.comment or LsiMethod.comment instead",
+        ReplaceWith("lsiField.comment", "com.addzero.util.lsi.toLsiField")
+    )
     private fun cleanDocComment(docComment: String?): String {
         if (docComment == null) return ""
 
@@ -85,6 +105,15 @@ object PsiUtil {
     }
 
 
+    /**
+     * 猜测 Kotlin 字段注释
+     *
+     * @deprecated 使用 LsiField.comment 替代
+     */
+    @Deprecated(
+        "Use LsiField.comment instead",
+        ReplaceWith("this.toLsiField().comment", "com.addzero.util.lsi.toLsiField")
+    )
     fun KtProperty.guessFieldComment(idName: String): String {
         // 如果是主键字段，直接返回 "主键"
         if (this.name == idName) {
@@ -147,9 +176,14 @@ object PsiUtil {
     }
 
     /**
-     * @param [this@guessFieldComment]
-     * @return [String]
+     * 猜测 Java 字段注释
+     *
+     * @deprecated 使用 LsiField.comment 替代
      */
+    @Deprecated(
+        "Use LsiField.comment instead",
+        ReplaceWith("this.toLsiField().comment", "com.addzero.util.lsi.toLsiField")
+    )
     fun PsiField.guessFieldComment(idName: String): String {
         if (this.name == idName) {
             return "主键"
@@ -200,7 +234,15 @@ object PsiUtil {
 
     }
 
-
+    /**
+     * 猜测 PsiClass 的表名
+     *
+     * @deprecated 使用 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.guessTableName instead",
+        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+    )
     fun guessTableName(psiClass: PsiClass): String? {
         val text = psiClass.name?.toUnderLineCase()
 
@@ -208,13 +250,22 @@ object PsiUtil {
         val guessTableNameByAnno = guessTableNameByAnno(psiClass)
 
 //        todo cleancode
-//        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
+//        showInfoMsg("guessTableNameOrNull: $guessTableNameOrNull")
 
         val firstNonBlank = firstNonBlank(guessTableNameByAnno, text)
         return firstNonBlank
 
     }
 
+    /**
+     * 从注解中猜测表名
+     *
+     * @deprecated 此方法已在 TableNameAnalyzer 中实现，使用 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.guessTableName instead",
+        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+    )
     fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
     }
 
@@ -288,6 +339,15 @@ object PsiUtil {
         return ClassUtil.loadClass<Any>(javaType2RefType) ?: String::class.java
     }
 
+    /**
+     * 获取方法的注释
+     *
+     * @deprecated 使用 LsiMethod.comment 替代
+     */
+    @Deprecated(
+        "Use LsiMethod.comment instead",
+        ReplaceWith("this.toLsiMethod().comment", "com.addzero.util.lsi.toLsiMethod")
+    )
     fun getCommentFunByMethod(method: PsiMethod): String {
         val comment = method.docComment?.text ?: NOCOMMENT
         val equals = method.name == SettingContext.settings.id
@@ -302,7 +362,15 @@ object PsiUtil {
         )
     }
 
-
+    /**
+     * 获取类的元信息
+     *
+     * @deprecated 使用 LsiClass.comment 和 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.comment and LsiClass.guessTableName instead",
+        ReplaceWith("Pair(psiClass.toLsiClass().comment, psiClass.toLsiClass().guessTableName)", "com.addzero.util.lsi.toLsiClass")
+    )
     fun getClassMetaInfo(psiClass: PsiClass): Pair<String, String?> {
         // 获取类名
         val classComment = cleanDocComment(psiClass.docComment?.text)
@@ -360,13 +428,22 @@ object PsiUtil {
     }
 
 
+    /**
+     * 猜测 KtClass 的表名
+     *
+     * @deprecated 使用 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.guessTableName instead",
+        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+    )
     fun guessTableName(psiClass: KtClass): String? {
         val text = psiClass.name?.toUnderlineCase()
         // 获取所有注解
         val guessTableNameByAnno = guessTableNameByAnno(psiClass)
 
         //todo cleancode
-//        showInfoMsg("guessTableNameByAnno: $guessTableNameByAnno")
+//        showInfoMsg("guessTableNameOrNull: $guessTableNameOrNull")
 
         val firstNonBlank = StrUtil.firstNonBlank(guessTableNameByAnno, text)
         val removeAny = firstNonBlank?.removeAny("\"")
@@ -374,6 +451,15 @@ object PsiUtil {
 
     }
 
+    /**
+     * 从注解中猜测 KtClass 的表名
+     *
+     * @deprecated 使用 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.guessTableName instead",
+        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+    )
     fun guessTableNameByAnno(psiClass: KtClass): String? {
         val toLightClass = psiClass.toLightClass()
         val myTabAnno = toLightClass?.getAnnotation("org.babyfish.jimmer.sql.Table")
@@ -415,7 +501,7 @@ object PsiUtil {
     fun extractInterfaceMetaInfo(psiClass: KtClass): MutableList<JavaFieldMetaInfo> {
         val fieldsMetaInfo = mutableListOf<JavaFieldMetaInfo>()
         // 获取所有字段
-        val fields = psiClass?.properties()?.filter { it.isDbField() }
+        val fields = psiClass?.properties()?.filter { it.ktIsDbField() }
 
         for (field in fields!!) {
             if (field.isCollectionType()) {
@@ -448,8 +534,8 @@ object PsiUtil {
             }
 
 
-            if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
-                val joingColumn = if (field.toLsiField().hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
+            if (field.ktToLsiField().hasAnnotation("org.babyfish.jimmer.sql.ManyToOne")) {
+                val joingColumn = if (field.ktToLsiField().hasAnnotation("org.babyfish.jimmer.sql.JoinColumn")) {
                     val map = field.annotationEntries.filter { it.shortName?.asString() == "JoinColumn" }.map {
                         val annotationValue1 = AnnotationUtils.getAnnotationValue(it, "name")
                         annotationValue1
@@ -467,7 +553,7 @@ object PsiUtil {
             }
             val fieldName = field.name // 字段名称
             //这里优先使用数据库列名，如果没有，则使用字段名
-            val columnName = field.toLsiField().columnName
+            val columnName = field.ktToLsiField().columnName
             val finalColumn = StrUtil.firstNonBlank(columnName, fieldName)
 
 
@@ -562,54 +648,19 @@ object PsiUtil {
     }
 
 
-    fun isKotlinPojo(
-        editor: Editor?, file: PsiFile?
-    ): Boolean {
-        // 检查是否为Kotlin文件
-        val element = file.getCurrentPsiElement(editor)
-        val kotlinPojo = isKotlinPojo(element)
-        val b = file?.language is KotlinLanguage
-        return kotlinPojo && b
-    }
-
-
-    fun psiCtx(project: Project): PsiCtx {
-        val instance = FileEditorManager.getInstance(project)
-
-
-        val editor = instance.selectedTextEditor
-        //        val virtualFile = editor.virtualFile
-        val virtualFile = instance.getSelectedEditor()?.file
-
-        val psiFile = PsiManager.getInstance(project).findFile(virtualFile!!)
-
-        val ktClass = virtualFile.ktClass(project)
-
-        val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java)
-        // 如果是Java文件，可以转换成PsiJavaFile
-
-        // 先获取到文件后再获取文件所在包
-//        val daoPackage = (psiClass?.getContainingFile() as PsiJavaFile).packageName
-//        val name = psiClass.name
-//        val addPrefixIfNot = daoPackage.addSuffixIfNot(".$name")
-//        val loadClass = ClassUtil.loadClass<Any>(addPrefixIfNot)
-
-        val any = if (psiFile is PsiJavaFile) {
-            // 一个文件中可能会定义有多个Class，因此返回的是一个数组
-            val classes: Array<PsiClass> = psiFile.getClasses()
-            classes
-        } else if (psiFile is KtFile) {
-            val classes = psiFile.classes
-            classes
-        } else {
-            null
-        }
-
-        return PsiCtx(editor, psiClass, ktClass, psiFile, virtualFile, any)
-    }
 
 
 
+
+    /**
+     * 获取 KtClass 的元信息
+     *
+     * @deprecated 使用 LsiClass.comment 和 LsiClass.guessTableName 替代
+     */
+    @Deprecated(
+        "Use LsiClass.comment and LsiClass.guessTableName instead",
+        ReplaceWith("Pair(psiClass.toLsiClass().comment, psiClass.toLsiClass().guessTableName)", "com.addzero.util.lsi.toLsiClass")
+    )
     fun getClassMetaInfo4KtClass(psiClass: KtClass): Pair<String, String?> {
         // 获取类名
         val classComment = cleanDocComment(psiClass.docComment?.text)
@@ -648,20 +699,6 @@ object PsiUtil {
 
     data class PsiEleInfo(val packageName: String, val directoryPath: String)
 
-    fun getFilePathPair(element: PsiElement): PsiEleInfo {
-        // 获取包名
-        val packageName = when (val containingFile = element.containingFile) {
-            is PsiJavaFile -> containingFile.packageName
-            is KtFile -> containingFile.packageFqName.asString()
-            else -> ""
-        }
-
-        // 获取文件所在目录路径
-        val virtualFile = element.containingFile?.virtualFile
-        val directoryPath = virtualFile?.parent?.path ?: ""
-
-        return PsiEleInfo(packageName, directoryPath)
-    }
 
 
 }

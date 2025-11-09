@@ -1,46 +1,30 @@
 package com.addzero.util.psi.ktclass
 
-import com.addzero.util.kt_util.isCollectionType
-import com.addzero.util.kt_util.isStatic
-import com.addzero.util.lsi.toLsiField
-import com.addzero.util.psi.javaclass.PsiClassUtil.cleanDocComment
+import com.addzero.util.lsi.impl.psi.psifile.getCurrentPsiElement
+import com.addzero.util.lsi_impl.impl.kt.clazz.guessTableName
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.util.NlsSafe
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import org.apache.commons.lang3.AnnotationUtils
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtProperty
+import site.addzero.util.str.cleanDocComment
+import site.addzero.util.str.removeAny
+import site.addzero.util.str.removeAnyQuote
+import site.addzero.util.str.toUnderLineCase
 
 /**
  * Kotlin KtClass 相关工具类
  */
 object KtClassUtil {
 
-    fun guessTableName(psiClass: KtClass): String? {
-        val text = psiClass.name?.toUnderlineCase()
-        // 获取所有注解
-        val guessTableNameByAnno = guessTableNameByAnno(psiClass)
 
-        val firstNonBlank = cn.hutool.core.util.StrUtil.firstNonBlank(guessTableNameByAnno, text)
-        val removeAny = firstNonBlank?.removeAny("\"")
-        return removeAny
-    }
-
-    fun guessTableNameByAnno(psiClass: KtClass): String? {
-        val toLightClass = psiClass.toLightClass()
-        val myTabAnno = toLightClass?.getAnnotation("org.babyfish.jimmer.sql.Table")
-        val findAttributeValue = myTabAnno?.findAttributeValue("name")
-        val text = findAttributeValue?.text
-        val removeAny = text?.removeAny("\"")
-        return removeAny
-    }
-
-    fun extractInterfaceMetaInfo(psiClass: KtClass): MutableList<JavaFieldMetaInfo> {
+    fun KtClass.extractInterfaceMetaInfo(): MutableList<JavaFieldMetaInfo> {
         val fieldsMetaInfo = mutableListOf<JavaFieldMetaInfo>()
         // 获取所有字段
-        val fields = psiClass?.properties()?.filter { it.isDbField() }
+        val fields = this?.properties()?.filter { it.isDbField() }
 
         for (field in fields!!) {
             if (field.isCollectionType()) {
@@ -162,37 +146,8 @@ object KtClassUtil {
         // 获取类名
         val classComment = cleanDocComment(psiClass.docComment?.text)
         // 获取类的注释
-        return Pair(classComment, guessTableName(psiClass))
+        return Pair(classComment, psiClass.guessTableName())
     }
 
-    fun isKotlinPojo(
-        element: PsiElement?
-    ): Boolean {
-        // 检查是否为Kotlin文件
-        val ktClass = com.intellij.psi.util.PsiTreeUtil.getParentOfType(element, KtClass::class.java)
-        if (ktClass != null) {
-            val first = PsiValidateUtil.isValidTarget(ktClass, null).first
-            return first
-        }
-        return false
-    }
 
-    fun isKotlinPojo(
-        editor: Editor?, file: PsiFile?
-    ): Boolean {
-        // 检查是否为Kotlin文件
-        val element = getCurrentPsiElement(editor, file)
-        val kotlinPojo = isKotlinPojo(element)
-        val b = file?.language is KotlinLanguage
-        return kotlinPojo && b
-    }
-
-    private fun getCurrentPsiElement(
-        editor: Editor?, file: PsiFile?
-    ): PsiElement? {
-        if (editor == null || file == null) return null
-        val offset = editor.caretModel.offset
-        val element = file.findElementAt(offset)
-        return element
-    }
 }

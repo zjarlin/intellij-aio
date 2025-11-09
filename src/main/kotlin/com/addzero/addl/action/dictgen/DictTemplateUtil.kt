@@ -4,8 +4,8 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil
-import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.addzero.util.ShowContentUtil.openTextInEditor
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -82,8 +82,7 @@ object DictTemplateUtil {
 
             val enumContent = generateEnumContent(psiEleInfo, enumName, dictInfo.description, items, isKotlin)
 
-            ShowContentUtil.openTextInEditor(
-                project,
+            project.openTextInEditor(
                 enumContent,
                 enumName,
                 if (isKotlin) ".kt" else ".java",

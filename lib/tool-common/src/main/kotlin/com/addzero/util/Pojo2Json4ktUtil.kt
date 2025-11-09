@@ -1,11 +1,8 @@
 package com.addzero.util
 
+import com.addzero.util.lsi_impl.impl.psi.project.findKtClassByName
 import com.intellij.openapi.project.Project
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.psi.KtClass
-import java.util.*
 
 object Pojo2Json4ktUtil {
     private const val MAX_RECURSION_DEPTH = 3
@@ -47,7 +44,7 @@ object Pojo2Json4ktUtil {
                 "BigDecimal" -> "0.00"
                 else -> {
                     // 处理自定义类型
-                    val targetClass = findKtClassByName(typeName, project)
+                    val targetClass = project.findKtClassByName(typeName)
                     targetClass?.let { generateMap(it, project, depth + 1) }
                         ?: mapOf("type" to typeName)
                 }
@@ -64,26 +61,4 @@ object Pojo2Json4ktUtil {
         return listOf(sampleValue)
     }
 
-    private fun findKtClassByName(className: String, project: Project): KtClass? {
-        // 使用 JavaPsiFacade 查找类
-        val psiFacade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.projectScope(project)
-
-        // 先尝试直接查找完整类名
-        val psiClass = psiFacade.findClass(className, scope)
-
-        // 如果找到了类，并且是 Kotlin Light Class，则获取对应的 KtClass
-        if (psiClass is KtLightClass) {
-            return psiClass.kotlinOrigin as? KtClass
-        }
-
-        // 如果没有找到，尝试在不同的包中查找
-        val shortName = className.substringAfterLast('.')
-        val foundClasses = psiFacade.findClasses(shortName, scope)
-
-        return foundClasses
-            .filterIsInstance<KtLightClass>()
-            .firstOrNull { it.qualifiedName == className }
-            ?.kotlinOrigin as? KtClass
-    }
 }

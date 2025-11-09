@@ -66,13 +66,13 @@
 //
 //        for (idx in psiFields.indices) {
 //            val psiField = psiFields[idx]
-//            outputMap[psiField.name] = getObjectForField(psiField, project)
+//            outputMap[psiField.name] = defaultValue(psiField, project)
 //        }
 //
 //        return outputMap
 //    }
 //
-//    private fun getObjectForField(psiField: PsiField, project: Project): Any {
+//    private fun defaultValue(psiField: PsiField, project: Project): Any {
 //        val type = psiField.type
 //        if (type is PsiPrimitiveType) {
 //            return if (type == PsiType.INT) {

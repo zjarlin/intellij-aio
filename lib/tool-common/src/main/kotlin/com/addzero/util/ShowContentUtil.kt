@@ -12,9 +12,9 @@ import site.addzero.util.str.removeAnyQuote
 import java.awt.Component
 import java.awt.KeyboardFocusManager
 import java.io.File
+import java.nio.charset.StandardCharsets
 import javax.swing.JFrame
 import javax.swing.JOptionPane
-import java.nio.charset.StandardCharsets
 
 object ShowContentUtil {
     fun showErrorMsg(message: String) {
@@ -24,30 +24,28 @@ object ShowContentUtil {
         )
     }
 
-    fun openTextInEditor(
-        project: Project?,
+    fun Project?.openTextInEditor(
         sql: String,
         sqlPrefix: String = "",
         fileTypeSuffix: String = ".kt",
-        filePath: String? = "${project!!.basePath}/.autoddl",
+        filePath: String? = "${this!!.basePath}/.autoddl",
         focus: Boolean = true,
     ) {
-        if (project == null) return
+        if (this == null) return
         if (sql.isBlank()) {
             showErrorMsg("生成出错啦")
             return
         }
-
-        WriteCommandAction.runWriteCommandAction(project) {
+        WriteCommandAction.runWriteCommandAction(this) {
             try {
-                val sqlFile = genCode(project, sql, sqlPrefix, fileTypeSuffix, filePath)
+                val sqlFile = genCode(this, sql, sqlPrefix, fileTypeSuffix, filePath)
                 val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(sqlFile) ?: return@runWriteCommandAction
-                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@runWriteCommandAction
-                val documentManager = PsiDocumentManager.getInstance(project)
+                val psiFile = PsiManager.getInstance(this).findFile(virtualFile) ?: return@runWriteCommandAction
+                val documentManager = PsiDocumentManager.getInstance(this)
                 val document = documentManager.getDocument(psiFile) ?: return@runWriteCommandAction
                 documentManager.commitDocument(document)
-                CodeStyleManager.getInstance(project).reformat(psiFile)
-                FileEditorManager.getInstance(project).openFile(virtualFile, focus)
+                CodeStyleManager.getInstance(this).reformat(psiFile)
+                FileEditorManager.getInstance(this).openFile(virtualFile, focus)
             } catch (e: Exception) {
                 showErrorMsg("文件处理出错: ${e.message}")
             }
@@ -66,7 +64,7 @@ object ShowContentUtil {
             autoddlDirectory.mkdir()
         }
         val removeAnyQuote = fileNamePre.removeAnyQuote()
-        val removeAny = removeAny(removeAnyQuote, "\\")
+        val removeAny = removeAnyQuote.removeAny( "\\")
         val fileName = "$removeAny$fileTypeSuffix"
         val file = File(autoddlDirectory, fileName)
         file.writeText(content, StandardCharsets.UTF_8)

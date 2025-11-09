@@ -88,7 +88,7 @@ object DDLContextFactory4JavaMetaInfo {
         val tableEnglishName = PinYin4JUtils.hanziToPinyin(tableChineseName, "_")
 
         // 遍历类中的所有字段，创建对应的 RangeContext 列表
-//        val declaredFields = clazz.declaredFields
+//        val declaredFields = convertTo.declaredFields
         val declaredFields = javaFieldMetaInfos(clazz)
 
         val rangeContexts = declaredFields.map { field ->

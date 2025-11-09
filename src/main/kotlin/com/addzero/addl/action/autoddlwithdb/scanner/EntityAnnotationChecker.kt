@@ -1,7 +1,7 @@
 package com.addzero.addl.action.autoddlwithdb.scanner
 
 import com.addzero.addl.action.autoddlwithdb.scanner.EntityAnnotationChecker.Companion.ENTITY_ANNOTATIONS
-import com.addzero.util.lsi.LsiClass
+import com.addzero.util.lsi.clazz.LsiClass
 import com.addzero.util.lsi.impl.kt.KtLsiClass
 import com.addzero.util.lsi.impl.psi.PsiLsiClass
 import com.intellij.psi.PsiClass

@@ -3,10 +3,10 @@ package com.addzero.util.psi
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiType
 import java.util.*
 
 object Psi2Json {
-
     private const val MAX_RECURSION_DEPTH = 3
 
     fun generateMap(psiClass: PsiClass, project: Project, depth: Int = 0): Map<String, Any?> {
@@ -21,12 +21,11 @@ object Psi2Json {
                 outputMap[fieldName] = getObjectForType(fieldType, project, psiClass, depth + 1)
             }
         }
-
         return outputMap
     }
 
     private fun getObjectForType(
-        psiType: com.intellij.psi.PsiType,
+        psiType: PsiType,
         project: Project,
         containingClass: PsiClass,
         depth: Int = 0
@@ -42,24 +41,27 @@ object Psi2Json {
                 depth + 1
             )
 
-            else -> when (psiType.presentableText) {
-                "int", "Integer" -> 0
-                "boolean", "Boolean" -> false
-                "byte", "Byte" -> 0.toByte()
-                "char", "Character" -> ' '
-                "double", "Double" -> 0.0
-                "float", "Float" -> 0.0f
-                "long", "Long" -> 0L
-                "short", "Short" -> 0.toShort()
-                "String" -> ""
-                "LocalDate" -> "2024-03-22"
-                "LocalDateTime" -> "2024-03-22 12:00:00"
-                "BigDecimal" -> "0.00"
-                else -> {
-                    // 处理自定义类型
-                    val targetClass = psiType.resolve()
-                    targetClass?.let { generateMap(it, project, depth + 1) }
-                        ?: mapOf("type" to psiType.presentableText)
+            else -> {
+                val presentableText = psiType.presentableText
+                when (presentableText) {
+                    "int", "Integer" -> 0
+                    "boolean", "Boolean" -> false
+                    "byte", "Byte" -> 0.toByte()
+                    "char", "Character" -> ' '
+                    "double", "Double" -> 0.0
+                    "float", "Float" -> 0.0f
+                    "long", "Long" -> 0L
+                    "short", "Short" -> 0.toShort()
+                    "String" -> ""
+                    "LocalDate" -> "2024-03-22"
+                    "LocalDateTime" -> "2024-03-22 12:00:00"
+                    "BigDecimal" -> "0.00"
+                    else -> {
+                        // 处理自定义类型
+                        val targetClass = psiType.resolve()
+                        targetClass?.let { generateMap(it, project, depth + 1) }
+                            ?: mapOf("type" to psiType.presentableText)
+                    }
                 }
             }
         }

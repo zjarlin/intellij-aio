@@ -5,11 +5,13 @@ import cn.hutool.core.util.StrUtil
 import com.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 import com.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import com.addzero.addl.settings.SettingContext
+import org.apache.commons.lang3.StringUtils.containsAnyIgnoreCase
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.*
+import kotlin.jvm.java
 
 object FieldPredicateUtil {
 
@@ -44,7 +46,7 @@ object FieldPredicateUtil {
             return true
         }
 
-        return StrUtil.containsAnyIgnoreCase(
+        return containsAnyIgnoreCase(
             fieldName,
             "url",
             "base64",

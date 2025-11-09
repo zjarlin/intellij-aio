@@ -1,5 +1,8 @@
 package com.addzero.addl.util
 
+import com.addzero.util.lsi.impl.psi.clazz.resolveClassByName
+import com.addzero.util.lsi.impl.psi.field.getDefaultValue
+import com.addzero.util.lsi.impl.psi.json.toJsonMap
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
@@ -7,95 +10,107 @@ import com.intellij.psi.search.PsiShortNamesCache
 import com.intellij.psi.util.PsiTypesUtil
 import java.util.*
 
+/**
+ * POJO 到 JSON 转换工具类
+ *
+ * @deprecated 已迁移到 LSI 层的分类扩展包中，请使用新的扩展函数：
+ * - JSON 生成：com.addzero.util.lsi.impl.psi.json.toJsonMap
+ * - 默认值获取：com.addzero.util.lsi.impl.psi.field.getDefaultValue
+ * - 类解析：com.addzero.util.lsi.impl.psi.clazz.resolveClassByName
+ */
+@Deprecated(
+    message = "Migrated to LSI layer with categorized extensions",
+    replaceWith = ReplaceWith(
+        "psiClass.toJsonMap(project)",
+        "com.addzero.util.lsi.impl.psi.json.toJsonMap"
+    )
+)
 object Pojo2JsonUtil {
-    fun generateMap(psiClass: PsiClass, project: Project): LinkedHashMap<Any?, Any?> {
-        val outputMap: LinkedHashMap<Any?, Any?> = LinkedHashMap()
-        val psiFields = psiClass.fields
-
-        for (field in psiFields) {
-            outputMap[field.name] = getObjectForField(field, project)
-        }
-
-        return outputMap
+    /**
+     * 生成 POJO 的 Map 表示
+     * @deprecated 使用 PsiClass.toJsonMap(project) 替代
+     */
+    @Deprecated(
+        "Use PsiClass.toJsonMap(project) instead",
+        ReplaceWith("this.toJsonMap(project)", "com.addzero.util.lsi.impl.psi.json.toJsonMap")
+    )
+    fun PsiClass.generateMap(project: Project): LinkedHashMap<Any?, Any?> {
+        return this.toJsonMap(project)
     }
 
-    private fun getObjectForField(psiField: PsiField, project: Project): Any {
-        val type = psiField.type
-        val canonicalText = type.canonicalText
-
-        // 处理原始类型
-        if (type is PsiPrimitiveType) {
-            return when (canonicalText) {
-                "int" -> 0
-                "boolean" -> true
-                "byte" -> 1.toByte()
-                "char" -> '-'
-                "double" -> 0.0
-                "float" -> 0.0f
-                "long" -> 0L
-                "short" -> 0.toShort()
-                else -> canonicalText
-            }
-        }
-
-        // 处理包装类型和其他类型
-        return when {
-            canonicalText == "java.lang.Integer" || canonicalText == "java.lang.Long" -> 0
-            canonicalText == "java.lang.Double" || canonicalText == "java.lang.Float" -> 0.0
-            canonicalText == "java.lang.Boolean" -> true
-            canonicalText == "java.lang.Byte" -> 1.toByte()
-            canonicalText == "java.lang.String" -> "str"
-            canonicalText == "java.util.Date" -> Date().time
-            isListType(type) -> handleList(type, project, psiField.containingClass!!)
-            else -> {
-                val resolvedClass = PsiTypesUtil.getPsiClass(type)
-                resolvedClass?.let { generateMap(it, project) } ?: canonicalText
-            }
-        }
+    /**
+     * 获取字段的默认值
+     * @deprecated 使用 PsiField.getDefaultValue(project) 替代
+     */
+    @Deprecated(
+        "Use PsiField.getDefaultValue(project) instead",
+        ReplaceWith("this.getDefaultValue(project)", "com.addzero.util.lsi.impl.psi.field.getDefaultValue")
+    )
+     fun PsiField.defaultValue(project: Project): Any {
+        return this.getDefaultValue(project)
     }
 
-    private fun isListType(type: PsiType): Boolean {
-        val canonicalText = type.canonicalText
-        return canonicalText.startsWith("java.util.List") || 
+    /**
+     * 判断是否为 List 类型
+     * @deprecated 使用 LSI 的 isCollectionType 替代
+     */
+    @Deprecated("Use LSI's isCollectionType instead")
+    private fun PsiType.isListType(): Boolean {
+        val canonicalText = this.canonicalText
+        return canonicalText.startsWith("java.util.List") ||
                canonicalText.startsWith("kotlin.collections.List")
     }
 
-    private fun handleList(psiType: PsiType, project: Project, containingClass: PsiClass): Any {
+    /**
+     * 处理 List 类型
+     * @deprecated 内部方法，已整合到 getDefaultValue 中
+     */
+    @Deprecated("Internal method, integrated into getDefaultValue")
+    private fun PsiType.handleList(project: Project, containingClass: PsiClass): Any {
         val list: MutableList<Any?> = ArrayList()
-        if (psiType !is PsiClassType) return list
+        if (this !is PsiClassType) return list
 
-        val parameters = psiType.parameters
+        val parameters = this.parameters
         if (parameters.isEmpty()) return list
 
         val subType = parameters[0]
         val subTypeCanonicalText = subType.canonicalText
 
         val value = when {
-            isListType(subType) -> handleList(subType, project, containingClass)
+            subType.isListType() -> subType.handleList(project, containingClass)
             subTypeCanonicalText == "java.lang.String" -> "str"
             subTypeCanonicalText == "java.util.Date" -> Date().time
             else -> {
                 val resolvedClass = PsiTypesUtil.getPsiClass(subType)
-                resolvedClass?.let { generateMap(it, project) } ?: subTypeCanonicalText
+                resolvedClass?.let { it.generateMap(project) } ?: subTypeCanonicalText
             }
         }
         list.add(value)
         return list
     }
 
-    private fun detectCorrectClassByName(className: String, containingClass: PsiClass, project: Project): PsiClass? {
-        val classes = PsiShortNamesCache.getInstance(project)
-            .getClassesByName(className, GlobalSearchScope.projectScope(project))
-
-        return when {
-            classes.isEmpty() -> null
-            classes.size == 1 -> classes[0]
-            else -> findClassFromImports(classes, containingClass)
-        }
+    /**
+     * 根据类名检测正确的类
+     * @deprecated 使用 PsiClass.resolveClassByName(className, project) 替代
+     */
+    @Deprecated(
+        "Use PsiClass.resolveClassByName(className, project) instead",
+        ReplaceWith("this.resolveClassByName(className, project)", "com.addzero.util.lsi.impl.psi.clazz.resolveClassByName")
+    )
+    fun PsiClass.detectCorrectClassByName(className: String, project: Project): PsiClass? {
+        return this.resolveClassByName(className, project)
     }
 
-    private fun findClassFromImports(classes: Array<PsiClass>, containingClass: PsiClass): PsiClass? {
-        val containingFile = containingClass.containingFile as? PsiJavaFile ?: return null
+    /**
+     * 从导入语句中查找类
+     * @deprecated 使用 PsiClass.findClassFromImports(classes) 替代
+     */
+    @Deprecated(
+        "Use PsiClass.findClassFromImports(classes) instead",
+        ReplaceWith("this.findClassFromImports(classes)", "com.addzero.util.lsi.impl.psi.clazz.findClassFromImports")
+    )
+    fun PsiClass.findClassFromImports(classes: Array<PsiClass>): PsiClass? {
+        val containingFile = this.containingFile as? PsiJavaFile ?: return null
         val importList = containingFile.importList ?: return null
         val importedQualifiedNames = importList.importStatements.mapNotNull { it.qualifiedName }.toSet()
 

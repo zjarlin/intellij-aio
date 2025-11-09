@@ -394,14 +394,14 @@
 //    }
 //
 //    private fun generateColumnDefinition(field: PsiField): String {
-//        val columnName = getColumnName(field)
+//        val columnName = guessColumnName(field)
 //        val columnType = getColumnType(field)
 //        val constraints = getColumnConstraints(field)
 //
 //        return "$columnName $columnType $constraints".trim()
 //    }
 //
-//    private fun getColumnName(field: PsiField): String {
+//    private fun guessColumnName(field: PsiField): String {
 //        // 查找@Column注解的name属性
 //        field.annotations.forEach { annotation ->
 //            if (annotation.qualifiedName?.endsWith(".Column") == true) {
@@ -489,7 +489,7 @@
 //        // 检查每个字段
 //        entityClass.allFields.forEach { field ->
 //            if (!field.hasModifierProperty(PsiModifier.STATIC) && !isTransientField(field)) {
-//                val columnName = getColumnName(field).toLowerCase()
+//                val columnName = guessColumnName(field).toLowerCase()
 //                if (!existingColumns.containsKey(columnName)) {
 //                    // 如果列不存在，生成ADD COLUMN语句
 //                    val columnDef = generateColumnDefinition(field)

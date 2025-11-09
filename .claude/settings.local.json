@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(./gradlew tasks:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(./gradlew:*)"
     ],
     "deny": [],
     "ask": []

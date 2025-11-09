@@ -52,7 +52,7 @@ object Psi2Json {
                 "BigDecimal" -> "0.00"
                 else -> {
                     // 处理自定义类型
-                    val targetClass = findKtClassByName(typeName, project)
+                    val targetClass =project findKtClassByName(typeName)
                     targetClass?.let { generateMap(it, project, depth + 1) }
                         ?: mapOf("type" to typeName)
                 }
@@ -88,26 +88,4 @@ object Psi2Json {
         return listOf(sampleValue)
     }
 
-    private fun findKtClassByName(className: String, project: Project): KtClass? {
-        // 使用 JavaPsiFacade 查找类
-        val psiFacade = com.intellij.psi.JavaPsiFacade.getInstance(project)
-        val scope = com.intellij.psi.search.GlobalSearchScope.projectScope(project)
-
-        // 先尝试直接查找完整类名
-        val psiClass = psiFacade.findClass(className, scope)
-
-        // 如果找到了类，并且是 Kotlin Light Class，则获取对应的 KtClass
-        if (psiClass is org.jetbrains.kotlin.asJava.classes.KtLightClass) {
-            return psiClass.kotlinOrigin as? KtClass
-        }
-
-        // 如果没有找到，尝试在不同的包中查找
-        val shortName = className.substringAfterLast('.')
-        val foundClasses = psiFacade.findClasses(shortName, scope)
-
-        return foundClasses
-            .filterIsInstance<org.jetbrains.kotlin.asJava.classes.KtLightClass>()
-            .firstOrNull { it.qualifiedName == className }
-            ?.kotlinOrigin as? KtClass
-    }
 }

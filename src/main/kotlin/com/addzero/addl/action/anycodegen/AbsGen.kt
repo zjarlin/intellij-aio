@@ -4,6 +4,7 @@ import com.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import com.addzero.addl.util.*
 import com.addzero.addl.util.fieldinfo.PsiUtil
 import com.addzero.common.kt_util.addSuffixIfNot
+import com.addzero.util.ShowContentUtil.openTextInEditor
 import com.addzero.util.psi.PsiUtil.getPackagePath
 import com.addzero.util.psi.PsiUtil.getQualifiedClassName
 import com.intellij.openapi.actionSystem.AnAction
@@ -96,8 +97,8 @@ abstract class AbsGen : AnAction() {
 
             val filePath = virtualFile.path
             val filePath1 = filePath.getParentPathAndmkdir(pdir)
-            ShowContentUtil.openTextInEditor(
-                project, generatedCode, fullname, javafileTypeSuffix, filePath1, false
+            project.openTextInEditor(
+                generatedCode, fullname, javafileTypeSuffix, filePath1, false
             )
             return
         }
@@ -114,8 +115,8 @@ abstract class AbsGen : AnAction() {
         val filePath = virtualFile.path
         val filePath1 = filePath.getParentPathAndmkdir(pdir)
 
-        ShowContentUtil.openTextInEditor(
-            project, generateKotlinEntity, fullname, ktfileTypeSuffix, filePath1, false
+        project.openTextInEditor(
+            generateKotlinEntity, fullname, ktfileTypeSuffix, filePath1, false
         )
     }
 }

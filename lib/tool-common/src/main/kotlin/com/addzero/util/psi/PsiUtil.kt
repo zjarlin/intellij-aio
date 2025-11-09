@@ -1,54 +1,20 @@
 package com.addzero.util.psi
 
-import com.addzero.util.psi.javaclass.PsiClassUtil
-import com.addzero.util.psi.javaclass.PsiClassUtil.extractInterfaceMetaInfo
-import com.addzero.util.psi.javaclass.PsiClassUtil.getJavaClassFromPsiType
-import com.addzero.util.psi.javaclass.PsiClassUtil.guessTableName
-import com.addzero.util.psi.javaclass.PsiClassUtil.guessTableNameByAnno
-import com.addzero.util.psi.javaclass.PsiClassUtil.isJavaPojo
-import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileEditorManager
+import com.addzero.util.lsi.*
+import com.addzero.util.lsi.field.LsiField
+import com.addzero.util.lsi.impl.psi.PsiLsiType
+import com.addzero.util.lsi.method.LsiMethod
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.util.NlsSafe
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*
-import com.intellij.psi.search.FileTypeIndex
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
+import site.addzero.util.str.cleanDocComment
 
 /**
  * Java PsiClass 专用工具类
+ *
+ * @deprecated 大部分方法已迁移到 LSI 层，建议使用 LSI 相关方法
  */
+@Deprecated("Most methods migrated to LSI layer")
 object PsiUtil {
-
-    fun getCurrentPsiElement(
-        editor: Editor?, file: PsiFile?
-    ): PsiElement? {
-        if (editor == null || file == null) return null
-        val offset = editor.caretModel.offset
-        val element = file.findElementAt(offset)
-        return element
-    }
-
-    fun getQualifiedClassName(psiFile: PsiFile): String? {
-        val fileNameWithoutExtension = psiFile.virtualFile.nameWithoutExtension
-        val packageName = when (psiFile) {
-            is com.intellij.psi.PsiJavaFile -> psiFile.packageName
-            else -> null
-        }
-        return if (packageName != null) {
-            "$packageName.$fileNameWithoutExtension"
-        } else {
-            fileNameWithoutExtension
-        }
-    }
-
-    fun getPackagePath(psiFile: PsiFile?): String? {
-        val qualifiedClassName = getQualifiedClassName(psiFile!!)
-        return qualifiedClassName
-    }
 
     fun addComment(project: Project, field: PsiField) {
         // 创建新的文档注释
@@ -58,132 +24,63 @@ object PsiUtil {
     }
 
     /**
-     * @param [psiField]
-     * @return [String]
+     * 从 Jimmer 接口实体中提取字段信息
+     * @deprecated 使用 PsiClass.extractInterfaceFields() 从 LsiExtensions
      */
-    fun guessFieldComment(psiField: PsiField): String {
-        return PsiClassUtil.guessFieldComment(psiField)
-    }
-
-    fun guessTableName(psiClass: PsiClass): String? {
-        return psiClass.guessTableName()
-    }
-
-    fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
-        return psiClass.guessTableNameByAnno()
-    }
-
-    fun extractInterfaceMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
-        return psiClass.extractInterfaceMetaInfo()
-    }
-
-    fun getJavaClassFromPsiType(psiType: PsiType): Class<*> {
-        return psiType.getJavaClassFromPsiType()
-    }
-
-    fun getCommentFunByMethod(method: PsiMethod): String {
-        return PsiClassUtil.getCommentFunByMethod(method)
-    }
-
-    fun getClassMetaInfo(psiClass: PsiClass): Pair<String, String?> {
-        return PsiClassUtil.getClassMetaInfo(psiClass)
-    }
-
-    fun getJavaFieldMetaInfo(psiClass: PsiClass): List<JavaFieldMetaInfo> {
-        return PsiClassUtil.getJavaFieldMetaInfo(psiClass)
-    }
-
-    data class PsiCtx(
-        val editor: Editor?,
-        val psiClass: PsiClass?,
-        val psiFile: PsiFile?,
-        val virtualFile: VirtualFile,
-        val any: Array<PsiClass>?,
-
-        )
-
-    fun allpsiCtx(project: Project): PsiCtx {
-        // 获取所有 Java 文件
-        val files = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project))
-
-        files.map {
-            val psiFile = PsiManager.getInstance(project).findFile(it)
-        }
-        return TODO("提供返回值")
-    }
-
-    fun isJavaPojo(
-        element: PsiElement?
-    ): Boolean {
-        return element.isJavaPojo()
-    }
-
-    fun isJavaPojo(
-        editor: Editor?, file: PsiFile?
-    ): Boolean {
-        return file.isJavaPojo(editor)
-    }
-
-    fun psiCtx(project: Project): PsiCtx {
-        val instance = FileEditorManager.getInstance(project)
-
-        val editor = instance.selectedTextEditor
-        val virtualFile = instance.getSelectedEditor()?.file
-
-        val psiFile = PsiManager.getInstance(project).findFile(virtualFile!!)
-
-        val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java)
-
-        val any = if (psiFile is PsiJavaFile) {
-            // 一个文件中可能会定义有多个Class，因此返回的是一个数组
-            val classes: Array<PsiClass> = psiFile.getClasses()
-            classes
-        } else {
-            null
-        }
-
-        return PsiCtx(editor, psiClass, psiFile, virtualFile, any)
-    }
-
-    // 添加判断项目类型的方法
-    fun isKotlinProject(project: Project): Boolean {
-        val buildGradle = project.guessProjectDir()?.findChild("build.gradle.kts") ?: project.guessProjectDir()
-            ?.findChild("build.gradle")
-
-        return when {
-            // 检查是否有 Kotlin 构建文件
-            buildGradle != null -> {
-                val content = buildGradle.inputStream.reader().readText()
-                content.contains("kotlin") || content.contains("org.jetbrains.kotlin")
-            }
-            // 检查是否有 Kotlin 源文件
-            else -> {
-                false
-            }
-        }
+    @Deprecated(
+        "Use PsiClass.extractInterfaceFields() from LsiExtensions instead",
+        ReplaceWith("psiClass.extractInterfaceFields()", "com.addzero.util.lsi.extractInterfaceFields")
+    )
+    fun extractInterfaceMetaInfo(psiClass: PsiClass): List<LsiMethod> {
+        return psiClass.extractInterfaceFields()
     }
 
     /**
-     * 获取PsiElement所在文件的路径
+     * 获取 PsiType 对应的 Java Class
+     * @deprecated 使用 LsiType.javaClass
      */
-    fun getFilePath(element: PsiElement): String {
-        val virtualFile = element.containingFile?.virtualFile
-        return virtualFile?.parent?.path ?: ""
+    @Deprecated(
+        "Use LsiType.javaClass instead",
+        ReplaceWith("PsiLsiType(psiType).javaClass", "com.addzero.util.lsi.impl.psi.PsiLsiType")
+    )
+    fun getJavaClassFromPsiType(psiType: PsiType): Class<*> {
+        return PsiLsiType(psiType).javaClass
     }
 
-    data class PsiEleInfo(val packageName: String, val directoryPath: String)
+    /**
+     * 获取方法注释
+     * @deprecated 使用 LsiMethod.comment
+     */
+    @Deprecated(
+        "Use LsiMethod.comment or method.toLsiMethod().comment instead",
+        ReplaceWith("method.toLsiMethod().comment ?: \"\"", "com.addzero.util.lsi.toLsiMethod")
+    )
+    fun getCommentFunByMethod(method: PsiMethod): String {
+        return method.toLsiMethod().comment ?: ""
+    }
 
-    fun getFilePathPair(element: PsiElement): PsiEleInfo {
-        // 获取包名
-        val packageName = when (val containingFile = element.containingFile) {
-            is PsiJavaFile -> containingFile.packageName
-            else -> ""
-        }
+    /**
+     * 获取类元信息（类注释和表名）
+     * @deprecated 使用 LsiClass.comment 和 LsiClass.guessTableName
+     */
+    @Deprecated(
+        "Use LsiClass.comment and LsiClass.guessTableName instead",
+        ReplaceWith("psiClass.toLsiClass().let { it.comment to it.guessTableName }", "com.addzero.util.lsi.toLsiClass")
+    )
+    fun getClassMetaInfo(psiClass: PsiClass): Pair<String, String?> {
+        val classComment = cleanDocComment(psiClass.docComment?.text)
+        return Pair(classComment, psiClass.toLsiClass().guessTableName)
+    }
 
-        // 获取文件所在目录路径
-        val virtualFile = element.containingFile?.virtualFile
-        val directoryPath = virtualFile?.parent?.path ?: ""
-
-        return PsiEleInfo(packageName, directoryPath)
+    /**
+     * 获取 Java 类的字段元数据
+     * @deprecated 使用 PsiClass.getJavaFields() 或 PsiClass.toLsiClass().dbFields
+     */
+    @Deprecated(
+        "Use PsiClass.getJavaFields() or PsiClass.toLsiClass().dbFields instead",
+        ReplaceWith("psiClass.getJavaFields()", "com.addzero.util.lsi.getJavaFields")
+    )
+    fun getJavaFieldMetaInfo(psiClass: PsiClass): List<LsiField> {
+        return psiClass.getJavaFields()
     }
 }

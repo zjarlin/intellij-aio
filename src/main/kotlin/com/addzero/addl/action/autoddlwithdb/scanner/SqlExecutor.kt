@@ -30,7 +30,7 @@
 //                while (resultSet.next()) {
 //                    val row = mutableMapOf<String, Any?>()
 //                    for (i in 1..columnCount) {
-//                        val columnName = metaData.getColumnName(i)
+//                        val columnName = metaData.guessColumnName(i)
 //                        val value = resultSet.getObject(i)
 //                        row[columnName] = value
 //                    }

@@ -3,11 +3,11 @@ package com.addzero.addl
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4UserInputMetaInfo
-import com.addzero.addl.util.ShowContentUtil
+import com.addzero.util.ShowContentUtil.openTextInEditor
 import com.alibaba.fastjson2.JSON
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.ActionUpdateThread
 
 class AutoDDL : AnAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -32,8 +32,7 @@ class AutoDDL : AnAction() {
             val ddlResult = genDDL(formDTO)
             // 使用 IntelliJ 内置的 SQL 编辑器显示 SQL 语句
 //         ShowSqlUtil.   showDDLInTextField(project, ddlResult)
-            ShowContentUtil.openTextInEditor(
-                project,
+            project.openTextInEditor(
                 ddlResult,
                 "create_table_${formDTO.tableEnglishName}",
                 ".sql",

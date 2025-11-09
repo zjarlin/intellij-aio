@@ -4,11 +4,7 @@ import com.addzero.addl.ai.util.ai.ctx.AiCtx
 import com.addzero.addl.ktututil.toJson
 import com.addzero.addl.settings.SettingContext
 import com.addzero.addl.util.Pojo2Json4ktUtil
-import com.addzero.addl.util.Pojo2JsonUtil
-import com.addzero.addl.util.ShowContentUtil
 import com.addzero.addl.util.fieldinfo.PsiUtil
-import com.addzero.addl.util.fieldinfo.PsiUtil.psiCtx
-import com.addzero.common.kt_util.isNotBlank
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
@@ -20,6 +16,9 @@ import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 import com.addzero.addl.util.NotificationUtil
+import com.addzero.addl.util.Pojo2JsonUtil.generateMap
+import com.addzero.util.ShowContentUtil.openTextInEditor
+import com.addzero.util.psi.PsiUtil.psiCtx
 
 class StructuredOutput : AnAction() {
 
@@ -48,8 +47,8 @@ class StructuredOutput : AnAction() {
             }
             if (response.isNotBlank()) {
                 // 在新文件中打开响应结果
-                ShowContentUtil.openTextInEditor(
-                    project, response, sqlPrefix = "Structured", fileTypeSuffix = ".json"
+                project.openTextInEditor(
+                    response, sqlPrefix = "Structured", fileTypeSuffix = ".json"
                 )
             }
 
@@ -68,7 +67,7 @@ class StructuredOutput : AnAction() {
 
 
     private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
-        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = psiCtx(project)
+        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = project.psiCtx()
         val settings = SettingContext.settings
         val modelManufacturer = settings.modelManufacturer
 
@@ -111,7 +110,7 @@ class StructuredOutput : AnAction() {
 //        val psiClassToJson = Psi2Json.psiClassToJson(psiClass, project)
 //        val jsonString = psiClassToJson.toJson()
 
-        val generateMap = Pojo2JsonUtil.generateMap(psiClass, project)
+        val generateMap = psiClass.generateMap(project)
         val jsonString = generateMap.toJson()
         val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)
 

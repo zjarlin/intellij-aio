@@ -4,9 +4,10 @@
 package com.addzero.util.psi
 
 // K2兼容API导入
-import com.addzero.util.lsi.impl.psi.JavaNullableType
+import com.addzero.util.lsi.constant.JavaNullableType
+import com.addzero.util.lsi.constant.Language
+import com.addzero.util.lsi.exp.IllegalFileFormatException
 import com.addzero.util.meta.*
-import com.addzero.util.meta.VirtualFileUtils.language
 import com.addzero.util.psi.clazz
 import com.addzero.util.psi.javaclass.PsiClassUtil
 import com.addzero.util.psi.ktclass.KtClassUtil

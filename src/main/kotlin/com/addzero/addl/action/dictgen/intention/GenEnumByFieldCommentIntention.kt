@@ -7,7 +7,7 @@ import com.addzero.addl.action.dictgen.DictTemplateUtil
 import com.addzero.addl.settings.MyPluginSettingsService
 import com.addzero.addl.util.DialogUtil
 import com.addzero.addl.util.JlStrUtil.toValidVariableName
-import com.addzero.addl.util.fieldinfo.PsiUtil
+import com.addzero.util.psi.PsiUtil.getFilePathPair
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.openapi.editor.Editor
@@ -36,7 +36,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         if (element is PsiField || element is KtProperty) {
             return element
         }
-        
+
         var parent = element.parent
         while (parent != null) {
             if (parent is PsiField || parent is KtProperty) {
@@ -91,7 +91,7 @@ class GenEnumByFieldCommentIntention : PsiElementBaseIntentionAction(), Intentio
         }
 
         // 获取文件路径
-        val filePath = PsiUtil.getFilePathPair(field as PsiElement)
+        val filePath = (field as PsiElement).getFilePathPair()
 
         // 生成枚举类名
         val enumName = generateEnumName(field)

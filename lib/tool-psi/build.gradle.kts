@@ -7,6 +7,5 @@ dependencies {
 
     implementation(project(":lib:tool-common"))
 
-    // 添加 Kotlin 编译器依赖
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:+")
+
 }

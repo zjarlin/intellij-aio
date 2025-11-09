@@ -6,7 +6,6 @@ import com.addzero.util.lsi.assist.isCustomObjectType
 import com.addzero.util.lsi.constant.DATA_ANNOTATIONS_SHORT
 import com.addzero.util.lsi.constant.ENTITY_ANNOTATIONS_SHORT
 import com.addzero.util.lsi.constant.TABLE_ANNOTATIONS_SHORT
-import com.addzero.util.lsi.method.LsiMethod
 import com.addzero.util.lsi_impl.impl.kt.anno.guessTableName
 import com.addzero.util.lsi_impl.impl.kt.anno.simplaName
 import com.addzero.util.lsi_impl.impl.psi.project.createListJson
@@ -14,10 +13,10 @@ import com.addzero.util.lsi_impl.impl.psi.project.findKtClassByName
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.asJava.toLightClass
-import org.jetbrains.kotlin.asJava.toLightMethods
 import org.jetbrains.kotlin.psi.KtClass
+import site.addzero.util.str.cleanDocComment
 import site.addzero.util.str.firstNotBlank
-import site.addzero.util.str.removeAny
+import site.addzero.util.str.removeAnyQuote
 import site.addzero.util.str.toUnderLineCase
 
 fun KtClass.isPojo(): Boolean {
@@ -33,19 +32,6 @@ fun KtClass.isPojo(): Boolean {
     return hasEntityAnnotation || hasTableAnnotation || hasDataAnnotation || isDataClass
 }
 
-fun KtClass.guessTableName(): String {
-    val text = this.name?.toUnderLineCase()
-    val guessTableNameByAnno = this.guessTableNameByAnno()
-    val firstNotBlank = firstNotBlank(guessTableNameByAnno, text)
-    val removeAny = firstNotBlank.removeAny("\"")
-    return removeAny
-}
-
-fun KtClass.guessTableNameByAnno(): String? {
-    val toLightClass = toLightClass()
-    val annotations = toLightClass?.annotations
-    return annotations.guessTableName()
-}
 
 fun KtClass.qualifiedName(): String? {
     return this.fqName?.asString()
@@ -59,6 +45,24 @@ fun KtClass.isCollectionType(): Boolean {
     return collectionType
 }
 
+
+fun KtClass.docComment(): String {
+    return cleanDocComment(this.docComment?.text)
+}
+
+
+fun KtClass.guessTableEnglishName(): String {
+    val text = this.name?.toUnderLineCase()
+    val guessTableNameByAnno = this.guessTableNameByAnno()
+    val firstNotBlank = firstNotBlank(guessTableNameByAnno, text)
+    return firstNotBlank.removeAnyQuote()
+}
+
+fun KtClass.guessTableNameByAnno(): String? {
+    val toLightClass = toLightClass()
+    val annotations = toLightClass?.annotations
+    return annotations.guessTableName()
+}
 
 fun KtClass.ktClassToJson(project: Project): JsonObject {
     val jsonObject = JsonObject()
@@ -81,3 +85,4 @@ fun KtClass.ktClassToJson(project: Project): JsonObject {
 
     return jsonObject
 }
+

@@ -2,12 +2,12 @@ package com.addzero.addl.autoddlstarter.generator.factory
 
 import cn.hutool.core.util.ClassUtil
 import cn.hutool.core.util.StrUtil
-import cn.hutool.extra.pinyin.PinyinUtil
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import com.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil
+import com.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.isPrimaryKey
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import com.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import com.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
@@ -61,7 +61,7 @@ object DDLContextFactory4UserInputMetaInfo {
             val javaFieldMetaInfo = JavaFieldMetaInfo(toCamelCase, loadClass, loadClass, colComment)
             val mapTypeByJavaType = databaseDDLGenerator.mapTypeByJavaType(javaFieldMetaInfo)
             val length = getLength(javaFieldMetaInfo)
-            val primaryKey = BaseMetaInfoUtil.isPrimaryKey(toCamelCase)
+            val primaryKey = toCamelCase.isPrimaryKey()
             val autoIncrement = BaseMetaInfoUtil.isAutoIncrement(toCamelCase)
             DDlRangeContext(
                 colName.toUnderlineCase().removeAnyQuote(), mapTypeByJavaType

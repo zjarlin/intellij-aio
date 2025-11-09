@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     implementation(project(":lib:tool-psi"))
+    implementation(project(":lib:tool-swing"))
+    implementation(project(":lib:tool-awt"))
     implementation(project(":lib:tool-psi-toml"))
     implementation(project(":lib:tool-common"))
     implementation("site.addzero:tool-jvmstr:+")

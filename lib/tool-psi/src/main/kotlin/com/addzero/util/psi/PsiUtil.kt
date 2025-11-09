@@ -40,7 +40,7 @@ private const val NOCOMMENT = ""
  * - 元数据提取相关方法已迁移到 LsiClass、LsiField、LsiMethod
  * - 保留的方法包括：PSI 导航、上下文管理、JavaFieldMetaInfo 桥接
  */
-@Deprecated("Most methods migrated to LSI layer, use LsiClass/LsiField/LsiMethod instead")
+@Deprecated("Most jimmerProperty migrated to LSI layer, use LsiClass/LsiField/LsiMethod instead")
 object PsiUtil {
 
     fun PsiFile?.getCurrentPsiElement(
@@ -78,8 +78,8 @@ object PsiUtil {
      * @deprecated 此方法已在 LSI 的各个 CommentAnalyzer 中实现，不再需要直接调用
      */
     @Deprecated(
-        "Use LsiField.comment or LsiMethod.comment instead",
-        ReplaceWith("lsiField.comment", "com.addzero.util.lsi.toLsiField")
+        "Use LsiField.fieldComment or LsiMethod.fieldComment instead",
+        ReplaceWith("lsiField.fieldComment", "com.addzero.util.lsi.toLsiField")
     )
     private fun cleanDocComment(docComment: String?): String {
         if (docComment == null) return ""
@@ -108,11 +108,11 @@ object PsiUtil {
     /**
      * 猜测 Kotlin 字段注释
      *
-     * @deprecated 使用 LsiField.comment 替代
+     * @deprecated 使用 LsiField.fieldComment 替代
      */
     @Deprecated(
-        "Use LsiField.comment instead",
-        ReplaceWith("this.toLsiField().comment", "com.addzero.util.lsi.toLsiField")
+        "Use LsiField.fieldComment instead",
+        ReplaceWith("this.toLsiField().fieldComment", "com.addzero.util.lsi.toLsiField")
     )
     fun KtProperty.guessFieldComment(idName: String): String {
         // 如果是主键字段，直接返回 "主键"
@@ -178,11 +178,11 @@ object PsiUtil {
     /**
      * 猜测 Java 字段注释
      *
-     * @deprecated 使用 LsiField.comment 替代
+     * @deprecated 使用 LsiField.fieldComment 替代
      */
     @Deprecated(
-        "Use LsiField.comment instead",
-        ReplaceWith("this.toLsiField().comment", "com.addzero.util.lsi.toLsiField")
+        "Use LsiField.fieldComment instead",
+        ReplaceWith("this.toLsiField().fieldComment", "com.addzero.util.lsi.toLsiField")
     )
     fun PsiField.guessFieldComment(idName: String): String {
         if (this.name == idName) {
@@ -237,11 +237,11 @@ object PsiUtil {
     /**
      * 猜测 PsiClass 的表名
      *
-     * @deprecated 使用 LsiClass.guessTableName 替代
+     * @deprecated 使用 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.guessTableName instead",
-        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.guessTableEnglishName instead",
+        ReplaceWith("this.toLsiClass().guessTableEnglishName", "com.addzero.util.lsi.toLsiClass")
     )
     fun guessTableName(psiClass: PsiClass): String? {
         val text = psiClass.name?.toUnderLineCase()
@@ -260,11 +260,11 @@ object PsiUtil {
     /**
      * 从注解中猜测表名
      *
-     * @deprecated 此方法已在 TableNameAnalyzer 中实现，使用 LsiClass.guessTableName 替代
+     * @deprecated 此方法已在 TableNameAnalyzer 中实现，使用 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.guessTableName instead",
-        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.guessTableEnglishName instead",
+        ReplaceWith("this.toLsiClass().guessTableEnglishName", "com.addzero.util.lsi.toLsiClass")
     )
     fun guessTableNameByAnno(psiClass: PsiClass): @NlsSafe String? {
     }
@@ -342,11 +342,11 @@ object PsiUtil {
     /**
      * 获取方法的注释
      *
-     * @deprecated 使用 LsiMethod.comment 替代
+     * @deprecated 使用 LsiMethod.fieldComment 替代
      */
     @Deprecated(
-        "Use LsiMethod.comment instead",
-        ReplaceWith("this.toLsiMethod().comment", "com.addzero.util.lsi.toLsiMethod")
+        "Use LsiMethod.fieldComment instead",
+        ReplaceWith("this.toLsiMethod().fieldComment", "com.addzero.util.lsi.toLsiMethod")
     )
     fun getCommentFunByMethod(method: PsiMethod): String {
         val comment = method.docComment?.text ?: NOCOMMENT
@@ -365,11 +365,11 @@ object PsiUtil {
     /**
      * 获取类的元信息
      *
-     * @deprecated 使用 LsiClass.comment 和 LsiClass.guessTableName 替代
+     * @deprecated 使用 LsiClass.fieldComment 和 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.comment and LsiClass.guessTableName instead",
-        ReplaceWith("Pair(psiClass.toLsiClass().comment, psiClass.toLsiClass().guessTableName)", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.fieldComment and LsiClass.guessTableEnglishName instead",
+        ReplaceWith("Pair(psiClass.toLsiClass().fieldComment, psiClass.toLsiClass().guessTableEnglishName)", "com.addzero.util.lsi.toLsiClass")
     )
     fun getClassMetaInfo(psiClass: PsiClass): Pair<String, String?> {
         // 获取类名
@@ -431,11 +431,11 @@ object PsiUtil {
     /**
      * 猜测 KtClass 的表名
      *
-     * @deprecated 使用 LsiClass.guessTableName 替代
+     * @deprecated 使用 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.guessTableName instead",
-        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.guessTableEnglishName instead",
+        ReplaceWith("this.toLsiClass().guessTableEnglishName", "com.addzero.util.lsi.toLsiClass")
     )
     fun guessTableName(psiClass: KtClass): String? {
         val text = psiClass.name?.toUnderlineCase()
@@ -454,11 +454,11 @@ object PsiUtil {
     /**
      * 从注解中猜测 KtClass 的表名
      *
-     * @deprecated 使用 LsiClass.guessTableName 替代
+     * @deprecated 使用 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.guessTableName instead",
-        ReplaceWith("this.toLsiClass().guessTableName", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.guessTableEnglishName instead",
+        ReplaceWith("this.toLsiClass().guessTableEnglishName", "com.addzero.util.lsi.toLsiClass")
     )
     fun guessTableNameByAnno(psiClass: KtClass): String? {
         val toLightClass = psiClass.toLightClass()
@@ -655,11 +655,11 @@ object PsiUtil {
     /**
      * 获取 KtClass 的元信息
      *
-     * @deprecated 使用 LsiClass.comment 和 LsiClass.guessTableName 替代
+     * @deprecated 使用 LsiClass.fieldComment 和 LsiClass.guessTableEnglishName 替代
      */
     @Deprecated(
-        "Use LsiClass.comment and LsiClass.guessTableName instead",
-        ReplaceWith("Pair(psiClass.toLsiClass().comment, psiClass.toLsiClass().guessTableName)", "com.addzero.util.lsi.toLsiClass")
+        "Use LsiClass.fieldComment and LsiClass.guessTableEnglishName instead",
+        ReplaceWith("Pair(psiClass.toLsiClass().fieldComment, psiClass.toLsiClass().guessTableEnglishName)", "com.addzero.util.lsi.toLsiClass")
     )
     fun getClassMetaInfo4KtClass(psiClass: KtClass): Pair<String, String?> {
         // 获取类名

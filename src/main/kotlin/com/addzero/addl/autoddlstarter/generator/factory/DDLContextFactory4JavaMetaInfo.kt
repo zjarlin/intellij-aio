@@ -3,7 +3,7 @@ package com.addzero.addl.autoddlstarter.generator.factory
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import com.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
 import com.addzero.addl.autoddlstarter.generator.consts.MYSQL
-import com.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil
+import com.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.isPrimaryKey
 import com.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.javaFieldMetaInfos
 import com.addzero.addl.autoddlstarter.generator.defaultconfig.DefaultMetaInfoUtil
 import com.addzero.addl.autoddlstarter.generator.entity.DDLContext
@@ -38,7 +38,7 @@ object DDLContextFactory4JavaMetaInfo {
 //    )
 
 
-//        ktClass.getProperties()
+//        toKtClass.getProperties()
 //            .filter { it.annotationEntries.map {  } }
 //        .map {
 
@@ -115,7 +115,7 @@ object DDLContextFactory4JavaMetaInfo {
         val javaFieldMetaInfo = JavaFieldMetaInfo(fieldName, javaType, genericType, fieldComment)
         val colType = databaseDDLGenerator.mapTypeByJavaType(javaFieldMetaInfo)
         val length = getLength(javaFieldMetaInfo)
-        val isPrimaryKey = BaseMetaInfoUtil.isPrimaryKey(fieldName)
+        val isPrimaryKey = fieldName.isPrimaryKey()
         val isSelfIncreasing = isPrimaryKey // 这里假设主键即自增
 
         return DDlRangeContext(

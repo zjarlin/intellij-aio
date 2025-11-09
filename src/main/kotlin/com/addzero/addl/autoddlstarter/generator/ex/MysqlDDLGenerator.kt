@@ -26,10 +26,10 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
         val createTableSQL = """
     create table if not exists `$tableEnglishName` (
         `$id` $idType not null ,
-        `$createBy` $idType not null comment '创建者',
-        `$updateBy` $idType null comment '更新者',
-        `$createTime` datetime not null default current_timestamp comment '创建时间',
-        `$updateTime` datetime null default current_timestamp on update current_timestamp comment '更新时间',
+        `$createBy` $idType not null fieldComment '创建者',
+        `$updateBy` $idType null fieldComment '更新者',
+        `$createTime` datetime not null default current_timestamp fieldComment '创建时间',
+        `$updateTime` datetime null default current_timestamp on update current_timestamp fieldComment '更新时间',
         ${
             dto
                 .distinctBy { it.colName }
@@ -39,13 +39,13 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
             .joinToString(System.lineSeparator()) {
                 val colLength = it.colLength
                 """
-                       `${it.colName.toUnderlineCase()}` ${it.colType}    $colLength    comment '${it.colComment}' ,
+                       `${it.colName.toUnderlineCase()}` ${it.colType}    $colLength    fieldComment '${it.colComment}' ,
                 """.trimIndent()
             }
         }
         primary key (`id`)
     ) engine=innodb default charset=utf8mb4
-     comment = '${tableChineseName}'; 
+     fieldComment = '${tableChineseName}'; 
 """.trimIndent()
         return createTableSQL
     }
@@ -66,10 +66,10 @@ class MysqlDDLGenerator : DatabaseDDLGenerator() {
             // 生成 ALTER 语句以及字段注释
             val toUnderlineCase = StrUtil.toUnderlineCase(it.colName)
 
-//            alter table biz_env_vars add 列_name int null comment 'cadsca';
+//            alter table biz_env_vars add 列_name int null fieldComment 'cadsca';
 
             """
-            alter table $tableRef add column `$toUnderlineCase` ${it.colType} ${it.colLength}  comment '${it.colComment}';
+            alter table $tableRef add column `$toUnderlineCase` ${it.colType} ${it.colLength}  fieldComment '${it.colComment}';
         """.trimIndent()
         }
 

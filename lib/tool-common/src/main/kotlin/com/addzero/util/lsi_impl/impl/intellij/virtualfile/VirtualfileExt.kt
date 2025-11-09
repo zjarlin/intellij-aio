@@ -2,11 +2,11 @@ package com.addzero.util.lsi_impl.impl.intellij.virtualfile
 
 import com.addzero.util.lsi.constant.Language
 import com.addzero.util.lsi.exp.IllegalFileFormatException
-import com.addzero.util.lsi.impl.kt.field.qualifiedName
-import com.addzero.util.lsi.impl.psi.psifile.convertTo
+import com.addzero.util.lsi_impl.impl.kt.anno.qualifiedName
+import com.addzero.util.lsi_impl.impl.psi.element.convertTo
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.patterns.PsiJavaPatterns.psiClass
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiNameIdentifierOwner
 import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.jetbrains.kotlin.psi.KtClass
@@ -16,11 +16,19 @@ import org.jetbrains.kotlin.psi.KtClass
  *
  * @param propPath 进一步获取[propPath]属性的类型的类定义
  */
-fun VirtualFile.ktClass(project: Project): KtClass? {
+fun VirtualFile.toKtClass(project: Project): KtClass? {
     val toPsiFile = this.toPsiFile(project)
     val ktClass = toPsiFile?.convertTo<KtClass>()
     return ktClass
 }
+
+
+fun VirtualFile.toPsiClass(project: Project): PsiClass? {
+    val toPsiFile = this.toPsiFile(project)
+    val ktClass = toPsiFile?.convertTo<PsiClass>()
+    return ktClass
+}
+
 
 /**
  * 扩展属性：获取 VirtualFile 的语言类型
@@ -40,15 +48,15 @@ val VirtualFile.language: Language
 /**
  * 获取类文件中的类名Element
  */
-fun VirtualFile.nameIdentifier(project: Project): PsiNameIdentifierOwner? {
+fun VirtualFile.toPsiNameIdentifierOwner(project: Project): PsiNameIdentifierOwner? {
     return try {
         when (language) {
             Language.Java -> {
-                psiClass(project) as PsiNameIdentifierOwner?
+                toPsiClass(project) as PsiNameIdentifierOwner?
             }
 
             Language.Kotlin -> {
-                ktClass(project) as PsiNameIdentifierOwner?
+                toKtClass(project) as PsiNameIdentifierOwner?
             }
         }
     } catch (e: IllegalFileFormatException) {
@@ -63,12 +71,11 @@ fun VirtualFile.annotations(project: Project): List<String> {
     val annotations = try {
         when (this.language) {
             Language.Java -> {
-                psiClass(project)?.annotations?.map { it.qualifiedName ?: "" }
+                this.toPsiClass(project)?.annotations?.map { it.qualifiedName ?: "" }
             }
 
             Language.Kotlin -> {
-                val file = this
-                file.ktClass(project)?.annotationEntries?.map { it.qualifiedName }
+                this.toKtClass(project)?.annotationEntries?.map { it.qualifiedName }
             }
         }
     } catch (e: IllegalFileFormatException) {

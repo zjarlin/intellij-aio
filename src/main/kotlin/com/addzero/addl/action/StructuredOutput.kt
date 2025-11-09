@@ -16,7 +16,6 @@ import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 import com.addzero.addl.util.NotificationUtil
-import com.addzero.addl.util.Pojo2JsonUtil.generateMap
 import com.addzero.util.ShowContentUtil.openTextInEditor
 import com.addzero.util.psi.PsiUtil.psiCtx
 
@@ -79,7 +78,7 @@ class StructuredOutput : AnAction() {
             val ask = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
             ask
         } else {
-//            val jsonobj = Psi2Json.ktClassToJson(ktClass, project)
+//            val jsonobj = Psi2Json.ktClassToJson(toKtClass, project)
 //            val jsonString = jsonobj.toJson()
             val generateMap = Pojo2Json4ktUtil.generateMap(ktClass, project)
             val jsonString = generateMap.toJson()

@@ -3,7 +3,7 @@ package com.addzero.util.lsi_impl.impl.psi.project
 import com.addzero.util.lsi.assist.getDefaultValueForType
 import com.addzero.util.lsi.impl.kt.ktClassToJson
 import com.addzero.util.lsi.assist.isCustomObjectType
-import com.addzero.util.lsi_impl.impl.intellij.virtualfile.ktClass
+import com.addzero.util.lsi_impl.impl.intellij.virtualfile.toKtClass
 import com.addzero.util.lsi_impl.impl.kt.ktClassToJson
 import com.addzero.util.lsi_impl.impl.psi.model.PsiCtx
 import com.google.gson.JsonObject
@@ -39,7 +39,7 @@ fun Project.psiCtx(): PsiCtx {
     val virtualFile = instance.getSelectedEditor()?.file
     val psiFile = PsiManager.getInstance(this).findFile(virtualFile!!)
 
-    val ktClass = virtualFile.ktClass(this)
+    val ktClass = virtualFile.toKtClass(this)
 
     val psiClass = PsiTreeUtil.findChildOfType(psiFile, PsiClass::class.java)
     // 如果是Java文件，可以转换成PsiJavaFile

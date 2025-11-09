@@ -16,7 +16,7 @@ fun scanDdlContext(project: Project): List<DDLContext> {
     val dbType = SettingContext.settings.dbType
     //        val scanPkg = ""
 
-    val kotlinProject = isKotlinProject(project)
+    val kotlinProject = project.isKotlinProject()
     val ddlContexts = if (kotlinProject) {
 
         val findAllEntityClasses = findktEntityClasses(project)
@@ -84,7 +84,7 @@ fun genMany2ManyDDLContext(findAllEntityClasses: List<KtClass>): Map<String, Str
             toList.forEach {
                 val value = it.value.removeAnyQuote()
                 val zuobianKlass = dict[value]
-    //            ret[zuobianKlass?.name ?: ""] = ktClass.name ?: ""
+    //            ret[zuobianKlass?.name ?: ""] = toKtClass.name ?: ""
                 ret[zuobianKlass?.name ?: ""] = ktClass.name ?: ""
 
             }

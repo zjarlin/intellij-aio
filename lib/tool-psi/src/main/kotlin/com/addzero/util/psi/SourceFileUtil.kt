@@ -10,7 +10,7 @@ import com.addzero.util.lsi.exp.IllegalFileFormatException
 import com.addzero.util.meta.*
 import com.addzero.util.psi.clazz
 import com.addzero.util.psi.javaclass.PsiClassUtil
-import com.addzero.util.psi.ktclass.KtClassUtil
+import com.addzero.util.old.KtClassUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.*

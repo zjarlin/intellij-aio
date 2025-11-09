@@ -27,6 +27,7 @@ fun PsiElement.getFilePathPair(): PsiEleInfo {
     val directoryPath = virtualFile?.parent?.path ?: ""
     return PsiEleInfo(packageName, directoryPath)
 }
+
 /**
  * 获取PsiElement所在文件的路径
  */
@@ -47,6 +48,7 @@ fun PsiElement.generateRoot(): VirtualFile? {
     }
     return generateRoot
 }
+
 /**
  * 获取元素所在模块的源码根目录
  * 查找路径中包含 "src" 的目录
@@ -59,6 +61,7 @@ fun PsiElement.sourceRoot(): VirtualFile? {
     }
     return sourceRoot
 }
+
 /**
  * 获取元素所在模块的 DTO 根目录
  * 在源码根目录同级查找 dto 目录
@@ -69,6 +72,7 @@ fun PsiElement.dtoRoot(): VirtualFile? {
     val dtoRootPath = sourceRoot()?.toNioPath()?.resolveSibling("dto") ?: return null
     return VirtualFileManager.getInstance().findFileByNioPath(dtoRootPath)
 }
+
 /**
  * 获取元素所在模块的所有源码根目录
  * @param this@root PsiElement 元素

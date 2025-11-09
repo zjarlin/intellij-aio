@@ -26,6 +26,14 @@ fun KtAnnotationEntry.getArg(argumentName: String): String? {
     return trim
 }
 
+
+
+fun KtAnnotationEntry.getArg(): String? {
+    return getArg("value")
+}
+
+
+
 fun List<KtAnnotationEntry>.getAnno(simpleName: String): KtAnnotationEntry? {
     val firstOrNull = this.firstOrNull { it.shortName?.asString() == simpleName }
     return firstOrNull

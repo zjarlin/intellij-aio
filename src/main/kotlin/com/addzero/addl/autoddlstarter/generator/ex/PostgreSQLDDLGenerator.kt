@@ -45,7 +45,7 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
 //                .filter { it.colName !in listOf(id, createBy, updateBy, createTime, updateTime) }
                 .joinToString(System.lineSeparator()) {
                     """
- comment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
+ fieldComment on column $tableEnglishName.${it.colName} is '${it.colComment}'; 
                 """.trimIndent()
                 }
         }
@@ -60,14 +60,14 @@ class PostgreSQLDDLGenerator : DatabaseDDLGenerator() {
         $updateTime timestamp ,
 $cols       
     );
-    comment on table "$tableEnglishName" is '$tableChineseName';
+    fieldComment on table "$tableEnglishName" is '$tableChineseName';
  ${
             """
-            comment on column $tableEnglishName.$id is '主键';
-            comment on column $tableEnglishName.$createBy is '创建者';
-            comment on column $tableEnglishName.$createTime is '创建时间';
-            comment on column $tableEnglishName.$updateBy is '更新者';
-            comment on column $tableEnglishName.$updateTime is '更新时间'; 
+            fieldComment on column $tableEnglishName.$id is '主键';
+            fieldComment on column $tableEnglishName.$createBy is '创建者';
+            fieldComment on column $tableEnglishName.$createTime is '创建时间';
+            fieldComment on column $tableEnglishName.$updateBy is '更新者';
+            fieldComment on column $tableEnglishName.$updateTime is '更新时间'; 
             """.trimIndent()
         }
     $colsComments
@@ -89,7 +89,7 @@ $cols
             // 生成 ALTER 语句以及字段注释
             val upperCaseColName = StrUtil.toUnderlineCase(it.colName)
             """
-            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength}; comment on column $tableRef."$upperCaseColName" is '${it.colComment}';
+            alter table $tableRef add column "$upperCaseColName" ${it.colType}${it.colLength}; fieldComment on column $tableRef."$upperCaseColName" is '${it.colComment}';
         """.trimIndent()
         }
 

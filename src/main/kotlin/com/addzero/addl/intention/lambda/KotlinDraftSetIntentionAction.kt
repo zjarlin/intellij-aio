@@ -47,8 +47,8 @@
 //                caches[it.caretModel.offset]?.also { cache ->
 //                    results.addAll(cache)
 //                } ?: run {
-//                    val ktClass = thread { runReadOnly { lambda.receiver() } } ?: return@also
-//                    ktClass.getProperties().forEach {
+//                    val toKtClass = thread { runReadOnly { lambda.receiver() } } ?: return@also
+//                    toKtClass.getProperties().forEach {
 //                        if (it.isOverridable && it.isVar) {
 //                            results += "${it.name} = TODO()"
 //                        }

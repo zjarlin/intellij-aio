@@ -43,7 +43,7 @@ class H2SQLDDLGenerator : DatabaseDDLGenerator() {
         `$updateTime` timestamp ,
 $cols       
     );
-    comment on table "$tableEnglishName" is '$tableChineseName';
+    fieldComment on table "$tableEnglishName" is '$tableChineseName';
     """.trimIndent()
 
         // 添加字段注释
@@ -52,16 +52,16 @@ $cols
             .filter { filterBaseEneity(it) }
             .joinToString(System.lineSeparator()) {
                 """
-                comment on column "$tableEnglishName".`${it.colName}` is '${it.colComment}';
+                fieldComment on column "$tableEnglishName".`${it.colName}` is '${it.colComment}';
                 """.trimIndent()
             }
 
         val baseComments = """
-            comment on column "$tableEnglishName".`$id` is '主键';
-            comment on column "$tableEnglishName".`$createBy` is '创建者';
-            comment on column "$tableEnglishName".`$createTime` is '创建时间';
-            comment on column "$tableEnglishName".`$updateBy` is '更新者';
-            comment on column "$tableEnglishName".`$updateTime` is '更新时间';
+            fieldComment on column "$tableEnglishName".`$id` is '主键';
+            fieldComment on column "$tableEnglishName".`$createBy` is '创建者';
+            fieldComment on column "$tableEnglishName".`$createTime` is '创建时间';
+            fieldComment on column "$tableEnglishName".`$updateBy` is '更新者';
+            fieldComment on column "$tableEnglishName".`$updateTime` is '更新时间';
         """.trimIndent()
 
         return createTableSQL + System.lineSeparator() + baseComments + System.lineSeparator() + comments
@@ -73,7 +73,7 @@ $cols
 
             // 如果 databaseName 不为空，则拼接成 databaseName.tableEnglishName
             val tableRef = if (databaseName.isBlank()) {
-                JlStrUtil.makeSurroundWith(tableEnglishName, "\"") 
+                JlStrUtil.makeSurroundWith(tableEnglishName, "\"")
             } else {
                 "\"$databaseName\".\"$tableEnglishName\""
             }
@@ -81,7 +81,7 @@ $cols
             val upperCaseColName = StrUtil.toUnderlineCase(it.colName)
             """
             alter table $tableRef add column `$upperCaseColName` ${it.colType}${it.colLength};
-            comment on column $tableRef.`$upperCaseColName` is '${it.colComment}';
+            fieldComment on column $tableRef.`$upperCaseColName` is '${it.colComment}';
         """.trimIndent()
         }
 

@@ -60,6 +60,56 @@ fun KtProperty.getColumnName(): String? {
     return arg
 }
 
+fun KtProperty.guessFieldComment(idName: String): String {
+    // 如果是主键字段，直接返回 "主键"
+    if (this.name == idName) {
+        return "主键"
+    }
+    // 获取 KtProperty 上的所有注解
+    val annotations = this.annotationEntries
+    // 遍历所有注解
+    for (annotation in annotations) {
+        val qualifiedName = annotation.shortName?.asString()
+
+        val arg1 = annotation.getArg("value")
+        val des = when (qualifiedName) {
+            "ApiModelProperty" -> {
+                // 获取 description 参数值
+                arg1
+            }
+
+            "Schema" -> {
+                // 获取 description 参数值
+                val des = annotation.getArg("description")
+                des
+            }
+
+            "ExcelProperty" -> {
+                // 获取 description 参数值
+                val des = arg1
+                des
+            }
+
+            else -> {
+                null
+            }
+        }
+        if (!des.isNullOrBlank()) {
+            return des?.removeAnyQuote()!!
+        }
+    }
+
+    // 如果没有找到 Swagger 注解，则尝试获取文档注释
+    val docComment = this.docComment
+    val text = cleanDocComment(docComment?.text)
+    if (text.isNullOrBlank()) {
+        return ""
+    }
+
+    return text
+}
+
+
 fun KtProperty.getComment(): String? {
     // 首先尝试从注解中获取描述
     this.annotationEntries.forEach { annotation ->

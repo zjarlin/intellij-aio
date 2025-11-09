@@ -1,9 +1,11 @@
 package com.addzero.util.lsi.constant
 
+internal val JIMMER_ENTITY = "org.babyfish.jimmer.sql.Entity"
+
 internal val ENTITY_ANNOTATIONS = setOf(
     "javax.persistence.Entity",
     "jakarta.persistence.Entity",
-    "org.babyfish.jimmer.sql.Entity",
+    JIMMER_ENTITY,
     "org.babyfish.jimmer.sql.MappedSuperclass"
 )
 
@@ -17,6 +19,12 @@ internal val LOMBOK_ANNOTATIONS = setOf(
     "lombok.Setter"
 )
 
+
+internal const val EXCEL_PROPERTY_ALIBABA = "com.alibaba.excel.annotation.ExcelProperty"
+internal const val EXCEL_PROPERTY_IDEV = "cn.idev.excel.annotation.ExcelProperty"
+internal const val EXCEL_EASYPOI = "cn.afterturn.easypoi.excel.annotation.Excel"
+
+
 internal const val API_MODEL_PROPERTY = "io.swagger.annotations.ApiModelProperty"
 internal const val SCHEMA = "io.swagger.v3.oas.annotations.media.Schema"
 
@@ -24,6 +32,8 @@ internal const val COM_BAOMIDOU_MYBATISPLUS_ANNOTATION_TABLE_FIELD = "com.baomid
 internal const val ENTITY = "javax.persistence.Entity"
 internal const val MAPPED_SUPERCLASS = "javax.persistence.MappedSuperclass"
 
+internal const val JIMMER_COLUMN = "org.babyfish.jimmer.sql.Column"
+internal const val MP_TABLE_FIELD = "com.baomidou.mybatisplus.annotation.TableField"
 
 // 集合类型的全限定名列表
 internal val COLLECTION_TYPE_FQ_NAMES = setOf(

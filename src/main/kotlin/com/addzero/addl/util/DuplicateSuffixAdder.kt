@@ -74,7 +74,7 @@ object DuplicateSuffixAdder {
         companion object {
             @JvmStatic
             fun main(args: Array<String>) {
-                val list: List<String> = mutableListOf("A", "A", "C")
+                val list = mutableListOf("A", "A", "C")
                 val strings = handleDuplicatesWithStreamAndCustomRemap(list)
                 println(strings)
             }

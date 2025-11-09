@@ -1,16 +1,22 @@
 package site.addzero.util.lsi_impl.impl.psi.type
 
-import site.addzero.util.lsi.assist.isCollectionType
-import site.addzero.util.lsi_impl.impl.psi.clazz.toDefaultValueMap
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import com.intellij.psi.util.InheritanceUtil
 import com.intellij.psi.util.PsiTypesUtil
+import site.addzero.util.lsi.assist.isCollectionType
+import site.addzero.util.lsi_impl.impl.psi.clazz.toDefaultValueMap
 import site.addzero.util.str.containsAnyIgnoreCase
 import java.util.*
 
 fun PsiClassType.qualifiedName(): String? {
     return this.resolve()?.qualifiedName
+}
+
+fun PsiType.toPsiClass(): PsiClass? {
+
+    val resolvedClass = PsiTypesUtil.getPsiClass(this)
+    return resolvedClass
 }
 
 fun PsiType.isNullable(): Boolean {

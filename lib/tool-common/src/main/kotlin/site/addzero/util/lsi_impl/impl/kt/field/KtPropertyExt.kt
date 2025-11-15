@@ -1,5 +1,6 @@
 package site.addzero.util.lsi_impl.impl.kt.field
 
+import org.jetbrains.kotlin.asJava.toLightAnnotation
 import site.addzero.util.lsi.assist.isCollectionType
 import site.addzero.util.lsi_impl.impl.kt.anno.getArg
 import org.jetbrains.kotlin.idea.intentions.loopToCallChain.isConstant
@@ -161,3 +162,88 @@ fun KtProperty.isCollectionType(): Boolean {
     val collectionType = fqName.isCollectionType()
     return collectionType
 }
+
+// ============ 注解操作相关 ============
+
+/**
+ * 添加注解到 Kotlin 属性
+ * 从文档注释中提取描述并格式化为注解
+ *
+ * @param annotationTemplate 注解模板，如 "@Schema(description = \"{}\")"
+ * @param description 描述文本（可选），如果不提供则从属性的文档注释中提取
+ * @param useGetter 是否添加 @get: 前缀（用于 getter 注解）
+ */
+fun KtProperty.addAnnotation(
+    annotationTemplate: String,
+    description: String? = null,
+    useGetter: Boolean = true
+) {
+    val project = this.project
+
+    // 获取描述文本
+    val desc = description ?: getComment() ?: return
+    val cleanedDesc = cleanDocComment(desc)
+
+    if (cleanedDesc.isBlank()) return
+
+    // 格式化注解模板
+    var annotationText = annotationTemplate.replace("{}", cleanedDesc)
+
+    // 如果需要，添加 @get: 前缀
+    if (useGetter && !annotationText.startsWith("@get:")) {
+        annotationText = annotationText.replace("@", "@get:")
+    }
+
+    // 创建并添加注解
+    try {
+        val factory = org.jetbrains.kotlin.psi.KtPsiFactory(project)
+        val annotation = factory.createAnnotationEntry(annotationText)
+        addAnnotationEntry(annotation)
+
+        // 格式化代码
+        com.intellij.psi.codeStyle.CodeStyleManager.getInstance(project).reformat(this)
+    } catch (e: Exception) {
+        // 忽略创建失败的情况（可能是格式问题）
+    }
+}
+
+/**
+ * 检查属性是否包含指定简单名称的注解
+ *
+ * @param shortNames 注解简单名称列表，如 ["Schema", "ApiModelProperty"]
+ * @return 如果包含任一注解返回 true，否则返回 false
+ */
+fun KtProperty.hasAnnotationByShortName(vararg shortNames: String): Boolean {
+    return annotationEntries.any { annotation ->
+        val shortName = annotation.shortName?.asString() ?: return@any false
+        shortName in shortNames
+    }
+}
+
+/**
+ * 检查属性是否包含指定全限定名的注解
+ * 需要通过 toLightAnnotation 转换获取全限定名
+ *
+ * @param qualifiedNames 注解全限定名列表
+ * @return 如果包含任一注解返回 true，否则返回 false
+ */
+fun KtProperty.hasAnnotationByQualifiedName(vararg qualifiedNames: String): Boolean {
+    return annotationEntries.any { annotation ->
+        val qualifiedName = annotation.toLightAnnotation()?.qualifiedName ?: return@any false
+        qualifiedName in qualifiedNames
+    }
+}
+
+/**
+ * 获取属性上指定简单名称的所有注解
+ *
+ * @param shortNames 注解简单名称列表
+ * @return 匹配的注解列表
+ */
+fun KtProperty.getAnnotationsByShortName(vararg shortNames: String): List<org.jetbrains.kotlin.psi.KtAnnotationEntry> {
+    return annotationEntries.filter { annotation ->
+        val shortName = annotation.shortName?.asString() ?: return@filter false
+        shortName in shortNames
+    }
+}
+

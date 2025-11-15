@@ -1,9 +1,7 @@
 package site.addzero.util.lsi_impl.impl.psi.field
 
-import com.intellij.psi.PsiElementFactory
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiModifier
-import com.intellij.psi.PsiPrimitiveType
+import com.intellij.psi.*
+import com.intellij.psi.codeStyle.CodeStyleManager
 import site.addzero.util.lsi.assist.getDefaultAnyValueForType
 import site.addzero.util.lsi.constant.JIMMER_COLUMN
 import site.addzero.util.lsi.constant.MP_TABLE_FIELD
@@ -88,5 +86,79 @@ fun PsiField.addComment() {
     val factory = PsiElementFactory.getInstance(project)
     val newDocComment = factory.createDocCommentFromText("/** */")
     addBefore(newDocComment, this.firstChild)
+}
+
+// ============ 注解操作相关 ============
+
+/**
+ * 添加注解到字段
+ * 从文档注释中提取描述并格式化为注解
+ *
+ * @param annotationTemplate 注解模板，如 "@Schema(description = \"{}\")"
+ * @param description 描述文本（可选），如果不提供则从字段的文档注释中提取
+ */
+fun PsiField.addAnnotation(annotationTemplate: String, description: String? = null) {
+    val project = this.containingFile.project
+
+    // 获取描述文本
+    val desc = description ?: getComment() ?: return
+    val cleanedDesc = cleanDocComment(desc)
+
+    if (cleanedDesc.isBlank()) return
+
+    // 格式化注解模板
+    val annotationText = annotationTemplate.replace("{}", cleanedDesc)
+
+    // 创建并添加注解
+    try {
+        val factory = JavaPsiFacade.getElementFactory(project)
+        val annotation = factory.createAnnotationFromText(annotationText, this)
+
+        // 将注解添加到字段上方
+        modifierList?.addBefore(annotation, modifierList?.firstChild)
+
+        // 格式化代码
+        CodeStyleManager.getInstance(project).reformat(this)
+    } catch (e: Exception) {
+        // 忽略创建失败的情况（可能是格式问题）
+    }
+}
+
+/**
+ * 检查字段是否包含指定简单名称的注解
+ *
+ * @param shortNames 注解简单名称列表，如 ["Schema", "ApiModelProperty"]
+ * @return 如果包含任一注解返回 true，否则返回 false
+ */
+fun PsiField.hasAnnotationByShortName(vararg shortNames: String): Boolean {
+    return annotations.any { annotation ->
+        val shortName = annotation.qualifiedName?.substringAfterLast('.') ?: return@any false
+        shortName in shortNames
+    }
+}
+
+/**
+ * 检查字段是否包含指定全限定名的注解
+ *
+ * @param qualifiedNames 注解全限定名列表
+ * @return 如果包含任一注解返回 true，否则返回 false
+ */
+fun PsiField.hasAnnotationByQualifiedName(vararg qualifiedNames: String): Boolean {
+    return annotations.any { annotation ->
+        annotation.qualifiedName in qualifiedNames
+    }
+}
+
+/**
+ * 获取字段上指定简单名称的所有注解
+ *
+ * @param shortNames 注解简单名称列表
+ * @return 匹配的注解列表
+ */
+fun PsiField.getAnnotationsByShortName(vararg shortNames: String): List<PsiAnnotation> {
+    return annotations.filter { annotation ->
+        val shortName = annotation.qualifiedName?.substringAfterLast('.') ?: return@filter false
+        shortName in shortNames
+    }
 }
 

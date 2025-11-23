@@ -90,9 +90,8 @@ interface IDatabaseGenerator {
         }
 
 
-        var javaTypesEnum: Array<String>
+        val javaTypesEnum: Array<String>
             get() = fieldMappings.map { it.javaClassSimple }.distinct().toTypedArray()
-            set(value) = TODO()
 
 
         var fieldMappings: List<site.addzero.addl.autoddlstarter.generator.entity.FieldMapping> = listOf(

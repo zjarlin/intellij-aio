@@ -1,16 +1,15 @@
-import site.addzero.addl.FieldDTO
+
+import site.addzero.util.ai.agent.dbdesign.FieldDTO
 import javax.swing.table.DefaultTableModel
 
 class FieldsTableModel : DefaultTableModel() {
     private val columnNames = arrayOf("Java Type", "Column Name", "Column Comment")
 
-    // 使用可变的字段列表
-    var fields: MutableList<FieldDTO> = emptyList<FieldDTO>().toMutableList()
+    var fields = emptyList<FieldDTO>().toMutableList()
 
     init {
         setColumnIdentifiers(columnNames)  // 使用列名初始化
     }
-
     override fun getRowCount(): Int {
        return if (fields == null) {
             0

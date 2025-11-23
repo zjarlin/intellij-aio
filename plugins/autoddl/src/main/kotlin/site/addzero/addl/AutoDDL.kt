@@ -53,28 +53,9 @@ private fun genDDL(formDTO: FormDTO): String {
     //用户输入元数据工厂构建方法
     val createDDLContext =
         DDLContextFactory4UserInputMetaInfo.createDDLContext(tableEnglishName, tableName, dbType, map)
-    //未来加入实体元数据抽取工厂
     val databaseDDLGenerator = getDatabaseDDLGenerator(dbType)
     val generateCreateTableDDL = databaseDDLGenerator.generateCreateTableDDL(createDDLContext)
     return generateCreateTableDDL
 }
 
 
-fun main() {
-    val trimIndent = """
-       {
-  "dbName" : "示例数据库名称",
-  "dbType" : "mysql",
-  "fields" : [ {
-    "fieldChineseName" : "字段注释",
-    "fieldName" : "字段名",
-    "javaType" : "String"
-  } ],
-  "tableEnglishName" : "示例英文名",
-  "tableName" : "示例表名"
-} 
-    """.trimIndent()
-    val parseObject = JSON.parseObject(trimIndent, FormDTO::class.java)
-    val genDDL = genDDL(parseObject)
-    println(genDDL)
-}

@@ -2,13 +2,12 @@ package site.addzero.addl.autoddlstarter.generator.defaultconfig
 
 //import io.swagger.v3.oas.annotations.media.Schema
 //import org.babyfish.jimmer.sql.Table
-import site.addzero.util.lsi.anno.Comment
 
 import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
-import site.addzero.addl.ktututil.toUnderlineCase
+import site.addzero.util.lsi.anno.Comment
 import site.addzero.util.str.removeNotChinese
+import site.addzero.util.str.toUnderLineCase
 import java.lang.reflect.AnnotatedElement
-import java.lang.reflect.Field
 
 
 interface IMetaInfoUtil {
@@ -69,18 +68,7 @@ object DefaultMetaInfoUtil : IMetaInfoUtil {
     }
 
     override fun getColumnNameFun(element: JavaFieldMetaInfo): String {
-        return element.name.toUnderlineCase()
-    }
-
-
-    override fun getCommentFun(element: AnnotatedElement): String {
-        val annotation = element.getAnnotation(Comment::class.java)
-        annotation ?: return ""
-
-        if (element is Field) {
-            return if (BaseMetaInfoUtil.isPrimaryKeyBoolean(element.name)) "主键" else return annotation.value
-
-        }
-        return ""
+        val name = element.name
+        return name.toUnderLineCase()
     }
 }

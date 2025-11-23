@@ -1,5 +1,6 @@
-package site.addzero.addl.autoddlstarter.generator
+package site.addzero.addl.autoddlstarter.generator.ex
 
+import site.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 

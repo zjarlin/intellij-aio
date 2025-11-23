@@ -1,7 +1,6 @@
 package site.addzero.addl.action.anycodegen.impl
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread
-import site.addzero.addl.action.anycodegen.AbsGen
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import site.addzero.addl.autoddlstarter.generator.entity.PsiFieldMetaInfo
 import site.addzero.addl.settings.SettingContext

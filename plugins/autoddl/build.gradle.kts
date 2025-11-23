@@ -4,6 +4,9 @@ plugins {
 dependencies {
 
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-intellij"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-psi"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-kt"))
     implementation(project(":lib:tool-swing"))
     implementation(project(":lib:tool-awt"))
     implementation(project(":lib:tool-psi-toml"))

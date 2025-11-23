@@ -1,0 +1,215 @@
+package com.addzero.util.database
+
+import com.intellij.database.dataSource.LocalDataSource
+import com.intellij.database.datagrid.DataRequest
+import com.intellij.database.remote.jdbc.RemoteConnection
+import com.intellij.database.remote.jdbc.RemoteResultSet
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
+import java.sql.ResultSetMetaData
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+
+class IntellijDataBaseSqlExecutor(
+    private val project: Project,
+    private val dataSource: LocalDataSource
+) {
+
+    fun executeSql(sql: String, timeoutSeconds: Long = 30): SqlExecutionResult {
+        val startTime = System.currentTimeMillis()
+        
+        return try {
+            val future = CompletableFuture<SqlExecutionResult>()
+            
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    val connection = getConnection()
+                    if (connection == null) {
+                        future.complete(
+                            SqlExecutionResult.failure(
+                                "无法建立数据库连接: ${dataSource.name}",
+                                System.currentTimeMillis() - startTime
+                            )
+                        )
+                        return@executeOnPooledThread
+                    }
+
+                    val result = executeWithConnection(connection, sql, startTime)
+                    future.complete(result)
+                } catch (e: Exception) {
+                    future.complete(
+                        SqlExecutionResult.failure(
+                            "执行SQL异常: ${e.message}",
+                            System.currentTimeMillis() - startTime
+                        )
+                    )
+                }
+            }
+
+            future.get(timeoutSeconds, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            SqlExecutionResult.failure(
+                "SQL执行超时或异常: ${e.message}",
+                System.currentTimeMillis() - startTime
+            )
+        }
+    }
+
+    fun executeQuery(sql: String, timeoutSeconds: Long = 30): SqlExecutionResult {
+        val startTime = System.currentTimeMillis()
+        
+        return try {
+            val future = CompletableFuture<SqlExecutionResult>()
+            
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    val connection = getConnection()
+                    if (connection == null) {
+                        future.complete(
+                            SqlExecutionResult.failure(
+                                "无法建立数据库连接: ${dataSource.name}",
+                                System.currentTimeMillis() - startTime
+                            )
+                        )
+                        return@executeOnPooledThread
+                    }
+
+                    val result = executeQueryWithConnection(connection, sql, startTime)
+                    future.complete(result)
+                } catch (e: Exception) {
+                    future.complete(
+                        SqlExecutionResult.failure(
+                            "查询SQL异常: ${e.message}",
+                            System.currentTimeMillis() - startTime
+                        )
+                    )
+                }
+            }
+
+            future.get(timeoutSeconds, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            SqlExecutionResult.failure(
+                "查询SQL超时或异常: ${e.message}",
+                System.currentTimeMillis() - startTime
+            )
+        }
+    }
+
+    fun executeUpdate(sql: String, timeoutSeconds: Long = 30): SqlExecutionResult {
+        return executeSql(sql, timeoutSeconds)
+    }
+
+    fun executeBatch(sqlList: List<String>, timeoutSeconds: Long = 60): List<SqlExecutionResult> {
+        return sqlList.map { sql ->
+            executeSql(sql, timeoutSeconds)
+        }
+    }
+
+    private fun getConnection(): RemoteConnection? {
+        return ApplicationManager.getApplication().runReadAction(Computable {
+            try {
+                dataSource.databaseDriver?.connect(
+                    dataSource.url,
+                    dataSource.connectionProperties
+                )
+            } catch (e: Exception) {
+                null
+            }
+        })
+    }
+
+    private fun executeWithConnection(
+        connection: RemoteConnection,
+        sql: String,
+        startTime: Long
+    ): SqlExecutionResult {
+        return try {
+            val statement = connection.createStatement()
+            val isQuery = sql.trim().uppercase().startsWith("SELECT")
+            
+            if (isQuery) {
+                val resultSet = statement.executeQuery(sql)
+                val data = extractResultSetData(resultSet)
+                statement.close()
+                SqlExecutionResult.successWithData(
+                    data,
+                    System.currentTimeMillis() - startTime
+                )
+            } else {
+                val rowsAffected = statement.executeUpdate(sql)
+                statement.close()
+                SqlExecutionResult.success(
+                    rowsAffected,
+                    System.currentTimeMillis() - startTime
+                )
+            }
+        } catch (e: Exception) {
+            SqlExecutionResult.failure(
+                "SQL执行错误: ${e.message}",
+                System.currentTimeMillis() - startTime
+            )
+        }
+    }
+
+    private fun executeQueryWithConnection(
+        connection: RemoteConnection,
+        sql: String,
+        startTime: Long
+    ): SqlExecutionResult {
+        return try {
+            val statement = connection.createStatement()
+            val resultSet = statement.executeQuery(sql)
+            val data = extractResultSetData(resultSet)
+            statement.close()
+            SqlExecutionResult.successWithData(
+                data,
+                System.currentTimeMillis() - startTime
+            )
+        } catch (e: Exception) {
+            SqlExecutionResult.failure(
+                "查询执行错误: ${e.message}",
+                System.currentTimeMillis() - startTime
+            )
+        }
+    }
+
+    private fun extractResultSetData(resultSet: RemoteResultSet): List<Map<String, Any?>> {
+        val data = mutableListOf<Map<String, Any?>>()
+        val metaData: ResultSetMetaData = resultSet.metaData
+        val columnCount = metaData.columnCount
+        
+        while (resultSet.next()) {
+            val row = mutableMapOf<String, Any?>()
+            for (i in 1..columnCount) {
+                val columnName = metaData.getColumnLabel(i)
+                val value = resultSet.getObject(i)
+                row[columnName] = value
+            }
+            data.add(row)
+        }
+        
+        resultSet.close()
+        return data
+    }
+
+    companion object {
+        fun create(project: Project, dataSourceName: String): IntellijDataBaseSqlExecutor? {
+            val dataSource = IntellijDataSourceManager.getDataSourceByName(project, dataSourceName)
+                ?: return null
+            return IntellijDataBaseSqlExecutor(project, dataSource)
+        }
+
+        fun createById(project: Project, dataSourceId: String): IntellijDataBaseSqlExecutor? {
+            val dataSource = IntellijDataSourceManager.getDataSourceById(project, dataSourceId)
+                ?: return null
+            return IntellijDataBaseSqlExecutor(project, dataSource)
+        }
+
+        fun createWithFirst(project: Project): IntellijDataBaseSqlExecutor? {
+            val dataSource = IntellijDataSourceManager.getFirstDataSource(project)
+                ?: return null
+            return IntellijDataBaseSqlExecutor(project, dataSource)
+        }
+    }
+}

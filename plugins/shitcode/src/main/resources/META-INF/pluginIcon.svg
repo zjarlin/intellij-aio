@@ -1,0 +1,34 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Gradient definitions -->
+    <defs>
+        <linearGradient id="warningGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#A0522D;stop-opacity:1" />
+        </linearGradient>
+        <radialGradient id="alertGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#EE5A6F;stop-opacity:1" />
+        </radialGradient>
+    </defs>
+    
+    <!-- Background -->
+    <rect width="40" height="40" rx="4" fill="url(#warningGrad)"/>
+    
+    <!-- Poop emoji stylized (shit icon) -->
+    <path d="M20 10 Q18 8 16 10 Q14 12 16 14 L16 16 Q14 16 12 18 Q10 20 12 22 L12 24 Q10 24 10 26 Q10 30 14 30 L26 30 Q30 30 30 26 Q30 24 28 24 L28 22 Q30 20 28 18 Q26 16 24 16 L24 14 Q26 12 24 10 Q22 8 20 10 Z" 
+          fill="#6B4423" stroke="#563822" stroke-width="1"/>
+    
+    <!-- Eyes -->
+    <circle cx="17" cy="20" r="1.5" fill="#FFFFFF"/>
+    <circle cx="23" cy="20" r="1.5" fill="#FFFFFF"/>
+    <circle cx="17.5" cy="20" r="0.8" fill="#000000"/>
+    <circle cx="23.5" cy="20" r="0.8" fill="#000000"/>
+    
+    <!-- Smile -->
+    <path d="M16 24 Q20 26 24 24" stroke="#563822" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    
+    <!-- Warning badge -->
+    <circle cx="32" cy="10" r="6" fill="url(#alertGrad)" stroke="#FFFFFF" stroke-width="1"/>
+    <text x="32" y="13" font-family="Arial, sans-serif" font-size="10" font-weight="bold" 
+          text-anchor="middle" fill="#FFFFFF">!</text>
+</svg>

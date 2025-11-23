@@ -1,0 +1,27 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Gradient definitions -->
+    <defs>
+        <linearGradient id="mavenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#C71A36;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#E24329;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="searchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#4FC3F7;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#29B6F6;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    
+    <!-- Background -->
+    <rect width="40" height="40" rx="4" fill="url(#mavenGrad)"/>
+    
+    <!-- Maven logo simplified - letter M -->
+    <path d="M8 10 L12 26 L16 18 L20 26 L24 10" 
+          stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Search icon -->
+    <circle cx="29" cy="25" r="5" fill="none" stroke="url(#searchGrad)" stroke-width="2.5"/>
+    <line x1="33" y1="29" x2="36" y2="32" stroke="url(#searchGrad)" stroke-width="2.5" stroke-linecap="round"/>
+    
+    <!-- Highlight dot on search icon -->
+    <circle cx="27.5" cy="23.5" r="1.5" fill="#FFFFFF" opacity="0.8"/>
+</svg>

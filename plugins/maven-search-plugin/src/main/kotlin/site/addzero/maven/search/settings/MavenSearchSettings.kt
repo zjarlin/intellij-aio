@@ -36,6 +36,22 @@ class MavenSearchSettings : PersistentStateComponent<MavenSearchSettings> {
      */
     var searchTimeout: Int = 10
 
+    /**
+     * 防抖延迟时间（毫秒）
+     * 建议值：300-800ms
+     * - 300ms：快速响应，适合快速输入的用户
+     * - 500ms：平衡选项（默认）
+     * - 800ms：减少请求，适合网络较慢的环境
+     */
+    var debounceDelay: Int = 500
+
+    /**
+     * 是否需要手动确认才触发搜索
+     * true：需要按 Enter 键才搜索
+     * false：自动搜索（使用防抖）
+     */
+    var requireManualTrigger: Boolean = false
+
     override fun getState(): MavenSearchSettings = this
 
     override fun loadState(state: MavenSearchSettings) {

@@ -29,6 +29,8 @@ class MavenSearchConfigurable : Configurable {
     private val maxResultsField = JBTextField()
     private val autoCopyCheckBox = JBCheckBox("Automatically copy to clipboard")
     private val timeoutField = JBTextField()
+    private val debounceDelayField = JBTextField()
+    private val requireManualTriggerCheckBox = JBCheckBox("Require Enter key to trigger search (disable auto-search)")
 
     private var modified = false
 
@@ -43,6 +45,12 @@ class MavenSearchConfigurable : Configurable {
         maxResultsField.document.addDocumentListener(SimpleDocumentListener { modified = true })
         autoCopyCheckBox.addActionListener { modified = true }
         timeoutField.document.addDocumentListener(SimpleDocumentListener { modified = true })
+        debounceDelayField.document.addDocumentListener(SimpleDocumentListener { modified = true })
+        requireManualTriggerCheckBox.addActionListener { 
+            modified = true
+            // 当启用手动触发时，禁用防抖延迟设置
+            debounceDelayField.isEnabled = !requireManualTriggerCheckBox.isSelected
+        }
 
         // 构建表单
         val panel = FormBuilder.createFormBuilder()
@@ -60,6 +68,17 @@ class MavenSearchConfigurable : Configurable {
             
             .addLabeledComponent("Search timeout (seconds):", timeoutField)
             .addTooltip("Maximum time to wait for search results")
+            .addVerticalGap(12)
+            
+            .addSeparator(12)
+            .addVerticalGap(8)
+            
+            .addComponent(requireManualTriggerCheckBox)
+            .addTooltip("When enabled, you must press Enter to trigger search. When disabled, search starts automatically after typing stops.")
+            .addVerticalGap(8)
+            
+            .addLabeledComponent("Debounce delay (milliseconds):", debounceDelayField)
+            .addTooltip("Wait time before auto-triggering search after typing stops. Recommended: 300ms (fast), 500ms (balanced), 800ms (slow network)")
             .addVerticalGap(8)
             
             .addComponentFillVertically(JPanel(), 0)
@@ -83,6 +102,8 @@ class MavenSearchConfigurable : Configurable {
         settings.maxResults = maxResultsField.text.toIntOrNull()?.coerceIn(1, 100) ?: 20
         settings.autoCopyToClipboard = autoCopyCheckBox.isSelected
         settings.searchTimeout = timeoutField.text.toIntOrNull()?.coerceIn(1, 60) ?: 10
+        settings.debounceDelay = debounceDelayField.text.toIntOrNull()?.coerceIn(100, 2000) ?: 500
+        settings.requireManualTrigger = requireManualTriggerCheckBox.isSelected
 
         modified = false
     }
@@ -105,6 +126,11 @@ class MavenSearchConfigurable : Configurable {
         maxResultsField.text = settings.maxResults.toString()
         autoCopyCheckBox.isSelected = settings.autoCopyToClipboard
         timeoutField.text = settings.searchTimeout.toString()
+        debounceDelayField.text = settings.debounceDelay.toString()
+        requireManualTriggerCheckBox.isSelected = settings.requireManualTrigger
+        
+        // 根据手动触发设置禁用/启用防抖延迟
+        debounceDelayField.isEnabled = !settings.requireManualTrigger
     }
 }
 

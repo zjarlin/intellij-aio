@@ -69,7 +69,9 @@ org.springframework.boot:spring-boot-starter
 
 进入 `Settings → Tools → Maven Search` 进行配置：
 
-### 依赖格式
+### 基本设置
+
+#### 依赖格式
 
 选择复制依赖时使用的格式：
 
@@ -92,11 +94,33 @@ implementation("com.google.inject:guice:5.1.0")
 implementation 'com.google.inject:guice:5.1.0'
 ```
 
-### 其他配置
+#### 其他基本配置
 
 - **最大搜索结果数**: 1-100（默认 20）
 - **自动复制到剪贴板**: 选择后自动复制（默认启用）
 - **搜索超时**: 1-60 秒（默认 10 秒）
+
+### 搜索行为（Search Behavior）⚡
+
+#### 1. 防抖延迟（Debounce Delay）
+- **默认值**: 500 毫秒
+- **推荐值**:
+  - **300ms** - 快速响应，适合快速输入
+  - **500ms** - 平衡选项（推荐）
+  - **800ms** - 减少请求，适合慢速网络
+- **作用**: 输入停止后等待多久才触发搜索
+- **范围**: 100-2000 毫秒
+
+#### 2. 手动触发模式
+- **选项**: "Require Enter key to trigger search"
+- **默认**: 关闭（自动搜索）
+- **启用后**: 必须按 Enter 键才触发搜索
+- **适用场景**:
+  - 想完全控制搜索时机
+  - 避免输入过程中的网络请求
+  - 网络环境不稳定
+
+**详细说明**: 参见 [DEBOUNCE_CONFIG.md](DEBOUNCE_CONFIG.md)
 
 ## 📖 示例
 

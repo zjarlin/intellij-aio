@@ -22,6 +22,14 @@
         <projectService serviceImplementation="site.addzero.gradle.favorites.service.GradleFavoritesService"/>
         <projectService serviceImplementation="site.addzero.gradle.favorites.strategy.GradleTaskStrategyRegistry"/>
         
+        <!-- Tool Window -->
+        <toolWindow 
+            id="Gradle Favorites" 
+            anchor="right" 
+            factoryClass="site.addzero.gradle.favorites.ui.GradleFavoritesToolWindowFactory"
+            icon="AllIcons.Actions.Favorite"
+            secondary="true"/>
+        
         <!-- Notification Group -->
         <notificationGroup id="Gradle Favorites" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>

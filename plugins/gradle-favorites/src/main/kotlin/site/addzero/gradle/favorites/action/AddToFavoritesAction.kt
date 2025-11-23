@@ -12,16 +12,7 @@ class AddToFavoritesAction : AnAction("Add to Favorites") {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
     
     override fun update(e: AnActionEvent) {
-        val project = e.project
-        if (project == null) {
-            e.presentation.isEnabledAndVisible = false
-            return
-        }
-        
-        val registry = GradleTaskStrategyRegistry.getInstance(project)
-        val strategy = registry.findSupportedStrategy(e)
-        
-        e.presentation.isEnabledAndVisible = strategy != null && strategy.extractTaskInfo(e) != null
+        e.presentation.isEnabledAndVisible = false
     }
     
     override fun actionPerformed(e: AnActionEvent) {

@@ -91,4 +91,33 @@ FavoriteGradleTask(
 
 ## 安装
 
-构建后在 `plugins/gradle-favorites/build/distributions/` 找到插件 zip 包,通过 IDE 的 "Install Plugin from Disk" 安装。
+**方法一: 从源码构建安装**
+1. 构建插件: `./gradlew :plugins:gradle-favorites:build`
+2. 找到插件包: `plugins/gradle-favorites/build/distributions/gradle-favorites-*.zip`
+3. IntelliJ IDEA → Settings → Plugins → ⚙️ → Install Plugin from Disk
+4. 选择 zip 文件并重启 IDE
+
+**方法二: 开发调试**
+```bash
+./gradlew :plugins:gradle-favorites:runIde
+```
+这会启动一个带有插件的测试 IDE 实例。
+
+## 快速使用
+
+### 1. 打开工具窗口
+右侧边栏找到 "Gradle Favorites" (星形图标)
+
+### 2. 添加第一个收藏
+- 点击 "Add Favorite"
+- 模块路径: `:lib:tool-psi`
+- 任务名称: `kspKotlin`
+
+### 3. 在编辑器中执行
+- 打开 `lib/tool-psi/src/` 下的任意文件
+- 右键菜单 → "Gradle Favorites" → 选择任务
+
+### 4. 查看通知
+打开模块文件时会自动提醒可用的收藏任务。
+
+详细使用说明请查看 [USAGE.md](./USAGE.md)。

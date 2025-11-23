@@ -12,23 +12,7 @@ class RemoveFromFavoritesAction : AnAction("Remove from Favorites") {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
     
     override fun update(e: AnActionEvent) {
-        val project = e.project
-        if (project == null) {
-            e.presentation.isEnabledAndVisible = false
-            return
-        }
-        
-        val registry = GradleTaskStrategyRegistry.getInstance(project)
-        val strategy = registry.findSupportedStrategy(e)
-        val taskInfo = strategy?.extractTaskInfo(e)
-        
-        if (taskInfo == null) {
-            e.presentation.isEnabledAndVisible = false
-            return
-        }
-        
-        val service = GradleFavoritesService.getInstance(project)
-        e.presentation.isEnabledAndVisible = service.isFavorite(taskInfo)
+        e.presentation.isEnabledAndVisible = false
     }
     
     override fun actionPerformed(e: AnActionEvent) {

@@ -183,14 +183,11 @@ class AnnotationExtractor {
         val columnAnno = field.annotations.find {
             it.qualifiedName?.endsWith(".Column") == true
         }
-
         columnAnno?.attributes?.get("length")?.let {
             return it.toString().toIntOrNull() ?: -1
         }
-
         return -1
     }
-
     /**
      * 提取精度（用于数值类型）
      */
@@ -213,11 +210,9 @@ class AnnotationExtractor {
         val columnAnno = field.annotations.find {
             it.qualifiedName?.endsWith(".Column") == true
         }
-
         columnAnno?.attributes?.get("scale")?.let {
             return it.toString().toIntOrNull() ?: -1
         }
-
         return -1
     }
 }

@@ -5,7 +5,7 @@ plugins {
 dependencies {
        implementation("site.addzero:tool-jvmstr:+")
 
-    implementation(project(":lib:tool-common"))
+   
 
 
 }

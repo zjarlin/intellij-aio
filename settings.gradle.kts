@@ -18,7 +18,6 @@ autoModules {
     excludeModules = listOf(bdlogic, "buildSrc")
 }
 includeBuild("checkouts/$bdlogic")
-includeBuild("checkouts/metaprogramming-lsi/lsi-build-logic")
 
 fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     include(projectName) {

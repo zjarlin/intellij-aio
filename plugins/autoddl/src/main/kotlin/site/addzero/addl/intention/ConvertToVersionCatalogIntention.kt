@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.psi.KtFile
 import site.addzero.addl.util.catalogutil.*
 import site.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
 import site.addzero.addl.util.removeAnyQuote
+import java.io.File
+import com.intellij.openapi.vfs.LocalFileSystem
 
 class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), IntentionAction {
     override fun getFamilyName(): String = "Convert to version catalog"
@@ -66,7 +68,8 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
         val trimIndent = """
             $libraryKey ={group="${lb.group}",name= "${lb.name}",version.ref="${lb.versionRef}"}
         """.trimIndent()
-        val versionCatalog =TODO()
+        
+        val versionCatalog = findVersionCatalogFile(project) ?: return
         val readText = versionCatalog.readText()
 
         val toToml = TomlUtils.appendAfterTag(readText, "libraries", trimIndent)
@@ -151,6 +154,19 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
         val libraryCatLog = VersionCatalogDTO(versions = entries, libraries = listOf, plugins = null, bundles = null)
         return libraryCatLog
 
+    }
+
+    private fun findVersionCatalogFile(project: Project): File? {
+        val basePath = project.basePath ?: return null
+        
+        val possiblePaths = listOf(
+            "$basePath/gradle/libs.versions.toml",
+            "$basePath/checkouts/build-logic/gradle/libs.versions.toml",
+            "$basePath/build-logic/gradle/libs.versions.toml"
+        )
+        
+        return possiblePaths.map { File(it) }
+            .firstOrNull { it.exists() && it.isFile }
     }
 
 }

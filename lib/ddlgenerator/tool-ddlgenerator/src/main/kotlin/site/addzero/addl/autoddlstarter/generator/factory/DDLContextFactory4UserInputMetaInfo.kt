@@ -13,7 +13,6 @@ import site.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInpu
 import site.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.ktututil.toUnderlineCase
-import site.addzero.addl.util.PinYin4JUtils
 import site.addzero.addl.util.removeAnyQuote
 
 /**

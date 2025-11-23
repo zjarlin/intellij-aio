@@ -4,18 +4,14 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiClass
 import site.addzero.addl.action.StructuredInputDialog
 import site.addzero.addl.ai.util.ai.AiUtil
 import site.addzero.addl.ai.util.ai.ctx.AiCtx
 import site.addzero.addl.ktututil.toJson
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.fieldinfo.PsiUtil
 import site.addzero.util.NotificationUtil
 import site.addzero.util.ShowContentUtil.openTextInEditor
-import site.addzero.util.lsi_impl.impl.kt.clazz.generateMap
-import site.addzero.util.lsi_impl.impl.psi.clazz.generateMap
-import site.addzero.util.psi.PsiUtil.psiCtx
+import site.addzero.util.lsi_impl.impl.intellij.context.lsiContext
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.UnsupportedFlavorException
@@ -68,59 +64,34 @@ class StructuredOutput : AnAction() {
 
 
     private fun callStructuredOutputInterface(project: Project, question: String, promptTemplate: String): String {
-        val (editor1, psiClass, ktClass, psiFile, virtualFile, classPath1) = project.psiCtx()
+        val context = project.lsiContext()
+        val lsiClass = context.currentClass ?: return "无法获取当前类信息"
         val settings = SettingContext.settings
         val modelManufacturer = settings.modelManufacturer
 
-        val any = if (ktClass == null) {
-            psiClass ?: return ""
-            val (jsonString, buildStructureOutPutPrompt) = javaPromt(
-                psiClass!!, project, question, promptTemplate
-            )
-            val ask = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
-            ask
-        } else {
-//            val jsonobj = Psi2Json.ktClassToJson(toKtClass, project)
-//            val jsonString = jsonobj.toJson()
-            val generateMap = ktClass.generateMap()
-            val jsonString = generateMap.toJson()
-            val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(ktClass)
-
-            val associateBy = extractInterfaceMetaInfo.associateBy({ it.comment }, { it.name })
-            val buildStructureOutPutPrompt = AiUtil.buildStructureOutPutPrompt(associateBy)
-
-            val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(
-                question, promptTemplate, buildStructureOutPutPrompt, buildStructureOutPutPrompt
-            )
-            val ask1 = AiUtil.INIT(modelManufacturer, question, promptTemplate).ask(jsonString, buildStructureOutPutPrompt)
-            ask1
+        // 使用LSI生成字段信息
+        val fields = lsiClass.fields
+        val fieldMap = fields.associate { field ->
+            (field.comment ?: field.name) to (field.name ?: "")
         }
-
-//        PsiUtil.
-//        val toJson = any.toJson()
-//        return toJson
-        return any
-    }
-
-    private fun javaPromt(
-        psiClass: PsiClass,
-        project: Project,
-        question: String,
-        promptTemplate: String,
-    ): Pair<String, String> {
-//        val psiClassToJson = Psi2Json.psiClassToJson(psiClass, project)
-//        val jsonString = psiClassToJson.toJson()
-
-        val generateMap = psiClass.generateMap()
-        val jsonString = generateMap.toJson()
-        val extractInterfaceMetaInfo = PsiUtil.extractInterfaceMetaInfo(psiClass)
-
-        val associateBy = extractInterfaceMetaInfo.associateBy({ it.comment }, { it.name })
-        val buildStructureOutPutPrompt = AiUtil.buildStructureOutPutPrompt(associateBy)
-
+        
+        // 生成JSON结构
+        val jsonMap = fields.associate { field ->
+            (field.name ?: "") to (field.type?.simpleName ?: "String")
+        }
+        val jsonString = jsonMap.toJson()
+        
+        // 构建结构化输出提示
+        val buildStructureOutPutPrompt = AiUtil.buildStructureOutPutPrompt(fieldMap)
+        
         val (newPrompt, quesCtx) = AiCtx.structuredOutputContext(
             question, promptTemplate, buildStructureOutPutPrompt, buildStructureOutPutPrompt
         )
-        return Pair(jsonString, buildStructureOutPutPrompt)
+        
+        val response = AiUtil.INIT(modelManufacturer, question, promptTemplate)
+            .ask(jsonString, buildStructureOutPutPrompt)
+        
+        return response
     }
+
 }

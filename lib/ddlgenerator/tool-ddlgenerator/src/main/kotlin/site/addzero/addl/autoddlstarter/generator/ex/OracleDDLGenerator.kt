@@ -8,17 +8,19 @@ import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import site.addzero.addl.settings.SettingContext
 import site.addzero.addl.util.JlStrUtil
-import site.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
+import site.addzero.ddl.core.model.DDLContext
+import site.addzero.util.str.makeSurroundWith
 
 class OracleDDLGenerator : DatabaseDDLGenerator() {
     override fun generateCreateTableDDL(ddlContext: DDLContext): String {
         var (tableChineseName, tableEnglishName, databaseType, databaseName, dto) = ddlContext
-        tableEnglishName = tableEnglishName.uppercase()
+        val uppercase = tableEnglishName.uppercase()
+        tableEnglishName = uppercase
 
         val tableRef = if (databaseName.isBlank()) {
-            JlStrUtil.makeSurroundWith(tableEnglishName.uppercase(), "\"")
+            uppercase.makeSurroundWith("\"")
         } else {
-            "\"$databaseName\".\"${tableEnglishName.uppercase()}\""
+            "\"$databaseName\".\"$uppercase\""
         }
         val settings = SettingContext.settings
 

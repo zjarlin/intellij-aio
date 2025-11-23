@@ -14,10 +14,8 @@ import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTextType
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTimeType
 import site.addzero.addl.autoddlstarter.generator.entity.FieldMapping
 import site.addzero.addl.autoddlstarter.generator.ex.*
-import site.addzero.addl.ktututil.equalsIgnoreCase
 import site.addzero.addl.ktututil.toCamelCase
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.containsAny
 import site.addzero.util.str.equalsIgnoreCase
 import java.math.BigDecimal
 import java.time.LocalDateTime

@@ -2,7 +2,6 @@ package site.addzero.addl.autoddlstarter.generator.factory
 
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
-import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.isPrimaryKey
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.javaFieldMetaInfos
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.DefaultMetaInfoUtil
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
@@ -11,12 +10,47 @@ import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.ktututil.toUnderlineCase
 import site.addzero.addl.util.fieldinfo.PsiUtil
 import site.addzero.addl.util.removeAnyQuote
+import site.addzero.util.str.biz.isPrimaryKey
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.psi.KtClass
 
 private const val UNKNOWN_TABLE_NAME = "unknown_table_name"
 
 object DDLContextFactory4JavaMetaInfo {
+    
+    /**
+     * 从LSI类创建DDLContext（语言无关）
+     */
+    fun createDDLContextFromLsi(lsiClass: site.addzero.util.lsi.clazz.LsiClass, databaseType: String = "mysql"): DDLContext {
+        // 提取表名（从注解或类名）
+        val className = lsiClass.name ?: UNKNOWN_TABLE_NAME
+        val classComment = lsiClass.comment ?: className
+        
+        val tableEnglishName = className.toUnderlineCase()
+        val tableChineseName = classComment.ifBlank { className }
+
+        // 提取字段信息
+        val fields = lsiClass.fields.map { field ->
+            val fieldName = field.name ?: ""
+            val fieldType = field.type?.simpleName ?: "String"
+            val fieldComment = field.comment ?: fieldName
+            val genericType = "" // LSI层暂不支持泛型信息
+            
+            JavaFieldMetaInfo(fieldName, fieldType, genericType, fieldComment)
+        }
+
+        // 创建范围上下文
+        val rangeContexts = fields.map { field ->
+            createRangeContext(field, databaseType)
+        }
+
+        return DDLContext(
+            tableChineseName = tableChineseName.removeAnyQuote(),
+            tableEnglishName = tableEnglishName.removeAnyQuote(),
+            databaseType = databaseType.removeAnyQuote(),
+            dto = rangeContexts,
+        )
+    }
     fun createDDLContext4KtClass(ktClass: KtClass, databaseType: String = "mysql"): DDLContext {
         var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (ktClass)
         tableEnglishName= tableEnglishName!!.ifBlank { UNKNOWN_TABLE_NAME }

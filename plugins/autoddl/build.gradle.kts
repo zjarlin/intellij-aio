@@ -1,6 +1,14 @@
+
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+intellijPlatform {
+    pluginConfiguration {
+        id = "com.addzero.autoddl"
+        name = "AutoDDL"
+    }
+}
+
 dependencies {
 
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))

@@ -1,17 +1,26 @@
 package com.addzero.util.database
 
 import com.intellij.database.dataSource.LocalDataSource
-import com.intellij.database.datagrid.DataRequest
 import com.intellij.database.remote.jdbc.RemoteConnection
 import com.intellij.database.remote.jdbc.RemoteResultSet
+import com.intellij.database.run.ui.DataAccessType
+import com.intellij.database.util.DbImplUtilCore
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
-import java.sql.ResultSetMetaData
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
+/**
+ * IntelliJ IDEA 数据库 SQL 执行器
+ * 
+ * 提供在 IntelliJ IDEA 中执行 SQL 语句的功能
+ * 
+ * 注意：这是一个工具类，部分方法可能暂未使用，但提供了完整的 API
+ */
+@Suppress("unused", "MemberVisibilityCanBePrivate")
 class IntellijDataBaseSqlExecutor(
+    @Suppress("unused") // 保留以供未来使用
     private val project: Project,
     private val dataSource: LocalDataSource
 ) {
@@ -107,16 +116,35 @@ class IntellijDataBaseSqlExecutor(
     }
 
     private fun getConnection(): RemoteConnection? {
-        return ApplicationManager.getApplication().runReadAction(Computable {
-            try {
-                dataSource.databaseDriver?.connect(
-                    dataSource.url,
-                    dataSource.connectionProperties
-                )
-            } catch (e: Exception) {
-                null
-            }
-        })
+        return try {
+            // 使用 DbImplUtilCore.connect 获取连接（推荐方式）
+            @Suppress("DEPRECATION")
+            ApplicationManager.getApplication().runReadAction(Computable {
+                try {
+                    DbImplUtilCore.connect(
+                        dataSource,
+                        DataAccessType.DATABASE_ACCESS,
+                        false,
+                        null
+                    )
+                } catch (_: Exception) {
+                    // 如果新 API 失败，尝试使用反射调用旧的 connect 方法
+                    try {
+                        val driver = dataSource.databaseDriver ?: return@Computable null
+                        val connectMethod = driver.javaClass.getMethod(
+                            "connect",
+                            String::class.java,
+                            java.util.Properties::class.java
+                        )
+                        connectMethod.invoke(driver, dataSource.url, dataSource.connectionProperties) as? RemoteConnection
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            })
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun executeWithConnection(
@@ -176,7 +204,8 @@ class IntellijDataBaseSqlExecutor(
 
     private fun extractResultSetData(resultSet: RemoteResultSet): List<Map<String, Any?>> {
         val data = mutableListOf<Map<String, Any?>>()
-        val metaData: ResultSetMetaData = resultSet.metaData
+        // 使用 RemoteResultSetMetaData 而不是 ResultSetMetaData
+        val metaData = resultSet.metaData
         val columnCount = metaData.columnCount
         
         while (resultSet.next()) {

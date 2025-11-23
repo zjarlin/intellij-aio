@@ -1,0 +1,60 @@
+<idea-plugin>
+    <id>site.addzero.maven-search</id>
+    <name>Maven Dependency Search</name>
+    <vendor>AddZero</vendor>
+    
+    <description><![CDATA[
+    <h3>Maven Dependency Search Plugin</h3>
+    <p>Quick search for Maven dependencies from Maven Central directly in IntelliJ IDEA.</p>
+    
+    <h4>Features:</h4>
+    <ul>
+        <li>🔍 Search Maven Central by pressing Shift+Shift</li>
+        <li>📋 Copy dependency declarations in Maven or Gradle format</li>
+        <li>⚙️ Configurable output format (Maven XML, Gradle Kotlin DSL, Gradle Groovy DSL)</li>
+        <li>⚡ Fast and lightweight search</li>
+        <li>🎯 Smart search: support groupId, artifactId, or keyword search</li>
+    </ul>
+    
+    <h4>Usage:</h4>
+    <ol>
+        <li>Press <b>Shift+Shift</b> to open Search Everywhere</li>
+        <li>Switch to <b>Maven Dependencies</b> tab</li>
+        <li>Type your search query (e.g., "spring-boot", "com.google.guice", or "guice:5.0")</li>
+        <li>Select a result and press Enter to copy to clipboard</li>
+    </ol>
+    
+    <h4>Configuration:</h4>
+    <p>Go to <b>Settings → Tools → Maven Search</b> to configure:</p>
+    <ul>
+        <li>Dependency format (Maven XML / Gradle Kotlin / Gradle Groovy)</li>
+        <li>Maximum search results</li>
+        <li>Auto-copy to clipboard</li>
+        <li>Search timeout</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Search Everywhere Contributor -->
+        <searchEverywhereContributor 
+            implementation="site.addzero.maven.search.MavenDependencySearchContributorFactory"/>
+        
+        <!-- Settings Page -->
+        <projectConfigurable
+            parentId="tools"
+            instance="site.addzero.maven.search.settings.MavenSearchConfigurable"
+            id="site.addzero.maven.search.settings"
+            displayName="Maven Search"/>
+        
+        <!-- Application Service for Settings -->
+        <applicationService
+            serviceImplementation="site.addzero.maven.search.settings.MavenSearchSettings"/>
+        
+        <!-- Notification Group -->
+        <notificationGroup 
+            id="MavenSearch" 
+            displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>

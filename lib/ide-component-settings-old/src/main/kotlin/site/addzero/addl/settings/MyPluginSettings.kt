@@ -1,144 +1,218 @@
 package site.addzero.addl.settings
 
+import site.addzero.addl.consts.*
+import site.addzero.ide.dynamicform.annotation.*
 
-
-@SettingsGroup(
-    groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(
-        name = "template", title = "模板配置", order = 2
-    ), Group(name = "db", title = "数据库配置", order = 3), Group(name = "dict", title = "字典配置", order = 4), Group(
-        name = "intention", title = "意图配置", order = 5
-    )]
+@FormConfig(
+    title = "AutoDDL设置",
+    description = "配置AutoDDL插件的各项参数"
 )
-//@State(
-//    name = "AutoDDLSettings",
-//    storages = [Storage("AutoDDLSettings.xml")]
-//)
+@FormGroups(
+    groups = [
+        FormGroup(name = "template", title = "模板配置", order = 1),
+        FormGroup(name = "ai", title = "AI模型配置", order = 2),
+        FormGroup(name = "db", title = "数据库配置", order = 3),
+        FormGroup(name = "dict", title = "字典配置", order = 4),
+        FormGroup(name = "intention", title = "意图配置", order = 5)
+    ]
+)
 data class MyPluginSettings(
-    // AI模型配置组
-    @ConfigField(
+    @ComboBox(
         label = "控制器模板风格",
-        type = FieldType.DROPDOWN,
-        options = ["INHERITANCE", "STANDALONE"],
         group = "template",
-        order = 1
-    ) @JvmField var controllerStyle: String = "STANDALONE",
-
-    @ConfigField(label = "模型Key", group = "ai", order = 1) @JvmField var modelKey: String = "",
-
-    @ConfigField(
-        label = "模型厂商", type = FieldType.DROPDOWN, options = [DASH_SCOPE, OLLAMA, DeepSeek], group = "ai", order = 2
-    ) @JvmField var modelManufacturer: String = DeepSeek,
-
-    @ConfigField(
+        order = 1,
+        options = ["INHERITANCE", "STANDALONE"],
+        description = "选择控制器的代码生成风格"
+    )
+    @JvmField var controllerStyle: String = "STANDALONE",
+    
+    @TextField(
+        label = "模型Key",
+        group = "ai",
+        order = 1,
+        required = true,
+        placeholder = "请输入API密钥",
+        description = "AI服务的API密钥"
+    )
+    @JvmField var modelKey: String = "",
+    
+    @ComboBox(
+        label = "模型厂商",
+        group = "ai",
+        order = 2,
+        options = [DASH_SCOPE, OLLAMA, DeepSeek],
+        description = "选择AI模型提供商"
+    )
+    @JvmField var modelManufacturer: String = DeepSeek,
+    
+    @ComboBox(
         label = "在线模型",
-        type = FieldType.DROPDOWN,
+        group = "ai",
+        order = 3,
         options = [QWEN_TURBO, QWEN_1_5B_INSTRUCT, QWEN_1_5B_CODER_INSTRUCT, QWEN_MAX, DeepSeekOnlineModel, DeepSeekOnlineModelCoder],
+        description = "选择在线AI模型"
+    )
+    @JvmField var modelNameOnline: String = DeepSeekOnlineModel,
+    
+    @TextField(
+        label = "Ollama远程URL",
         group = "ai",
-        order = 3
-    ) @JvmField var modelNameOnline: String = DeepSeekOnlineModel,
-
-    @ConfigField(
-        label = "ollama远程url", group = "ai", order = 4
-    ) @JvmField var ollamaUrl: String = "http://localhost:11434",
-
-    @ConfigField(
-        label = "离线ollama模型",
-        type = FieldType.DROPDOWN,
+        order = 4,
+        placeholder = "http://localhost:11434",
+        description = "Ollama服务的远程地址"
+    )
+    @JvmField var ollamaUrl: String = "http://localhost:11434",
+    
+    @ComboBox(
+        label = "离线Ollama模型",
+        group = "ai",
+        order = 5,
         options = [QWEN2_5_CODER_0_5B, QWEN2_5_1_5B, QWEN2_5_CODER_1_5B, CODEGEMMA, DEEPSEEK_R1, QWQ],
+        description = "选择本地Ollama模型"
+    )
+    @JvmField var modelNameOffline: String = DEEPSEEK_R1,
+    
+    @TextField(
+        label = "温度参数",
         group = "ai",
-        order = 5
-    ) @JvmField var modelNameOffline: String = DEEPSEEK_R1,
-
+        order = 6,
+        placeholder = "0.4",
+        description = "AI生成的随机性，0-1之间，值越大越随机"
+    )
     @JvmField var temPerature: String = "0.4",
-
-//    @ConfigField(
-//        label = "模块路径(单模块不填,多模块例  backend/service)", group = "db", order = 0
-//    )
-//    @JvmField
-//    var modulePath: String = "",
-
-    @ConfigField(label = "flayway文件保存路径", group = "db", order = 0) @JvmField
-    var flaywayPath: String = "src/main/resources/db/migration/autoddl",
-
-    @ConfigField(label = "ddl元数据保存路径", group = "db", order = 0)
-    @JvmField
-    var entityDdlContextMetaJsonPath: String = "src/main/resources/db/meta",
-
-    // 数据库配置组
-    @ConfigField(
-        label = "数据库类型",
-        type = FieldType.DROPDOWN,
-        options = ["mysql", "oracle", "pg", "dm", "h2", "tdengine"],
+    
+    @TextField(
+        label = "Flyway文件保存路径",
         group = "db",
-        order = 1
-    ) @JvmField var dbType: String = "mysql",
-
-    @ConfigField(label = "规范id", group = "db", order = 2) @JvmField var id: String = "id",
-
-    @ConfigField(label = "规范id类型", group = "db", order = 3) @JvmField var idType: String = "BIGINT",
-
-    @ConfigField(label = "规范create_by", group = "db", order = 4) @JvmField var createBy: String = "create_by",
-
-    @ConfigField(label = "规范update_by", group = "db", order = 5) @JvmField var updateBy: String = "update_by",
-
-    @ConfigField(label = "规范create_time", group = "db", order = 6) @JvmField var createTime: String = "create_time",
-
-    @ConfigField(label = "规范update_time", group = "db", order = 7) @JvmField var updateTime: String = "update_time",
-
-    // 字典配置组
-    @ConfigField(label = "枚举生成的包路径", group = "dict", order = 1) @JvmField var enumPkg: String = "./",
-
-//    @ConfigField(label = "规范枚举表名称", group = "dict", order = 2) @JvmField var dictTableName: String = "sys_dict",
-//
-//    @ConfigField(label = "规范枚举表id", group = "dict", order = 3) @JvmField var did: String = "id",
-//
-//    @ConfigField(label = "规范枚举表分组编码", group = "dict", order = 4) @JvmField var dcode: String = "dict_code",
-//
-//    @ConfigField(label = "规范枚举表分组名称", group = "dict", order = 5) @JvmField var ddes: String = "dict_name",
-//
-//    @ConfigField(label = "规范枚举项表名称", group = "dict", order = 6) @JvmField var itemTableName: String = "sys_dict_item",
-//
-//    @ConfigField(label = "规范枚举项外键", group = "dict", order = 7) @JvmField var exdictid: String = "dict_id",
-//
-//    @ConfigField(label = "规范枚举项code", group = "dict", order = 8) @JvmField var icode: String = "item_value",
-//
-//    @ConfigField(label = "规范枚举项name", group = "dict", order = 9) @JvmField var ides: String = "item_text",
-
-    @ConfigField(
-        label = "枚举项注解模板(默认jimmer)"
-//        , type = FieldType.TEXT
-
-        , type = FieldType.DROPDOWN, options = [JimmerAnno, ""], group = "dict", order = 10
-    ) @JvmField var enumAnnotation: String = JimmerAnno,
-
-
-    @ConfigField(
-        label = "swagger意图注解(默认swagger3)",
-//        , type = FieldType.TEXT
-        group = "intention", type = FieldType.DROPDOWN, options = [Swagger3Anno, Swagger2Anno], order = 1
-    ) @JvmField var swaggerAnnotation: String = Swagger3Anno,
-
-
-    @ConfigField(
-        label = "excel意图注解(默认fastexcel/easyexcel)",
-//        , type = FieldType.TEXT
-        group = "intention", type = FieldType.DROPDOWN, options = [FastExcelAnno, PoiAnno], order = 2
-    ) @JvmField var excelAnnotation: String = FastExcelAnno,
-
-
-    @ConfigField(
-        label = "自定义意图注解(注释元数据生成相应注解)",
-//        , type = FieldType.TEXT
-        group = "intention", type = FieldType.TEXT, order = 3
-    ) @JvmField var customAnnotation: String = CustomAnno,
-
-    @ConfigField(
+        order = 1,
+        description = "DDL文件的保存位置",
+        placeholder = "src/main/resources/db/migration/autoddl"
+    )
+    @JvmField var flaywayPath: String = "src/main/resources/db/migration/autoddl",
+    
+    @TextField(
+        label = "DDL元数据保存路径",
+        group = "db",
+        order = 2,
+        description = "实体元数据JSON文件的保存位置",
+        placeholder = "src/main/resources/db/meta"
+    )
+    @JvmField var entityDdlContextMetaJsonPath: String = "src/main/resources/db/meta",
+    
+    @ComboBox(
+        label = "数据库类型",
+        group = "db",
+        order = 3,
+        options = ["mysql", "oracle", "pg", "dm", "h2", "tdengine"],
+        description = "选择目标数据库类型"
+    )
+    @JvmField var dbType: String = "mysql",
+    
+    @TextField(
+        label = "规范ID字段",
+        group = "db",
+        order = 4,
+        placeholder = "id",
+        description = "主键字段名称"
+    )
+    @JvmField var id: String = "id",
+    
+    @TextField(
+        label = "规范ID类型",
+        group = "db",
+        order = 5,
+        placeholder = "BIGINT",
+        description = "主键字段的数据库类型"
+    )
+    @JvmField var idType: String = "BIGINT",
+    
+    @TextField(
+        label = "规范创建人字段",
+        group = "db",
+        order = 6,
+        placeholder = "create_by",
+        description = "创建人字段名称"
+    )
+    @JvmField var createBy: String = "create_by",
+    
+    @TextField(
+        label = "规范更新人字段",
+        group = "db",
+        order = 7,
+        placeholder = "update_by",
+        description = "更新人字段名称"
+    )
+    @JvmField var updateBy: String = "update_by",
+    
+    @TextField(
+        label = "规范创建时间字段",
+        group = "db",
+        order = 8,
+        placeholder = "create_time",
+        description = "创建时间字段名称"
+    )
+    @JvmField var createTime: String = "create_time",
+    
+    @TextField(
+        label = "规范更新时间字段",
+        group = "db",
+        order = 9,
+        placeholder = "update_time",
+        description = "更新时间字段名称"
+    )
+    @JvmField var updateTime: String = "update_time",
+    
+    @TextField(
+        label = "枚举生成的包路径",
+        group = "dict",
+        order = 1,
+        placeholder = "./",
+        description = "生成枚举类的目标包路径"
+    )
+    @JvmField var enumPkg: String = "./",
+    
+    @ComboBox(
+        label = "枚举项注解模板",
+        group = "dict",
+        order = 2,
+        description = "选择枚举项的注解模板（默认Jimmer）",
+        options = [JimmerAnno, ""]
+    )
+    @JvmField var enumAnnotation: String = JimmerAnno,
+    
+    @ComboBox(
+        label = "Swagger意图注解",
+        group = "intention",
+        order = 1,
+        description = "选择Swagger注解版本（默认Swagger3）",
+        options = [Swagger3Anno, Swagger2Anno]
+    )
+    @JvmField var swaggerAnnotation: String = Swagger3Anno,
+    
+    @ComboBox(
+        label = "Excel意图注解",
+        group = "intention",
+        order = 2,
+        description = "选择Excel注解库（默认FastExcel/EasyExcel）",
+        options = [FastExcelAnno, PoiAnno]
+    )
+    @JvmField var excelAnnotation: String = FastExcelAnno,
+    
+    @TextField(
+        label = "自定义意图注解",
+        group = "intention",
+        order = 3,
+        description = "从注释元数据生成相应注解的模板",
+        placeholder = "@CustomAnno(\"{}\")"
+    )
+    @JvmField var customAnnotation: String = CustomAnno,
+    
+    @TextField(
         label = "垃圾代码注解",
         group = "intention",
-        type = FieldType.TEXT,
-        order = 4
-    ) @JvmField var shitAnnotation: String = "Shit",
-
-
-    ) {
-}
+        order = 4,
+        description = "标记需要清理的代码",
+        placeholder = "Shit"
+    )
+    @JvmField var shitAnnotation: String = "Shit"
+)

@@ -5,8 +5,6 @@ package site.addzero.util.psi
 
 // K2兼容API导入
 import site.addzero.util.lsi.constant.JavaNullableType
-import site.addzero.util.lsi.constant.Language
-import site.addzero.util.lsi.exp.IllegalFileFormatException
 import site.addzero.util.meta.*
 import site.addzero.util.psi.clazz
 import site.addzero.util.psi.javaclass.PsiClassUtil
@@ -37,7 +35,7 @@ fun VirtualFile.nameIdentifier(project: Project): PsiNameIdentifierOwner? {
                 ktClass(project) as PsiNameIdentifierOwner?
             }
         }
-    } catch (e: IllegalFileFormatException) {
+    } catch (e: IllegalArgumentException) {
         null
     }
 }
@@ -57,7 +55,7 @@ fun VirtualFile.annotations(project: Project): List<String> {
                 file.ktClass(project)?.annotationEntries?.map { it.qualifiedName }
             }
         }
-    } catch (e: IllegalFileFormatException) {
+    } catch (e: IllegalArgumentException) {
         emptyList()
     }
     return annotations ?: emptyList()

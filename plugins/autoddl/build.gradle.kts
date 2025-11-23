@@ -2,6 +2,8 @@ plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 dependencies {
+
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
     implementation(project(":lib:tool-swing"))
     implementation(project(":lib:tool-awt"))
     implementation(project(":lib:tool-psi-toml"))
@@ -12,6 +14,7 @@ dependencies {
     implementation("site.addzero:tool-toml:+")
     implementation("site.addzero:tool-io-codegen:+")
     implementation("site.addzero:tool-str:2025.11.27")
+    implementation("site.addzero:tool-jvmstr:2025.11.27")
     implementation("site.addzero:tool-coll:+")
     implementation("site.addzero:tool-reflection:+")
 

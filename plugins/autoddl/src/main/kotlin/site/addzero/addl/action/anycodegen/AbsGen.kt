@@ -13,17 +13,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import site.addzero.util.lsi_impl.impl.psi.project.psiCtx
 import site.addzero.util.str.addSuffixIfNot
-import site.addzero.util.str.extractMarkdownBlockContent
 import site.addzero.util.str.removeAny
 import java.io.File
-
-fun main() {
-    "site.addzero.addl.action.anycodegen.AbsGen".let {
-        val parent = File(it).parent
-        println(parent)
-
-    }
-}
 
 
 abstract class AbsGen : AnAction() {
@@ -43,7 +34,8 @@ abstract class AbsGen : AnAction() {
         }
     }
 
-    open fun genCode4Java(psiFieldMetaInfo: PsiFieldMetaInfo): String = genCode4Kt(psiFieldMetaInfo)
+    //todo PsiFieldMetaInfo面向LsiField 解析
+    open fun genCode4Java(psiFieldMetaInfo: Lsif): String = genCode4Kt(psiFieldMetaInfo)
     abstract fun genCode4Kt(psiFieldMetaInfo: PsiFieldMetaInfo): String
 
     open val suffix: String = ""

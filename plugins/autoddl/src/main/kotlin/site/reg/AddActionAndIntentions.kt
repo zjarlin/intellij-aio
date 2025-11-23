@@ -1,16 +1,14 @@
 package site.reg
 
 //import site.addzero.addl.intention.RemoveShitCodeIntention
+import com.intellij.codeInsight.intention.IntentionManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.ProjectActivity
 import site.addzero.addl.action.dictgen.intention.GenEnumByFieldCommentIntention
 import site.addzero.addl.intention.custom.AddCusTomAnnotationAction
 import site.addzero.addl.intention.custom.AddCusTomAnnotationJavaAction
 import site.addzero.addl.intention.excel.AddExcelPropertyAnnotationAction
 import site.addzero.addl.intention.excel.AddExcelPropertyAnnotationJavaAction
-import site.addzero.addl.intention.swagger.AddSwaggerAnnotationAction
-import site.addzero.addl.intention.swagger.AddSwaggerAnnotationJavaAction
-import com.intellij.codeInsight.intention.IntentionManager
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.startup.ProjectActivity
 
 
 class AddActionAndIntentions : ProjectActivity {
@@ -42,14 +40,12 @@ private fun registerIntentions() {
 
 
     //注册java意图
-    intentionManager.addAction(AddSwaggerAnnotationJavaAction())
     intentionManager.addAction(AddExcelPropertyAnnotationJavaAction())
     intentionManager.addAction(AddCusTomAnnotationJavaAction())
     intentionManager.addAction(GenEnumByFieldCommentIntention())
 
 
     //注册kt意图
-    intentionManager.addAction(AddSwaggerAnnotationAction())
     intentionManager.addAction(AddExcelPropertyAnnotationAction())
     intentionManager.addAction(AddCusTomAnnotationAction())
 //    intentionManager.addAction(ConvertToVersionCatalogIntention())

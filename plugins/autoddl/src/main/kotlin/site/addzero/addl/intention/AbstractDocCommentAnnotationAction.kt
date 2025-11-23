@@ -30,6 +30,7 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     override fun getFamilyName() = text
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile?): Boolean {
+//        file?.virtualFile
         val element = file.getCurrentPsiElement(editor)
         val kotlinPojo = isKotlinPojo(element)
         // 检查是否为Java文件

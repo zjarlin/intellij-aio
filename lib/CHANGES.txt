@@ -1,0 +1,141 @@
+# 动态表单系统 - 文件变更列表
+
+## 新增模块: ide-component-dynamicform/
+
+### 核心代码
+✅ src/main/kotlin/site/addzero/ide/dynamicform/annotation/FormAnnotations.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/model/FormModels.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/parser/FormDescriptorParser.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/FieldRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/FieldRendererRegistry.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/TextFieldRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/TextAreaRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/ComboBoxRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/CheckBoxRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/NumberFieldRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/renderer/impl/PasswordFieldRenderer.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/validation/ValidationEngine.kt
+✅ src/main/kotlin/site/addzero/ide/dynamicform/engine/DynamicFormEngine.kt
+
+### 配置文件
+✅ build.gradle.kts
+
+### 文档文件
+✅ README.md
+✅ QUICK_REFERENCE.md
+✅ ARCHITECTURE.md
+✅ USAGE_EXAMPLE.md
+✅ SUMMARY.md
+✅ PROJECT_STATS.md
+
+## 重构模块: ide-component-settings-old/
+
+### 删除的文件
+❌ src/main/kotlin/site/addzero/addl/settings/ConfigField.kt
+❌ src/main/kotlin/site/addzero/addl/settings/MyPluginConfigurable.kt (旧版本)
+❌ src/main/kotlin/site/addzero/addl/settings/MyPluginConfigurableV2.kt
+❌ src/main/kotlin/site/addzero/addl/settings/MyPluginSettingsV2.kt
+
+### 修改的文件
+📝 src/main/kotlin/site/addzero/addl/settings/MyPluginSettings.kt (完全重写)
+📝 src/main/kotlin/site/addzero/addl/settings/MyPluginConfigurable.kt (完全重写)
+📝 src/main/kotlin/site/addzero/addl/consts/SwaggerAnno.kt (添加常量)
+📝 build.gradle.kts (添加依赖)
+
+### 保留的文件
+✓ src/main/kotlin/site/addzero/addl/settings/MyPluginSettingsService.kt (未修改)
+
+## 重构模块: ide-component-settings/
+
+### 删除的目录
+❌ src/main/kotlin/site/addzero/ide/config/ (整个目录)
+❌ src/main/kotlin/site/addzero/ide/ui/ (整个目录)
+
+### 新增的文件
+✅ src/main/kotlin/site/addzero/ide/settings/DynamicConfigurable.kt
+✅ src/main/kotlin/site/addzero/ide/settings/SettingsService.kt
+✅ src/main/kotlin/site/addzero/ide/settings/example/ExampleSettings.kt
+✅ README.md
+
+### 修改的文件
+📝 build.gradle.kts (更新依赖)
+
+## 总体文档
+
+### lib/ 根目录新增
+✅ REFACTORING_BREAKING_CHANGES.md
+✅ FINAL_SUMMARY.md
+✅ CHANGES.txt (本文件)
+
+## 统计数据
+
+### 文件数量
+- 新增: 27个文件
+- 删除: 13个文件
+- 修改: 6个文件
+- 净增加: 14个文件
+
+### 代码行数
+- 新增: ~961行 (核心代码)
+- 删除: ~1500行 (旧代码)
+- 净减少: ~539行
+
+### 文档行数
+- 新增: ~3000行 (文档)
+
+## 破坏性变更
+
+### API变更
+- ConfigField → TextField/ComboBox/等
+- FieldType → 删除
+- SettingsGroup → FormGroups
+- BaseConfigurableTreeUI → DynamicConfigurable
+- DynamicFormBuilder (旧) → DynamicFormEngine (新)
+
+### 包结构变更
+- site.addzero.addl.settings.ConfigField → 删除
+- site.addzero.ide.config.* → 删除
+- site.addzero.ide.ui.form.* → 删除
+- site.addzero.ide.dynamicform.* → 新增
+- site.addzero.ide.settings.* → 新增
+
+### 依赖变更
+- ide-component-settings-old: 新增依赖 ide-component-dynamicform
+- ide-component-settings: 新增依赖 ide-component-dynamicform
+
+## 迁移清单
+
+需要更新的代码位置:
+1. 所有使用 @ConfigField 的地方
+2. 所有使用 FieldType 的地方
+3. 所有继承 BaseConfigurableTreeUI 的类
+4. 所有使用 ConfigRegistry 的地方
+5. 所有使用 DynamicFormBuilder (旧) 的地方
+
+## 验证步骤
+
+1. 编译检查:
+   ./gradlew :lib:ide-component-dynamicform:build
+   ./gradlew :lib:ide-component-settings-old:build
+   ./gradlew :lib:ide-component-settings:build
+
+2. 运行测试:
+   ./gradlew test
+
+3. 运行插件:
+   ./gradlew runIde
+
+4. 检查设置页面:
+   Tools → AutoDDL Settings
+
+## 回滚信息
+
+如需回滚，执行:
+git checkout <commit-before-refactoring> -- lib/
+
+## 联系信息
+
+有问题请查看文档:
+- lib/ide-component-dynamicform/README.md
+- lib/REFACTORING_BREAKING_CHANGES.md
+- lib/FINAL_SUMMARY.md

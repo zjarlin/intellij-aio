@@ -1,11 +1,12 @@
 package site.addzero.util.lsi_impl.impl.kt.type
 
+import org.jetbrains.kotlin.psi.KtTypeReference
 import site.addzero.util.lsi.anno.LsiAnnotation
 import site.addzero.util.lsi.assist.isArray
 import site.addzero.util.lsi.assist.isKotlinPrimitiveType
+import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.type.LsiType
 import site.addzero.util.lsi_impl.impl.kt.anno.KtLsiAnnotation
-import org.jetbrains.kotlin.psi.KtTypeReference
 
 /**
  * 基于 Kotlin PSI 的 LsiType 实现
@@ -43,5 +44,8 @@ class KtLsiType(private val ktType: KtTypeReference) : LsiType {
             val text = ktType.text
             return text.isArray()
         }
+
+    override val lsiClass: LsiClass?
+        get() = null // TODO: 不知道kt类型对应的KtClass 怎么获取,进一步转LsiClass
 
 }

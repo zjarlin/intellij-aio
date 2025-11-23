@@ -13,28 +13,21 @@ import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isStringTyp
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTextType
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTimeType
 import site.addzero.addl.autoddlstarter.generator.consts.*
-import site.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext
 import site.addzero.addl.autoddlstarter.generator.entity.FieldMapping
-import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.autoddlstarter.generator.ex.*
 import site.addzero.addl.ktututil.equalsIgnoreCase
 import site.addzero.addl.ktututil.toCamelCase
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.DialogUtil
-import site.addzero.addl.util.JlStrUtil.ignoreCaseIn
-import site.addzero.addl.util.JlStrUtil.ignoreCaseLike
 import site.addzero.addl.util.containsAny
-import site.addzero.common.kt_util.isBlank
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId
 import java.util.*
 
-fun filterBaseEneity(dDlRangeContext: DDlRangeContext): Boolean {
+fun filterBaseEneity(dDlRangeContext: site.addzero.addl.autoddlstarter.generator.entity.DDlRangeContext): Boolean {
     val colName = dDlRangeContext.colName
 
-    return filterBaseEntity(colName)
+    return _root_ide_package_.site.addzero.addl.autoddlstarter.generator.filterBaseEntity(colName)
 }
 
  fun filterBaseEntity(colName: String): Boolean {
@@ -72,16 +65,16 @@ interface IDatabaseGenerator {
      * @param [javaFieldMetaInfo]
      * @return [String]
      */
-    fun mapTypeByJavaType(javaFieldMetaInfo: JavaFieldMetaInfo): String
+    fun mapTypeByJavaType(javaFieldMetaInfo: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): String
 
 
     companion object {
 
-        fun getLength(javaFieldMetaInfo: JavaFieldMetaInfo): String {
+        fun getLength(javaFieldMetaInfo: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): String {
             return fieldMappings.find { it.predi.test(javaFieldMetaInfo) }?.length!!
         }
 
-        fun getDatabaseDDLGenerator(dbType: String): DatabaseDDLGenerator {
+        fun getDatabaseDDLGenerator(dbType: String): site.addzero.addl.autoddlstarter.generator.DatabaseDDLGenerator {
             return databaseType[dbType]!!
         }
 
@@ -104,7 +97,7 @@ interface IDatabaseGenerator {
             set(value) = TODO()
 
 
-        var fieldMappings: List<FieldMapping> = listOf(
+        var fieldMappings: List<site.addzero.addl.autoddlstarter.generator.entity.FieldMapping> = listOf(
             FieldMapping(::isTextType, "text", "text", "clob", "CLOB", "text", "", String::class),
             FieldMapping(::isStringType, "varchar", "varchar", "varchar2", "VARCHAR", "varchar", "(255)", String::class),
             FieldMapping(::isCharType, "char", "character", "char", "VARCHAR", "character", "(255)", String::class),

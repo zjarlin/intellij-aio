@@ -8,7 +8,7 @@ import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.PsiTreeUtil
 
 fun PsiFile?.getCurrentPsiElement(editor: Editor?): PsiElement? {
-    val offset = editor?.caretModel.offset
+    val offset = editor?.caretModel?.offset ?: return null
     val element = this?.findElementAt(offset)
     return element
 }

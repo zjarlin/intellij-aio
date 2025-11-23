@@ -15,15 +15,15 @@ import kotlin.jvm.java
 
 object FieldPredicateUtil {
 
-    fun isType(f: JavaFieldMetaInfo, classes: Array<Class<*>>): Boolean {
+    fun isType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo, classes: Array<Class<*>>): Boolean {
         return classes.any { it.isAssignableFrom(f.type) }
     }
 
-    fun isIntType(f: JavaFieldMetaInfo): Boolean {
+    fun isIntType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Int::class.java, Integer::class.java))
     }
 
-    fun isLongType(f: JavaFieldMetaInfo): Boolean {
+    fun isLongType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Long::class.java))
     }
 
@@ -32,13 +32,13 @@ object FieldPredicateUtil {
      * @param [f]
      * @return [Boolean]
      */
-    fun isTextType(f: JavaFieldMetaInfo): Boolean {
+    fun isTextType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
 
 
         val fieldName = f.name
         val javaType = f.type
 
-        val isPg = SettingContext.settings.dbType == POSTGRESQL
+        val isPg = SettingContext.settings.dbType == _root_ide_package_.site.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
 
         val assignableFrom = String::class.java.isAssignableFrom(javaType)
 
@@ -56,36 +56,36 @@ object FieldPredicateUtil {
         ) && isType(f, arrayOf(String::class.java)) && assignableFrom
     }
 
-    fun isStringType(f: JavaFieldMetaInfo): Boolean {
+    fun isStringType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(String::class.java))
 
     }
 
-    fun isCharType(f: JavaFieldMetaInfo): Boolean {
+    fun isCharType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Char::class.java))
     }
 
-    fun isBooleanType(f: JavaFieldMetaInfo): Boolean {
+    fun isBooleanType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Boolean::class.java))
     }
 
-    fun isDateType(f: JavaFieldMetaInfo): Boolean {
+    fun isDateType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Date::class.java, DateTime::class.java, LocalDate::class.java))
     }
 
-    fun isTimeType(f: JavaFieldMetaInfo): Boolean {
+    fun isTimeType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Date::class.java, DateTime::class.java, LocalTime::class.java))
     }
 
-    fun isDateTimeType(f: JavaFieldMetaInfo): Boolean {
+    fun isDateTimeType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Date::class.java, DateTime::class.java, LocalDateTime::class.java))
     }
 
-    fun isBigDecimalType(f: JavaFieldMetaInfo): Boolean {
+    fun isBigDecimalType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(BigDecimal::class.java))
     }
 
-    fun isDoubleType(f: JavaFieldMetaInfo): Boolean {
+    fun isDoubleType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {
         return isType(f, arrayOf(Double::class.java))
     }
 

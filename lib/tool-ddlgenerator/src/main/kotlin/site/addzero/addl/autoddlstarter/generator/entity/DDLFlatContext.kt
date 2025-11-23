@@ -1,8 +1,6 @@
 package site.addzero.addl.autoddlstarter.generator.entity
 
 import site.addzero.addl.autoddlstarter.generator.filterBaseEneity
-import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.JlStrUtil.ignoreCaseNotIn
 
 fun DDLContext.toDDLContext(): List<DDLFLatContext> {
 

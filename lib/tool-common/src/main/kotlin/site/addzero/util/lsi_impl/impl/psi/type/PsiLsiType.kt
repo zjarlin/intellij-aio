@@ -1,36 +1,19 @@
 package site.addzero.util.lsi_impl.impl.psi.type
 
+import com.intellij.psi.*
+import com.intellij.psi.util.PsiUtil
 import site.addzero.util.lsi.anno.LsiAnnotation
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.constant.JavaNullableType
 import site.addzero.util.lsi.type.LsiType
 import site.addzero.util.lsi_impl.impl.psi.anno.PsiLsiAnnotation
 import site.addzero.util.lsi_impl.impl.psi.clazz.PsiLsiClass
-import com.intellij.psi.PsiArrayType
-import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiSubstitutor
-import com.intellij.psi.PsiType
-import com.intellij.psi.util.PsiUtil
-import com.intellij.util.ReflectionUtil
 
 /**
  * 基于 PSI 的 LsiType 实现
  */
 class PsiLsiType(private val psiType: PsiType) : LsiType {
 
-    fun PsiType.getJavaClassFromPsiType(): Class<*> {
-        val clazz = this.clazz()
-        val name = clazz?.name
-        if (name.isNullOrBlank()) {
-            return String::class.java
-        }
-        val javaType2RefType = javaType2RefType(name)
-        if (javaType2RefType.isNullOrBlank()) {
-            return String::class.java
-        }
-        return ReflectionUtil.getClassOrNull(javaType2RefType) ?: String::class.java
-    }
 
 
     override val name: String?
@@ -72,7 +55,7 @@ class PsiLsiType(private val psiType: PsiType) : LsiType {
     override val isArray: Boolean
         get() = psiType is PsiArrayType
 
-    override val psiClass: LsiClass?
+    override val lsiClass: LsiClass?
         get() {
             val generic = PsiUtil.resolveGenericsClassInType(this.psiType)
             return if (generic.substitutor == PsiSubstitutor.EMPTY) {

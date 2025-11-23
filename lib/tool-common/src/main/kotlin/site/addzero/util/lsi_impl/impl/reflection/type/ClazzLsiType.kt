@@ -51,6 +51,6 @@ class ClazzLsiType(private val clazz: Class<*>) : LsiType {
         get() {
             return clazz.isArray
         }
-    override val psiClass: LsiClass?
+    override val lsiClass: LsiClass?
         get() = TODO("Not yet implemented")
 }

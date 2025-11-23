@@ -1,4 +1,5 @@
 import me.champeau.gradle.igp.GitIncludeExtension
+
 rootProject.name = rootDir.name
 
 
@@ -14,9 +15,10 @@ plugins {
 val bdlogic = "build-logic"
 
 autoModules {
-    excludeModules = listOf(bdlogic,"buildSrc")
+    excludeModules = listOf(bdlogic, "buildSrc")
 }
 includeBuild("checkouts/$bdlogic")
+includeBuild("checkouts/metaprogramming-lsi/lsi-build-logic")
 
 fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     include(projectName) {
@@ -25,7 +27,7 @@ fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     }
 }
 gitRepositories {
-    listOf(bdlogic).forEach {
+    listOf(bdlogic, "metaprogramming-lsi").forEach {
         includeAddzeroProject(it)
     }
 }

@@ -1,6 +1,9 @@
 package site.addzero.util.lsi_impl.impl.kt.`fun`
 
-import site.addzero.util.lsi.*
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import site.addzero.util.lsi.anno.LsiAnnotation
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.method.LsiMethod
@@ -9,10 +12,6 @@ import site.addzero.util.lsi.type.LsiType
 import site.addzero.util.lsi_impl.impl.kt.anno.KtLsiAnnotation
 import site.addzero.util.lsi_impl.impl.kt.clazz.KtLsiClass
 import site.addzero.util.lsi_impl.impl.kt.type.KtLsiType
-import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtParameter
 
 /**
  * 基于 Kotlin PSI 的 LsiMethod 实现
@@ -34,7 +33,7 @@ class KtLsiMethod(private val ktFunction: KtFunction) : LsiMethod {
         get() = ktFunction.annotationEntries.map { KtLsiAnnotation(it) }
 
     override val isStatic: Boolean
-        get() = ktFunction.isTopLevel || ktFunction.hasModifier(KtTokens.COMPANION_KEYWORD)
+        get() = ktFunction.isStaticFunction()
 
     override val isAbstract: Boolean
         get() = ktFunction.hasModifier(KtTokens.ABSTRACT_KEYWORD)

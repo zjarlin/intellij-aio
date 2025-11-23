@@ -97,7 +97,7 @@ fun Project.createListJson(elementType: String): JsonObject {
     val listJson = JsonObject()
     if (isCustomObjectType(elementType)) {
         val elementClass = findKtClassByName(elementType)
-        elementClass?.let { listJson.add("element", it.ktClassToJson(this)) }
+        elementClass?.let { listJson.add("element", it.ktClassToJson()) }
     } else {
         listJson.addProperty("element", getDefaultValueForType(elementType))
     }

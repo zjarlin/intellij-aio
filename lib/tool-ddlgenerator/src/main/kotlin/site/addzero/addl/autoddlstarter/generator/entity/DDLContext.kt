@@ -19,7 +19,6 @@ data class DDlRangeContext(
     val colLength: String,
     val isPrimaryKey: String,
     val isSelfIncreasing: String,
-//    val autoIncrement: String,
 )
 
 data class DDLRangeContextUserInput(

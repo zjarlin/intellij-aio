@@ -11,6 +11,16 @@ import java.util.*
 fun PsiClassType.qualifiedName(): String? {
     return this.resolve()?.qualifiedName
 }
+    fun PsiType.getJavaClassFromPsiType(): Class<*> {
+        val clazz = this.toPsiClass()
+        val name = clazz?.name
+        if (name.isNullOrBlank()) {
+            return String::class.java
+        }
+
+        return TODO("提供返回值")
+    }
+
 
 fun PsiType.toPsiClass(): PsiClass? {
 

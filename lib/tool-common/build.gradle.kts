@@ -9,5 +9,7 @@ dependencies {
     implementation("site.addzero:tool-pinyin:+")
     implementation(libs.hutool.all)
 
+    implementation(project(":lib:lsi-core"))
+
 
 }

@@ -2,7 +2,6 @@ package site.addzero.addl.autoddlstarter.generator.entity
 
 import java.util.function.Predicate
 import kotlin.reflect.KClass
-import kotlin.reflect.KFunction1
 
 /**
  * @author zjarlin

@@ -5,7 +5,7 @@ import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import site.addzero.addl.ktututil.toJson
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.DialogUtil
+import site.addzero.util.DialogUtil
 import site.addzero.addl.util.ShowContentUtil
 import com.intellij.openapi.project.Project
 

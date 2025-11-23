@@ -13,14 +13,6 @@
         <applicationService serviceImplementation="site.addzero.addl.settings.MyPluginSettingsService"/>
         <projectConfigurable instance="site.addzero.addl.settings.MyPluginConfigurable" displayName="AutoDDL设置"/>
 
-        <!-- 注册垃圾代码工具窗口 -->
-        <toolWindow id="ShitCode"
-                    anchor="right"
-                    factoryClass="site.addzero.addl.toolwindow.ShitCodeToolWindow"
-                    icon="AllIcons.General.Remove"
-                    secondary="false"
-                    order="last"/>
-
         <!-- 注册AutoDDL工具窗口 -->
         <toolWindow id="AutoDDL"
                     anchor="right"

@@ -13,7 +13,7 @@
 //import site.addzero.addl.ktututil.equalsIgnoreCase
 //import site.addzero.addl.ktututil.toJson
 //import site.addzero.addl.settings.SettingContext
-//import site.addzero.addl.util.DialogUtil
+//import site.addzero.util.DialogUtil
 //import site.addzero.addl.util.ShowContentUtil
 //import site.addzero.common.kt_util.isNotBlank
 //import com.intellij.database.model.DasColumn

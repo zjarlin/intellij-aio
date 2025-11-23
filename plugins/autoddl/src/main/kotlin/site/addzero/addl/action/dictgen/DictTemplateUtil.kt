@@ -2,7 +2,7 @@ package site.addzero.addl.action.dictgen
 
 import cn.hutool.core.util.StrUtil
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.DialogUtil
+import site.addzero.util.DialogUtil
 import site.addzero.addl.util.JlStrUtil
 import site.addzero.addl.util.fieldinfo.PsiUtil
 import site.addzero.util.ShowContentUtil.openTextInEditor

@@ -5,7 +5,7 @@ import site.addzero.addl.action.dictgen.DictInfo
 import site.addzero.addl.action.dictgen.DictItemInfo
 import site.addzero.addl.action.dictgen.DictTemplateUtil
 import site.addzero.addl.settings.MyPluginSettingsService
-import site.addzero.addl.util.DialogUtil
+import site.addzero.util.DialogUtil
 import site.addzero.addl.util.JlStrUtil.toValidVariableName
 import site.addzero.util.psi.PsiUtil.getFilePathPair
 import com.intellij.codeInsight.intention.IntentionAction

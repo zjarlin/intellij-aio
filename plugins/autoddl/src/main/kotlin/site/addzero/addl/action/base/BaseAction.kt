@@ -1,6 +1,6 @@
 package site.addzero.addl.action.base
 
-import site.addzero.addl.util.DialogUtil
+import site.addzero.util.DialogUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.diagnostic.Logger

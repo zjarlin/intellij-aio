@@ -1,9 +1,10 @@
-package site.addzero.addl.util
+package site.addzero.util
 
+import java.awt.Component
 import java.awt.KeyboardFocusManager
 import javax.swing.JFrame
 import javax.swing.JOptionPane
-import java.awt.Component
+
 object DialogUtil {
     /**
      * 显示错误消息对话框

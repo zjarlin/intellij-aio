@@ -8,7 +8,6 @@ import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.autoddlstarter.generator.filterBaseEneity
 import site.addzero.addl.settings.SettingContext
 import site.addzero.addl.util.JlStrUtil
-import site.addzero.ddl.core.model.DDLContext
 import site.addzero.util.str.makeSurroundWith
 
 class OracleDDLGenerator : DatabaseDDLGenerator() {

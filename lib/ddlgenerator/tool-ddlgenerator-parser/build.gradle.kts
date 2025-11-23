@@ -16,6 +16,15 @@ dependencies {
     implementation("site.addzero:tool-database-model:+")
     implementation("site.addzero:tool-jvmstr:+")
     implementation("site.addzero:tool-pinyin:+")
+
+    // 测试依赖
+//    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+//    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+//    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
+
+//tasks.test {
+//    useJUnitPlatform()
+//}
 
 description = "DDL Generator Parser - 基于LSI的DDL解析器"

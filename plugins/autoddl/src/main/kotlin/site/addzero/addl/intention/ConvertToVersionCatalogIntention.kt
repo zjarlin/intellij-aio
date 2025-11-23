@@ -3,10 +3,6 @@ package site.addzero.addl.intention
 //import org.tomlj.Toml
 //import org.tomlj.TomlParseResult
 import cn.hutool.core.util.StrUtil
-import site.addzero.addl.util.catalogutil.*
-import site.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
-import site.addzero.addl.util.removeAnyQuote
-import site.addzero.common.kt_util.isNotBlank
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -16,6 +12,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementFactory
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
+import site.addzero.addl.util.catalogutil.*
+import site.addzero.addl.util.catalogutil.VersionCatalogPsiUtil.wrightToToml
+import site.addzero.addl.util.removeAnyQuote
 
 class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), IntentionAction {
     override fun getFamilyName(): String = "Convert to version catalog"
@@ -67,7 +66,7 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
         val trimIndent = """
             $libraryKey ={group="${lb.group}",name= "${lb.name}",version.ref="${lb.versionRef}"}
         """.trimIndent()
-        val versionCatalog = VersionCatalogPsiUtil.getVersionCatalog(project)
+        val versionCatalog =TODO()
         val readText = versionCatalog.readText()
 
         val toToml = TomlUtils.appendAfterTag(readText, "libraries", trimIndent)
@@ -127,8 +126,6 @@ class ConvertToVersionCatalogIntention : PsiElementBaseIntentionAction(), Intent
 ////            element.replace(newExpression)
 //        }
     }
-
-
     private fun psiTextToTomlDTO(callText: String): VersionCatalogDTO? {
         val split = callText.split(":")
         if (split.size == 1) {

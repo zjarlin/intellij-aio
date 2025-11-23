@@ -10,6 +10,7 @@ dependencies {
 
 
     implementation("site.addzero:tool-ai:+")
+    implementation("site.addzero:tool-toml:+")
     implementation("site.addzero:tool-io-codegen:+")
     implementation("site.addzero:tool-str:2025.11.27")
     implementation("site.addzero:tool-coll:+")

@@ -18,6 +18,9 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import site.addzero.util.ai.invoker.AiUtil
+import site.addzero.util.psi.PsiUtil.isJavaPojo
+import site.addzero.util.psi.PsiUtil.isKotlinPojo
 
 abstract class AbstractDocCommentAnnotationAction : IntentionAction {
 
@@ -33,8 +36,6 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
         val javaPojo = isJavaPojo(element)
         return javaPojo||kotlinPojo
     }
-
-
 
     override fun startInWriteAction() = true
 
@@ -61,12 +62,10 @@ abstract class AbstractDocCommentAnnotationAction : IntentionAction {
     private fun processKotlinClass(project: Project, ktClass: KtClass) {
         // 清空字段集合
         noCommentFields.clear()
-
         // 收集无注释的字段
         ktClass.getProperties().forEach { property ->
             processKotlinProperty(project, property)
         }
-
         // 如果有无注释的字段，批量处理
         if (noCommentFields.isNotEmpty()) {
             // 调用AI接口获取批量注释

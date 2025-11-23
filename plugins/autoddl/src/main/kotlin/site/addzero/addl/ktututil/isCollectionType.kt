@@ -6,42 +6,7 @@ import com.intellij.psi.PsiClassType
 import com.intellij.psi.CommonClassNames
 import com.intellij.psi.util.InheritanceUtil
 
-/**
- * 判断 PsiType 是否为集合类型的扩展函数
- */
-fun PsiType.isCollectionType(): Boolean {
 
-    // 如果不是类类型，直接返回 false
-    if (this !is PsiClassType) return false
-
-    // 获取完全限定名
-    val qualifiedName = resolve()?.qualifiedName ?: return false
-
-    val b = when {
-        // 检查是否为 Java 集合类型
-        InheritanceUtil.isInheritor(this, CommonClassNames.JAVA_UTIL_COLLECTION) -> true
-        InheritanceUtil.isInheritor(this, CommonClassNames.JAVA_UTIL_MAP) -> true
-
-        // 检查是否为具体的集合类型
-        qualifiedName in COLLECTION_TYPE_FQ_NAMES -> true
-
-        // 检查是否为 Kotlin 集合类型
-        qualifiedName.startsWith("kotlin.collections.") -> {
-            val simpleName = qualifiedName.substringAfterLast(".")
-            simpleName in KOTLIN_COLLECTION_SIMPLE_NAMES
-        }
-
-        else -> false
-    }
-    return b
-}
-
-/**
- * 判断是否为可空的集合类型
- */
-fun PsiType.isNullableCollectionType(): Boolean {
-    return this.isCollectionType() && !this.isNotNull()
-}
 
 /**
  * 获取集合的元素类型

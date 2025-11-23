@@ -12,7 +12,6 @@ import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isLongType
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isStringType
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTextType
 import site.addzero.addl.autoddlstarter.generator.FieldPredicateUtil.isTimeType
-import site.addzero.addl.autoddlstarter.generator.consts.*
 import site.addzero.addl.autoddlstarter.generator.entity.FieldMapping
 import site.addzero.addl.autoddlstarter.generator.ex.*
 import site.addzero.addl.ktututil.equalsIgnoreCase
@@ -116,12 +115,12 @@ interface IDatabaseGenerator {
         }
         var databaseType: HashMap<String, DatabaseDDLGenerator> = object : HashMap<String, DatabaseDDLGenerator>() {
             init {
-                put(MYSQL, MysqlDDLGenerator())
-                put(ORACLE, OracleDDLGenerator())
-                put(POSTGRESQL, PostgreSQLDDLGenerator())
-                put(DM, DMSQLDDLGenerator())
-                put(H2, H2SQLDDLGenerator())
-                put(TDENGINE, TDengineDDLGenerator())
+                put("mysql", MysqlDDLGenerator())
+                put("oracle", OracleDDLGenerator())
+                put("pg", PostgreSQLDDLGenerator())
+                put("dm", DMSQLDDLGenerator())
+                put("h2", H2SQLDDLGenerator())
+                put("tdengine", TDengineDDLGenerator())
             }
         }
 

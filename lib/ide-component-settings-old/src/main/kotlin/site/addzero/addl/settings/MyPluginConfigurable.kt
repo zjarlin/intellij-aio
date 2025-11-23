@@ -1,6 +1,5 @@
 package site.addzero.addl.settings
 
-import site.addzero.common.kt_util.isNotNull
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.Configurable
@@ -10,9 +9,11 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
+import java.awt.event.ActionListener
 import javax.swing.*
 import javax.swing.border.TitledBorder
 import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.text.Document
 import kotlin.reflect.full.createInstance
 
@@ -24,15 +25,15 @@ class MyPluginConfigurable : Configurable, Disposable {
     private val disposableManager = DisposableManager()
 
     private class DisposableManager : Disposable {
-        private val documentListeners = mutableListOf<Pair<Document, javax.swing.event.DocumentListener>>()
-        private val actionListeners = mutableListOf<Pair<JComboBox<*>, java.awt.event.ActionListener>>()
+        private val documentListeners = mutableListOf<Pair<Document, DocumentListener>>()
+        private val actionListeners = mutableListOf<Pair<JComboBox<*>, ActionListener>>()
 
-        fun addDocumentListener(document: Document, listener: javax.swing.event.DocumentListener) {
+        fun addDocumentListener(document: Document, listener: DocumentListener) {
             document.addDocumentListener(listener)
             documentListeners.add(document to listener)
         }
 
-        fun addActionListener(comboBox: JComboBox<*>, listener: java.awt.event.ActionListener) {
+        fun addActionListener(comboBox: JComboBox<*>, listener: ActionListener) {
             comboBox.addActionListener(listener)
             actionListeners.add(comboBox to listener)
         }
@@ -167,7 +168,7 @@ class MyPluginConfigurable : Configurable, Disposable {
             val dependencyComponent = components[dependencyField]
             if (dependencyComponent is JTextField) {
                 val document = dependencyComponent.document
-                val listener = object : javax.swing.event.DocumentListener {
+                val listener = object : DocumentListener {
                     override fun changedUpdate(e: DocumentEvent) {
                         refreshDependentComponents(dependencyField, dependencyComponent)
                     }
@@ -182,7 +183,7 @@ class MyPluginConfigurable : Configurable, Disposable {
                 }
                 disposableManager.addDocumentListener(document, listener)
             } else if (dependencyComponent is JComboBox<*>) {
-                val listener = java.awt.event.ActionListener {
+                val listener = ActionListener {
                     refreshDependentComponents(dependencyField, dependencyComponent)
                 }
                 disposableManager.addActionListener(dependencyComponent, listener)

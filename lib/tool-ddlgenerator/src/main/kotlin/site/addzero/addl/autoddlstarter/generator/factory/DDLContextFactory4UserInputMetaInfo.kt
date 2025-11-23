@@ -5,7 +5,7 @@ import cn.hutool.core.util.StrUtil
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.fieldMappings
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
-import site.addzero.addl.autoddlstarter.generator.consts.MYSQL
+
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.isPrimaryKey
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
@@ -24,7 +24,7 @@ object DDLContextFactory4UserInputMetaInfo {
     fun createDDLContext(
         tableEngLishName: String,
         tableChineseName: String,
-        databaseType: String = MYSQL,
+        databaseType: String = "mysql",
         ddlRangeContextUserInput: List<DDLRangeContextUserInput>,
     ): DDLContext {
 

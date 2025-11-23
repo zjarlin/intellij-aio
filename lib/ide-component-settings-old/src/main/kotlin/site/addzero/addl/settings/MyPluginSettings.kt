@@ -1,21 +1,6 @@
 package site.addzero.addl.settings
 
-import site.addzero.addl.ai.consts.ChatModels.CODEGEMMA
-import site.addzero.addl.ai.consts.ChatModels.DASH_SCOPE
-import site.addzero.addl.ai.consts.ChatModels.DEEPSEEK_R1
-import site.addzero.addl.ai.consts.ChatModels.DeepSeek
-import site.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModel
-import site.addzero.addl.ai.consts.ChatModels.DeepSeekOnlineModelCoder
-import site.addzero.addl.ai.consts.ChatModels.OLLAMA
-import site.addzero.addl.ai.consts.ChatModels.QWEN2_5_1_5B
-import site.addzero.addl.ai.consts.ChatModels.QWEN2_5_CODER_0_5B
-import site.addzero.addl.ai.consts.ChatModels.QWEN2_5_CODER_1_5B
-import site.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_CODER_INSTRUCT
-import site.addzero.addl.ai.consts.ChatModels.QWEN_1_5B_INSTRUCT
-import site.addzero.addl.ai.consts.ChatModels.QWEN_MAX
-import site.addzero.addl.ai.consts.ChatModels.QWEN_TURBO
-import site.addzero.addl.ai.consts.ChatModels.QWQ
-import site.addzero.addl.autoddlstarter.generator.consts.*
+
 
 @SettingsGroup(
     groups = [Group(name = "ai", title = "AI模型配置", order = 1), Group(
@@ -83,10 +68,10 @@ data class MyPluginSettings(
     @ConfigField(
         label = "数据库类型",
         type = FieldType.DROPDOWN,
-        options = [MYSQL, ORACLE, POSTGRESQL, DM, H2,TDENGINE],
+        options = ["mysql", "oracle", "pg", "dm", "h2", "tdengine"],
         group = "db",
         order = 1
-    ) @JvmField var dbType: String = MYSQL,
+    ) @JvmField var dbType: String = "mysql",
 
     @ConfigField(label = "规范id", group = "db", order = 2) @JvmField var id: String = "id",
 

@@ -1,17 +1,13 @@
 package site.addzero.addl.autoddlstarter.generator
 
 import cn.hutool.core.date.DateTime
-import cn.hutool.core.util.StrUtil
-import site.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
-import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.settings.SettingContext
-import org.apache.commons.lang3.StringUtils.containsAnyIgnoreCase
+import site.addzero.util.str.containsAnyIgnoreCase
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.*
-import kotlin.jvm.java
 
 object FieldPredicateUtil {
 
@@ -38,22 +34,15 @@ object FieldPredicateUtil {
         val fieldName = f.name
         val javaType = f.type
 
-        val isPg = SettingContext.settings.dbType == _root_ide_package_.site.addzero.addl.autoddlstarter.generator.consts.POSTGRESQL
+        val isPg = SettingContext.settings.dbType == "pg"
 
         val assignableFrom = String::class.java.isAssignableFrom(javaType)
 
         if (isPg && assignableFrom) {
             return true
         }
-
-        return containsAnyIgnoreCase(
-            fieldName,
-            "url",
-            "base64",
-            "text",
-            "path",
-            "introduction"
-        ) && isType(f, arrayOf(String::class.java)) && assignableFrom
+        val containsAnyIgnoreCase = fieldName.containsAnyIgnoreCase("url", "base64", "text", "path", "introduction")
+        return containsAnyIgnoreCase && isType(f, arrayOf(String::class.java)) && assignableFrom
     }
 
     fun isStringType(f: site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo): Boolean {

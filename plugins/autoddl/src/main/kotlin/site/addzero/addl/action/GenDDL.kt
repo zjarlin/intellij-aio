@@ -1,7 +1,6 @@
 package site.addzero.addl.action
 
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
-import site.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import site.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import site.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext4KtClass
@@ -72,7 +71,7 @@ class GenDDL : AnAction() {
         val settings = MyPluginSettingsService.getInstance().state
         val defaultDbType = settings.dbType
         if (defaultDbType.isNullOrBlank()) {
-            return MYSQL
+            return "mysql"
         }
         return defaultDbType
     }

@@ -1,6 +1,7 @@
 package site.addzero.addl.settings
 
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
@@ -22,7 +23,7 @@ class MyPluginSettingsService : PersistentStateComponent<MyPluginSettings> {
 
     companion object {
         fun getInstance(): MyPluginSettingsService {
-            val application = com.intellij.openapi.application.ApplicationManager.getApplication()
+            val application = ApplicationManager.getApplication()
             return application?.getService(MyPluginSettingsService::class.java)!!
         }
     }

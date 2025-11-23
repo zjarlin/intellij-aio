@@ -2,7 +2,6 @@ package site.addzero.addl.intention.custom
 
 import site.addzero.addl.intention.AbstractDocCommentAnnotationAction
 import site.addzero.addl.settings.SettingContext
-import site.addzero.addl.util.fieldinfo.PsiUtil.isJavaPojo
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile

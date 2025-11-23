@@ -1,17 +1,17 @@
 package site.addzero.addl
 
 import FieldsTableModel
-import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.javaTypesEnum
-import site.addzero.addl.autoddlstarter.generator.consts.*
-import site.addzero.addl.his.HistoryService
-import site.addzero.addl.settings.MyPluginSettingsService
-import site.addzero.addl.settings.SettingContext
-import site.addzero.common.kt_util.isNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.table.JBTable
+import org.jetbrains.kotlin.idea.gradleTooling.get
+import site.addzero.addl.his.HistoryService
+import site.addzero.addl.settings.MyPluginSettingsService
+import site.addzero.addl.settings.SettingContext
+import site.addzero.util.ai.agent.dbdesign.defaultdTO
+import site.addzero.util.ai.agent.dbdesign.quesDba
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.GridLayout
@@ -83,7 +83,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         formPanel.add(tableNameField)
 
         formPanel.add(JLabel("*数据库类型:"))
-        dbTypeComboBox = ComboBox(arrayOf(MYSQL, POSTGRESQL, DM, ORACLE,H2))
+        dbTypeComboBox = ComboBox(arrayOf("mysql", "pg", "dm", "oracle", "h2"))
         // 设置默认值为设置中的
         dbTypeComboBox!!.selectedItem = MyPluginSettingsService.getInstance().state.dbType
         formPanel.add(dbTypeComboBox)
@@ -129,37 +129,6 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         return panel
     }
 
-    //    private fun fieldsJPanel(): JPanel {
-//        fieldsTableModel = FieldsTableModel()
-//        fieldsTable = JBTable(fieldsTableModel)
-//
-//        // 设置 Java 类型下拉框
-//        val javaTypesEnum = javaTypesEnum
-//        val javaTypeComboBox = ComboBox(javaTypesEnum)
-//        fieldsTable!!.columnModel.getColumn(0).cellEditor = DefaultCellEditor(javaTypeComboBox)
-//
-//        // 启用单元格点击编辑模式
-//        fieldsTable!!.surrendersFocusOnKeystroke = true
-//        fieldsTable!!.addMouseListener(object : MouseAdapter() {
-//            override fun mousePressed(e: MouseEvent) {
-//                val row = fieldsTable!!.rowAtPoint(e.point)
-//                val column = fieldsTable!!.columnAtPoint(e.point)
-//                if (row == -1) {
-//                    // 没有行时，添加空行
-//                    fieldsTableModel?.addField(FieldDTO("", "", ""))
-//                } else {
-//                    // 有行时，编辑当前单元格
-//                    fieldsTable!!.editCellAt(row, column)
-//                    fieldsTable!!.editorComponent?.requestFocus()
-//                }
-//            }
-//        })
-//
-//        val tablePanel = JPanel(BorderLayout())
-//        tablePanel.add(JScrollPane(fieldsTable), BorderLayout.CENTER)
-//        tablePanel.preferredSize = Dimension(600, 200)
-//        return tablePanel
-//    }
     fun addHisPanel(parentPanel: JPanel): Unit {
         val historyPanel = JPanel(BorderLayout())
 
@@ -209,7 +178,6 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
 
     private fun fieldsJPanel(): JPanel {
-
 
 
         fieldsTableModel = FieldsTableModel()
@@ -266,9 +234,6 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         buttonPanel.add(pasteButton)
 
 
-
-
-
         val tablePanel = JPanel(BorderLayout())
         tablePanel.add(JScrollPane(fieldsTable), BorderLayout.CENTER)
         tablePanel.add(buttonPanel, BorderLayout.SOUTH) // 添加按钮面板
@@ -276,6 +241,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
         tablePanel.preferredSize = Dimension(600, 200)
         return tablePanel
     }
+
     private fun pasteFromClipboard() {
         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
         val clipboardContent = clipboard.getData(DataFlavor.stringFlavor) as? String ?: return
@@ -290,7 +256,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
                 val colName = columns.getOrElse(1) { "" }
                 val colComment = columns.getOrElse(2) { "" }
                 val fieldDTO = FieldDTO(
-                    javaType,colName,colComment,
+                    javaType, colName, colComment,
                 )
                 fieldsTableModel?.addField(fieldDTO)
             }

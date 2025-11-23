@@ -9,6 +9,7 @@ gradle/wrapper/gradle-8.10.2-all.zip
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 
+!**/build/
 
 !**/src/test/**/build/
 
@@ -51,3 +52,4 @@ out/
 .intellijPlatform
 /.kotlin
 /buildSrc/.kotlin
+/checkouts/metaprogramming-lsi/lsi-core/build/kotlin/compileKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len

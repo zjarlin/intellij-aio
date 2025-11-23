@@ -3,7 +3,7 @@ package site.addzero.addl.autoddlstarter.generator.defaultconfig
 //import io.swagger.v3.oas.annotations.media.Schema
 //import org.babyfish.jimmer.sql.Table
 import site.addzero.util.lsi.anno.Comment
-import site.addzero.addl.autoddlstarter.generator.consts.MYSQL
+
 import site.addzero.addl.autoddlstarter.generator.entity.JavaFieldMetaInfo
 import site.addzero.addl.ktututil.toUnderlineCase
 import site.addzero.util.str.removeNotChinese
@@ -53,7 +53,7 @@ interface IMetaInfoUtil {
 object DefaultMetaInfoUtil : IMetaInfoUtil {
 
     override fun mydbType(): String {
-        return MYSQL
+        return "mysql"
     }
 
     override fun getTableEnglishNameFun(clazz: Class<*>): String {

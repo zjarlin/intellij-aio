@@ -2,7 +2,6 @@ package site.addzero.addl.autoddlstarter.generator.factory
 
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getLength
-import site.addzero.addl.autoddlstarter.generator.consts.MYSQL
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.isPrimaryKey
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.BaseMetaInfoUtil.javaFieldMetaInfos
 import site.addzero.addl.autoddlstarter.generator.defaultconfig.DefaultMetaInfoUtil
@@ -18,7 +17,7 @@ import org.jetbrains.kotlin.psi.KtClass
 private const val UNKNOWN_TABLE_NAME = "unknown_table_name"
 
 object DDLContextFactory4JavaMetaInfo {
-    fun createDDLContext4KtClass(ktClass: KtClass, databaseType: String = MYSQL): DDLContext {
+    fun createDDLContext4KtClass(ktClass: KtClass, databaseType: String = "mysql"): DDLContext {
         var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo4KtClass (ktClass)
         tableEnglishName= tableEnglishName!!.ifBlank { UNKNOWN_TABLE_NAME }
         tableChineseName=tableChineseName.ifBlank { tableEnglishName!! }
@@ -60,7 +59,7 @@ object DDLContextFactory4JavaMetaInfo {
 
 
 
-    fun createDDLContext(psiClass: PsiClass ,databaseType: String = MYSQL): DDLContext {
+    fun createDDLContext(psiClass: PsiClass ,databaseType: String = "mysql"): DDLContext {
         var (tableChineseName, tableEnglishName) = PsiUtil.getClassMetaInfo (psiClass)
         tableEnglishName= tableEnglishName!!.ifBlank { UNKNOWN_TABLE_NAME }
         tableChineseName=tableChineseName.ifBlank { tableEnglishName!! }
@@ -83,7 +82,7 @@ object DDLContextFactory4JavaMetaInfo {
 
 
 
-    fun createDDLContext(clazz: Class<*>, databaseType: String = MYSQL): DDLContext {
+    fun createDDLContext(clazz: Class<*>, databaseType: String = "mysql"): DDLContext {
         val tableChineseName = DefaultMetaInfoUtil.getTableChineseNameFun(clazz)
         val tableEnglishName = PinYin4JUtils.hanziToPinyin(tableChineseName, "_")
 
@@ -102,7 +101,7 @@ object DDLContextFactory4JavaMetaInfo {
         )
     }
 
-    private fun createRangeContext(field: JavaFieldMetaInfo, databaseType: String = MYSQL): DDlRangeContext {
+    private fun createRangeContext(field: JavaFieldMetaInfo, databaseType: String = "mysql"): DDlRangeContext {
         val fieldName = field.name
         var colName = fieldName
         if (colName.isBlank()) {

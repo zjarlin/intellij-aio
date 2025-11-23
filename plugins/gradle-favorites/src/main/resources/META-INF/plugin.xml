@@ -1,0 +1,63 @@
+<idea-plugin>
+    <id>site.addzero.gradle-favorites</id>
+    <name>Gradle Favorites</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin/autoddl-idea-plugin.git">zjarlin</vendor>
+    
+    <description><![CDATA[
+        Add your favorite Gradle tasks to quick access menu.
+        
+        Features:
+        - Add Gradle tasks to favorites from Gradle tool window
+        - Execute favorite tasks from editor context menu
+        - Multi-module project support
+        - Notification bubbles for available favorite tasks
+    ]]></description>
+    
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
+    
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Service Registration -->
+        <projectService serviceImplementation="site.addzero.gradle.favorites.service.GradleFavoritesService"/>
+        <projectService serviceImplementation="site.addzero.gradle.favorites.strategy.GradleTaskStrategyRegistry"/>
+        
+        <!-- Notification Group -->
+        <notificationGroup id="Gradle Favorites" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+    
+    <projectListeners>
+        <listener 
+            class="site.addzero.gradle.favorites.listener.EditorFileOpenListener" 
+            topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+    
+    <actions>
+        <!-- Gradle Tool Window Actions -->
+        <action 
+            id="GradleFavorites.AddToFavorites" 
+            class="site.addzero.gradle.favorites.action.AddToFavoritesAction"
+            text="Add to Favorites"
+            description="Add this Gradle task to favorites">
+            <add-to-group group-id="Gradle.View.ActionsToolbar.RightPanel" anchor="first"/>
+        </action>
+        
+        <action 
+            id="GradleFavorites.RemoveFromFavorites" 
+            class="site.addzero.gradle.favorites.action.RemoveFromFavoritesAction"
+            text="Remove from Favorites"
+            description="Remove this Gradle task from favorites">
+            <add-to-group group-id="Gradle.View.ActionsToolbar.RightPanel" anchor="after" relative-to-action="GradleFavorites.AddToFavorites"/>
+        </action>
+        
+        <!-- Editor Context Menu -->
+        <group 
+            id="GradleFavorites.EditorContextMenu" 
+            class="site.addzero.gradle.favorites.action.ShowFavoritesMenuAction"
+            text="Gradle Favorites"
+            description="Execute favorite Gradle tasks for current module"
+            popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </group>
+    </actions>
+</idea-plugin>

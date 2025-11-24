@@ -25,7 +25,9 @@ class MavenArtifactCellRenderer : ListCellRenderer<MavenArtifact> {
         isSelected: Boolean,
         cellHasFocus: Boolean
     ): Component {
-        val panel = JPanel(BorderLayout())
+        val panel = object : JPanel(BorderLayout()) {
+            override fun getAccessibleContext() = null
+        }
         panel.border = JBUI.Borders.empty(4, 8)
 
         if (value == null) {

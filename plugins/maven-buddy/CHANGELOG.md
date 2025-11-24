@@ -1,4 +1,4 @@
-# Maven Search Plugin - 更新日志
+# Maven Buddy - 更新日志
 
 ## [Unreleased] - 2025-11-23
 

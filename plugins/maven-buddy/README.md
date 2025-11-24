@@ -1,4 +1,4 @@
-# Maven Dependency Search Plugin
+# Maven Buddy
 
 快速从 Maven Central 搜索和添加依赖的 IntelliJ IDEA 插件。
 
@@ -16,10 +16,10 @@
 
 ```bash
 cd /Users/zjarlin/IdeaProjects/autoddl-idea-plugin
-./gradlew :plugins:maven-search-plugin:buildPlugin
+./gradlew :plugins:maven-buddy:buildPlugin
 ```
 
-生成的插件位于：`plugins/maven-search-plugin/build/distributions/`
+生成的插件位于：`plugins/maven-buddy/build/distributions/`
 
 ### 安装到 IDE
 
@@ -67,7 +67,7 @@ org.springframework.boot:spring-boot-starter
 
 ## ⚙️ 配置
 
-进入 `Settings → Tools → Maven Search` 进行配置：
+进入 `Settings → Tools → Maven Buddy` 进行配置：
 
 ### 基本设置
 
@@ -183,7 +183,7 @@ com.fasterxml.jackson.core:jackson-annotations
 ## 📁 项目结构
 
 ```
-maven-search-plugin/
+maven-buddy/
 ├── src/main/kotlin/
 │   └── site/addzero/maven/search/
 │       ├── MavenDependencySearchContributor.kt  # Search Everywhere 贡献者
@@ -207,37 +207,6 @@ maven-search-plugin/
 - [IntelliJ Platform SDK](https://plugins.jetbrains.com/docs/intellij/welcome.html)
 - [Search Everywhere API](https://plugins.jetbrains.com/docs/intellij/search-everywhere.html)
 
-## 📝 开发说明
-
-### 依赖工具类
-
-插件使用了 `site.addzero:tool-api-maven:2025.11.27` 工具类进行 Maven Central 搜索。
-
-```kotlin
-// 关键词搜索（类似单测用法）
-MavenCentralSearchUtil.searchByKeyword("jackson", 5)
-
-// GroupId 搜索
-MavenCentralSearchUtil.searchByGroupId("com.google.inject", 20)
-
-// 精确坐标搜索
-MavenCentralSearchUtil.searchByCoordinates("com.google.inject", "guice", 20)
-
-// 获取最新版本
-MavenCentralSearchUtil.getLatestVersion("com.google.inject", "guice")
-```
-
-### 构建插件
-
-```bash
-./gradlew :plugins:maven-search-plugin:buildPlugin
-```
-
-### 运行测试 IDE
-
-```bash
-./gradlew :plugins:maven-search-plugin:runIde
-```
 
 ## 📄 许可证
 

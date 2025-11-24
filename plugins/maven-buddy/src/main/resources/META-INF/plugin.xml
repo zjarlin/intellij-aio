@@ -4,6 +4,8 @@
     <vendor>zjarlin</vendor>
 
     <description><![CDATA[
+    Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Maven dependencies from Maven Central directly within your IDE. This plugin streamlines the process of finding and managing dependencies for your Java and Kotlin projects.
+
     <h3>Maven Buddy - Smart Maven Dependency Search</h3>
     <p>Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Maven dependencies from Maven Central directly within your IDE. This plugin streamlines the process of finding and managing dependencies for your Java and Kotlin projects.</p>
 

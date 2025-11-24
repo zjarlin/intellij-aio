@@ -1,37 +1,45 @@
 <idea-plugin>
-    <id>site.addzero.maven-search</id>
-    <name>Maven Dependency Search</name>
-    <vendor>AddZero</vendor>
+    <id>site.addzero.maven-buddy</id>
+    <name>Maven Buddy</name>
+    <vendor>zjarlin</vendor>
 
     <description><![CDATA[
-    <h3>Maven Dependency Search Plugin</h3>
-    <p>Quick search for Maven dependencies from Maven Central directly in IntelliJ IDEA.</p>
+    <h3>Maven Buddy - Smart Maven Dependency Search</h3>
+    <p>Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Maven dependencies from Maven Central directly within your IDE. This plugin streamlines the process of finding and managing dependencies for your Java and Kotlin projects.</p>
 
-    <h4>Features:</h4>
+    <h4>Key Features:</h4>
     <ul>
-        <li>🔍 Search Maven Central by pressing Shift+Shift</li>
-        <li>📋 Copy dependency declarations in Maven or Gradle format</li>
-        <li>⚙️ Configurable output format (Maven XML, Gradle Kotlin DSL, Gradle Groovy DSL)</li>
-        <li>⚡ Fast and lightweight search</li>
-        <li>🎯 Smart search: support groupId, artifactId, or keyword search</li>
+        <li>🔍 <b>Quick Search</b>: Press Shift+Shift to open Search Everywhere and instantly search Maven Central</li>
+        <li>📋 <b>One-Click Copy</b>: Select any dependency and press Enter to automatically copy the declaration to clipboard</li>
+        <li>⚙️ <b>Configurable Formats</b>: Switch between Maven XML, Gradle Kotlin DSL, and Gradle Groovy DSL formats</li>
+        <li>⚡ <b>Fast and Lightweight</b>: Optimized search with minimal impact on IDE performance</li>
+        <li>🎯 <b>Smart Search</b>: Supports searching by groupId, artifactId, or keyword</li>
+        <li>🧩 <b>Context-Aware Completion</b>: Get dependency suggestions while editing Gradle Kotlin script files</li>
+        <li>🔄 <b>Version Updates</b>: Easily upgrade existing dependencies to their latest versions</li>
     </ul>
 
-    <h4>Usage:</h4>
+    <h4>How to Use:</h4>
     <ol>
         <li>Press <b>Shift+Shift</b> to open Search Everywhere</li>
-        <li>Switch to <b>Maven Dependencies</b> tab</li>
+        <li>Switch to the <b>Maven Dependencies</b> tab</li>
         <li>Type your search query (e.g., "spring-boot", "com.google.guice", or "guice:5.0")</li>
-        <li>Select a result and press Enter to copy to clipboard</li>
+        <li>Select a result and press Enter to copy the dependency declaration to clipboard</li>
+        <li>Paste the declaration into your build configuration file</li>
     </ol>
 
-    <h4>Configuration:</h4>
-    <p>Go to <b>Settings → Tools → Maven Search</b> to configure:</p>
+    <h4>Configuration Options:</h4>
+    <p>Navigate to <b>Settings → Tools → Maven Buddy</b> to customize:</p>
     <ul>
         <li>Dependency format (Maven XML / Gradle Kotlin / Gradle Groovy)</li>
-        <li>Maximum search results</li>
-        <li>Auto-copy to clipboard</li>
-        <li>Search timeout</li>
+        <li>Maximum number of search results (1-100)</li>
+        <li>Auto-copy to clipboard setting</li>
+        <li>Search timeout configuration (1-60 seconds)</li>
+        <li>Debounce delay for real-time search (100-2000 milliseconds)</li>
+        <li>Manual trigger mode for precise control</li>
     </ul>
+    
+    <h4>Advanced Features:</h4>
+    <p>Maven Buddy also provides context-aware completion for Gradle Kotlin script files. When editing .kts files, you'll get intelligent suggestions as you type dependency declarations. Additionally, you can use the "Update dependency to latest version" intention action to quickly upgrade existing dependencies.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

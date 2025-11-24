@@ -194,7 +194,7 @@ class MavenDependencySearchContributor(
 
     companion object {
         // 是否启用调试日志
-        private const val enableDebugLog = true
+        private const val enableDebugLog = false
 
         private val globalRateLimiter = SlidingWindowRateLimiter(maxRequests = 5, windowMillis = 2000)
         private const val cacheTtlMs = 2_000L

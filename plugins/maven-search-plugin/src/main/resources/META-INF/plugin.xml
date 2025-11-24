@@ -2,11 +2,11 @@
     <id>site.addzero.maven-search</id>
     <name>Maven Dependency Search</name>
     <vendor>AddZero</vendor>
-    
+
     <description><![CDATA[
     <h3>Maven Dependency Search Plugin</h3>
     <p>Quick search for Maven dependencies from Maven Central directly in IntelliJ IDEA.</p>
-    
+
     <h4>Features:</h4>
     <ul>
         <li>🔍 Search Maven Central by pressing Shift+Shift</li>
@@ -15,7 +15,7 @@
         <li>⚡ Fast and lightweight search</li>
         <li>🎯 Smart search: support groupId, artifactId, or keyword search</li>
     </ul>
-    
+
     <h4>Usage:</h4>
     <ol>
         <li>Press <b>Shift+Shift</b> to open Search Everywhere</li>
@@ -23,7 +23,7 @@
         <li>Type your search query (e.g., "spring-boot", "com.google.guice", or "guice:5.0")</li>
         <li>Select a result and press Enter to copy to clipboard</li>
     </ol>
-    
+
     <h4>Configuration:</h4>
     <p>Go to <b>Settings → Tools → Maven Search</b> to configure:</p>
     <ul>
@@ -38,23 +38,37 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Search Everywhere Contributor -->
-        <searchEverywhereContributor 
+        <searchEverywhereContributor
             implementation="site.addzero.maven.search.MavenDependencySearchContributorFactory"/>
-        
+
         <!-- Settings Page -->
         <projectConfigurable
             parentId="tools"
             instance="site.addzero.maven.search.settings.MavenSearchConfigurable"
             id="site.addzero.maven.search.settings"
-            displayName="Maven Search"/>
-        
+            bundle="messages.MavenSearchBundle" 
+            key="settings.mavensearch.display.name"/>
+
         <!-- Application Service for Settings -->
         <applicationService
             serviceImplementation="site.addzero.maven.search.settings.MavenSearchSettings"/>
-        
+
         <!-- Notification Group -->
-        <notificationGroup 
-            id="MavenSearch" 
-            displayType="BALLOON"/>
+        <notificationGroup
+                id="MavenSearch"
+                displayType="BALLOON" bundle="messages.MavenSearchBundle" key="notification.group.maven.search"/>
+
+        <!-- Intention: Upgrade dependency to latest version -->
+        <intentionAction>
+            <language>JAVA</language>
+            <language>kotlin</language>
+            <category>Maven Dependencies</category>
+            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
+        </intentionAction>
+
+        <!-- Completion contributor for Gradle Kotlin script files -->
+        <completion.contributor 
+            language="kotlin"
+            implementationClass="site.addzero.maven.search.completion.GradleKtsCompletionContributor"/>
     </extensions>
 </idea-plugin>

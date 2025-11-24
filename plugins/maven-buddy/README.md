@@ -1,4 +1,4 @@
-# Maven Buddy
+Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Maven dependencies from Maven Central directly within your IDE. This plugin streamlines the process of finding and managing dependencies for your Java and Kotlin projects.
 
 快速从 Maven Central 搜索和添加依赖的 IntelliJ IDEA 插件。
 

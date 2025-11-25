@@ -2,6 +2,7 @@ package site.addzero.gradle.favorites.ui
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import site.addzero.gradle.favorites.model.FavoriteGradleTask
@@ -10,12 +11,16 @@ import site.addzero.gradle.favorites.strategy.EditorContextStrategy
 import java.awt.BorderLayout
 import java.awt.GridLayout
 import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 
 class GradleFavoritesPanel(private val project: Project) : JPanel(BorderLayout()) {
     
     private val service = GradleFavoritesService.getInstance(project)
     private val listModel = DefaultListModel<String>()
     private val taskList = JBList(listModel)
+    private val searchField = SearchTextField()
+    private var allTasks = listOf<FavoriteGradleTask>()
     
     init {
         setupUI()
@@ -23,6 +28,16 @@ class GradleFavoritesPanel(private val project: Project) : JPanel(BorderLayout()
     }
     
     private fun setupUI() {
+        searchField.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent?) = applyFilter()
+            override fun removeUpdate(e: DocumentEvent?) = applyFilter()
+            override fun changedUpdate(e: DocumentEvent?) = applyFilter()
+        })
+        
+        val topPanel = JPanel(BorderLayout())
+        topPanel.add(searchField, BorderLayout.CENTER)
+        add(topPanel, BorderLayout.NORTH)
+        
         val scrollPane = JBScrollPane(taskList)
         add(scrollPane, BorderLayout.CENTER)
         
@@ -42,6 +57,24 @@ class GradleFavoritesPanel(private val project: Project) : JPanel(BorderLayout()
         buttonPanel.add(executeButton)
         
         add(buttonPanel, BorderLayout.SOUTH)
+    }
+    
+    private fun applyFilter() {
+        val filterText = searchField.text.lowercase()
+        listModel.clear()
+        
+        val filteredTasks = allTasks
+            .filter { filterText.isBlank() || it.displayName.lowercase().contains(filterText) }
+        
+        filteredTasks
+            .groupBy { it.group }
+            .toSortedMap()
+            .forEach { (group, tasks) ->
+                if (group != "Default" || filteredTasks.any { it.group != "Default" }) {
+                    listModel.addElement("[$group]")
+                }
+                tasks.forEach { listModel.addElement("  ${it.displayName}") }
+            }
     }
     
     private fun showAddDialog() {
@@ -64,9 +97,25 @@ class GradleFavoritesPanel(private val project: Project) : JPanel(BorderLayout()
             return
         }
         
+        val groups = service.getAllGroups().ifEmpty { listOf("Default") }
+        val selectedGroup = Messages.showEditableChooseDialog(
+            "Select or enter group name:",
+            "Task Group",
+            Messages.getQuestionIcon(),
+            groups.toTypedArray(),
+            groups.firstOrNull() ?: "Default",
+            null
+        ) ?: "Default"
+        
+        val maxOrder = service.getAllFavorites()
+            .filter { it.group == selectedGroup }
+            .maxOfOrNull { it.order } ?: -1
+        
         val task = FavoriteGradleTask(
             projectPath = projectPath.trim(),
-            taskName = taskName.trim()
+            taskName = taskName.trim(),
+            group = selectedGroup.trim(),
+            order = maxOrder + 1
         )
         
         service.addFavorite(task)
@@ -107,13 +156,16 @@ class GradleFavoritesPanel(private val project: Project) : JPanel(BorderLayout()
     }
     
     private fun refreshList() {
-        listModel.clear()
-        service.getAllFavorites()
-            .map { it.displayName }
-            .forEach { listModel.addElement(it) }
+        allTasks = service.getAllFavorites()
+        applyFilter()
     }
     
     private fun parseTaskFromDisplayString(displayString: String): FavoriteGradleTask? {
-        return service.getAllFavorites().firstOrNull { it.displayName == displayString }
+        val cleanedString = displayString.trim().removePrefix("  ")
+        return if (cleanedString.startsWith("[")) {
+            null
+        } else {
+            service.getAllFavorites().firstOrNull { it.displayName == cleanedString }
+        }
     }
 }

@@ -5,7 +5,9 @@ import com.intellij.openapi.components.BaseState
 data class FavoriteGradleTask(
     val projectPath: String,
     val taskName: String,
-    val displayName: String = "$projectPath:$taskName"
+    val displayName: String = "$projectPath:$taskName",
+    val group: String = "Default",
+    val order: Int = 0
 ) {
     fun toExecutableCommand(): String = "$projectPath:$taskName"
     
@@ -21,6 +23,8 @@ class FavoriteTaskData : BaseState() {
     var projectPath by string()
     var taskName by string()
     var displayName by string()
+    var group by string()
+    var order by property(0)
     
     fun toFavoriteTask(): FavoriteGradleTask? {
         val path = projectPath ?: return null
@@ -28,7 +32,9 @@ class FavoriteTaskData : BaseState() {
         return FavoriteGradleTask(
             projectPath = path,
             taskName = name,
-            displayName = displayName ?: "$path:$name"
+            displayName = displayName ?: "$path:$name",
+            group = group ?: "Default",
+            order = order
         )
     }
     
@@ -37,6 +43,8 @@ class FavoriteTaskData : BaseState() {
             projectPath = task.projectPath
             taskName = task.taskName
             displayName = task.displayName
+            group = task.group
+            order = task.order
         }
     }
 }

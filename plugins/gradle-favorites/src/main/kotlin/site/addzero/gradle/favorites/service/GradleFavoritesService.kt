@@ -25,10 +25,18 @@ class GradleFavoritesService : PersistentStateComponent<FavoriteTasksState> {
     }
     
     fun getAllFavorites(): List<FavoriteGradleTask> = 
-        state.favorites.mapNotNull { it.toFavoriteTask() }
+        state.favorites
+            .mapNotNull { it.toFavoriteTask() }
+            .sortedWith(compareBy({ it.group }, { it.order }))
     
     fun getFavoritesForModule(modulePath: String): List<FavoriteGradleTask> =
         getAllFavorites().filter { it.matchesModule(modulePath) }
+    
+    fun getFavoritesByGroup(): Map<String, List<FavoriteGradleTask>> =
+        getAllFavorites().groupBy { it.group }
+    
+    fun getAllGroups(): List<String> =
+        getAllFavorites().map { it.group }.distinct().sorted()
     
     fun addFavorite(task: FavoriteGradleTask) {
         if (isFavorite(task)) return

@@ -58,6 +58,17 @@
             <add-to-group group-id="Gradle.View.ActionsToolbar.RightPanel" anchor="after" relative-to-action="GradleFavorites.AddToFavorites"/>
         </action>
         
+        <!-- Show Favorites Popup with Keyboard Shortcut -->
+        <action 
+            id="GradleFavorites.ShowPopup" 
+            class="site.addzero.gradle.favorites.action.ShowFavoritesPopupAction"
+            text="Show Gradle Favorites Popup"
+            description="Show popup with favorite Gradle tasks">
+            <keyboard-shortcut first-keystroke="ctrl shift G" keymap="$default"/>
+            <keyboard-shortcut first-keystroke="meta shift G" keymap="Mac OS X"/>
+            <keyboard-shortcut first-keystroke="meta shift G" keymap="Mac OS X 10.5+"/>
+        </action>
+        
         <!-- Editor Context Menu -->
         <group 
             id="GradleFavorites.EditorContextMenu" 

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ✅ **Keyboard Shortcut Support**
+  - Press `Ctrl+Shift+G` (Windows/Linux) or `Cmd+Shift+G` (macOS) to show favorites popup
+  - Quick access to favorite tasks without opening tool window
+  - Context-aware task filtering based on current file
+
+- ✅ **Task Grouping**
+  - Organize tasks into custom groups (e.g., "Build", "Publish", "Test")
+  - Group selector when adding new tasks
+  - Grouped display in tool window and popup
+  - Hierarchical popup navigation for grouped tasks
+  - Auto-sorted by group name and order
+
+- ✅ **Search and Filter**
+  - Real-time search field in tool window
+  - Filter tasks by display name
+  - Works seamlessly with grouped display
+  - Functional programming style implementation
+
+### Improved
+- Enhanced UI panel with search bar at the top
+- Better task organization with group headers
+- Improved popup navigation with group submenus
+- Tasks automatically sorted by group and order
+- Cleaner visual separation between groups
+
 ## [0.1.0] - 2025-11-23
 
 ### Added

@@ -68,14 +68,6 @@
                 id="MavenSearch"
                 displayType="BALLOON" bundle="messages.MavenSearchBundle" key="notification.group.maven.search"/>
 
-        <!-- Intention: Upgrade dependency to latest version -->
-        <intentionAction>
-            <language>JAVA</language>
-            <language>kotlin</language>
-            <category>Maven Dependencies</category>
-            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
-        </intentionAction>
-
         <!-- Completion contributor for Gradle Kotlin script files -->
         <completion.contributor 
             language="kotlin"

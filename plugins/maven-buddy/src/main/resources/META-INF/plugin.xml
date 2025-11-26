@@ -63,6 +63,14 @@
         <applicationService
             serviceImplementation="site.addzero.maven.search.settings.MavenSearchSettings"/>
 
+        <!-- Application Service for Search History -->
+        <applicationService
+            serviceImplementation="site.addzero.maven.search.history.SearchHistoryService"/>
+
+        <!-- Application Service for Search Result Cache -->
+        <applicationService
+            serviceImplementation="site.addzero.maven.search.cache.SearchResultCacheService"/>
+
         <!-- Notification Group -->
         <notificationGroup
                 id="MavenSearch"
@@ -72,5 +80,10 @@
         <completion.contributor 
             language="kotlin"
             implementationClass="site.addzero.maven.search.completion.GradleKtsCompletionContributor"/>
+
+        <!-- Completion contributor for Gradle Version Catalog (libs.versions.toml) -->
+        <completion.contributor 
+            language="any"
+            implementationClass="site.addzero.maven.search.completion.VersionCatalogCompletionContributor"/>
     </extensions>
 </idea-plugin>

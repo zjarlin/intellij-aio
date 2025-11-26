@@ -22,9 +22,20 @@ class MavenSearchSettings : PersistentStateComponent<MavenSearchSettings> {
     var dependencyFormat: DependencyFormat = DependencyFormat.GRADLE_KOTLIN
 
     /**
-     * 搜索结果数量限制
+     * 搜索结果数量限制（已废弃，使用 pageSize）
      */
+    @Deprecated("Use pageSize instead")
     var maxResults: Int = 20
+
+    /**
+     * 每页结果数量（增大以获取更多结果）
+     */
+    var pageSize: Int = 50
+
+    /**
+     * 是否启用分页搜索
+     */
+    var enablePagination: Boolean = true
 
     /**
      * 是否自动复制到剪贴板

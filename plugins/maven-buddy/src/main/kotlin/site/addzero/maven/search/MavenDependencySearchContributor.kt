@@ -8,9 +8,12 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.util.Processor
 import com.intellij.util.TimeoutUtil
+import site.addzero.maven.search.cache.SearchResultCacheService
+import site.addzero.maven.search.history.SearchHistoryService
 import site.addzero.maven.search.settings.MavenSearchSettings
 import site.addzero.network.call.maven.util.MavenArtifact
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
+import site.addzero.network.call.maven.util.MavenCentralPaginatedSearchUtil
 import javax.swing.ListCellRenderer
 
 /**
@@ -21,7 +24,17 @@ class MavenDependencySearchContributor(
 ) : SearchEverywhereContributor<MavenArtifact> {
 
     private val settings = MavenSearchSettings.getInstance()
+    private val historyService = SearchHistoryService.getInstance()
+    private val cacheService = SearchResultCacheService.getInstance()
     private val logger = Logger.getInstance(MavenDependencySearchContributor::class.java)
+    
+    // 分页状态
+    private var currentPage = 0
+    private var lastSearchPattern = ""
+    private var totalResultCount = 0
+    private var allLoadedArtifacts = mutableListOf<MavenArtifact>()
+    private var hasMoreResults = true
+    private val paginationSessions = mutableMapOf<String, MavenCentralPaginatedSearchUtil.PaginatedSearchSession>()
 
     override fun getSearchProviderId(): String = "MavenDependencySearch"
 
@@ -40,6 +53,10 @@ class MavenDependencySearchContributor(
         val dependencyString = formatDependency(selected)
         copyToClipboard(dependencyString)
 
+        // 自动记录历史（使用 += 操作符自动去重）
+        historyService.record(selected.groupId, selected.artifactId, selected.latestVersion.ifBlank { selected.version })
+        historyService.record(searchText)
+
         // 显示通知
         showNotification(
             project,
@@ -55,23 +72,34 @@ class MavenDependencySearchContributor(
         progressIndicator: ProgressIndicator,
         consumer: Processor<in MavenArtifact>
     ) {
-        if (pattern.isBlank() || pattern.length < 2) return
+        if (pattern.isBlank() || pattern.length < 2) {
+            resetPaginationState()
+            // 显示最近使用的历史记录
+            if (historyService.enableHistory) {
+                deliverHistoryResults(consumer, progressIndicator)
+            }
+            return
+        }
+
+        // 检测搜索模式是否改变
+        val isNewSearch = pattern != lastSearchPattern
+        if (isNewSearch) {
+            resetPaginationState()
+            lastSearchPattern = pattern
+        }
 
         progressIndicator.isIndeterminate = true
         progressIndicator.text = "Maven Central"
         progressIndicator.text2 = "Preparing search request..."
 
-        val cached = getCachedResults(pattern)
-        if (cached != null) {
-            progressIndicator.text2 = "Loaded cached results"
-            deliverResults(cached, consumer, progressIndicator)
+        // 如果没有更多结果且不是新搜索，返回已加载的全部结果
+        if (!isNewSearch && !hasMoreResults) {
+            progressIndicator.text2 = "All $totalResultCount results loaded"
+            deliverResults(allLoadedArtifacts, consumer, progressIndicator)
             progressIndicator.isIndeterminate = false
-            progressIndicator.fraction = 0.0
             return
         }
 
-        // 如果需要手动触发，只在用户明确按下 Enter 时才搜索
-        // SearchEverywhere 框架在用户选择项目时会自动调用，无法直接区分是否按 Enter
         val delayMs = if (settings.requireManualTrigger) 1000L else settings.debounceDelay.toLong()
 
         if (!enforceRateLimit(progressIndicator)) {
@@ -87,22 +115,104 @@ class MavenDependencySearchContributor(
 
         progressIndicator.isIndeterminate = true
         progressIndicator.text = "Searching Maven Central..."
-        progressIndicator.text2 = "Waiting for Maven Central response..."
+        progressIndicator.text2 = "Page ${currentPage + 1}..."
 
         try {
-            val results = searchMavenArtifacts(pattern, progressIndicator)
-            cacheResults(pattern, results)
-            if (enableDebugLog) {
-                logger.info("Maven Search: found ${results.size} results for '$pattern'")
+            val results = when {
+                settings.enablePagination -> searchMavenArtifactsWithPagination(pattern, progressIndicator)
+                else -> searchMavenArtifacts(pattern, progressIndicator)
             }
-            progressIndicator.text2 = "Loaded ${results.size} results"
-            deliverResults(results, consumer, progressIndicator)
+            
+            // 按 timestamp 降序排序
+            val sortedResults = results.sortedByDescending { it.timestamp }
+            
+            allLoadedArtifacts.addAll(sortedResults)
+            
+            // 更新持久化缓存（包含所有已加载的结果）
+            if (allLoadedArtifacts.isNotEmpty()) {
+                cacheService[pattern] = allLoadedArtifacts.toList()
+            }
+            
+            // 判断是否还有更多结果
+            hasMoreResults = results.isNotEmpty() && 
+                settings.enablePagination && 
+                allLoadedArtifacts.size < totalResultCount
+            
+            if (enableDebugLog) {
+                logger.info("Maven Search: loaded ${results.size} results for '$pattern' (page $currentPage, total: $totalResultCount)")
+            }
+            
+            val statusText = buildString {
+                append("🔍 ${allLoadedArtifacts.size}")
+                if (totalResultCount > 0) {
+                    append(" / $totalResultCount")
+                }
+                if (hasMoreResults) {
+                    append(" ↓ scroll for more")
+                }
+            }
+            progressIndicator.text2 = statusText
+            
+            // 返回所有已加载的结果（Search Everywhere 每次调用会刷新列表）
+            deliverResults(allLoadedArtifacts, consumer, progressIndicator)
+            
+            // 准备下一页
+            if (settings.enablePagination) {
+                currentPage++
+            }
         } catch (e: Exception) {
             logException("Maven search failed for pattern '$pattern'", e)
         } finally {
             progressIndicator.isIndeterminate = false
             progressIndicator.fraction = 0.0
         }
+    }
+    
+    /**
+     * 重置分页状态
+     */
+    private fun resetPaginationState() {
+        currentPage = 0
+        lastSearchPattern = ""
+        totalResultCount = 0
+        allLoadedArtifacts.clear()
+        hasMoreResults = true
+        paginationSessions.clear()
+    }
+
+    /**
+     * 显示历史记录结果（按 groupId:artifactId 去重）
+     */
+    private fun deliverHistoryResults(
+        consumer: Processor<in MavenArtifact>,
+        progressIndicator: ProgressIndicator
+    ) {
+        // 获取更多历史记录（已按 groupId:artifactId 去重）
+        val recentArtifacts = historyService.recentArtifacts(30)
+        if (recentArtifacts.isEmpty()) {
+            progressIndicator.text = "No History"
+            progressIndicator.text2 = "Search to add dependencies"
+            return
+        }
+        
+        progressIndicator.text = "📜 Recent Dependencies"
+        progressIndicator.text2 = "${recentArtifacts.size} items (click to copy)"
+        
+        recentArtifacts
+            .takeWhile { !progressIndicator.isCanceled }
+            .map { entry ->
+                MavenArtifact(
+                    id = entry.key,
+                    groupId = entry.groupId,
+                    artifactId = entry.artifactId,
+                    version = entry.version,
+                    latestVersion = entry.version,
+                    packaging = "jar",
+                    timestamp = entry.timestamp,
+                    repositoryId = "history"
+                )
+            }
+            .forEach { consumer.process(it) }
     }
 
     /**
@@ -156,7 +266,48 @@ class MavenDependencySearchContributor(
     // ==================== 辅助方法 ====================
 
     /**
-     * 搜索 Maven 工件
+     * 分页搜索 Maven 工件
+     */
+    private fun searchMavenArtifactsWithPagination(
+        pattern: String,
+        progressIndicator: ProgressIndicator
+    ): List<MavenArtifact> {
+        progressIndicator.text = "Searching Maven Central..."
+
+        return runCatching {
+            val pageSize = settings.pageSize
+            
+            if (enableDebugLog) {
+                println("Maven Search (paginated): searching '$pattern' page $currentPage, size $pageSize")
+            }
+            
+            // 创建或复用搜索会话
+            val session = paginationSessions.getOrPut(pattern) {
+                MavenCentralPaginatedSearchUtil.searchByKeywordPaginated(
+                    keyword = pattern,
+                    pageSize = pageSize
+                )
+            }
+            
+            val paginatedResult = session.loadNextPage()
+            
+            // 更新总结果数
+            totalResultCount = paginatedResult.totalResults.toInt()
+            
+            if (enableDebugLog) {
+                println("Maven Search (paginated): found ${paginatedResult.artifacts.size} results for page $currentPage")
+                println("Total: $totalResultCount, hasMore: ${paginatedResult.hasMore}")
+            }
+            
+            paginatedResult.artifacts
+        }.getOrElse { e ->
+            logException("Maven Central paginated search failed for '$pattern'", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * 搜索 Maven 工件（非分页模式）
      *
      * 优先使用 searchByKeyword 方法进行搜索（最高优先级）
      * 使用 site.addzero:tool-api-maven 工具类搜索 Maven Central
@@ -167,7 +318,8 @@ class MavenDependencySearchContributor(
     ): List<MavenArtifact> {
         progressIndicator.text = "Searching Maven Central..."
 
-        return try {
+        return runCatching {
+            @Suppress("DEPRECATION")
             val maxResults = settings.maxResults
 
             // 优先使用关键词搜索（优先级最高）
@@ -186,7 +338,7 @@ class MavenDependencySearchContributor(
                 println("Maven Search: found ${results.size} results for '$pattern'")
             }
             results
-        } catch (e: Exception) {
+        }.getOrElse { e ->
             logException("Maven Central search failed for '$pattern'", e)
             emptyList()
         }
@@ -197,9 +349,6 @@ class MavenDependencySearchContributor(
         private const val enableDebugLog = false
 
         private val globalRateLimiter = SlidingWindowRateLimiter(maxRequests = 5, windowMillis = 2000)
-        private const val cacheTtlMs = 2_000L
-        @Volatile
-        private var cachedResults: CachedResult? = null
     }
 
     private fun logException(message: String, throwable: Throwable) {
@@ -222,19 +371,6 @@ class MavenDependencySearchContributor(
                 logger.info("Search consumer stopped early while showing ${artifact.id}")
                 return
             }
-        }
-    }
-
-    private fun cacheResults(pattern: String, results: List<MavenArtifact>) {
-        cachedResults = CachedResult(pattern, results, System.currentTimeMillis())
-    }
-
-    private fun getCachedResults(pattern: String): List<MavenArtifact>? {
-        val cache = cachedResults ?: return null
-        return if (cache.pattern == pattern && System.currentTimeMillis() - cache.timestamp <= cacheTtlMs) {
-            cache.results
-        } else {
-            null
         }
     }
 
@@ -271,15 +407,6 @@ class MavenDependencySearchContributor(
         progressIndicator.fraction = 1.0
         return true
     }
-
-    /**
-     * 简单滑动窗口限流器
-     */
-    private data class CachedResult(
-        val pattern: String,
-        val results: List<MavenArtifact>,
-        val timestamp: Long
-    )
 
     private class SlidingWindowRateLimiter(
         private val maxRequests: Int,

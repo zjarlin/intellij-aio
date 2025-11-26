@@ -4,11 +4,26 @@ Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Mav
 
 ## ✨ 功能特性
 
+### 搜索功能
 - 🔍 **快速搜索**: 按两下 Shift 打开搜索，直接搜索 Maven 依赖
 - 📋 **一键复制**: 选择依赖后自动复制到剪贴板
 - ⚙️ **格式可配置**: 支持 Maven XML、Gradle Kotlin DSL、Gradle Groovy DSL 三种格式
 - ⚡ **智能搜索**: 支持按 groupId、artifactId 或关键词搜索
 - 🎯 **精确匹配**: 使用 `:` 分隔符进行精确坐标搜索
+
+### 历史与缓存
+- 📜 **搜索历史**: 记录使用过的依赖，下拉快速选择（按 groupId:artifactId 去重）
+- 💾 **持久化缓存**: 搜索结果缓存 7 天，避免重复调用 API
+- 📊 **分组显示**: 历史(📜)、缓存(💾)、搜索(🔍) 三种来源明确区分
+- ⏱️ **时间排序**: 搜索结果按更新时间降序排列
+
+### 翻页与加载
+- 📄 **分页加载**: 支持滚动加载更多结果（默认每页 50 条）
+- 🔄 **增量加载**: 滚动到底部自动加载下一页
+
+### Version Catalog 支持
+- 📝 **TOML 补全**: 在 `libs.versions.toml` 中智能补全依赖
+- 🔄 **批量迁移**: 一键将项目中所有硬编码依赖迁移到 Version Catalog
 
 ## 📦 安装
 
@@ -166,6 +181,52 @@ com.fasterxml.jackson.core:jackson-annotations
 ...
 ```
 
+## 🔄 Version Catalog 迁移
+
+### 批量迁移
+
+将项目中所有硬编码依赖迁移到 `libs.versions.toml`：
+
+**入口**:
+- `Tools` 菜单 → `Migrate Dependencies to Version Catalog`
+- 项目右键 → `Migrate Dependencies to Version Catalog`
+
+**转换示例**:
+```kotlin
+// 迁移前 (build.gradle.kts)
+implementation("com.google.guava:guava:32.1.3-jre")
+implementation("com.fasterxml.jackson.core:jackson-core:2.15.0")
+
+// 迁移后 (build.gradle.kts)
+implementation(libs.guava)
+implementation(libs.jackson.core)
+```
+
+```toml
+# 生成的 gradle/libs.versions.toml
+[versions]
+guava = "32.1.3-jre"
+jackson = "2.15.0"
+
+[libraries]
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
+```
+
+### TOML 文件补全
+
+在 `*.versions.toml` 文件中输入时自动补全：
+
+```toml
+[libraries]
+# 输入 "guava" 后触发补全
+guava = "com.google.guava:guava:32.1.3-jre"
+
+# 支持多种格式
+jackson = { module = "com.fasterxml.jackson.core:jackson-core", version = "2.15.0" }
+spring = { group = "org.springframework", name = "spring-core", version = "6.1.0" }
+```
+
 ## 🔧 技术栈
 
 - **搜索 API**: Maven Central REST API
@@ -187,14 +248,19 @@ maven-buddy/
 ├── src/main/kotlin/
 │   └── site/addzero/maven/search/
 │       ├── MavenDependencySearchContributor.kt  # Search Everywhere 贡献者
-│       ├── MavenArtifactCellRenderer.kt         # 列表渲染器
+│       ├── MavenArtifactCellRenderer.kt         # 列表渲染器（分组显示）
 │       ├── settings/
 │       │   ├── MavenSearchSettings.kt           # 设置持久化
 │       │   └── MavenSearchConfigurable.kt       # 设置页面
-│       └── util/                                 # 工具类（临时复制）
-│           ├── MavenCentralSearchUtil.kt
-│           ├── CurlExecutor.kt
-│           └── CurlParser.kt
+│       ├── history/
+│       │   └── SearchHistoryService.kt          # 搜索历史服务
+│       ├── cache/
+│       │   └── SearchResultCacheService.kt      # 搜索结果缓存服务
+│       ├── completion/
+│       │   ├── GradleKtsCompletionContributor.kt    # Gradle KTS 补全
+│       │   └── VersionCatalogCompletionContributor.kt # TOML 补全
+│       └── migration/
+│           └── MigrateToVersionCatalogAction.kt # 批量迁移 Action
 ├── src/main/resources/
 │   └── META-INF/
 │       └── plugin.xml                            # 插件描述文件

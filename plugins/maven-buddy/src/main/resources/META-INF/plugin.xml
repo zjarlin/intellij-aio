@@ -86,4 +86,15 @@
             language="any"
             implementationClass="site.addzero.maven.search.completion.VersionCatalogCompletionContributor"/>
     </extensions>
+
+    <actions>
+        <!-- Migrate to Version Catalog Action -->
+        <action id="site.addzero.maven.search.MigrateToVersionCatalog"
+                class="site.addzero.maven.search.migration.MigrateToVersionCatalogAction"
+                text="Migrate Dependencies to Version Catalog"
+                description="Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

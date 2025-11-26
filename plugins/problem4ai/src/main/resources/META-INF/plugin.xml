@@ -1,0 +1,28 @@
+<idea-plugin>
+    <id>site.addzero.problem4ai</id>
+
+    <name>Problem4AI</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin/autoddl-idea-plugin.git">zjarlin</vendor>
+
+    <description><![CDATA[
+        <h1>Problem4AI - 代码问题AI修复助手</h1>
+        <p>自动收集项目中的编译错误和警告，一键生成AI修复提示词。</p>
+        
+        <h2>功能特性</h2>
+        <ul>
+            <li>自动收集项目编译错误和警告</li>
+            <li>分类展示（Errors/Warnings）</li>
+            <li>点击文件快速跳转到问题位置</li>
+            <li>一键复制生成AI修复提示词</li>
+            <li>集成到 IDE Problems 面板</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="site.addzero.diagnostic.problemsview.AiFixProblemsInjector"/>
+        <notificationGroup id="Problem4AI Notifications" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+</idea-plugin>

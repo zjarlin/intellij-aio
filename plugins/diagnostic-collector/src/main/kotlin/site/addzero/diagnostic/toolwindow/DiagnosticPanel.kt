@@ -18,14 +18,24 @@ import javax.swing.*
 class DiagnosticPanel(private val project: Project) : JPanel(BorderLayout()) {
     
     private val tabbedPane = JTabbedPane()
-    private val errorPanel = FileListPanel(project, DiagnosticSeverity.ERROR)
-    private val warningPanel = FileListPanel(project, DiagnosticSeverity.WARNING)
-    private val statusLabel = JBLabel("点击刷新按钮收集诊断信息")
+    private val statusLabel = JBLabel("点击刷新按钮收集诊断信息（仅收集已打开过的文件）")
+    private val errorPanel = FileListPanel(project, DiagnosticSeverity.ERROR) { fileName ->
+        statusLabel.text = "已复制 $fileName 的诊断信息到剪贴板"
+    }
+    private val warningPanel = FileListPanel(project, DiagnosticSeverity.WARNING) { fileName ->
+        statusLabel.text = "已复制 $fileName 的诊断信息到剪贴板"
+    }
     
     private var currentDiagnostics: List<FileDiagnostics> = emptyList()
+    private val diagnosticsListener: (List<FileDiagnostics>) -> Unit = { updateDiagnostics(it) }
     
     init {
         setupUI()
+        setupAutoRefresh()
+    }
+    
+    private fun setupAutoRefresh() {
+        DiagnosticCollectorService.getInstance(project).addListener(diagnosticsListener)
     }
     
     private fun setupUI() {
@@ -69,26 +79,26 @@ class DiagnosticPanel(private val project: Project) : JPanel(BorderLayout()) {
     
     private fun refreshDiagnostics() {
         statusLabel.text = "正在收集诊断信息..."
-        errorPanel.clear()
-        warningPanel.clear()
+        DiagnosticCollectorService.getInstance(project).collectDiagnostics { updateDiagnostics(it) }
+    }
+    
+    private fun updateDiagnostics(diagnostics: List<FileDiagnostics>) {
+        currentDiagnostics = diagnostics
         
-        DiagnosticCollectorService.getInstance(project).collectDiagnostics { diagnostics ->
-            currentDiagnostics = diagnostics
-            
-            val errorFiles = DiagnosticCollectorService.getInstance(project).getErrorFiles(diagnostics)
-            val warningFiles = DiagnosticCollectorService.getInstance(project).getWarningFiles(diagnostics)
-            
-            errorPanel.setFiles(errorFiles)
-            warningPanel.setFiles(warningFiles)
-            
-            val errorCount = errorFiles.sumOf { it.items.size }
-            val warningCount = warningFiles.sumOf { it.items.size }
-            
-            tabbedPane.setTitleAt(0, "Errors ($errorCount)")
-            tabbedPane.setTitleAt(1, "Warnings ($warningCount)")
-            
-            statusLabel.text = "共 ${diagnostics.size} 个文件, $errorCount 个错误, $warningCount 个警告"
-        }
+        val service = DiagnosticCollectorService.getInstance(project)
+        val errorFiles = service.getErrorFiles(diagnostics)
+        val warningFiles = service.getWarningFiles(diagnostics)
+        
+        errorPanel.setFiles(errorFiles)
+        warningPanel.setFiles(warningFiles)
+        
+        val errorCount = errorFiles.sumOf { it.items.size }
+        val warningCount = warningFiles.sumOf { it.items.size }
+        
+        tabbedPane.setTitleAt(0, "Errors ($errorCount)")
+        tabbedPane.setTitleAt(1, "Warnings ($warningCount)")
+        
+        statusLabel.text = "共 ${diagnostics.size} 个文件, $errorCount 个错误, $warningCount 个警告"
     }
     
     private fun copyAllToClipboard() {
@@ -126,7 +136,8 @@ class DiagnosticPanel(private val project: Project) : JPanel(BorderLayout()) {
 
 class FileListPanel(
     private val project: Project,
-    private val severity: DiagnosticSeverity
+    private val severity: DiagnosticSeverity,
+    private val onCopied: (String) -> Unit = {}
 ) : JPanel() {
     
     private val filesContainer = JPanel()
@@ -146,7 +157,9 @@ class FileListPanel(
     fun setFiles(files: List<FileDiagnostics>) {
         clear()
         files.forEach { fileDiag ->
-            filesContainer.add(FileRow(project, fileDiag, severity))
+            filesContainer.add(FileRow(project, fileDiag, severity) { 
+                onCopied(fileDiag.file.name) 
+            })
         }
         revalidate()
         repaint()
@@ -156,7 +169,8 @@ class FileListPanel(
 class FileRow(
     private val project: Project,
     private val fileDiagnostics: FileDiagnostics,
-    private val severity: DiagnosticSeverity
+    private val severity: DiagnosticSeverity,
+    private val onCopied: () -> Unit = {}
 ) : JPanel(BorderLayout()) {
     
     init {
@@ -169,36 +183,36 @@ class FileRow(
     }
     
     private fun setupUI() {
+        val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0))
+        leftPanel.isOpaque = false
+        
+        val copyButton = JButton(AllIcons.Actions.Copy)
+        copyButton.toolTipText = "复制此文件的诊断信息"
+        copyButton.preferredSize = Dimension(24, 24)
+        copyButton.addActionListener { copyToClipboard() }
+        leftPanel.add(copyButton)
+        
         val icon = when (severity) {
             DiagnosticSeverity.ERROR -> AllIcons.General.Error
             DiagnosticSeverity.WARNING -> AllIcons.General.Warning
         }
+        leftPanel.add(JBLabel(icon))
         
-        val iconLabel = JBLabel(icon)
-        add(iconLabel, BorderLayout.WEST)
-        
-        val infoPanel = JPanel(BorderLayout())
-        infoPanel.isOpaque = false
-        infoPanel.border = JBUI.Borders.emptyLeft(8)
+        add(leftPanel, BorderLayout.WEST)
         
         val itemCount = fileDiagnostics.items.size
         val lines = fileDiagnostics.items.joinToString(", ") { it.lineNumber.toString() }
         val fileLabel = JBLabel("<html><b>${fileDiagnostics.file.name}</b> - $itemCount 个问题 (行: $lines)</html>")
+        fileLabel.border = JBUI.Borders.emptyLeft(8)
         fileLabel.cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        fileLabel.toolTipText = "点击跳转到文件"
         fileLabel.addMouseListener(object : java.awt.event.MouseAdapter() {
             override fun mouseClicked(e: java.awt.event.MouseEvent) {
                 navigateToFile()
             }
         })
-        infoPanel.add(fileLabel, BorderLayout.CENTER)
         
-        add(infoPanel, BorderLayout.CENTER)
-        
-        val copyButton = JButton(AllIcons.Actions.Copy)
-        copyButton.toolTipText = "复制此文件的诊断信息"
-        copyButton.preferredSize = Dimension(28, 28)
-        copyButton.addActionListener { copyToClipboard() }
-        add(copyButton, BorderLayout.EAST)
+        add(fileLabel, BorderLayout.CENTER)
     }
     
     private fun setupHoverEffect() {
@@ -225,5 +239,6 @@ class FileRow(
         val content = fileDiagnostics.toAiPrompt()
         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
         clipboard.setContents(StringSelection(content), null)
+        onCopied()
     }
 }

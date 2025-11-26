@@ -22,11 +22,15 @@
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <!-- 启动时注入到 Problems 面板 -->
+        <postStartupActivity implementation="site.addzero.diagnostic.problemsview.AiFixProblemsInjector"/>
+        
+        <!-- 独立工具窗口作为备选 -->
         <toolWindow id="Diagnostics"
                     anchor="bottom"
                     factoryClass="site.addzero.diagnostic.toolwindow.DiagnosticToolWindowFactory"
                     icon="AllIcons.General.Warning"
-                    secondary="false"
+                    secondary="true"
                     order="last"/>
 
         <notificationGroup id="Diagnostic Collector Notifications" displayType="BALLOON" isLogByDefault="true"/>

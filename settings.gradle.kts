@@ -6,7 +6,9 @@ rootProject.name = rootDir.name
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 plugins {
 //    id("org.gradle.toolchains.foojay-resolver-convention") version "+"
-    id("site.addzero.repo-buddy") version "+"
+//    id("site.addzero.repo-buddy") version "+"
+       id("site.addzero.repo-buddy") version "2025.10.07"
+
 //    id("site.addzero.modules-buddy") version "0.0.652"
     id("io.gitee.zjarlin.auto-modules") version "0.0.608"
     id("me.champeau.includegit") version "+"

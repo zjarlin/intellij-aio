@@ -2,8 +2,9 @@ package site.addzero.diagnostic.service
 
 import com.intellij.analysis.AnalysisScope
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
+import com.intellij.openapi.editor.impl.DocumentMarkupModel
+import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.codeInspection.InspectionManager
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ex.InspectionManagerEx
@@ -162,15 +163,19 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
         val psiFile = psiManager.findFile(file) ?: return null
         val document = fileDocumentManager.getDocument(file) ?: return null
         
-        val highlights = try {
-            DaemonCodeAnalyzerImpl.getHighlights(document, HighlightSeverity.WARNING, project)
+        val items = try {
+            val markupModel = DocumentMarkupModel.forDocument(document, project, false)
+            markupModel?.allHighlighters
+                ?.mapNotNull { highlighter ->
+                    val info = HighlightInfo.fromRangeHighlighter(highlighter)
+                    if (info != null && info.severity >= HighlightSeverity.WARNING) {
+                        convertToItem(file, psiFile, document, info)
+                    } else null
+                }
+                ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
-        
-        val items = highlights
-            .filter { it.severity >= HighlightSeverity.WARNING }
-            .mapNotNull { highlight -> convertToItem(file, psiFile, document, highlight) }
         
         if (items.isNotEmpty()) {
             return FileDiagnostics(file, psiFile, items)

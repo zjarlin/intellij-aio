@@ -1,5 +1,4 @@
-# Problem4AI
-
+ Problem4AI is an IntelliJ IDEA plugin that automatically collects compilation errors and warnings from your project, and generates AI-friendly prompts for quick fixes.
 代码问题AI修复助手 - 自动收集项目诊断信息，一键生成AI修复提示词。
 
 ## 功能
@@ -12,7 +11,7 @@
 
 ## 使用
 
-1. 打开 **Problems** 面板 → **AI Fix** Tab
+1. 打开 **Problems** 面板 → **Problem4Ai** Tab
 2. 查看问题文件列表
 3. 点击复制按钮，粘贴给AI修复
 

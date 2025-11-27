@@ -19,9 +19,9 @@ class AiFixProblemsInjector : ProjectActivity {
                 val contentManager = problemsToolWindow.contentManager
                 
                 // 检查是否已添加
-                if (contentManager.findContent("AI Fix") == null) {
+                if (contentManager.findContent("Problem4Ai") == null) {
                     val panel = AiFixPanel(project)
-                    val content = ContentFactory.getInstance().createContent(panel, "AI Fix", false)
+                    val content = ContentFactory.getInstance().createContent(panel, "Problem4Ai", false)
                     contentManager.addContent(content)
                 }
             }

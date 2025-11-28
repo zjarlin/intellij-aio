@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.Processor
 import com.intellij.util.TimeoutUtil
 import site.addzero.maven.search.cache.SearchResultCacheService
+import site.addzero.maven.search.detect.ProjectBuildTypeDetector
 import site.addzero.maven.search.history.SearchHistoryService
 import site.addzero.maven.search.settings.MavenSearchSettings
 import site.addzero.network.call.maven.util.MavenArtifact
@@ -432,10 +433,11 @@ class MavenDependencySearchContributor(
     }
 
     /**
-     * 格式化依赖声明（根据设置选择 Maven 或 Gradle 格式）
+     * 格式化依赖声明（自动根据项目类型选择格式）
      */
     private fun formatDependency(artifact: MavenArtifact): String {
-        return when (settings.dependencyFormat) {
+        val format = ProjectBuildTypeDetector.detect(project)
+        return when (format) {
             DependencyFormat.MAVEN -> formatAsMaven(artifact)
             DependencyFormat.GRADLE_KOTLIN -> formatAsGradleKotlin(artifact)
             DependencyFormat.GRADLE_GROOVY -> formatAsGradleGroovy(artifact)

@@ -1,14 +1,12 @@
 package site.addzero.maven.search.settings
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
-import site.addzero.maven.search.DependencyFormat
 import site.addzero.maven.search.history.SearchHistoryService
 import java.awt.FlowLayout
 import javax.swing.JButton
@@ -26,11 +24,7 @@ class MavenSearchConfigurable : Configurable {
     private val historyService = SearchHistoryService.getInstance()
 
     // UI 组件
-    private val formatComboBox = ComboBox(arrayOf(
-        "Gradle Kotlin DSL",
-        "Gradle Groovy DSL",
-        "Maven XML"
-    ))
+    private val formatInfoLabel = JBLabel("Auto-detected based on project type (build.gradle.kts / build.gradle / pom.xml)")
     
     private val maxResultsField = JBTextField()
     private val pageSizeField = JBTextField()
@@ -59,7 +53,6 @@ class MavenSearchConfigurable : Configurable {
 
         // 添加监听器
         val docListener = SimpleDocumentListener { modified = true }
-        formatComboBox.addActionListener { modified = true }
         maxResultsField.document.addDocumentListener(docListener)
         pageSizeField.document.addDocumentListener(docListener)
         enablePaginationCheckBox.addActionListener {
@@ -107,8 +100,8 @@ class MavenSearchConfigurable : Configurable {
 
         // 构建表单
         val panel = FormBuilder.createFormBuilder()
-            .addLabeledComponent("Dependency format:", formatComboBox)
-            .addTooltip("Choose the format for dependency declarations")
+            .addLabeledComponent("Dependency format:", formatInfoLabel)
+            .addTooltip("Format is automatically detected based on your project's build files")
             .addVerticalGap(8)
             
             .addSeparator(8)
@@ -173,14 +166,7 @@ class MavenSearchConfigurable : Configurable {
     override fun isModified(): Boolean = modified
 
     override fun apply() {
-        // 保存设置
-        settings.dependencyFormat = when (formatComboBox.selectedIndex) {
-            0 -> DependencyFormat.GRADLE_KOTLIN
-            1 -> DependencyFormat.GRADLE_GROOVY
-            2 -> DependencyFormat.MAVEN
-            else -> DependencyFormat.GRADLE_KOTLIN
-        }
-
+        // 保存设置（dependencyFormat 现在自动检测，无需手动设置）
         settings.enablePagination = enablePaginationCheckBox.isSelected
         settings.pageSize = pageSizeField.text.toIntOrNull()?.coerceIn(1, 100) ?: 20
         @Suppress("DEPRECATION")
@@ -207,12 +193,7 @@ class MavenSearchConfigurable : Configurable {
      * 重置组件值为当前设置
      */
     private fun resetComponents() {
-        formatComboBox.selectedIndex = when (settings.dependencyFormat) {
-            DependencyFormat.GRADLE_KOTLIN -> 0
-            DependencyFormat.GRADLE_GROOVY -> 1
-            DependencyFormat.MAVEN -> 2
-        }
-
+        // dependencyFormat 现在是自动检测，无需重置
         enablePaginationCheckBox.isSelected = settings.enablePagination
         pageSizeField.text = settings.pageSize.toString()
         @Suppress("DEPRECATION")

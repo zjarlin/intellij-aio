@@ -41,11 +41,12 @@
     </projectListeners>
     
     <actions>
-        <!-- Gradle Tool Window Actions -->
+        <!-- Gradle Tool Window Actions - Toolbar -->
         <action 
             id="GradleFavorites.AddToFavorites" 
             class="site.addzero.gradle.favorites.action.AddToFavoritesAction"
             text="Add to Favorites"
+            icon="AllIcons.Actions.AddToDictionary"
             description="Add this Gradle task to favorites">
             <add-to-group group-id="Gradle.View.ActionsToolbar.RightPanel" anchor="first"/>
         </action>
@@ -54,8 +55,19 @@
             id="GradleFavorites.RemoveFromFavorites" 
             class="site.addzero.gradle.favorites.action.RemoveFromFavoritesAction"
             text="Remove from Favorites"
+            icon="AllIcons.Actions.GC"
             description="Remove this Gradle task from favorites">
             <add-to-group group-id="Gradle.View.ActionsToolbar.RightPanel" anchor="after" relative-to-action="GradleFavorites.AddToFavorites"/>
+        </action>
+        
+        <!-- Gradle Task Context Menu (Right-click on task) -->
+        <action 
+            id="GradleFavorites.AddToFavoritesContext" 
+            class="site.addzero.gradle.favorites.action.AddToFavoritesAction"
+            text="Add to Favorites"
+            icon="AllIcons.Actions.AddToDictionary"
+            description="Add this Gradle task to favorites">
+            <add-to-group group-id="ExternalSystem.Actions" anchor="last"/>
         </action>
         
         <!-- Show Favorites Popup with Keyboard Shortcut -->

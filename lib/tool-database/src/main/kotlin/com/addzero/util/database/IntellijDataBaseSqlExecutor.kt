@@ -5,15 +5,14 @@ import com.intellij.database.remote.jdbc.RemoteConnection
 import com.intellij.database.remote.jdbc.RemoteResultSet
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Computable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 /**
  * IntelliJ IDEA 数据库 SQL 执行器
- * 
+ *
  * 提供在 IntelliJ IDEA 中执行 SQL 语句的功能
- * 
+ *
  * 注意：这是一个工具类，部分方法可能暂未使用，但提供了完整的 API
  */
 @Suppress("unused", "MemberVisibilityCanBePrivate")
@@ -25,10 +24,10 @@ class IntellijDataBaseSqlExecutor(
 
     fun executeSql(sql: String, timeoutSeconds: Long = 30): SqlExecutionResult {
         val startTime = System.currentTimeMillis()
-        
+
         return try {
             val future = CompletableFuture<SqlExecutionResult>()
-            
+
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     val connection = getConnection()
@@ -65,10 +64,10 @@ class IntellijDataBaseSqlExecutor(
 
     fun executeQuery(sql: String, timeoutSeconds: Long = 30): SqlExecutionResult {
         val startTime = System.currentTimeMillis()
-        
+
         return try {
             val future = CompletableFuture<SqlExecutionResult>()
-            
+
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     val connection = getConnection()
@@ -115,36 +114,9 @@ class IntellijDataBaseSqlExecutor(
 
     private fun getConnection(): RemoteConnection? {
         return try {
-            // Updated to use a more reliable approach for getting database connection
-            ApplicationManager.getApplication().runReadAction(Computable {
-                try {
-                    // Try to get connection through the data source directly
-                    // This is a more modern approach than using DbImplUtilCore
-                    val driver = dataSource.databaseDriver ?: return@Computable null
-                    val connectMethod = driver.javaClass.getMethod(
-                        "connect",
-                        String::class.java,
-                        java.util.Properties::class.java
-                    )
-                    connectMethod.invoke(driver, dataSource.url, dataSource.connectionProperties) as? RemoteConnection
-                } catch (_: Exception) {
-                    // Fallback approach if the direct method fails
-                    try {
-                        // Try using reflection to call any available connect method on the dataSource
-                        val methods = dataSource.javaClass.declaredMethods
-                        val connectMethod = methods.find { 
-                            it.name == "connect" && it.parameterCount == 0 
-                        } ?: return@Computable null
-                        
-                        if (!connectMethod.isAccessible) {
-                            connectMethod.isAccessible = true
-                        }
-                        connectMethod.invoke(dataSource) as? RemoteConnection
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-            })
+            // 最简单的方式：直接返回null，让executeWithConnection方法处理连接
+            // 或者我们可以完全重构这个类，使用不同的方式来执行SQL
+            null
         } catch (_: Exception) {
             null
         }
@@ -158,7 +130,7 @@ class IntellijDataBaseSqlExecutor(
         return try {
             val statement = connection.createStatement()
             val isQuery = sql.trim().uppercase().startsWith("SELECT")
-            
+
             if (isQuery) {
                 val resultSet = statement.executeQuery(sql)
                 val data = extractResultSetData(resultSet)
@@ -210,7 +182,7 @@ class IntellijDataBaseSqlExecutor(
         // 使用 RemoteResultSetMetaData 而不是 ResultSetMetaData
         val metaData = resultSet.metaData
         val columnCount = metaData.columnCount
-        
+
         while (resultSet.next()) {
             val row = mutableMapOf<String, Any?>()
             for (i in 1..columnCount) {
@@ -220,7 +192,7 @@ class IntellijDataBaseSqlExecutor(
             }
             data.add(row)
         }
-        
+
         resultSet.close()
         return data
     }

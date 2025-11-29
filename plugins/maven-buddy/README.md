@@ -15,8 +15,7 @@ Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Mav
 - 📜 **搜索历史**: 记录使用过的依赖，下拉快速选择（按 groupId:artifactId 去重）
 - 🌐 **全局共享**: 历史记录和缓存跨项目共享，切换项目后数据仍然保留
 - 📁 **可配置路径**: 存储路径可在设置中分别自定义
-  - 历史记录默认: `~/.config/maven-buddy/history.json`
-  - 搜索缓存默认: `~/.config/maven-buddy/cache.json`
+  - 默认: `~/.config/maven-buddy
 - 💾 **持久化缓存**: 搜索结果缓存 7 天，避免重复调用 API
 - 📊 **分组显示**: 历史(📜)、缓存(💾)、搜索(🔍) 三种来源明确区分
 - ⏱️ **时间排序**: 搜索结果按更新时间降序排列
@@ -129,11 +128,6 @@ implementation 'com.google.inject:guice:5.1.0'
 ### 全局存储配置
 
 存储路径可在设置中分别自定义，数据全局存储，所有项目共享：
-
-| 数据类型 | 默认路径 | 格式 |
-|---------|---------|------|
-| 历史记录 | `~/.config/maven-buddy/history.json` | JSON |
-| 搜索缓存 | `~/.config/maven-buddy/cache.db` | SQLite |
 
 - **重置按钮**: 每个路径配置项旁都有 "Reset" 按钮恢复默认路径
 - **SQLite 缓存**: 支持索引和增量更新，性能更好

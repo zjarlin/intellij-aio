@@ -7,6 +7,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import site.addzero.maven.search.cache.SearchResultCacheService
 import site.addzero.maven.search.history.SearchHistoryService
 import java.awt.FlowLayout
 import javax.swing.JButton
@@ -22,6 +23,7 @@ class MavenSearchConfigurable : Configurable {
 
     private val settings = MavenSearchSettings.getInstance()
     private val historyService = SearchHistoryService.getInstance()
+    private val cacheService = SearchResultCacheService.getInstance()
 
     // UI 组件
     private val formatInfoLabel = JBLabel("Auto-detected based on project type (build.gradle.kts / build.gradle / pom.xml)")
@@ -36,12 +38,18 @@ class MavenSearchConfigurable : Configurable {
     
     // 历史记录相关组件
     private val enableHistoryCheckBox = JBCheckBox("Enable search history")
+    private val historyStoragePathField = JBTextField()
+    private val resetHistoryPathButton = JButton("Reset")
     private val maxKeywordHistoryField = JBTextField()
     private val maxArtifactHistoryField = JBTextField()
     private val historyStatsLabel = JBLabel()
     private val clearKeywordHistoryButton = JButton("Clear Keywords")
     private val clearArtifactHistoryButton = JButton("Clear Artifacts")
     private val clearAllHistoryButton = JButton("Clear All")
+    
+    // 缓存相关组件
+    private val cacheStoragePathField = JBTextField()
+    private val resetCachePathButton = JButton("Reset")
 
     private var modified = false
 
@@ -74,6 +82,16 @@ class MavenSearchConfigurable : Configurable {
         enableHistoryCheckBox.addActionListener {
             modified = true
             updateHistoryFieldsEnabled()
+        }
+        historyStoragePathField.document.addDocumentListener(docListener)
+        resetHistoryPathButton.addActionListener {
+            historyStoragePathField.text = MavenSearchSettings.defaultHistoryPath()
+            modified = true
+        }
+        cacheStoragePathField.document.addDocumentListener(docListener)
+        resetCachePathButton.addActionListener {
+            cacheStoragePathField.text = MavenSearchSettings.defaultCachePath()
+            modified = true
         }
         maxKeywordHistoryField.document.addDocumentListener(docListener)
         maxArtifactHistoryField.document.addDocumentListener(docListener)
@@ -142,6 +160,14 @@ class MavenSearchConfigurable : Configurable {
             .addTooltip("Enable search history to quickly access recently used dependencies")
             .addVerticalGap(8)
             
+            .addLabeledComponent("History storage path:", createHistoryPathPanel())
+            .addTooltip("Global storage path for search history (shared across all projects)")
+            .addVerticalGap(8)
+            
+            .addLabeledComponent("Cache storage path:", createCachePathPanel())
+            .addTooltip("Global storage path for search result cache (shared across all projects)")
+            .addVerticalGap(8)
+            
             .addLabeledComponent("Max keyword history:", maxKeywordHistoryField)
             .addTooltip("Maximum number of search keywords to remember (1-200)")
             .addVerticalGap(8)
@@ -177,6 +203,25 @@ class MavenSearchConfigurable : Configurable {
         settings.requireManualTrigger = requireManualTriggerCheckBox.isSelected
         
         // 历史设置
+        val oldHistoryPath = settings.historyStoragePath
+        val newHistoryPath = historyStoragePathField.text.trim().ifBlank { MavenSearchSettings.defaultHistoryPath() }
+        settings.historyStoragePath = newHistoryPath
+        
+        // 路径变更时重新加载历史
+        if (oldHistoryPath != newHistoryPath) {
+            historyService.loadFromFile()
+        }
+        
+        // 缓存设置
+        val oldCachePath = settings.cacheStoragePath
+        val newCachePath = cacheStoragePathField.text.trim().ifBlank { MavenSearchSettings.defaultCachePath() }
+        settings.cacheStoragePath = newCachePath
+        
+        // 路径变更时重新加载缓存
+        if (oldCachePath != newCachePath) {
+            cacheService.loadFromFile()
+        }
+        
         historyService.enableHistory = enableHistoryCheckBox.isSelected
         historyService.maxKeywordHistorySize = maxKeywordHistoryField.text.toIntOrNull()?.coerceIn(1, 200) ?: 50
         historyService.maxArtifactHistorySize = maxArtifactHistoryField.text.toIntOrNull()?.coerceIn(1, 500) ?: 100
@@ -212,12 +257,36 @@ class MavenSearchConfigurable : Configurable {
         
         // 历史记录设置
         enableHistoryCheckBox.isSelected = historyService.enableHistory
+        historyStoragePathField.text = settings.historyStoragePath
+        cacheStoragePathField.text = settings.cacheStoragePath
         maxKeywordHistoryField.text = historyService.maxKeywordHistorySize.toString()
         maxArtifactHistoryField.text = historyService.maxArtifactHistorySize.toString()
         updateHistoryFieldsEnabled()
         updateHistoryStats()
     }
     
+    /**
+     * 创建历史路径配置面板
+     */
+    private fun createHistoryPathPanel(): JPanel {
+        return JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
+            add(historyStoragePathField)
+            add(resetHistoryPathButton)
+            historyStoragePathField.columns = 35
+        }
+    }
+
+    /**
+     * 创建缓存路径配置面板
+     */
+    private fun createCachePathPanel(): JPanel {
+        return JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
+            add(cacheStoragePathField)
+            add(resetCachePathButton)
+            cacheStoragePathField.columns = 35
+        }
+    }
+
     /**
      * 创建历史按钮面板
      */
@@ -234,6 +303,10 @@ class MavenSearchConfigurable : Configurable {
      */
     private fun updateHistoryFieldsEnabled() {
         val enabled = enableHistoryCheckBox.isSelected
+        historyStoragePathField.isEnabled = enabled
+        resetHistoryPathButton.isEnabled = enabled
+        cacheStoragePathField.isEnabled = enabled
+        resetCachePathButton.isEnabled = enabled
         maxKeywordHistoryField.isEnabled = enabled
         maxArtifactHistoryField.isEnabled = enabled
         clearKeywordHistoryButton.isEnabled = enabled

@@ -1,41 +1,122 @@
 package site.addzero.maven.search.history
 
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.State
-import com.intellij.openapi.components.Storage
-import com.intellij.util.xmlb.XmlSerializerUtil
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.Logger
+import site.addzero.maven.search.settings.MavenSearchSettings
+import java.io.File
 
 /**
  * Maven 搜索历史持久化服务
  * 
- * 使用 LinkedHashSet 语义自动去重，保持插入顺序
- * 添加操作是透明的，自动处理去重和大小限制
+ * 全局存储，与项目无关
+ * 使用 JSON 文件存储，路径可在设置中配置
  */
-@State(
-    name = "MavenSearchHistory",
-    storages = [Storage("MavenSearchHistory.xml")]
-)
-class SearchHistoryService : PersistentStateComponent<SearchHistoryService> {
+@Service(Service.Level.APP)
+class SearchHistoryService {
+
+    private val logger = Logger.getInstance(SearchHistoryService::class.java)
+    private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
+    private var data: HistoryData = HistoryData()
+    private var lastLoadedPath: String? = null
+
+    init {
+        loadFromFile()
+    }
 
     /**
      * 搜索关键词历史（自动去重，最近的在前）
      */
-    var searchKeywords: MutableList<String> = mutableListOf()
+    val searchKeywords: MutableList<String>
+        get() {
+            ensureLoaded()
+            return data.searchKeywords
+        }
 
     /**
      * 选择的依赖历史（按 groupId:artifactId 去重，最近的在前）
      */
-    var selectedArtifacts: MutableList<ArtifactHistoryEntry> = mutableListOf()
+    val selectedArtifacts: MutableList<ArtifactHistoryEntry>
+        get() {
+            ensureLoaded()
+            return data.selectedArtifacts
+        }
 
-    var maxKeywordHistorySize: Int = 50
-    var maxArtifactHistorySize: Int = 100
-    var enableHistory: Boolean = true
+    var maxKeywordHistorySize: Int
+        get() = data.maxKeywordHistorySize
+        set(value) {
+            data.maxKeywordHistorySize = value
+            saveToFile()
+        }
 
-    override fun getState(): SearchHistoryService = this
+    var maxArtifactHistorySize: Int
+        get() = data.maxArtifactHistorySize
+        set(value) {
+            data.maxArtifactHistorySize = value
+            saveToFile()
+        }
 
-    override fun loadState(state: SearchHistoryService) {
-        XmlSerializerUtil.copyBean(state, this)
+    var enableHistory: Boolean
+        get() = data.enableHistory
+        set(value) {
+            data.enableHistory = value
+            saveToFile()
+        }
+
+    /**
+     * 获取当前存储路径
+     */
+    fun getStoragePath(): String = MavenSearchSettings.getInstance().historyStoragePath
+
+    /**
+     * 确保数据已加载（路径变更时重新加载）
+     */
+    private fun ensureLoaded() {
+        val currentPath = getStoragePath()
+        if (lastLoadedPath != currentPath) {
+            loadFromFile()
+        }
+    }
+
+    /**
+     * 从文件加载历史数据
+     */
+    fun loadFromFile() {
+        val path = getStoragePath()
+        lastLoadedPath = path
+        val file = File(path)
+        
+        if (!file.exists()) {
+            data = HistoryData()
+            return
+        }
+
+        runCatching {
+            val json = file.readText()
+            data = gson.fromJson(json, HistoryData::class.java) ?: HistoryData()
+        }.onFailure { e ->
+            logger.warn("Failed to load history from $path", e)
+            e.printStackTrace()
+            data = HistoryData()
+        }
+    }
+
+    /**
+     * 保存历史数据到文件
+     */
+    fun saveToFile() {
+        val path = getStoragePath()
+        val file = File(path)
+        
+        runCatching {
+            file.parentFile?.mkdirs()
+            file.writeText(gson.toJson(data))
+        }.onFailure { e ->
+            logger.warn("Failed to save history to $path", e)
+            e.printStackTrace()
+        }
     }
 
     /**
@@ -46,6 +127,7 @@ class SearchHistoryService : PersistentStateComponent<SearchHistoryService> {
         searchKeywords.remove(keyword)
         searchKeywords.add(0, keyword)
         trimToSize(searchKeywords, maxKeywordHistorySize)
+        saveToFile()
     }
 
     /**
@@ -56,6 +138,7 @@ class SearchHistoryService : PersistentStateComponent<SearchHistoryService> {
         selectedArtifacts.removeIf { it.key == artifact.key }
         selectedArtifacts.add(0, artifact.copy(timestamp = System.currentTimeMillis()))
         trimToSize(selectedArtifacts, maxArtifactHistorySize)
+        saveToFile()
     }
 
     /**
@@ -106,8 +189,16 @@ class SearchHistoryService : PersistentStateComponent<SearchHistoryService> {
             .take(limit)
     }
 
-    fun clearKeywords() = searchKeywords.clear()
-    fun clearArtifacts() = selectedArtifacts.clear()
+    fun clearKeywords() {
+        searchKeywords.clear()
+        saveToFile()
+    }
+
+    fun clearArtifacts() {
+        selectedArtifacts.clear()
+        saveToFile()
+    }
+
     fun clearAll() {
         clearKeywords()
         clearArtifacts()
@@ -122,6 +213,17 @@ class SearchHistoryService : PersistentStateComponent<SearchHistoryService> {
             ApplicationManager.getApplication().getService(SearchHistoryService::class.java)
     }
 }
+
+/**
+ * 历史数据容器
+ */
+data class HistoryData(
+    var searchKeywords: MutableList<String> = mutableListOf(),
+    var selectedArtifacts: MutableList<ArtifactHistoryEntry> = mutableListOf(),
+    var maxKeywordHistorySize: Int = 50,
+    var maxArtifactHistorySize: Int = 100,
+    var enableHistory: Boolean = true
+)
 
 /**
  * 依赖历史条目

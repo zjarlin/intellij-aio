@@ -7,12 +7,16 @@ Maven Buddy is an IntelliJ IDEA plugin that helps you quickly search and add Mav
 ### 搜索功能
 - 🔍 **快速搜索**: 按两下 Shift 打开搜索，直接搜索 Maven 依赖
 - 📋 **一键复制**: 选择依赖后自动复制到剪贴板
-- ⚙️ **格式可配置**: 支持 Maven XML、Gradle Kotlin DSL、Gradle Groovy DSL 三种格式
+- 🎯 **智能格式**: 自动检测项目类型（Maven/Gradle Kotlin/Gradle Groovy），复制时使用对应格式
 - ⚡ **智能搜索**: 支持按 groupId、artifactId 或关键词搜索
-- 🎯 **精确匹配**: 使用 `:` 分隔符进行精确坐标搜索
+- 🔎 **精确匹配**: 使用 `:` 分隔符进行精确坐标搜索
 
 ### 历史与缓存
 - 📜 **搜索历史**: 记录使用过的依赖，下拉快速选择（按 groupId:artifactId 去重）
+- 🌐 **全局共享**: 历史记录和缓存跨项目共享，切换项目后数据仍然保留
+- 📁 **可配置路径**: 存储路径可在设置中分别自定义
+  - 历史记录默认: `~/.config/maven-buddy/history.json`
+  - 搜索缓存默认: `~/.config/maven-buddy/cache.json`
 - 💾 **持久化缓存**: 搜索结果缓存 7 天，避免重复调用 API
 - 📊 **分组显示**: 历史(📜)、缓存(💾)、搜索(🔍) 三种来源明确区分
 - ⏱️ **时间排序**: 搜索结果按更新时间降序排列
@@ -84,14 +88,31 @@ org.springframework.boot:spring-boot-starter
 
 进入 `Settings → Tools → Maven Buddy` 进行配置：
 
-### 基本设置
+### 依赖格式（自动检测）
 
-#### 依赖格式
+插件会根据项目文件自动检测构建类型并选择对应的复制格式：
 
-选择复制依赖时使用的格式：
+| 检测文件 | 格式 |
+|---------|------|
+| `build.gradle.kts` / `settings.gradle.kts` | Gradle Kotlin DSL |
+| `build.gradle` / `settings.gradle` | Gradle Groovy DSL |
+| `pom.xml` | Maven XML |
+| 无构建文件 | Gradle Kotlin DSL (默认) |
 
-#### Maven XML
+**格式示例：**
+
+```kotlin
+// Gradle Kotlin DSL
+implementation("com.google.inject:guice:5.1.0")
+```
+
+```groovy
+// Gradle Groovy DSL
+implementation 'com.google.inject:guice:5.1.0'
+```
+
 ```xml
+<!-- Maven XML -->
 <dependency>
     <groupId>com.google.inject</groupId>
     <artifactId>guice</artifactId>
@@ -99,21 +120,23 @@ org.springframework.boot:spring-boot-starter
 </dependency>
 ```
 
-#### Gradle Kotlin DSL (推荐)
-```kotlin
-implementation("com.google.inject:guice:5.1.0")
-```
-
-#### Gradle Groovy DSL
-```groovy
-implementation 'com.google.inject:guice:5.1.0'
-```
-
-#### 其他基本配置
+### 基本配置
 
 - **最大搜索结果数**: 1-100（默认 20）
 - **自动复制到剪贴板**: 选择后自动复制（默认启用）
 - **搜索超时**: 1-60 秒（默认 10 秒）
+
+### 全局存储配置
+
+存储路径可在设置中分别自定义，数据全局存储，所有项目共享：
+
+| 数据类型 | 默认路径 |
+|---------|---------|
+| 历史记录 | `~/.config/maven-buddy/history.json` |
+| 搜索缓存 | `~/.config/maven-buddy/cache.json` |
+
+- **重置按钮**: 每个路径配置项旁都有 "Reset" 按钮恢复默认路径
+- **JSON 格式**: 便于查看、编辑和备份
 
 ### 搜索行为（Search Behavior）⚡
 

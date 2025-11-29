@@ -63,6 +63,18 @@ class MavenSearchSettings : PersistentStateComponent<MavenSearchSettings> {
      */
     var requireManualTrigger: Boolean = false
 
+    /**
+     * 历史记录存储路径
+     * 默认: ~/.config/maven-buddy/history.json
+     */
+    var historyStoragePath: String = defaultHistoryPath()
+
+    /**
+     * 缓存存储路径
+     * 默认: ~/.config/maven-buddy/cache.json
+     */
+    var cacheStoragePath: String = defaultCachePath()
+
     override fun getState(): MavenSearchSettings = this
 
     override fun loadState(state: MavenSearchSettings) {
@@ -74,5 +86,18 @@ class MavenSearchSettings : PersistentStateComponent<MavenSearchSettings> {
             return ApplicationManager.getApplication()
                 .getService(MavenSearchSettings::class.java)
         }
+
+        private val configDir: String
+            get() = "${System.getProperty("user.home")}/.config/maven-buddy"
+
+        /**
+         * 默认历史记录存储路径
+         */
+        fun defaultHistoryPath(): String = "$configDir/history.json"
+
+        /**
+         * 默认缓存存储路径
+         */
+        fun defaultCachePath(): String = "$configDir/cache.json"
     }
 }

@@ -1,21 +1,39 @@
 # Maven Buddy - 更新日志
 
-## [Unreleased] - 2025-11-26
+## [Unreleased] - 2025-11-28
 
 ### ✨ 新增功能
 
-#### 1. 搜索历史与缓存
+#### 1. 全局存储（历史记录 + 缓存）
+- 🌐 **跨项目共享**: 历史记录和搜索缓存不再绑定特定项目，切换项目后数据仍然保留
+- 📁 **可配置路径**: 存储路径可在设置中分别自定义
+- 📍 **默认位置**: 
+  - 历史记录: `~/.config/maven-buddy/history.json`
+  - 搜索缓存: `~/.config/maven-buddy/cache.json`
+- 🔄 **一键重置**: 设置中提供 "Reset" 按钮恢复默认路径
+- 💾 **JSON 格式**: 使用 JSON 存储，便于查看和备份
+
+#### 2. 项目类型自动检测
+- 🔍 **智能格式选择**: 自动检测项目构建类型，复制依赖时自动选择对应格式
+- ⚙️ **检测优先级**:
+  1. Gradle Kotlin DSL (`build.gradle.kts` / `settings.gradle.kts`)
+  2. Gradle Groovy DSL (`build.gradle` / `settings.gradle`)  
+  3. Maven (`pom.xml`)
+  4. 默认: Gradle Kotlin DSL
+- 🎯 **零配置**: 无需手动选择格式，插件根据项目文件自动判断
+
+#### 2. 搜索历史与缓存
 - 📜 **搜索历史**: 记录使用过的依赖，搜索框为空时下拉显示（最多 30 条）
 - 💾 **持久化缓存**: 搜索结果缓存 7 天，避免重复调用 API（最多 200 条）
 - 📊 **分组显示**: 历史(📜橙色)、缓存(💾蓝色)、搜索(🔍绿色) 三种来源明确区分
 - ⏱️ **时间排序**: 搜索结果按 timestamp 降序排列（最新的在前）
 
-#### 2. 翻页支持
+#### 3. 翻页支持
 - 📄 **分页加载**: 默认每页 50 条结果
 - 🔄 **滚动加载**: 滚动到底部自动加载下一页
 - 📊 **进度显示**: `🔍 50 / 1234 ↓ scroll for more`
 
-#### 3. Version Catalog 支持
+#### 4. Version Catalog 支持
 - 📝 **TOML 补全**: 在 `*.versions.toml` 文件中智能补全依赖
   - 支持简写形式: `guava = "com.google.guava:guava:32.1.3-jre"`
   - 支持 module 形式: `{ module = "g:a", version = "v" }`

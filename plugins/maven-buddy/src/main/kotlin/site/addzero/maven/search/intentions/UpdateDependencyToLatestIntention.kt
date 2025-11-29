@@ -2,6 +2,7 @@ package site.addzero.maven.search.intentions
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
@@ -26,6 +27,12 @@ class UpdateDependencyToLatestIntention : PsiElementBaseIntentionAction(), Inten
     override fun getFamilyName(): String = "Maven Buddy"
 
     override fun getText(): String = "Update dependency to latest version"
+
+    override fun startInWriteAction(): Boolean = false
+
+    override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
+        return IntentionPreviewInfo.Html("Fetches the latest version from Maven Central and updates the dependency.")
+    }
 
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         val file = element.containingFile ?: return false

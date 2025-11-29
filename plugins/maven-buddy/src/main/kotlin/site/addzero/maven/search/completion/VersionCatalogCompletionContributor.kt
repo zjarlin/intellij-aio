@@ -76,8 +76,9 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         }
 
         // 检查缓存
-        cacheService[query]?.let { cached ->
-            cached.take(20).forEachIndexed { index, artifact ->
+        val cached = cacheService.match(query, limit = 20)
+        if (cached.isNotEmpty()) {
+            cached.forEachIndexed { index, artifact ->
                 prefixMatcher.addElement(
                     createArtifactElement(artifact, ctx, priority = 500.0 - index, fromCache = true)
                 )
@@ -98,7 +99,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
             
             // 缓存结果
             if (artifacts.isNotEmpty()) {
-                cacheService[query] = artifacts
+                cacheService.addAll(artifacts)
             }
             
             artifacts.forEachIndexed { index, artifact ->
@@ -117,7 +118,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
      */
     private fun detectContext(text: String, offset: Int): TomlContext? {
         // 检查是否在 [libraries] 部分
-        val beforeCursor = text.substring(0, offset)
+        val beforeCursor = text.take(offset)
         val lastLibrariesIndex = beforeCursor.lastIndexOf("[libraries]")
         val lastOtherSectionIndex = maxOf(
             beforeCursor.lastIndexOf("[versions]"),
@@ -222,7 +223,6 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         priority: Double
     ): LookupElement {
         val insertText = formatInsertText(entry.groupId, entry.artifactId, entry.version, ctx)
-        val displayText = "${entry.groupId}:${entry.artifactId}:${entry.version}"
 
         return PrioritizedLookupElement.withPriority(
             LookupElementBuilder.create(insertText)

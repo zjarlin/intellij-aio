@@ -11,8 +11,7 @@ import java.io.File
 /**
  * Maven 搜索历史持久化服务
  * 
- * 全局存储，与项目无关
- * 使用 JSON 文件存储，路径可在设置中配置
+ * 全局存储：~/.config/maven-buddy/history.json
  */
 @Service(Service.Level.APP)
 class SearchHistoryService {
@@ -20,29 +19,16 @@ class SearchHistoryService {
     private val logger = Logger.getInstance(SearchHistoryService::class.java)
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
     private var data: HistoryData = HistoryData()
-    private var lastLoadedPath: String? = null
 
     init {
         loadFromFile()
     }
 
-    /**
-     * 搜索关键词历史（自动去重，最近的在前）
-     */
     val searchKeywords: MutableList<String>
-        get() {
-            ensureLoaded()
-            return data.searchKeywords
-        }
+        get() = data.searchKeywords
 
-    /**
-     * 选择的依赖历史（按 groupId:artifactId 去重，最近的在前）
-     */
     val selectedArtifacts: MutableList<ArtifactHistoryEntry>
-        get() {
-            ensureLoaded()
-            return data.selectedArtifacts
-        }
+        get() = data.selectedArtifacts
 
     var maxKeywordHistorySize: Int
         get() = data.maxKeywordHistorySize
@@ -65,63 +51,35 @@ class SearchHistoryService {
             saveToFile()
         }
 
-    /**
-     * 获取当前存储路径
-     */
-    fun getStoragePath(): String = MavenSearchSettings.getInstance().historyStoragePath
+    private fun getStoragePath(): String = "${MavenSearchSettings.configDir}/history.json"
 
-    /**
-     * 确保数据已加载（路径变更时重新加载）
-     */
-    private fun ensureLoaded() {
-        val currentPath = getStoragePath()
-        if (lastLoadedPath != currentPath) {
-            loadFromFile()
-        }
-    }
-
-    /**
-     * 从文件加载历史数据
-     */
     fun loadFromFile() {
-        val path = getStoragePath()
-        lastLoadedPath = path
-        val file = File(path)
-        
+        val file = File(getStoragePath())
         if (!file.exists()) {
             data = HistoryData()
             return
         }
 
         runCatching {
-            val json = file.readText()
-            data = gson.fromJson(json, HistoryData::class.java) ?: HistoryData()
+            data = gson.fromJson(file.readText(), HistoryData::class.java) ?: HistoryData()
         }.onFailure { e ->
-            logger.warn("Failed to load history from $path", e)
+            logger.warn("Failed to load history", e)
             e.printStackTrace()
             data = HistoryData()
         }
     }
 
-    /**
-     * 保存历史数据到文件
-     */
-    fun saveToFile() {
-        val path = getStoragePath()
-        val file = File(path)
-        
+    private fun saveToFile() {
+        val file = File(getStoragePath())
         runCatching {
             file.parentFile?.mkdirs()
             file.writeText(gson.toJson(data))
         }.onFailure { e ->
-            logger.warn("Failed to save history to $path", e)
+            logger.warn("Failed to save history", e)
             e.printStackTrace()
         }
     }
 
-    /**
-     * 记录搜索关键词（自动去重，移到最前）
-     */
     operator fun plusAssign(keyword: String) {
         if (!enableHistory || keyword.isBlank() || keyword.length < 2) return
         searchKeywords.remove(keyword)
@@ -130,9 +88,6 @@ class SearchHistoryService {
         saveToFile()
     }
 
-    /**
-     * 记录选择的依赖（自动按 groupId:artifactId 去重，移到最前）
-     */
     operator fun plusAssign(artifact: ArtifactHistoryEntry) {
         if (!enableHistory) return
         selectedArtifacts.removeIf { it.key == artifact.key }
@@ -141,52 +96,30 @@ class SearchHistoryService {
         saveToFile()
     }
 
-    /**
-     * 快捷方式：记录依赖
-     */
     fun record(groupId: String, artifactId: String, version: String) {
         this += ArtifactHistoryEntry(groupId, artifactId, version)
     }
 
-    /**
-     * 快捷方式：记录关键词
-     */
     fun record(keyword: String) {
         this += keyword
     }
 
-    /**
-     * 获取最近的依赖历史
-     */
     fun recentArtifacts(limit: Int = 15): List<ArtifactHistoryEntry> =
         selectedArtifacts.take(limit)
 
-    /**
-     * 获取最近的关键词历史
-     */
     fun recentKeywords(limit: Int = 10): List<String> =
         searchKeywords.take(limit)
 
-    /**
-     * 匹配关键词历史
-     */
     fun matchKeywords(query: String, limit: Int = 10): List<String> {
         if (!enableHistory || query.isBlank()) return emptyList()
         val lowerQuery = query.lowercase()
-        return searchKeywords
-            .filter { it.lowercase().contains(lowerQuery) }
-            .take(limit)
+        return searchKeywords.filter { it.lowercase().contains(lowerQuery) }.take(limit)
     }
 
-    /**
-     * 匹配依赖历史
-     */
     fun matchArtifacts(query: String, limit: Int = 10): List<ArtifactHistoryEntry> {
         if (!enableHistory || query.isBlank()) return emptyList()
         val lowerQuery = query.lowercase()
-        return selectedArtifacts
-            .filter { it.matches(lowerQuery) }
-            .take(limit)
+        return selectedArtifacts.filter { it.matches(lowerQuery) }.take(limit)
     }
 
     fun clearKeywords() {
@@ -214,9 +147,6 @@ class SearchHistoryService {
     }
 }
 
-/**
- * 历史数据容器
- */
 data class HistoryData(
     var searchKeywords: MutableList<String> = mutableListOf(),
     var selectedArtifacts: MutableList<ArtifactHistoryEntry> = mutableListOf(),
@@ -225,9 +155,6 @@ data class HistoryData(
     var enableHistory: Boolean = true
 )
 
-/**
- * 依赖历史条目
- */
 data class ArtifactHistoryEntry(
     var groupId: String = "",
     var artifactId: String = "",
@@ -236,9 +163,7 @@ data class ArtifactHistoryEntry(
 ) {
     constructor() : this("", "", "", 0L)
     
-    /** 用于去重的唯一键 */
     val key: String get() = "$groupId:$artifactId"
-    
     val coordinate: String get() = "$groupId:$artifactId:$version"
     
     fun matches(query: String): Boolean =

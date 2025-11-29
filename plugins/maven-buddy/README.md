@@ -130,13 +130,13 @@ implementation 'com.google.inject:guice:5.1.0'
 
 存储路径可在设置中分别自定义，数据全局存储，所有项目共享：
 
-| 数据类型 | 默认路径 |
-|---------|---------|
-| 历史记录 | `~/.config/maven-buddy/history.json` |
-| 搜索缓存 | `~/.config/maven-buddy/cache.json` |
+| 数据类型 | 默认路径 | 格式 |
+|---------|---------|------|
+| 历史记录 | `~/.config/maven-buddy/history.json` | JSON |
+| 搜索缓存 | `~/.config/maven-buddy/cache.db` | SQLite |
 
 - **重置按钮**: 每个路径配置项旁都有 "Reset" 按钮恢复默认路径
-- **JSON 格式**: 便于查看、编辑和备份
+- **SQLite 缓存**: 支持索引和增量更新，性能更好
 
 ### 搜索行为（Search Behavior）⚡
 

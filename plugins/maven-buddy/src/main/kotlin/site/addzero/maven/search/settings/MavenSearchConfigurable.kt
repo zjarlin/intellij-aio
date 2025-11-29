@@ -28,7 +28,6 @@ class MavenSearchConfigurable : Configurable {
     // UI 组件
     private val formatInfoLabel = JBLabel("Auto-detected based on project type (build.gradle.kts / build.gradle / pom.xml)")
     
-    private val maxResultsField = JBTextField()
     private val pageSizeField = JBTextField()
     private val enablePaginationCheckBox = JBCheckBox("Enable pagination (load more results on demand)")
     private val autoCopyCheckBox = JBCheckBox("Automatically copy to clipboard")
@@ -38,85 +37,65 @@ class MavenSearchConfigurable : Configurable {
     
     // 历史记录相关组件
     private val enableHistoryCheckBox = JBCheckBox("Enable search history")
-    private val historyStoragePathField = JBTextField()
-    private val resetHistoryPathButton = JButton("Reset")
+    private val storagePathLabel = JBLabel("Storage: ${MavenSearchSettings.configDir}")
     private val maxKeywordHistoryField = JBTextField()
     private val maxArtifactHistoryField = JBTextField()
     private val historyStatsLabel = JBLabel()
     private val clearKeywordHistoryButton = JButton("Clear Keywords")
     private val clearArtifactHistoryButton = JButton("Clear Artifacts")
     private val clearAllHistoryButton = JButton("Clear All")
-    
-    // 缓存相关组件
-    private val cacheStoragePathField = JBTextField()
-    private val resetCachePathButton = JButton("Reset")
+    private val clearCacheButton = JButton("Clear Cache")
 
     private var modified = false
 
     override fun getDisplayName(): String = "Maven Search"
 
     override fun createComponent(): JComponent {
-        // 初始化组件值
         resetComponents()
 
-        // 添加监听器
         val docListener = SimpleDocumentListener { modified = true }
-        maxResultsField.document.addDocumentListener(docListener)
         pageSizeField.document.addDocumentListener(docListener)
-        enablePaginationCheckBox.addActionListener {
-            modified = true
-            // 启用分页时，禁用 maxResults，启用 pageSize
-            maxResultsField.isEnabled = !enablePaginationCheckBox.isSelected
-            pageSizeField.isEnabled = enablePaginationCheckBox.isSelected
-        }
+        enablePaginationCheckBox.addActionListener { modified = true }
         autoCopyCheckBox.addActionListener { modified = true }
         timeoutField.document.addDocumentListener(docListener)
         debounceDelayField.document.addDocumentListener(docListener)
         requireManualTriggerCheckBox.addActionListener { 
             modified = true
-            // 当启用手动触发时，禁用防抖延迟设置
             debounceDelayField.isEnabled = !requireManualTriggerCheckBox.isSelected
         }
         
-        // 历史记录监听器
         enableHistoryCheckBox.addActionListener {
             modified = true
             updateHistoryFieldsEnabled()
         }
-        historyStoragePathField.document.addDocumentListener(docListener)
-        resetHistoryPathButton.addActionListener {
-            historyStoragePathField.text = MavenSearchSettings.defaultHistoryPath()
-            modified = true
-        }
-        cacheStoragePathField.document.addDocumentListener(docListener)
-        resetCachePathButton.addActionListener {
-            cacheStoragePathField.text = MavenSearchSettings.defaultCachePath()
-            modified = true
-        }
         maxKeywordHistoryField.document.addDocumentListener(docListener)
         maxArtifactHistoryField.document.addDocumentListener(docListener)
         
-        // 清除历史按钮
         clearKeywordHistoryButton.addActionListener {
-            if (confirmClearHistory("keyword history")) {
+            if (confirmClear("keyword history")) {
                 historyService.clearKeywords()
                 updateHistoryStats()
             }
         }
         clearArtifactHistoryButton.addActionListener {
-            if (confirmClearHistory("artifact history")) {
+            if (confirmClear("artifact history")) {
                 historyService.clearArtifacts()
                 updateHistoryStats()
             }
         }
         clearAllHistoryButton.addActionListener {
-            if (confirmClearHistory("all search history")) {
+            if (confirmClear("all search history")) {
                 historyService.clearAll()
                 updateHistoryStats()
             }
         }
+        clearCacheButton.addActionListener {
+            if (confirmClear("search cache")) {
+                cacheService.clearAll()
+                updateHistoryStats()
+            }
+        }
 
-        // 构建表单
         val panel = FormBuilder.createFormBuilder()
             .addLabeledComponent("Dependency format:", formatInfoLabel)
             .addTooltip("Format is automatically detected based on your project's build files")
@@ -125,15 +104,11 @@ class MavenSearchConfigurable : Configurable {
             .addSeparator(8)
             
             .addComponent(enablePaginationCheckBox)
-            .addTooltip("Enable pagination to load more results on demand. When disabled, all results are loaded at once.")
+            .addTooltip("Enable pagination to load more results on demand")
             .addVerticalGap(8)
             
             .addLabeledComponent("Page size:", pageSizeField)
-            .addTooltip("Number of results per page when pagination is enabled (1-100)")
-            .addVerticalGap(8)
-            
-            .addLabeledComponent("Maximum results (deprecated):", maxResultsField)
-            .addTooltip("Number of results to fetch when pagination is disabled (1-100)")
+            .addTooltip("Number of results per page (1-100)")
             .addVerticalGap(8)
             
             .addComponent(autoCopyCheckBox)
@@ -147,11 +122,11 @@ class MavenSearchConfigurable : Configurable {
             .addSeparator(8)
             
             .addComponent(requireManualTriggerCheckBox)
-            .addTooltip("When enabled, you must press Enter to trigger search. When disabled, search starts automatically after typing stops.")
+            .addTooltip("When enabled, you must press Enter to trigger search")
             .addVerticalGap(8)
             
             .addLabeledComponent("Debounce delay (milliseconds):", debounceDelayField)
-            .addTooltip("Wait time before auto-triggering search after typing stops. Recommended: 300ms (fast), 500ms (balanced), 800ms (slow network)")
+            .addTooltip("Wait time before auto-triggering search. Recommended: 300-800ms")
             .addVerticalGap(12)
             
             .addSeparator(8)
@@ -160,12 +135,8 @@ class MavenSearchConfigurable : Configurable {
             .addTooltip("Enable search history to quickly access recently used dependencies")
             .addVerticalGap(8)
             
-            .addLabeledComponent("History storage path:", createHistoryPathPanel())
-            .addTooltip("Global storage path for search history (shared across all projects)")
-            .addVerticalGap(8)
-            
-            .addLabeledComponent("Cache storage path:", createCachePathPanel())
-            .addTooltip("Global storage path for search result cache (shared across all projects)")
+            .addComponent(storagePathLabel)
+            .addTooltip("History: JSON, Cache: SQLite")
             .addVerticalGap(8)
             
             .addLabeledComponent("Max keyword history:", maxKeywordHistoryField)
@@ -179,7 +150,7 @@ class MavenSearchConfigurable : Configurable {
             .addComponent(historyStatsLabel)
             .addVerticalGap(8)
             
-            .addComponent(createHistoryButtonsPanel())
+            .addComponent(createButtonsPanel())
             .addVerticalGap(8)
             
             .addComponentFillVertically(JPanel(), 0)
@@ -192,35 +163,12 @@ class MavenSearchConfigurable : Configurable {
     override fun isModified(): Boolean = modified
 
     override fun apply() {
-        // 保存设置（dependencyFormat 现在自动检测，无需手动设置）
         settings.enablePagination = enablePaginationCheckBox.isSelected
-        settings.pageSize = pageSizeField.text.toIntOrNull()?.coerceIn(1, 100) ?: 20
-        @Suppress("DEPRECATION")
-        settings.maxResults = maxResultsField.text.toIntOrNull()?.coerceIn(1, 100) ?: 20
+        settings.pageSize = pageSizeField.text.toIntOrNull()?.coerceIn(1, 100) ?: 50
         settings.autoCopyToClipboard = autoCopyCheckBox.isSelected
         settings.searchTimeout = timeoutField.text.toIntOrNull()?.coerceIn(1, 60) ?: 10
         settings.debounceDelay = debounceDelayField.text.toIntOrNull()?.coerceIn(100, 2000) ?: 500
         settings.requireManualTrigger = requireManualTriggerCheckBox.isSelected
-        
-        // 历史设置
-        val oldHistoryPath = settings.historyStoragePath
-        val newHistoryPath = historyStoragePathField.text.trim().ifBlank { MavenSearchSettings.defaultHistoryPath() }
-        settings.historyStoragePath = newHistoryPath
-        
-        // 路径变更时重新加载历史
-        if (oldHistoryPath != newHistoryPath) {
-            historyService.loadFromFile()
-        }
-        
-        // 缓存设置
-        val oldCachePath = settings.cacheStoragePath
-        val newCachePath = cacheStoragePathField.text.trim().ifBlank { MavenSearchSettings.defaultCachePath() }
-        settings.cacheStoragePath = newCachePath
-        
-        // 路径变更时重新加载缓存
-        if (oldCachePath != newCachePath) {
-            cacheService.loadFromFile()
-        }
         
         historyService.enableHistory = enableHistoryCheckBox.isSelected
         historyService.maxKeywordHistorySize = maxKeywordHistoryField.text.toIntOrNull()?.coerceIn(1, 200) ?: 50
@@ -234,79 +182,33 @@ class MavenSearchConfigurable : Configurable {
         modified = false
     }
 
-    /**
-     * 重置组件值为当前设置
-     */
     private fun resetComponents() {
-        // dependencyFormat 现在是自动检测，无需重置
         enablePaginationCheckBox.isSelected = settings.enablePagination
         pageSizeField.text = settings.pageSize.toString()
-        @Suppress("DEPRECATION")
-        maxResultsField.text = settings.maxResults.toString()
         autoCopyCheckBox.isSelected = settings.autoCopyToClipboard
         timeoutField.text = settings.searchTimeout.toString()
         debounceDelayField.text = settings.debounceDelay.toString()
         requireManualTriggerCheckBox.isSelected = settings.requireManualTrigger
-        
-        // 根据分页设置禁用/启用对应字段
-        pageSizeField.isEnabled = settings.enablePagination
-        maxResultsField.isEnabled = !settings.enablePagination
-        
-        // 根据手动触发设置禁用/启用防抖延迟
         debounceDelayField.isEnabled = !settings.requireManualTrigger
         
-        // 历史记录设置
         enableHistoryCheckBox.isSelected = historyService.enableHistory
-        historyStoragePathField.text = settings.historyStoragePath
-        cacheStoragePathField.text = settings.cacheStoragePath
         maxKeywordHistoryField.text = historyService.maxKeywordHistorySize.toString()
         maxArtifactHistoryField.text = historyService.maxArtifactHistorySize.toString()
         updateHistoryFieldsEnabled()
         updateHistoryStats()
     }
-    
-    /**
-     * 创建历史路径配置面板
-     */
-    private fun createHistoryPathPanel(): JPanel {
-        return JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
-            add(historyStoragePathField)
-            add(resetHistoryPathButton)
-            historyStoragePathField.columns = 35
-        }
-    }
 
-    /**
-     * 创建缓存路径配置面板
-     */
-    private fun createCachePathPanel(): JPanel {
-        return JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
-            add(cacheStoragePathField)
-            add(resetCachePathButton)
-            cacheStoragePathField.columns = 35
-        }
-    }
-
-    /**
-     * 创建历史按钮面板
-     */
-    private fun createHistoryButtonsPanel(): JPanel {
+    private fun createButtonsPanel(): JPanel {
         return JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
             add(clearKeywordHistoryButton)
             add(clearArtifactHistoryButton)
             add(clearAllHistoryButton)
+            add(clearCacheButton)
         }
     }
     
-    /**
-     * 更新历史字段启用状态
-     */
     private fun updateHistoryFieldsEnabled() {
         val enabled = enableHistoryCheckBox.isSelected
-        historyStoragePathField.isEnabled = enabled
-        resetHistoryPathButton.isEnabled = enabled
-        cacheStoragePathField.isEnabled = enabled
-        resetCachePathButton.isEnabled = enabled
         maxKeywordHistoryField.isEnabled = enabled
         maxArtifactHistoryField.isEnabled = enabled
         clearKeywordHistoryButton.isEnabled = enabled
@@ -314,33 +216,24 @@ class MavenSearchConfigurable : Configurable {
         clearAllHistoryButton.isEnabled = enabled
     }
     
-    /**
-     * 更新历史统计信息
-     */
     private fun updateHistoryStats() {
         val keywordCount = historyService.searchKeywords.size
         val artifactCount = historyService.selectedArtifacts.size
-        historyStatsLabel.text = "Current: $keywordCount keywords, $artifactCount artifacts"
+        val cacheStats = cacheService.stats()
+        historyStatsLabel.text = "Keywords: $keywordCount, Artifacts: $artifactCount, Cache: ${cacheStats.totalEntries}"
     }
     
-    /**
-     * 确认清除历史
-     */
-    private fun confirmClearHistory(historyType: String): Boolean {
+    private fun confirmClear(target: String): Boolean {
         return Messages.showYesNoDialog(
-            "Are you sure you want to clear $historyType?",
+            "Are you sure you want to clear $target?",
             "Clear History",
             Messages.getQuestionIcon()
         ) == Messages.YES
     }
 }
 
-/**
- * 简单的文档监听器
- */
 private class SimpleDocumentListener(private val onChange: () -> Unit) : 
     javax.swing.event.DocumentListener {
-    
     override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = onChange()
     override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = onChange()
     override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = onChange()

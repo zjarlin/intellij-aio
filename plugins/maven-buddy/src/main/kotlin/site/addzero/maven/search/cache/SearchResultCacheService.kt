@@ -1,211 +1,228 @@
 package site.addzero.maven.search.cache
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import site.addzero.maven.search.settings.MavenSearchSettings
 import site.addzero.network.call.maven.util.MavenArtifact
 import java.io.File
+import java.sql.Connection
+import java.sql.DriverManager
 
 /**
- * Maven 搜索结果持久化缓存服务
+ * Maven 搜索结果缓存服务
  * 
- * 全局存储，与项目无关
- * 以 groupId:artifactId 为 key 缓存单个 artifact，避免 keyword 缓存导致的不精确问题
+ * 全局存储：~/.config/maven-buddy/cache.db (SQLite)
  */
 @Service(Service.Level.APP)
 class SearchResultCacheService {
 
     private val logger = Logger.getInstance(SearchResultCacheService::class.java)
-    private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
-    private var data: CacheData = CacheData()
-    private var lastLoadedPath: String? = null
+    private var connection: Connection? = null
+
+    var maxCacheSize: Int = 500
+    var cacheTtlMs: Long = 7 * 24 * 60 * 60 * 1000L
+    var enableCache: Boolean = true
 
     init {
-        loadFromFile()
+        initDatabase()
     }
 
-    /** 最大缓存条目数 */
-    var maxCacheSize: Int
-        get() = data.maxCacheSize
-        set(value) {
-            data.maxCacheSize = value
-            saveToFile()
-        }
+    private fun getStoragePath(): String = "${MavenSearchSettings.configDir}/cache.db"
 
-    /** 缓存过期时间（毫秒），默认7天 */
-    var cacheTtlMs: Long
-        get() = data.cacheTtlMs
-        set(value) {
-            data.cacheTtlMs = value
-            saveToFile()
-        }
-
-    /** 是否启用缓存 */
-    var enableCache: Boolean
-        get() = data.enableCache
-        set(value) {
-            data.enableCache = value
-            saveToFile()
-        }
-
-    /**
-     * 获取当前存储路径
-     */
-    fun getStoragePath(): String = MavenSearchSettings.getInstance().cacheStoragePath
-
-    /**
-     * 确保数据已加载（路径变更时重新加载）
-     */
-    private fun ensureLoaded() {
-        val currentPath = getStoragePath()
-        if (lastLoadedPath != currentPath) {
-            loadFromFile()
-        }
-    }
-
-    /**
-     * 从文件加载缓存数据
-     */
-    fun loadFromFile() {
-        val path = getStoragePath()
-        lastLoadedPath = path
-        val file = File(path)
-
-        if (!file.exists()) {
-            data = CacheData()
-            return
-        }
-
-        runCatching {
-            val json = file.readText()
-            data = gson.fromJson(json, CacheData::class.java) ?: CacheData()
-            clearExpired()
-        }.onFailure { e ->
-            logger.warn("Failed to load cache from $path", e)
-            e.printStackTrace()
-            data = CacheData()
-        }
-    }
-
-    /**
-     * 保存缓存数据到文件
-     */
-    fun saveToFile() {
-        val path = getStoragePath()
-        val file = File(path)
-
-        runCatching {
-            file.parentFile?.mkdirs()
-            file.writeText(gson.toJson(data))
-        }.onFailure { e ->
-            logger.warn("Failed to save cache to $path", e)
+    private fun initDatabase() {
+        runCatching { ensureConnection() }.onFailure { e ->
+            logger.warn("Failed to init database", e)
             e.printStackTrace()
         }
     }
 
-    /**
-     * 根据关键词从缓存中匹配 artifact
-     * 匹配规则：groupId 或 artifactId 包含关键词（忽略大小写）
-     */
+    @Synchronized
+    private fun ensureConnection(): Connection {
+        if (connection?.isClosed != false) {
+            val path = getStoragePath()
+            File(path).parentFile?.mkdirs()
+            Class.forName("org.sqlite.JDBC")
+            connection = DriverManager.getConnection("jdbc:sqlite:$path")
+            createTables()
+        }
+        return connection!!
+    }
+
+    private fun createTables() {
+        connection?.createStatement()?.use { stmt ->
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS artifacts (
+                    artifact_key TEXT PRIMARY KEY,
+                    id TEXT,
+                    group_id TEXT NOT NULL,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT,
+                    latest_version TEXT,
+                    packaging TEXT DEFAULT 'jar',
+                    timestamp INTEGER DEFAULT 0,
+                    repository_id TEXT DEFAULT 'central',
+                    cached_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+                )
+            """.trimIndent())
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_group_id ON artifacts(group_id)")
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_artifact_id ON artifacts(artifact_id)")
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_cached_at ON artifacts(cached_at)")
+        }
+    }
+
     fun match(keyword: String, limit: Int = 50): List<MavenArtifact> {
-        ensureLoaded()
         if (!enableCache || keyword.isBlank()) return emptyList()
 
-        val lowerKeyword = keyword.lowercase().trim()
-        val now = System.currentTimeMillis()
+        val lowerKeyword = "%${keyword.lowercase().trim()}%"
+        val expireTime = System.currentTimeMillis() - cacheTtlMs
 
-        return data.artifacts.values
-            .asSequence()
-            .filter { now - it.timestamp <= cacheTtlMs }
-            .filter { cached ->
-                cached.groupId.lowercase().contains(lowerKeyword) ||
-                cached.artifactId.lowercase().contains(lowerKeyword) ||
-                "${cached.groupId}:${cached.artifactId}".lowercase().contains(lowerKeyword)
+        return runCatching {
+            val conn = ensureConnection()
+            val sql = """
+                SELECT id, group_id, artifact_id, version, latest_version, packaging, timestamp, repository_id
+                FROM artifacts
+                WHERE cached_at > ? 
+                  AND (LOWER(group_id) LIKE ? OR LOWER(artifact_id) LIKE ? OR LOWER(artifact_key) LIKE ?)
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """.trimIndent()
+
+            conn.prepareStatement(sql).use { stmt ->
+                stmt.setLong(1, expireTime)
+                stmt.setString(2, lowerKeyword)
+                stmt.setString(3, lowerKeyword)
+                stmt.setString(4, lowerKeyword)
+                stmt.setInt(5, limit)
+
+                val results = mutableListOf<MavenArtifact>()
+                stmt.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        results.add(MavenArtifact(
+                            id = rs.getString("id") ?: "",
+                            groupId = rs.getString("group_id"),
+                            artifactId = rs.getString("artifact_id"),
+                            version = rs.getString("version") ?: "",
+                            latestVersion = rs.getString("latest_version") ?: "",
+                            packaging = rs.getString("packaging") ?: "jar",
+                            timestamp = rs.getLong("timestamp"),
+                            repositoryId = rs.getString("repository_id") ?: "central"
+                        ))
+                    }
+                }
+                results
             }
-            .sortedByDescending { it.timestamp }
-            .take(limit)
-            .map { it.toMavenArtifact() }
-            .toList()
+        }.getOrElse { e ->
+            logger.warn("Failed to match from cache", e)
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
-    /**
-     * 批量添加 artifact 到缓存
-     * key 为 groupId:artifactId，自动去重
-     */
     fun addAll(artifacts: List<MavenArtifact>) {
-        ensureLoaded()
         if (!enableCache || artifacts.isEmpty()) return
 
-        artifacts.forEach { artifact ->
-            val key = "${artifact.groupId}:${artifact.artifactId}"
-            // 更新或添加，保留最新版本信息
-            val existing = data.artifacts[key]
-            if (existing == null || artifact.timestamp > existing.timestamp) {
-                data.artifacts[key] = CachedArtifact.fromMavenArtifact(artifact)
-            }
-        }
+        runCatching {
+            val conn = ensureConnection()
+            val sql = """
+                INSERT OR REPLACE INTO artifacts 
+                (artifact_key, id, group_id, artifact_id, version, latest_version, packaging, timestamp, repository_id, cached_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent()
 
-        trimToSize()
-        saveToFile()
+            conn.autoCommit = false
+            try {
+                conn.prepareStatement(sql).use { stmt ->
+                    val now = System.currentTimeMillis()
+                    artifacts.forEach { artifact ->
+                        stmt.setString(1, "${artifact.groupId}:${artifact.artifactId}")
+                        stmt.setString(2, artifact.id)
+                        stmt.setString(3, artifact.groupId)
+                        stmt.setString(4, artifact.artifactId)
+                        stmt.setString(5, artifact.version)
+                        stmt.setString(6, artifact.latestVersion)
+                        stmt.setString(7, artifact.packaging)
+                        stmt.setLong(8, artifact.timestamp)
+                        stmt.setString(9, artifact.repositoryId)
+                        stmt.setLong(10, now)
+                        stmt.addBatch()
+                    }
+                    stmt.executeBatch()
+                }
+                conn.commit()
+                trimCache()
+            } catch (e: Exception) {
+                conn.rollback()
+                throw e
+            } finally {
+                conn.autoCommit = true
+            }
+        }.onFailure { e ->
+            logger.warn("Failed to add artifacts to cache", e)
+            e.printStackTrace()
+        }
     }
 
-    /**
-     * 检查缓存中是否有匹配的结果
-     */
     fun hasMatch(keyword: String): Boolean {
-        ensureLoaded()
         if (!enableCache || keyword.isBlank()) return false
 
-        val lowerKeyword = keyword.lowercase().trim()
-        val now = System.currentTimeMillis()
+        val lowerKeyword = "%${keyword.lowercase().trim()}%"
+        val expireTime = System.currentTimeMillis() - cacheTtlMs
 
-        return data.artifacts.values.any { cached ->
-            now - cached.timestamp <= cacheTtlMs &&
-            (cached.groupId.lowercase().contains(lowerKeyword) ||
-             cached.artifactId.lowercase().contains(lowerKeyword) ||
-             "${cached.groupId}:${cached.artifactId}".lowercase().contains(lowerKeyword))
+        return runCatching {
+            val conn = ensureConnection()
+            conn.prepareStatement("""
+                SELECT 1 FROM artifacts
+                WHERE cached_at > ? AND (LOWER(group_id) LIKE ? OR LOWER(artifact_id) LIKE ?)
+                LIMIT 1
+            """.trimIndent()).use { stmt ->
+                stmt.setLong(1, expireTime)
+                stmt.setString(2, lowerKeyword)
+                stmt.setString(3, lowerKeyword)
+                stmt.executeQuery().next()
+            }
+        }.getOrElse { false }
+    }
+
+    private fun trimCache() {
+        runCatching {
+            val conn = ensureConnection()
+            val expireTime = System.currentTimeMillis() - cacheTtlMs
+            conn.prepareStatement("DELETE FROM artifacts WHERE cached_at < ?").use { stmt ->
+                stmt.setLong(1, expireTime)
+                stmt.executeUpdate()
+            }
+            conn.prepareStatement("""
+                DELETE FROM artifacts WHERE artifact_key NOT IN (
+                    SELECT artifact_key FROM artifacts ORDER BY cached_at DESC LIMIT ?
+                )
+            """.trimIndent()).use { stmt ->
+                stmt.setInt(1, maxCacheSize)
+                stmt.executeUpdate()
+            }
+        }.onFailure { e ->
+            logger.warn("Failed to trim cache", e)
+            e.printStackTrace()
         }
     }
 
-    /**
-     * 清除所有缓存
-     */
     fun clearAll() {
-        data.artifacts.clear()
-        saveToFile()
-    }
-
-    /**
-     * 清除过期缓存
-     */
-    fun clearExpired() {
-        val now = System.currentTimeMillis()
-        val removed = data.artifacts.entries.removeIf { now - it.value.timestamp > cacheTtlMs }
-        if (removed) saveToFile()
-    }
-
-    /**
-     * 获取缓存统计信息
-     */
-    fun stats(): CacheStats {
-        ensureLoaded()
-        clearExpired()
-        return CacheStats(
-            totalEntries = data.artifacts.size,
-            totalArtifacts = data.artifacts.size
-        )
-    }
-
-    private fun trimToSize() {
-        if (data.artifacts.size > maxCacheSize) {
-            // 按时间排序，移除最旧的
-            val sorted = data.artifacts.entries.sortedBy { it.value.timestamp }
-            val toRemove = sorted.take(data.artifacts.size - maxCacheSize)
-            toRemove.forEach { data.artifacts.remove(it.key) }
+        runCatching {
+            ensureConnection().createStatement().use { it.executeUpdate("DELETE FROM artifacts") }
+        }.onFailure { e ->
+            logger.warn("Failed to clear cache", e)
+            e.printStackTrace()
         }
+    }
+
+    fun stats(): CacheStats {
+        return runCatching {
+            ensureConnection().createStatement().use { stmt ->
+                val rs = stmt.executeQuery("SELECT COUNT(*) as cnt FROM artifacts")
+                val count = if (rs.next()) rs.getInt("cnt") else 0
+                CacheStats(count, count)
+            }
+        }.getOrElse { CacheStats(0, 0) }
     }
 
     companion object {
@@ -214,58 +231,4 @@ class SearchResultCacheService {
     }
 }
 
-/**
- * 缓存数据容器
- * key: groupId:artifactId
- */
-data class CacheData(
-    var artifacts: MutableMap<String, CachedArtifact> = mutableMapOf(),
-    var maxCacheSize: Int = 500,
-    var cacheTtlMs: Long = 7 * 24 * 60 * 60 * 1000L,
-    var enableCache: Boolean = true
-)
-
-/**
- * 可序列化的工件信息
- */
-data class CachedArtifact(
-    var id: String = "",
-    var groupId: String = "",
-    var artifactId: String = "",
-    var version: String = "",
-    var latestVersion: String = "",
-    var packaging: String = "jar",
-    var timestamp: Long = 0L,
-    var repositoryId: String = "central"
-) {
-    constructor() : this("", "", "", "", "", "jar", 0L, "central")
-
-    fun toMavenArtifact() = MavenArtifact(
-        id = id,
-        groupId = groupId,
-        artifactId = artifactId,
-        version = version,
-        latestVersion = latestVersion,
-        packaging = packaging,
-        timestamp = timestamp,
-        repositoryId = repositoryId
-    )
-
-    companion object {
-        fun fromMavenArtifact(artifact: MavenArtifact) = CachedArtifact(
-            id = artifact.id,
-            groupId = artifact.groupId,
-            artifactId = artifact.artifactId,
-            version = artifact.version,
-            latestVersion = artifact.latestVersion,
-            packaging = artifact.packaging,
-            timestamp = artifact.timestamp,
-            repositoryId = artifact.repositoryId
-        )
-    }
-}
-
-data class CacheStats(
-    val totalEntries: Int,
-    val totalArtifacts: Int
-)
+data class CacheStats(val totalEntries: Int, val totalArtifacts: Int)

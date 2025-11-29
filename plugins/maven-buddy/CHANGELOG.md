@@ -20,6 +20,11 @@
   - 现在：以 `groupId:artifactId` 为 key 缓存单个 artifact，搜索时从缓存中精确匹配
   - 好处：缓存可跨搜索复用，搜索越多缓存越丰富
 
+- 🚀 **存储引擎升级为 SQLite**:
+  - 现在：SQLite 数据库，支持索引和增量更新
+  - 索引：group_id、artifact_id、cached_at 字段建立索引
+  - 默认路径：`~/.config/maven-buddy/cache.db`
+
 ### 🐛 修复
 
 - ✅ 修复缓存读取逻辑缺失问题，现在会正确从缓存加载结果

@@ -346,8 +346,7 @@ class MavenDependencySearchContributor(
         progressIndicator.text = "Searching Maven Central..."
 
         return runCatching {
-            @Suppress("DEPRECATION")
-            val maxResults = settings.maxResults
+            val maxResults = settings.pageSize
 
             // 优先使用关键词搜索（优先级最高）
             // searchByKeyword 支持所有类型的搜索模式：

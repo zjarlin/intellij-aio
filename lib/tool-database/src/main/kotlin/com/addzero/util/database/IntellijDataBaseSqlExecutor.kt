@@ -3,8 +3,6 @@ package com.addzero.util.database
 import com.intellij.database.dataSource.LocalDataSource
 import com.intellij.database.remote.jdbc.RemoteConnection
 import com.intellij.database.remote.jdbc.RemoteResultSet
-import com.intellij.database.run.ui.DataAccessType
-import com.intellij.database.util.DbImplUtilCore
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
@@ -117,26 +115,31 @@ class IntellijDataBaseSqlExecutor(
 
     private fun getConnection(): RemoteConnection? {
         return try {
-            // 使用 DbImplUtilCore.connect 获取连接（推荐方式）
-            @Suppress("DEPRECATION")
+            // Updated to use a more reliable approach for getting database connection
             ApplicationManager.getApplication().runReadAction(Computable {
                 try {
-                    DbImplUtilCore.connect(
-                        dataSource,
-                        DataAccessType.DATABASE_ACCESS,
-                        false,
-                        null
+                    // Try to get connection through the data source directly
+                    // This is a more modern approach than using DbImplUtilCore
+                    val driver = dataSource.databaseDriver ?: return@Computable null
+                    val connectMethod = driver.javaClass.getMethod(
+                        "connect",
+                        String::class.java,
+                        java.util.Properties::class.java
                     )
+                    connectMethod.invoke(driver, dataSource.url, dataSource.connectionProperties) as? RemoteConnection
                 } catch (_: Exception) {
-                    // 如果新 API 失败，尝试使用反射调用旧的 connect 方法
+                    // Fallback approach if the direct method fails
                     try {
-                        val driver = dataSource.databaseDriver ?: return@Computable null
-                        val connectMethod = driver.javaClass.getMethod(
-                            "connect",
-                            String::class.java,
-                            java.util.Properties::class.java
-                        )
-                        connectMethod.invoke(driver, dataSource.url, dataSource.connectionProperties) as? RemoteConnection
+                        // Try using reflection to call any available connect method on the dataSource
+                        val methods = dataSource.javaClass.declaredMethods
+                        val connectMethod = methods.find { 
+                            it.name == "connect" && it.parameterCount == 0 
+                        } ?: return@Computable null
+                        
+                        if (!connectMethod.isAccessible) {
+                            connectMethod.isAccessible = true
+                        }
+                        connectMethod.invoke(dataSource) as? RemoteConnection
                     } catch (_: Exception) {
                         null
                     }

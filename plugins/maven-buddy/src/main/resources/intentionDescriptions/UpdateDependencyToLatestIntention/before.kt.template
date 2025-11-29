@@ -1,0 +1,1 @@
+implementation("com.google.guava:guava:<spot>31.0-jre</spot>")

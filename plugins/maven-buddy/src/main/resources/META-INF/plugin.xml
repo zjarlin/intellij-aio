@@ -85,6 +85,18 @@
         <completion.contributor 
             language="any"
             implementationClass="site.addzero.maven.search.completion.VersionCatalogCompletionContributor"/>
+
+        <!-- Intention Action: Update dependency to latest version -->
+        <intentionAction>
+            <language>kotlin</language>
+            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
+            <category>Maven Buddy</category>
+        </intentionAction>
+        <intentionAction>
+            <language>XML</language>
+            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
+            <category>Maven Buddy</category>
+        </intentionAction>
     </extensions>
 
     <actions>

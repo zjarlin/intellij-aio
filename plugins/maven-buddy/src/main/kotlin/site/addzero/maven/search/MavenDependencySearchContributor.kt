@@ -101,6 +101,32 @@ class MavenDependencySearchContributor(
             return
         }
 
+        // 从缓存中匹配结果（按 groupId:artifactId 匹配）
+        if (isNewSearch && currentPage == 0 && cacheService.enableCache) {
+            val cachedResults = cacheService.match(pattern, limit = 50)
+            if (cachedResults.isNotEmpty()) {
+                progressIndicator.text = "💾 From Cache"
+                progressIndicator.text2 = "${cachedResults.size} cached results"
+                
+                // 标记为缓存来源
+                val cachedWithMark = cachedResults.map { artifact ->
+                    MavenArtifact(
+                        id = artifact.id,
+                        groupId = artifact.groupId,
+                        artifactId = artifact.artifactId,
+                        version = artifact.version,
+                        latestVersion = artifact.latestVersion,
+                        packaging = artifact.packaging,
+                        timestamp = artifact.timestamp,
+                        repositoryId = "cached"
+                    )
+                }
+                
+                // 先返回缓存结果
+                deliverResults(cachedWithMark, consumer, progressIndicator)
+            }
+        }
+
         val delayMs = if (settings.requireManualTrigger) 1000L else settings.debounceDelay.toLong()
 
         if (!enforceRateLimit(progressIndicator)) {
@@ -129,9 +155,9 @@ class MavenDependencySearchContributor(
             
             allLoadedArtifacts.addAll(sortedResults)
             
-            // 更新持久化缓存（包含所有已加载的结果）
+            // 更新持久化缓存（按 groupId:artifactId 去重存储）
             if (allLoadedArtifacts.isNotEmpty()) {
-                cacheService[pattern] = allLoadedArtifacts.toList()
+                cacheService.addAll(allLoadedArtifacts)
             }
             
             // 判断是否还有更多结果

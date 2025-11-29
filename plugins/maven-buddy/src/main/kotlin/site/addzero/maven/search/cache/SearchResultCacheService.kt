@@ -13,7 +13,7 @@ import java.io.File
  * Maven 搜索结果持久化缓存服务
  * 
  * 全局存储，与项目无关
- * 使用 JSON 文件存储，路径可在设置中配置
+ * 以 groupId:artifactId 为 key 缓存单个 artifact，避免 keyword 缓存导致的不精确问题
  */
 @Service(Service.Level.APP)
 class SearchResultCacheService {
@@ -107,69 +107,74 @@ class SearchResultCacheService {
     }
 
     /**
-     * 获取缓存的搜索结果
-     * @return 缓存的结果列表，如果没有或已过期则返回 null
+     * 根据关键词从缓存中匹配 artifact
+     * 匹配规则：groupId 或 artifactId 包含关键词（忽略大小写）
      */
-    operator fun get(keyword: String): List<MavenArtifact>? {
+    fun match(keyword: String, limit: Int = 50): List<MavenArtifact> {
         ensureLoaded()
-        if (!enableCache || keyword.isBlank()) return null
+        if (!enableCache || keyword.isBlank()) return emptyList()
 
-        val normalizedKey = keyword.lowercase().trim()
-        val cached = data.cacheEntries[normalizedKey] ?: return null
+        val lowerKeyword = keyword.lowercase().trim()
+        val now = System.currentTimeMillis()
 
-        // 检查是否过期
-        if (System.currentTimeMillis() - cached.timestamp > cacheTtlMs) {
-            data.cacheEntries.remove(normalizedKey)
-            saveToFile()
-            return null
-        }
-
-        return cached.toArtifacts()
+        return data.artifacts.values
+            .asSequence()
+            .filter { now - it.timestamp <= cacheTtlMs }
+            .filter { cached ->
+                cached.groupId.lowercase().contains(lowerKeyword) ||
+                cached.artifactId.lowercase().contains(lowerKeyword) ||
+                "${cached.groupId}:${cached.artifactId}".lowercase().contains(lowerKeyword)
+            }
+            .sortedByDescending { it.timestamp }
+            .take(limit)
+            .map { it.toMavenArtifact() }
+            .toList()
     }
 
     /**
-     * 缓存搜索结果
+     * 批量添加 artifact 到缓存
+     * key 为 groupId:artifactId，自动去重
      */
-    operator fun set(keyword: String, artifacts: List<MavenArtifact>) {
+    fun addAll(artifacts: List<MavenArtifact>) {
         ensureLoaded()
-        if (!enableCache || keyword.isBlank() || artifacts.isEmpty()) return
+        if (!enableCache || artifacts.isEmpty()) return
 
-        val normalizedKey = keyword.lowercase().trim()
+        artifacts.forEach { artifact ->
+            val key = "${artifact.groupId}:${artifact.artifactId}"
+            // 更新或添加，保留最新版本信息
+            val existing = data.artifacts[key]
+            if (existing == null || artifact.timestamp > existing.timestamp) {
+                data.artifacts[key] = CachedArtifact.fromMavenArtifact(artifact)
+            }
+        }
 
-        // 移除旧条目（如果存在）
-        data.cacheEntries.remove(normalizedKey)
-
-        // 确保不超过最大缓存数
         trimToSize()
-
-        // 添加新缓存
-        data.cacheEntries[normalizedKey] = CachedSearchResult.fromArtifacts(artifacts)
         saveToFile()
     }
 
     /**
-     * 检查是否有缓存
+     * 检查缓存中是否有匹配的结果
      */
-    fun contains(keyword: String): Boolean {
+    fun hasMatch(keyword: String): Boolean {
         ensureLoaded()
         if (!enableCache || keyword.isBlank()) return false
-        val normalizedKey = keyword.lowercase().trim()
-        val cached = data.cacheEntries[normalizedKey] ?: return false
 
-        // 检查是否过期
-        if (System.currentTimeMillis() - cached.timestamp > cacheTtlMs) {
-            data.cacheEntries.remove(normalizedKey)
-            saveToFile()
-            return false
+        val lowerKeyword = keyword.lowercase().trim()
+        val now = System.currentTimeMillis()
+
+        return data.artifacts.values.any { cached ->
+            now - cached.timestamp <= cacheTtlMs &&
+            (cached.groupId.lowercase().contains(lowerKeyword) ||
+             cached.artifactId.lowercase().contains(lowerKeyword) ||
+             "${cached.groupId}:${cached.artifactId}".lowercase().contains(lowerKeyword))
         }
-        return true
     }
 
     /**
      * 清除所有缓存
      */
     fun clearAll() {
-        data.cacheEntries.clear()
+        data.artifacts.clear()
         saveToFile()
     }
 
@@ -178,7 +183,7 @@ class SearchResultCacheService {
      */
     fun clearExpired() {
         val now = System.currentTimeMillis()
-        val removed = data.cacheEntries.entries.removeIf { now - it.value.timestamp > cacheTtlMs }
+        val removed = data.artifacts.entries.removeIf { now - it.value.timestamp > cacheTtlMs }
         if (removed) saveToFile()
     }
 
@@ -189,17 +194,17 @@ class SearchResultCacheService {
         ensureLoaded()
         clearExpired()
         return CacheStats(
-            totalEntries = data.cacheEntries.size,
-            totalArtifacts = data.cacheEntries.values.sumOf { it.artifacts.size }
+            totalEntries = data.artifacts.size,
+            totalArtifacts = data.artifacts.size
         )
     }
 
     private fun trimToSize() {
-        if (data.cacheEntries.size >= maxCacheSize) {
+        if (data.artifacts.size > maxCacheSize) {
             // 按时间排序，移除最旧的
-            val sorted = data.cacheEntries.entries.sortedBy { it.value.timestamp }
-            val toRemove = sorted.take(data.cacheEntries.size - maxCacheSize + 1)
-            toRemove.forEach { data.cacheEntries.remove(it.key) }
+            val sorted = data.artifacts.entries.sortedBy { it.value.timestamp }
+            val toRemove = sorted.take(data.artifacts.size - maxCacheSize)
+            toRemove.forEach { data.artifacts.remove(it.key) }
         }
     }
 
@@ -211,34 +216,14 @@ class SearchResultCacheService {
 
 /**
  * 缓存数据容器
+ * key: groupId:artifactId
  */
 data class CacheData(
-    var cacheEntries: MutableMap<String, CachedSearchResult> = mutableMapOf(),
-    var maxCacheSize: Int = 200,
+    var artifacts: MutableMap<String, CachedArtifact> = mutableMapOf(),
+    var maxCacheSize: Int = 500,
     var cacheTtlMs: Long = 7 * 24 * 60 * 60 * 1000L,
     var enableCache: Boolean = true
 )
-
-/**
- * 缓存的搜索结果
- */
-data class CachedSearchResult(
-    var artifacts: MutableList<CachedArtifact> = mutableListOf(),
-    var timestamp: Long = 0L,
-    var totalResults: Long = 0L
-) {
-    constructor() : this(mutableListOf(), 0L, 0L)
-
-    fun toArtifacts(): List<MavenArtifact> = artifacts.map { it.toMavenArtifact() }
-
-    companion object {
-        fun fromArtifacts(list: List<MavenArtifact>, total: Long = list.size.toLong()) = CachedSearchResult(
-            artifacts = list.map { CachedArtifact.fromMavenArtifact(it) }.toMutableList(),
-            timestamp = System.currentTimeMillis(),
-            totalResults = total
-        )
-    }
-}
 
 /**
  * 可序列化的工件信息

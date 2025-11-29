@@ -1,6 +1,7 @@
 package site.addzero.maven.search.detect
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VirtualFile
 import site.addzero.maven.search.DependencyFormat
 
@@ -21,7 +22,7 @@ object ProjectBuildTypeDetector {
      * 4. 默认: Gradle Kotlin DSL
      */
     fun detect(project: Project): DependencyFormat {
-        val baseDir = project.baseDir ?: return DependencyFormat.GRADLE_KOTLIN
+        val baseDir = project.guessProjectDir() ?: return DependencyFormat.GRADLE_KOTLIN
         
         return when {
             hasGradleKotlin(baseDir) -> DependencyFormat.GRADLE_KOTLIN

@@ -18,6 +18,9 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
+        
+        <!-- Notification Group -->
+        <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>
 
     <actions>
@@ -27,6 +30,37 @@
                 description="Scan project() dependencies and replace them with Maven artifacts">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        
+        <!-- Gradle Task Favorites - Right-click menu in Gradle panel -->
+        <action id="GradleBuddy.AddToFavorites"
+                class="site.addzero.gradle.buddy.favorites.AddToFavoritesAction"
+                text="Add to Favorites"
+                icon="AllIcons.Nodes.Favorite"
+                description="Add this Gradle task to favorites">
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar.CenterPanel" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar.RightPanel" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ProjectMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ModuleMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.TaskMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.RunMenu" anchor="last"/>
+            <add-to-group group-id="Gradle.TaskActionsGroup" anchor="last"/>
+        </action>
+        
+        <action id="GradleBuddy.RemoveFromFavorites"
+                class="site.addzero.gradle.buddy.favorites.RemoveFromFavoritesAction"
+                text="Remove from Favorites"
+                icon="AllIcons.Actions.GC"
+                description="Remove this Gradle task from favorites">
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar.CenterPanel" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ActionsToolbar.RightPanel" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ProjectMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.ModuleMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.TaskMenu" anchor="last"/>
+            <add-to-group group-id="ExternalSystemView.RunMenu" anchor="last"/>
+            <add-to-group group-id="Gradle.TaskActionsGroup" anchor="last"/>
         </action>
     </actions>
 

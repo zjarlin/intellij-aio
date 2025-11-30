@@ -28,6 +28,13 @@
             <className>site.addzero.gradle.buddy.intentions.GradleKtsUpdateDependencyIntention</className>
             <category>Gradle Buddy</category>
         </intentionAction>
+        
+        <!-- Current Module Tasks Tool Window -->
+        <toolWindow id="Module Tasks" 
+                    anchor="right" 
+                    secondary="true"
+                    icon="AllIcons.Actions.Execute"
+                    factoryClass="site.addzero.gradle.buddy.filter.CurrentModuleGradleTasksToolWindowFactory"/>
     </extensions>
 
     <actions>
@@ -47,27 +54,22 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
         
-        <!-- Gradle Task Favorites - Right-click menu in Gradle panel -->
-        <action id="GradleBuddy.AddToFavorites"
-                class="site.addzero.gradle.buddy.favorites.AddToFavoritesAction"
-                text="Add to Favorites"
-                icon="AllIcons.Nodes.Favorite"
-                description="Add this Gradle task to favorites">
-            <!-- Common action groups for context menus -->
-            <add-to-group group-id="RunContextGroup" anchor="last"/>
-            <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
-            <add-to-group group-id="ExternalSystem.Actions" anchor="last"/>
+        <!-- On-Demand Module Loading Actions -->
+        <action id="GradleBuddy.LoadOnlyOpenTabModules"
+                class="site.addzero.gradle.buddy.ondemand.LoadOnlyOpenTabModulesAction"
+                text="Load Only Open Tab Modules"
+                description="Load only Gradle modules that correspond to currently open editor tabs">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
         </action>
         
-        <action id="GradleBuddy.RemoveFromFavorites"
-                class="site.addzero.gradle.buddy.favorites.RemoveFromFavoritesAction"
-                text="Remove from Favorites"
-                icon="AllIcons.Actions.GC"
-                description="Remove this Gradle task from favorites">
-            <add-to-group group-id="RunContextGroup" anchor="last"/>
-            <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
-            <add-to-group group-id="ExternalSystem.Actions" anchor="last"/>
+        <action id="GradleBuddy.RestoreAllModules"
+                class="site.addzero.gradle.buddy.ondemand.RestoreAllModulesAction"
+                text="Restore All Gradle Modules"
+                description="Restore all modules that were excluded by Gradle Buddy">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+
     </actions>
 
     <applicationListeners>

@@ -1,4 +1,4 @@
-package site.addzero.maven.search.intentions
+package site.addzero.gradle.buddy.intentions
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
@@ -11,6 +11,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
@@ -23,9 +24,11 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
  */
 class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
-    override fun getFamilyName(): String = "Maven Buddy"
+    override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "Update Gradle KTS dependency to latest version"
+    override fun getText(): String = "Update dependency to latest version"
+    
+    fun getDescription(): String = "Fetches the latest version from Maven Central and updates the Gradle KTS dependency declaration."
 
     override fun startInWriteAction(): Boolean = false
 
@@ -100,17 +103,7 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
         }
     }
 
-    /**
-     * 检测 Gradle KTS 依赖声明
-     *
-     * 支持格式：
-     * - implementation("g:a:v")
-     * - api("g:a:v")
-     * - testImplementation("g:a:v")
-     * - 等等
-     */
     private fun detectGradleKtsDependency(element: PsiElement): DependencyInfo? {
-        val text = element.text
         val lineText = getLineText(element)
 
         val pattern = Regex("""(\w+)\s*\(\s*["']([^:]+):([^:]+):([^"']+)["']\s*\)""")
@@ -134,7 +127,7 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
         val lineNumber = document.getLineNumber(offset)
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)
-        return document.getText(com.intellij.openapi.util.TextRange(lineStart, lineEnd))
+        return document.getText(TextRange(lineStart, lineEnd))
     }
 
     private data class DependencyInfo(

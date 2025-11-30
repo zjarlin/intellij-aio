@@ -30,23 +30,23 @@ class AddToFavoritesAction : AnAction(
             return
         }
         
+        // 始终显示菜单项
+        e.presentation.isVisible = true
+        
         val taskInfo = GradleTaskExtractor.extractFromEvent(e)
         
         if (taskInfo == null) {
-            // 仍然显示，但禁用，方便调试
-            e.presentation.isVisible = true
             e.presentation.isEnabled = false
-            e.presentation.text = "Add to Favorites (Select a task)"
+            e.presentation.text = "Add to Favorites"
             return
         }
         
         val service = GradleFavoritesService.getInstance(project)
         val isFavorite = service.isFavorite(taskInfo)
         
-        e.presentation.isEnabledAndVisible = true
-        e.presentation.text = if (isFavorite) "Already in Favorites ⭐" else "Add to Favorites"
-        e.presentation.icon = if (isFavorite) AllIcons.Nodes.Favorite else AllIcons.Actions.AddToDictionary
         e.presentation.isEnabled = !isFavorite
+        e.presentation.text = if (isFavorite) "Already in Favorites" else "Add to Favorites"
+        e.presentation.icon = if (isFavorite) AllIcons.Nodes.Favorite else AllIcons.Actions.AddToDictionary
     }
     
     override fun actionPerformed(e: AnActionEvent) {

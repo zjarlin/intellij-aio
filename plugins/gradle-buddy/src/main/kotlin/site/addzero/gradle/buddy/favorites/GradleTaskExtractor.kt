@@ -3,6 +3,7 @@ package site.addzero.gradle.buddy.favorites
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataKey
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.externalSystem.model.task.TaskData
 
 /**
  * 从 AnActionEvent 中提取 Gradle 任务信息
@@ -10,67 +11,46 @@ import com.intellij.openapi.diagnostic.Logger
 object GradleTaskExtractor {
 
     private val logger = Logger.getInstance(GradleTaskExtractor::class.java)
-
-    // ExternalSystemDataKeys.SELECTED_NODES
+    
+    // 通过反射获取 ExternalSystemDataKeys.SELECTED_NODES
     @Suppress("UNCHECKED_CAST")
     private val SELECTED_NODES_KEY: DataKey<List<Any>>? by lazy {
         try {
             val clazz = Class.forName("com.intellij.openapi.externalSystem.view.ExternalSystemDataKeys")
-            val field = clazz.getField("SELECTED_NODES")
+            val field = clazz.getDeclaredField("SELECTED_NODES")
+            field.isAccessible = true
             field.get(null) as? DataKey<List<Any>>
         } catch (e: Exception) {
-            logger.warn("Failed to get SELECTED_NODES key", e)
+            logger.warn("Failed to get SELECTED_NODES DataKey: ${e.message}")
             null
         }
-    }
-    
-    // 直接使用 DataKey 创建
-    @Suppress("UNCHECKED_CAST")
-    private val SELECTED_NODES_KEY_DIRECT: DataKey<List<Any>> by lazy {
-        DataKey.create("ExternalSystem.View.SelectedNodes")
     }
 
     /**
      * 从事件中提取任务信息
      */
     fun extractFromEvent(event: AnActionEvent): FavoriteGradleTask? {
-        logger.info("Extracting from event, place: ${event.place}")
-        
-        // 尝试多种方式提取
-        return extractFromSelectedNodes(event) 
-            ?: extractFromSelectedNodesDirect(event)
+        return try {
+            extractFromExternalSystemNodes(event)
+        } catch (e: Exception) {
+            logger.warn("Failed to extract task info", e)
+            null
+        }
     }
 
-    private fun extractFromSelectedNodes(event: AnActionEvent): FavoriteGradleTask? {
+    private fun extractFromExternalSystemNodes(event: AnActionEvent): FavoriteGradleTask? {
         val key = SELECTED_NODES_KEY
         if (key == null) {
-            logger.info("SELECTED_NODES_KEY is null")
             return null
         }
         
         val selectedNodes = event.getData(key)
-        logger.info("Selected nodes via reflection: ${selectedNodes?.size ?: 0}")
-        
-        if (selectedNodes.isNullOrEmpty()) return null
-
-        for (node in selectedNodes) {
-            logger.info("Node class: ${node.javaClass.name}")
-            val task = extractFromNode(node, event) 
-            if (task != null) return task
+        if (selectedNodes.isNullOrEmpty()) {
+            return null
         }
-        
-        return null
-    }
-    
-    private fun extractFromSelectedNodesDirect(event: AnActionEvent): FavoriteGradleTask? {
-        val selectedNodes = event.getData(SELECTED_NODES_KEY_DIRECT)
-        logger.info("Selected nodes via direct key: ${selectedNodes?.size ?: 0}")
-        
-        if (selectedNodes.isNullOrEmpty()) return null
 
         for (node in selectedNodes) {
-            logger.info("Node class: ${node.javaClass.name}")
-            val task = extractFromNode(node, event) 
+            val task = extractFromNode(node, event)
             if (task != null) return task
         }
         
@@ -79,16 +59,20 @@ object GradleTaskExtractor {
 
     private fun extractFromNode(node: Any, event: AnActionEvent): FavoriteGradleTask? {
         return try {
-            // 获取 DataNode
-            val dataNode = invokeGetter(node, "getDataNode") ?: return null
-            val data = invokeGetter(dataNode, "getData") ?: return null
+            // 调用 node.getData() 获取 DataNode
+            val getDataMethod = node.javaClass.getMethod("getData")
+            val dataNode = getDataMethod.invoke(node) ?: return null
+            
+            // 调用 dataNode.getData() 获取实际数据
+            val getDataNodeDataMethod = dataNode.javaClass.getMethod("getData")
+            val data = getDataNodeDataMethod.invoke(dataNode) ?: return null
             
             // 检查是否是 TaskData
-            if (!data.javaClass.name.contains("TaskData")) return null
+            if (data !is TaskData) return null
             
-            val linkedExternalProjectPath = invokeGetter(data, "getLinkedExternalProjectPath") as? String ?: return null
-            val taskName = invokeGetter(data, "getName") as? String ?: return null
-            val group = (invokeGetter(data, "getGroup") as? String) ?: "other"
+            val linkedExternalProjectPath = data.linkedExternalProjectPath
+            val taskName = data.name
+            val group = data.group ?: "other"
             
             val projectPath = extractModulePath(linkedExternalProjectPath, event.project?.basePath)
             
@@ -98,16 +82,6 @@ object GradleTaskExtractor {
                 group = group,
                 order = 0
             )
-        } catch (e: Exception) {
-            logger.warn("Failed to extract task from node", e)
-            null
-        }
-    }
-
-    private fun invokeGetter(obj: Any, methodName: String): Any? {
-        return try {
-            val method = obj.javaClass.getMethod(methodName)
-            method.invoke(obj)
         } catch (e: Exception) {
             null
         }

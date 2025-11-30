@@ -1,4 +1,4 @@
-package site.addzero.maven.search.migration
+package site.addzero.gradle.buddy.catalog
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -69,19 +69,19 @@ class MigrateToVersionCatalogAction : AnAction(
                 val message = buildString {
                     appendLine("Migration completed successfully!")
                     appendLine()
-                    appendLine("📊 Summary:")
-                    appendLine("  • Scanned files: ${result.scannedFiles}")
-                    appendLine("  • Dependencies found: ${result.totalDependencies}")
-                    appendLine("  • Unique artifacts: ${result.uniqueArtifacts}")
-                    appendLine("  • Files modified: ${result.modifiedFiles}")
+                    appendLine("Summary:")
+                    appendLine("  - Scanned files: ${result.scannedFiles}")
+                    appendLine("  - Dependencies found: ${result.totalDependencies}")
+                    appendLine("  - Unique artifacts: ${result.uniqueArtifacts}")
+                    appendLine("  - Files modified: ${result.modifiedFiles}")
                     appendLine()
-                    appendLine("📁 Generated: gradle/libs.versions.toml")
+                    appendLine("Generated: gradle/libs.versions.toml")
                     if (result.warnings.isNotEmpty()) {
                         appendLine()
-                        appendLine("⚠️ Warnings:")
-                        result.warnings.take(5).forEach { appendLine("  • $it") }
+                        appendLine("Warnings:")
+                        result.warnings.take(5).forEach { appendLine("  - $it") }
                         if (result.warnings.size > 5) {
-                            appendLine("  • ... and ${result.warnings.size - 5} more")
+                            appendLine("  - ... and ${result.warnings.size - 5} more")
                         }
                     }
                 }
@@ -124,7 +124,6 @@ class VersionCatalogMigrator(private val project: Project) {
 
     fun migrate(indicator: ProgressIndicator): MigrationResult {
         try {
-            // 1. 扫描所有 .gradle.kts 文件
             indicator.text = "Scanning .gradle.kts files..."
             indicator.fraction = 0.1
             
@@ -133,7 +132,6 @@ class VersionCatalogMigrator(private val project: Project) {
                 return MigrationResult(error = "No .gradle.kts files found in project")
             }
 
-            // 2. 提取所有依赖
             indicator.text = "Extracting dependencies..."
             indicator.fraction = 0.3
             
@@ -150,19 +148,16 @@ class VersionCatalogMigrator(private val project: Project) {
                 )
             }
 
-            // 3. 生成 catalog 数据
             indicator.text = "Generating version catalog..."
             indicator.fraction = 0.5
             
             val catalog = generateCatalog(allDependencies)
 
-            // 4. 写入 libs.versions.toml
             indicator.text = "Writing libs.versions.toml..."
             indicator.fraction = 0.7
             
             val catalogFile = writeCatalogFile(catalog)
 
-            // 5. 替换 kts 文件中的依赖
             indicator.text = "Updating .gradle.kts files..."
             indicator.fraction = 0.9
             
@@ -189,7 +184,6 @@ class VersionCatalogMigrator(private val project: Project) {
         
         val ktsFiles = mutableListOf<VirtualFile>()
         VfsUtil.iterateChildrenRecursively(baseDir, { file ->
-            // 排除 build 目录和隐藏目录
             !file.name.startsWith(".") && file.name != "build" && file.name != "node_modules"
         }) { file ->
             if (file.name.endsWith(".gradle.kts") && !file.path.contains("/build/")) {
@@ -229,14 +223,12 @@ class VersionCatalogMigrator(private val project: Project) {
         val versions = mutableMapOf<String, String>()
         val libraries = mutableMapOf<String, LibraryEntry>()
 
-        // 按 groupId:artifactId 分组，取最新版本
         val grouped = dependencies.groupBy { "${it.groupId}:${it.artifactId}" }
 
         grouped.forEach { (coordinate, deps) ->
             val first = deps.first()
             val allVersions = deps.map { it.version }.distinct()
             
-            // 如果同一依赖有多个版本，警告并取第一个
             if (allVersions.size > 1) {
                 warnings.add("$coordinate has multiple versions: ${allVersions.joinToString()}, using ${first.version}")
             }
@@ -262,10 +254,6 @@ class VersionCatalogMigrator(private val project: Project) {
     }
 
     private fun generateAlias(groupId: String, artifactId: String): String {
-        // 生成简洁的 alias
-        // com.google.guava:guava -> guava
-        // com.fasterxml.jackson.core:jackson-core -> jackson-core
-        // org.springframework.boot:spring-boot-starter-web -> spring-boot-starter-web
         return artifactId
             .replace(".", "-")
             .replace("_", "-")
@@ -273,8 +261,6 @@ class VersionCatalogMigrator(private val project: Project) {
     }
 
     private fun generateVersionRef(groupId: String, artifactId: String): String {
-        // 生成版本引用名
-        // 尝试提取主要名称
         val parts = groupId.split(".")
         val lastPart = parts.lastOrNull() ?: groupId
         
@@ -293,7 +279,6 @@ class VersionCatalogMigrator(private val project: Project) {
 
         val catalogFile = File(gradleDir, "libs.versions.toml")
         
-        // 如果文件已存在，合并内容
         val existingContent = if (catalogFile.exists()) {
             parseExistingCatalog(catalogFile.readText())
         } else {
@@ -302,7 +287,6 @@ class VersionCatalogMigrator(private val project: Project) {
 
         val content = buildString {
             appendLine("[versions]")
-            // 合并现有版本和新版本
             val allVersions = existingContent.versions + catalog.versions
             allVersions.toSortedMap().forEach { (name, version) ->
                 appendLine("$name = \"$version\"")
@@ -310,7 +294,6 @@ class VersionCatalogMigrator(private val project: Project) {
             
             appendLine()
             appendLine("[libraries]")
-            // 合并现有库和新库
             val allLibraries = existingContent.libraries + catalog.libraries
             allLibraries.toSortedMap().forEach { (alias, entry) ->
                 appendLine("$alias = { group = \"${entry.groupId}\", name = \"${entry.artifactId}\", version.ref = \"${entry.versionRef}\" }")
@@ -379,12 +362,8 @@ class VersionCatalogMigrator(private val project: Project) {
 
                 catalog.libraries.forEach { (alias, entry) ->
                     val coordinate = "${entry.groupId}:${entry.artifactId}"
-                    
-                    // toml 中的横杠在 kts 里要用点号访问
-                    // kotlin-reflect -> libs.kotlin.reflect
                     val libsAccessor = alias.replace("-", ".")
                     
-                    // 替换各种依赖声明方式
                     val methods = listOf(
                         "implementation", "api", "compileOnly", "runtimeOnly",
                         "testImplementation", "testCompileOnly", "testRuntimeOnly",
@@ -392,7 +371,6 @@ class VersionCatalogMigrator(private val project: Project) {
                     )
                     
                     methods.forEach { method ->
-                        // 匹配 implementation("g:a:v")
                         val pattern = Regex("""$method\s*\(\s*"${Regex.escape(coordinate)}:[^"]+"\s*\)""")
                         if (pattern.containsMatchIn(content)) {
                             content = pattern.replace(content, "$method(libs.$libsAccessor)")

@@ -21,13 +21,28 @@
         
         <!-- Notification Group -->
         <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+        
+        <!-- Intention: Update dependency to latest version -->
+        <intentionAction>
+            <language>kotlin</language>
+            <className>site.addzero.gradle.buddy.intentions.GradleKtsUpdateDependencyIntention</className>
+            <category>Gradle Buddy</category>
+        </intentionAction>
     </extensions>
 
     <actions>
         <action id="GradleBuddy.MigrateProjectDependencies"
                 class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
-                text=" Migrate Projects Dependencies then Replacewith Mavencentral Dependencies"
+                text="Migrate project() to Maven Dependencies"
                 description="Scan project() dependencies and replace them with Maven artifacts">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        
+        <action id="GradleBuddy.MigrateToVersionCatalog"
+                class="site.addzero.gradle.buddy.catalog.MigrateToVersionCatalogAction"
+                text="Migrate to Version Catalog"
+                description="Migrate hardcoded dependencies to gradle/libs.versions.toml">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
@@ -38,14 +53,10 @@
                 text="Add to Favorites"
                 icon="AllIcons.Nodes.Favorite"
                 description="Add this Gradle task to favorites">
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar.CenterPanel" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar.RightPanel" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ProjectMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ModuleMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.TaskMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.RunMenu" anchor="last"/>
-            <add-to-group group-id="Gradle.TaskActionsGroup" anchor="last"/>
+            <!-- Common action groups for context menus -->
+            <add-to-group group-id="RunContextGroup" anchor="last"/>
+            <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
+            <add-to-group group-id="ExternalSystem.Actions" anchor="last"/>
         </action>
         
         <action id="GradleBuddy.RemoveFromFavorites"
@@ -53,14 +64,9 @@
                 text="Remove from Favorites"
                 icon="AllIcons.Actions.GC"
                 description="Remove this Gradle task from favorites">
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar.CenterPanel" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ActionsToolbar.RightPanel" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ProjectMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.ModuleMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.TaskMenu" anchor="last"/>
-            <add-to-group group-id="ExternalSystemView.RunMenu" anchor="last"/>
-            <add-to-group group-id="Gradle.TaskActionsGroup" anchor="last"/>
+            <add-to-group group-id="RunContextGroup" anchor="last"/>
+            <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
+            <add-to-group group-id="ExternalSystem.Actions" anchor="last"/>
         </action>
     </actions>
 

@@ -66,13 +66,13 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
 
         val buttonPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 0))
         
-        val sleepOthersButton = JButton(AllIcons.Actions.Collapseall)
+        val sleepOthersButton = JButton("💤")
         sleepOthersButton.toolTipText = "Sleep other modules (keep only open tabs)"
         sleepOthersButton.addActionListener { sleepOtherModules() }
         buttonPanel.add(sleepOthersButton)
         
-        val restoreAllButton = JButton(AllIcons.Actions.Expandall)
-        restoreAllButton.toolTipText = "Restore all modules"
+        val restoreAllButton = JButton("⏰")
+        restoreAllButton.toolTipText = "Wake up - Restore all modules"
         restoreAllButton.addActionListener { restoreAllModules() }
         buttonPanel.add(restoreAllButton)
         

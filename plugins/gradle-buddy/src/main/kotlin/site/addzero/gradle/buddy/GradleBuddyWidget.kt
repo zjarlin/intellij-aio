@@ -3,9 +3,19 @@ package site.addzero.gradle.buddy
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.openapi.wm.StatusBarWidget
-import org.jetbrains.plugins.gradle.settings.GradleSettings
+import com.intellij.util.Consumer
+import com.intellij.openapi.application.EDT
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
+import java.awt.event.MouseEvent
 
-class GradleBuddyWidget(private val project: Project) : StatusBarWidget {
+/**
+ * 状态栏 Widget - 显示 Gradle 项目加载状态
+ */
+class GradleBuddyWidget(private val project: Project) : StatusBarWidget, StatusBarWidget.TextPresentation {
+    
     private var statusBar: StatusBar? = null
     private var isIndicatorVisible = false
     
@@ -13,6 +23,30 @@ class GradleBuddyWidget(private val project: Project) : StatusBarWidget {
     
     override fun install(statusBar: StatusBar) {
         this.statusBar = statusBar
+    }
+    
+    override fun getPresentation(): StatusBarWidget.WidgetPresentation = this
+    
+    override fun getText(): String {
+        return if (isIndicatorVisible) "Gradle: Load Required" else ""
+    }
+    
+    override fun getTooltipText(): String {
+        return if (isIndicatorVisible) {
+            "Click to load Gradle project"
+        } else {
+            "Gradle project loaded"
+        }
+    }
+    
+    override fun getAlignment(): Float = 0f
+    
+    override fun getClickConsumer(): Consumer<MouseEvent>? {
+        return Consumer { 
+            if (isIndicatorVisible) {
+                loadGradleProject()
+            }
+        }
     }
     
     fun showIndicator() {
@@ -30,14 +64,21 @@ class GradleBuddyWidget(private val project: Project) : StatusBarWidget {
     }
     
     private fun loadGradleProject() {
-        // 触发Gradle项目导入
-        val gradleSettings = GradleSettings.getInstance(project)
-        // 这里应该触发Gradle项目同步，但我们需要更复杂的实现
-        // 暂时只是隐藏指示器
-        hideIndicator()
+        // 获取项目根目录的 build.gradle.kts 或 build.gradle 路径
+        val basePath = project.basePath ?: return
+        val buildFile = listOf(
+            "$basePath/build.gradle.kts",
+            "$basePath/build.gradle",
+            "$basePath/settings.gradle.kts",
+            "$basePath/settings.gradle"
+        ).firstOrNull { java.io.File(it).exists() } ?: return
         
-        // 实际的Gradle导入需要使用Gradle工具窗口或相关服务
-        // 这里我们只是演示基本功能
+        // 触发 Gradle 项目链接和同步
+        @Suppress("OPT_IN_USAGE")
+        GlobalScope.launch(Dispatchers.EDT) {
+            linkAndSyncGradleProject(project, buildFile)
+            hideIndicator()
+        }
     }
     
     override fun dispose() {

@@ -3,10 +3,18 @@
 ## [Unreleased]
 
 ### Added
-- Initial release of Gradle Buddy plugin
-- Status bar indicator for unloaded Gradle projects
-- Automatic detection of Gradle projects
-- Click-to-load functionality for Gradle projects
+- Automatic release mechanism for unused modules
+- Tracking of open module files
+- Periodic checking of module usage
+- Documentation of prerequisites for plugin usage
+
+### Changed
+- Consolidated GradleBuddyService into GradleBuddyPlugin.kt
+- Improved module file tracking logic
+- Enhanced README with prerequisites and release mechanism details
+
+### Removed
+- Separate GradleBuddyService.kt file
 
 ## [2025.11.31] - 2025-11-30
 

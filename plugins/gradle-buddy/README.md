@@ -1,41 +1,76 @@
 # Gradle Buddy
 
-A plugin for IntelliJ IDEA that helps you manage Gradle projects by showing an indicator when a project is not loaded.
+**核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
 
-## Features
+大型多模块 Gradle 项目在 IntelliJ IDEA 中加载所有模块会占用大量内存和时间。Gradle Buddy 通过按需加载策略解决这个问题：只有当你打开某个模块的文件时才加载该模块，长时间未使用的模块会自动释放。
 
-- Shows an indicator in the status bar when you open a file in a Gradle project that hasn't been loaded
-- Click the indicator to trigger Gradle project loading
-- Automatically detects Gradle projects by looking for `build.gradle`, `build.gradle.kts`, `settings.gradle`, or `settings.gradle.kts` files
+## 前提条件 (Prerequisites)
 
-## Usage
+> **重要**：本插件要求项目中的每个模块都是**独立可运行**的。
+> 
+> 这意味着每个模块应该：
+> - 有自己完整的 `build.gradle` 或 `build.gradle.kts`
+> - 能够独立编译和运行，不强依赖其他模块的编译产物
+> - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
+>
+> 如果模块之间存在强耦合依赖，插件的按需加载功能可能无法正常工作。
 
-1. Open a Gradle project in IntelliJ IDEA
-2. If the Gradle project is not loaded, you'll see "Gradle: Load Required" in the status bar
-3. Click on the indicator to load the Gradle project
+## 功能特性
 
-## Installation
+- **按需加载**：打开文件时检测所属模块是否已加载，未加载则在状态栏显示提示
+- **自动释放**：30秒内没有打开某模块的任何文件，自动 unload 该模块以释放资源
+- **智能检测**：自动识别 `build.gradle`、`build.gradle.kts`、`settings.gradle`、`settings.gradle.kts`
+- **安全保护**：`includeBuild` 和 `buildSrc` 模块永不释放，确保构建正常
 
-The plugin can be built and installed from source:
+## 使用方法
+
+1. 在 IntelliJ IDEA 中打开 Gradle 项目
+2. 打开某个模块的文件时，如果该模块未加载，状态栏显示 "Gradle: Load Required"
+3. 点击状态栏指示器触发模块加载
+
+## 安装
 
 ```bash
 ./gradlew :plugins:gradle-buddy:buildPlugin
 ```
 
-Then install the generated plugin zip file from `plugins/gradle-buddy/build/libs/` in IntelliJ IDEA.
+在 `plugins/gradle-buddy/build/libs/` 找到生成的 zip 文件，通过 IntelliJ IDEA 插件管理器安装。
 
-## How it works
+## 工作原理
 
-The plugin monitors file opening events in your project. When you open a file, it checks if:
+1. **文件监听**：监控 FileEditorManager 的文件打开/关闭事件
+2. **模块追踪**：维护当前打开的模块文件集合
+3. **定时检查**：每30秒检查一次，释放没有打开任何文件的模块
+4. **加载提示**：检测到未加载的 Gradle 模块时，在状态栏显示加载提示
 
-1. The project contains Gradle build files (`build.gradle`, `build.gradle.kts`, `settings.gradle`, or `settings.gradle.kts`)
-2. The Gradle project has been loaded in IntelliJ IDEA
+## 配置
 
-If the project is a Gradle project but hasn't been loaded, the plugin displays an indicator in the status bar prompting you to load the project.
+当前版本暂无可配置选项，释放超时时间固定为30秒。
 
-## Future improvements
+## 一键迁移 Project 依赖到 Maven
 
-- Implement actual Gradle project loading functionality
-- Add support for Gradle Kotlin DSL files
-- Improve detection of Gradle projects in subdirectories
-- Add configuration options for the indicator appearance
+新增功能：将 `project(":module")` 依赖迁移到 Maven 依赖。
+
+### 使用方法
+
+1. 在菜单栏选择 **Tools →  Migrate Projects Dependencies then Replacewith Mavencentral Dependencies**
+2. 或者在项目视图右键菜单中选择该选项
+3. 插件会：
+   - 扫描所有 Gradle 文件中的 `project(":xxx")` 依赖
+   - 提取模块名作为关键词在 Maven Central 搜索
+   - 显示替换清单对话框
+4. 在对话框中选择要替换的依赖和对应的 Maven artifact
+5. 点击 OK 执行替换
+
+### 注意事项
+
+- 此功能适用于将多模块项目的内部依赖迁移到已发布的 Maven 依赖
+- 替换前请确保对应的 Maven artifact 确实是你想要的
+- 建议先提交当前更改，以便于回滚
+
+## 后续计划
+
+- 可配置的释放超时时间
+- 模块白名单/黑名单
+- 更细粒度的加载策略
+- 支持批量版本管理

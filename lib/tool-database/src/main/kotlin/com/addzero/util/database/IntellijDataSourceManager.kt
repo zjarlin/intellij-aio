@@ -20,12 +20,15 @@ object IntellijDataSourceManager {
     fun getFirstDataSource(project: Project): LocalDataSource? =
         getAllDataSources(project).firstOrNull()
 
+    @Suppress("unused")
     fun getDbDataSource(project: Project, localDataSource: LocalDataSource): DbDataSource? =
         DbPsiFacade.getInstance(project).dataSources.firstOrNull { it.name == localDataSource.name }
 
+    @Suppress("unused")
     fun getDataSourceNames(project: Project): List<String> =
         getAllDataSources(project).map { it.name }
 
+    @Suppress("unused")
     fun hasDataSources(project: Project): Boolean =
         getAllDataSources(project).isNotEmpty()
 }

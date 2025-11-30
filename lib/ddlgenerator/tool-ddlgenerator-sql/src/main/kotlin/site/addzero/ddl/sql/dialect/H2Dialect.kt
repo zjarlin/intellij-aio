@@ -1,7 +1,6 @@
 package site.addzero.ddl.sql.dialect
 
 import site.addzero.ddl.core.model.ColumnDefinition
-import site.addzero.ddl.core.model.TableDefinition
 
 /**
  * H2数据库方言

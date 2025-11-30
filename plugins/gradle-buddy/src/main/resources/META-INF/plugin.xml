@@ -6,6 +6,11 @@
         A plugin that helps you manage Gradle projects by showing an indicator when a project is not loaded.
         When you open a file in a Gradle project that hasn't been loaded, it shows an indicator in the status bar
         to remind you to load the Gradle project.
+
+        Features:
+        - On-demand module loading
+        - Auto-release unused modules
+        - Migrate project() dependencies to Maven artifacts
     </description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -15,8 +20,18 @@
         <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
     </extensions>
 
+    <actions>
+        <action id="GradleBuddy.MigrateProjectDependencies"
+                class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
+                text=" Migrate Projects Dependencies then Replacewith Mavencentral Dependencies"
+                description="Scan project() dependencies and replace them with Maven artifacts">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+
     <applicationListeners>
         <listener class="site.addzero.gradle.buddy.GradleBuddyProjectManagerListener"
-                  topic="com.intellij.openapi.project.ProjectManagerListener"/>
+                  topic="com.intellij.openapi.project.ProjectCloseListener"/>
     </applicationListeners>
 </idea-plugin>

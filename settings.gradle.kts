@@ -13,7 +13,6 @@ plugins {
 //    id("io.gitee.zjarlin.auto-modules") version "0.0.608"
     id("me.champeau.includegit") version "+"
 }
-val bdlogic = "build-logic"
 
 //autoModules {
 //    excludeModules = listOf(bdlogic, "buildSrc")
@@ -27,7 +26,7 @@ fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     }
 }
 gitRepositories {
-    listOf(bdlogic, "metaprogramming-lsi","compose-component").forEach {
+    listOf("build-logic", "metaprogramming-lsi","compose-component").forEach {
         includeAddzeroProject(it)
     }
 }

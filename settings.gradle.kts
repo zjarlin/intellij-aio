@@ -44,12 +44,3 @@ implementationRemoteGit{
 //}
 
 
-// >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-11-30T21:47:55.081246
-// Loaded: 5, Excluded: 0, Total: 5
-//include(":lib:ddlgenerator:tool-ddlgenerator-core")
-//include(":lib:ddlgenerator:tool-ddlgenerator-sql")
-//include(":plugins:autoddl")
-//include(":plugins:gradle-buddy")
-//include(":plugins:lsi-code-analyzer")
-// <<< Gradle Buddy: End Of Block <<<

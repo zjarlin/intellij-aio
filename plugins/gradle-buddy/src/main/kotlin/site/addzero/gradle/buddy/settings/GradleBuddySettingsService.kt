@@ -56,6 +56,9 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
             "publishToMavenCentral",
             "kspKotlin",
             "kspCommonMainMetadata",
+            "signPlugin",
+            "publishPlugin",
+            "runIde"
         )
 
         fun getInstance(project: Project): GradleBuddySettingsService = project.service()

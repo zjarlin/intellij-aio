@@ -43,10 +43,11 @@ implementationRemoteGit{
 
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-11-30T17:50:37.742542
+// Generated at: 2025-11-30T18:25:07.962988
 // Only these modules will be loaded:
 include(":lib:ddlgenerator:tool-ddlgenerator-core")
 include(":lib:ddlgenerator:tool-ddlgenerator-sql")
+include(":plugins:autoddl")
 include(":plugins:gradle-buddy")
 include(":plugins:maven-buddy")
 // <<< Gradle Buddy: End Of Block <<<

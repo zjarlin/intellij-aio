@@ -19,7 +19,7 @@ class GradleBuddyWidget(private val project: Project) : StatusBarWidget, StatusB
     private var statusBar: StatusBar? = null
     private var isIndicatorVisible = false
     
-    override fun ID(): String = "GradleBuddyWidget"
+    override fun ID(): String = GradleBuddyWidgetFactory.WIDGET_ID
     
     override fun install(statusBar: StatusBar) {
         this.statusBar = statusBar

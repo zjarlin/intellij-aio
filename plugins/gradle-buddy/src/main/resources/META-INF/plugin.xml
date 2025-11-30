@@ -42,6 +42,10 @@
             instance="site.addzero.gradle.buddy.settings.GradleBuddySettingsConfigurable"
             id="site.addzero.gradle.buddy.settings"
             displayName="Gradle Buddy"/>
+        
+        <!-- Status Bar Widget -->
+        <statusBarWidgetFactory id="GradleBuddyWidget"
+                                implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
     </extensions>
 
     <actions>

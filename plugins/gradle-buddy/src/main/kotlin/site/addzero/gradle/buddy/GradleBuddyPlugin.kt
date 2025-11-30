@@ -24,14 +24,6 @@ import java.util.concurrent.TimeUnit
 class GradleBuddyPlugin : ProjectActivity {
     override suspend fun execute(project: Project) {
         project.service<GradleBuddyService>().init()
-        registerStatusBarWidget(project)
-    }
-    
-    private fun registerStatusBarWidget(project: Project) {
-        val statusBar = WindowManager.getInstance().getStatusBar(project) ?: return
-        val widget = GradleBuddyWidget(project)
-        @Suppress("DEPRECATION")
-        statusBar.addWidget(widget)
     }
 }
 
@@ -231,7 +223,7 @@ class GradleBuddyService(private val project: Project) {
     
     private fun showGradleLoadIndicator() {
         val statusBar = WindowManager.getInstance().getStatusBar(project)
-        val widget = statusBar?.getWidget("GradleBuddyWidget")
+        val widget = statusBar?.getWidget(GradleBuddyWidgetFactory.WIDGET_ID)
         if (widget is GradleBuddyWidget) {
             widget.showIndicator()
         }

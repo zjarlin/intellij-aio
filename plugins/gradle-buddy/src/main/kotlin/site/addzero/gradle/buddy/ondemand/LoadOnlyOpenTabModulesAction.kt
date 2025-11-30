@@ -19,10 +19,13 @@ class LoadOnlyOpenTabModulesAction : AnAction(), DumbAware {
         
         when (result) {
             is LoadResult.Success -> {
+                val excludedInfo = if (result.excludedModules.isNotEmpty()) 
+                    "\nExcluded: ${result.excludedModules.sorted().joinToString(", ")}" 
+                    else ""
                 showNotification(
                     project,
                     "On-Demand Loading Applied",
-                    "Loaded ${result.modules.size} modules:\n${result.modules.sorted().joinToString("\n")}",
+                    "Loaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
                     NotificationType.INFORMATION
                 )
             }

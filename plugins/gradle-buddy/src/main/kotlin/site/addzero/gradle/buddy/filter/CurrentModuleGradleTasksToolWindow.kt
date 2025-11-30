@@ -109,9 +109,12 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
         val result = OnDemandModuleLoader.loadOnlyOpenTabModules(project)
         when (result) {
             is LoadResult.Success -> {
+                val excludedInfo = if (result.excludedModules.isNotEmpty()) 
+                    "\nExcluded: ${result.excludedModules.size} (${result.excludedModules.sorted().joinToString(", ")})" 
+                    else ""
                 showNotification(
                     "Modules Loaded",
-                    "Only ${result.modules.size} modules active:\n${result.modules.sorted().joinToString("\n")}",
+                    "Loaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
                     NotificationType.INFORMATION
                 )
             }

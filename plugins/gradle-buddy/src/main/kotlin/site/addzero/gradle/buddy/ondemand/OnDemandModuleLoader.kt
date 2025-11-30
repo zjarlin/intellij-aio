@@ -22,8 +22,26 @@ object OnDemandModuleLoader {
 
     private val logger = Logger.getInstance(OnDemandModuleLoader::class.java)
 
-    // 受保护的模块（始终包含）
+    // 受保护的模块（始终包含，但不生成 include）
     private val PROTECTED_MODULES = setOf("buildSrc", "build-logic", "gradle")
+    
+    // 应该排除不生成 include 的模块后缀
+    private val EXCLUDED_MODULE_SUFFIXES = listOf("build-logic", "buildSrc", "buildLogic")
+    
+    /**
+     * 分离有效模块和被排除的模块
+     */
+    fun partitionModules(modules: Set<String>): Pair<Set<String>, Set<String>> {
+        val validModules = modules
+            .filter { it != ":" && it.isNotBlank() }
+            .filterNot { modulePath -> EXCLUDED_MODULE_SUFFIXES.any { suffix -> modulePath.endsWith(":$suffix") } }
+            .toSet()
+        val excludedModules = modules
+            .filter { it != ":" && it.isNotBlank() }
+            .filter { modulePath -> EXCLUDED_MODULE_SUFFIXES.any { suffix -> modulePath.endsWith(":$suffix") } }
+            .toSet()
+        return validModules to excludedModules
+    }
 
     // 按需加载配置文件名
     private const val ACTIVE_MODULES_FILE = ".gradle-buddy/active-modules.gradle.kts"
@@ -257,11 +275,14 @@ object OnDemandModuleLoader {
      * 生成 Gradle Buddy 管理块
      */
     private fun generateGradleBuddyBlock(activeModules: Set<String>): String {
-        val validModules = activeModules.filter { it != ":" && it.isNotBlank() }
+        val (validModules, excludedModules) = partitionModules(activeModules)
         return buildString {
             appendLine(GRADLE_BUDDY_START)
             appendLine("// Generated at: ${java.time.LocalDateTime.now()}")
-            appendLine("// Only these modules will be loaded:")
+            appendLine("// Loaded: ${validModules.size}, Excluded: ${excludedModules.size}, Total: ${validModules.size + excludedModules.size}")
+            if (excludedModules.isNotEmpty()) {
+                appendLine("// Excluded (build infrastructure): ${excludedModules.sorted().joinToString(", ")}")
+            }
             validModules.sorted().forEach { modulePath ->
                 appendLine("include(\"$modulePath\")")
             }
@@ -352,9 +373,10 @@ object OnDemandModuleLoader {
             return LoadResult.NoModulesDetected(openFiles.size)
         }
 
+        val (validModules, excludedModules) = partitionModules(activeModules)
         val success = applyOnDemandLoading(project, activeModules, syncAfter = true)
         return if (success) {
-            LoadResult.Success(activeModules)
+            LoadResult.Success(validModules, excludedModules)
         } else {
             LoadResult.Failed("Failed to apply settings")
         }
@@ -374,7 +396,12 @@ data class ModuleDescriptor(
  * 加载结果
  */
 sealed class LoadResult {
-    data class Success(val modules: Set<String>) : LoadResult()
+    data class Success(
+        val modules: Set<String>,
+        val excludedModules: Set<String> = emptySet()
+    ) : LoadResult() {
+        val totalModules: Int get() = modules.size + excludedModules.size
+    }
     data object NoOpenFiles : LoadResult()
     data class NoModulesDetected(val openFileCount: Int) : LoadResult()
     data class Failed(val reason: String) : LoadResult()

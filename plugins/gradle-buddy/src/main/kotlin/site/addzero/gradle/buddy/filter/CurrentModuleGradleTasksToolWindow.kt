@@ -2,8 +2,13 @@ package site.addzero.gradle.buddy.filter
 
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.icons.AllIcons
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.externalSystem.model.ProjectKeys
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
 import com.intellij.openapi.externalSystem.service.execution.ProgressExecutionMode
+import com.intellij.openapi.externalSystem.service.project.ProjectDataManager
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
@@ -16,7 +21,10 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import org.jetbrains.plugins.gradle.util.GradleConstants
+import site.addzero.gradle.buddy.ondemand.LoadResult
+import site.addzero.gradle.buddy.ondemand.OnDemandModuleLoader
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
@@ -54,12 +62,25 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
         val toolbar = JPanel(BorderLayout())
         moduleLabel.border = BorderFactory.createEmptyBorder(5, 10, 5, 10)
         toolbar.add(moduleLabel, BorderLayout.CENTER)
+
+        val buttonPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 0))
+        
+        val sleepOthersButton = JButton(AllIcons.Actions.Suspend)
+        sleepOthersButton.toolTipText = "Sleep other modules (keep only open tabs)"
+        sleepOthersButton.addActionListener { sleepOtherModules() }
+        buttonPanel.add(sleepOthersButton)
+        
+        val restoreAllButton = JButton(AllIcons.Actions.Resume)
+        restoreAllButton.toolTipText = "Restore all modules"
+        restoreAllButton.addActionListener { restoreAllModules() }
+        buttonPanel.add(restoreAllButton)
         
         val refreshButton = JButton(AllIcons.Actions.Refresh)
         refreshButton.toolTipText = "Refresh tasks"
         refreshButton.addActionListener { refreshTasks() }
-        toolbar.add(refreshButton, BorderLayout.EAST)
+        buttonPanel.add(refreshButton)
         
+        toolbar.add(buttonPanel, BorderLayout.EAST)
         add(toolbar, BorderLayout.NORTH)
 
         // 任务列表
@@ -74,13 +95,51 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
                 }
             }
         })
-        
+
         add(JBScrollPane(taskList), BorderLayout.CENTER)
-        
+
         // 底部提示
         val hint = JLabel("Double-click to run task")
         hint.border = BorderFactory.createEmptyBorder(5, 10, 5, 10)
         add(hint, BorderLayout.SOUTH)
+    }
+    
+    private fun sleepOtherModules() {
+        val result = OnDemandModuleLoader.loadOnlyOpenTabModules(project)
+        when (result) {
+            is LoadResult.Success -> {
+                showNotification(
+                    "Modules Loaded",
+                    "Only ${result.modules.size} modules active:\n${result.modules.sorted().joinToString("\n")}",
+                    NotificationType.INFORMATION
+                )
+            }
+            is LoadResult.NoOpenFiles -> {
+                showNotification("No Open Files", "Please open some files first.", NotificationType.WARNING)
+            }
+            is LoadResult.NoModulesDetected -> {
+                showNotification("No Modules", "Could not detect modules from open files.", NotificationType.WARNING)
+            }
+            is LoadResult.Failed -> {
+                showNotification("Failed", result.reason, NotificationType.ERROR)
+            }
+        }
+    }
+    
+    private fun restoreAllModules() {
+        val success = OnDemandModuleLoader.restoreAllModules(project, syncAfter = true)
+        if (success) {
+            showNotification("Modules Restored", "All modules have been restored.", NotificationType.INFORMATION)
+        } else {
+            showNotification("Restore Failed", "Failed to restore modules.", NotificationType.ERROR)
+        }
+    }
+    
+    private fun showNotification(title: String, content: String, type: NotificationType) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(title, content, type)
+            .notify(project)
     }
 
     private fun setupListeners() {
@@ -90,7 +149,7 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
                 override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
                     refreshTasks()
                 }
-                
+
                 override fun selectionChanged(event: com.intellij.openapi.fileEditor.FileEditorManagerEvent) {
                     refreshTasks()
                 }
@@ -100,21 +159,68 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
 
     private fun refreshTasks() {
         val modulePath = detectCurrentModulePath()
-        
+
         if (modulePath == currentModulePath) return
         currentModulePath = modulePath
-        
+
         taskListModel.clear()
-        
+
         if (modulePath == null) {
             moduleLabel.text = "No module detected"
             return
         }
-        
+
         moduleLabel.text = "Module: $modulePath"
-        
-        // 获取常用任务
-        val commonTasks = listOf(
+
+        // 动态获取 Gradle 任务
+        val tasks = getGradleTasksForModule(modulePath)
+
+        if (tasks.isEmpty()) {
+            // 回退到常用任务列表
+            getFallbackTasks(modulePath).forEach { taskListModel.addElement(it) }
+        } else {
+            tasks.sortedWith(compareBy({ it.group }, { it.name }))
+                .forEach { taskListModel.addElement(it) }
+        }
+    }
+
+    private fun getGradleTasksForModule(modulePath: String): List<GradleTaskItem> {
+        val basePath = project.basePath ?: return emptyList()
+
+        // 计算模块的绝对路径
+        val moduleAbsolutePath = if (modulePath == ":") {
+            basePath
+        } else {
+            "$basePath/${modulePath.trimStart(':').replace(':', '/')}"
+        }
+
+        return try {
+            val projectDataManager = ProjectDataManager.getInstance()
+            val projectInfo = projectDataManager.getExternalProjectData(project, GradleConstants.SYSTEM_ID, basePath)
+            val projectStructure = projectInfo?.externalProjectStructure ?: return emptyList()
+
+            // 获取所有任务数据
+            ExternalSystemApiUtil.findAll(projectStructure, ProjectKeys.TASK)
+                .map { it.data }
+                .filter { taskData ->
+                    // 过滤属于当前模块的任务
+                    taskData.linkedExternalProjectPath == moduleAbsolutePath
+                }
+                .map { taskData ->
+                    GradleTaskItem(
+                        name = taskData.name,
+                        modulePath = modulePath,
+                        group = taskData.group ?: "other",
+                        description = taskData.description ?: ""
+                    )
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun getFallbackTasks(modulePath: String): List<GradleTaskItem> {
+        return listOf(
             GradleTaskItem("compileKotlin", modulePath, "build", "Compile Kotlin sources"),
             GradleTaskItem("compileJava", modulePath, "build", "Compile Java sources"),
             GradleTaskItem("classes", modulePath, "build", "Assembles main classes"),
@@ -126,24 +232,22 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
             GradleTaskItem("assemble", modulePath, "build", "Assembles the outputs"),
             GradleTaskItem("publishToMavenLocal", modulePath, "publishing", "Publishes to Maven local"),
         )
-        
-        commonTasks.forEach { taskListModel.addElement(it) }
     }
 
     private fun detectCurrentModulePath(): String? {
         val editor = FileEditorManager.getInstance(project).selectedEditor ?: return null
         val file = editor.file ?: return null
-        
+
         val basePath = project.basePath ?: return null
         val filePath = file.path
-        
+
         if (!filePath.startsWith(basePath)) return null
-        
+
         var currentPath = file.parent
         while (currentPath != null && currentPath.path.startsWith(basePath)) {
             val hasBuildFile = currentPath.findChild("build.gradle.kts") != null ||
                               currentPath.findChild("build.gradle") != null
-            
+
             if (hasBuildFile) {
                 val moduleRelativePath = currentPath.path.removePrefix(basePath).trimStart('/')
                 return if (moduleRelativePath.isEmpty()) {
@@ -154,19 +258,19 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
             }
             currentPath = currentPath.parent
         }
-        
+
         return null
     }
 
     private fun runTask(task: GradleTaskItem) {
         val projectPath = project.basePath ?: return
-        
+
         val settings = ExternalSystemTaskExecutionSettings().apply {
             externalSystemIdString = GradleConstants.SYSTEM_ID.id
             externalProjectPath = projectPath
             taskNames = listOf(task.fullPath)
         }
-        
+
         ExternalSystemUtil.runTask(
             settings,
             DefaultRunExecutor.EXECUTOR_ID,
@@ -197,12 +301,12 @@ class TaskListCellRenderer : DefaultListCellRenderer() {
         cellHasFocus: Boolean
     ): java.awt.Component {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-        
+
         if (value is GradleTaskItem) {
             text = "${value.name} - ${value.description}"
             icon = AllIcons.Actions.Execute
         }
-        
+
         return this
     }
 }

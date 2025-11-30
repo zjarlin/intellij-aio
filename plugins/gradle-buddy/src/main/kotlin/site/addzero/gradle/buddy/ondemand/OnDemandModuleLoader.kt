@@ -196,53 +196,80 @@ object OnDemandModuleLoader {
         }
     }
 
+    // Gradle Buddy 管理块的标记
+    private const val GRADLE_BUDDY_START = "// >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>"
+    private const val GRADLE_BUDDY_END = "// <<< Gradle Buddy: End Of Block <<<"
+
     /**
      * 重写 settings.gradle.kts 内容，只保留激活的模块
      */
     private fun rewriteSettingsWithActiveModules(originalContent: String, activeModules: Set<String>): String {
-        val lines = originalContent.lines().toMutableList()
+        val lines = originalContent.lines()
         val result = StringBuilder()
         
-        // 移除现有的 include 语句（但保留注释形式）
-        val includePattern = Regex("""^\s*include\s*\(\s*["']([^"']+)["']\s*\).*$""")
-        var inIncludeBlock = false
-        var includeBlockStartIndex = -1
+        // 检查是否已有 Gradle Buddy 管理块
+        val startIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_START }
+        val endIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_END }
         
-        for ((index, line) in lines.withIndex()) {
-            val match = includePattern.find(line)
-            if (match != null) {
-                // 标记 include 块的开始
-                if (!inIncludeBlock) {
-                    inIncludeBlock = true
-                    includeBlockStartIndex = index
+        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+            // 替换现有的 Gradle Buddy 块
+            for (i in lines.indices) {
+                when {
+                    i < startIndex -> result.appendLine(lines[i])
+                    i == startIndex -> {
+                        result.appendLine(generateGradleBuddyBlock(activeModules))
+                    }
+                    i > endIndex -> result.appendLine(lines[i])
+                    // 跳过 startIndex 到 endIndex 之间的内容
                 }
-                // 注释掉不在激活列表中的 include
-                val modulePath = match.groupValues[1]
-                if (activeModules.contains(modulePath)) {
-                    result.appendLine(line)
-                } else {
-                    result.appendLine("//$line // excluded by Gradle Buddy")
-                }
-            } else {
-                inIncludeBlock = false
-                result.appendLine(line)
             }
-        }
-        
-        // 如果原文件没有 include 语句，在末尾添加
-        if (includeBlockStartIndex == -1 && activeModules.isNotEmpty()) {
-            result.appendLine()
-            result.appendLine("// Active modules (managed by Gradle Buddy)")
-            activeModules.sorted().forEach { modulePath ->
-                result.appendLine("include(\"$modulePath\")")
+        } else {
+            // 没有现有块，处理原有的 include 语句并添加新块
+            val includePattern = Regex("""^(\s*)include\s*\(\s*["']([^"']+)["']\s*\)(.*)$""")
+            var hasIncludeStatements = false
+            
+            for (line in lines) {
+                val match = includePattern.find(line)
+                if (match != null) {
+                    hasIncludeStatements = true
+                    val modulePath = match.groupValues[2]
+                    if (activeModules.contains(modulePath)) {
+                        result.appendLine(line)
+                    } else {
+                        result.appendLine("//${line} // excluded by Gradle Buddy")
+                    }
+                } else {
+                    result.appendLine(line)
+                }
+            }
+            
+            // 如果没有 include 语句（使用 auto-modules 插件），添加 Gradle Buddy 块
+            if (!hasIncludeStatements && activeModules.isNotEmpty()) {
+                result.appendLine()
+                result.appendLine(generateGradleBuddyBlock(activeModules))
             }
         }
         
         return result.toString().trimEnd() + "\n"
     }
+    
+    /**
+     * 生成 Gradle Buddy 管理块
+     */
+    private fun generateGradleBuddyBlock(activeModules: Set<String>): String {
+        return buildString {
+            appendLine(GRADLE_BUDDY_START)
+            appendLine("// Generated at: ${java.time.LocalDateTime.now()}")
+            appendLine("// Only these modules will be loaded:")
+            activeModules.sorted().forEach { modulePath ->
+                appendLine("include(\"$modulePath\")")
+            }
+            append(GRADLE_BUDDY_END)
+        }
+    }
 
     /**
-     * 恢复所有模块（取消注释所有 include 语句）
+     * 恢复所有模块（删除 Gradle Buddy 块，取消注释所有 include 语句）
      */
     fun restoreAllModules(project: Project, syncAfter: Boolean = true): Boolean {
         val settingsFile = findSettingsFile(project) ?: return false
@@ -250,8 +277,21 @@ object OnDemandModuleLoader {
         return try {
             WriteCommandAction.runWriteCommandAction(project) {
                 val content = String(settingsFile.contentsToByteArray())
+                val lines = content.lines()
+                
+                // 查找并删除 Gradle Buddy 块
+                val startIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_START }
+                val endIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_END }
+                
+                val filteredLines = if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+                    // 删除 Gradle Buddy 块
+                    lines.filterIndexed { index, _ -> index < startIndex || index > endIndex }
+                } else {
+                    lines
+                }
+                
                 // 取消所有被 Gradle Buddy 注释的行
-                val restored = content.lines().joinToString("\n") { line ->
+                val restored = filteredLines.joinToString("\n") { line ->
                     if (line.contains("// excluded by Gradle Buddy")) {
                         line.replace(Regex("""^(\s*)//"""), "$1")
                             .replace(" // excluded by Gradle Buddy", "")
@@ -259,7 +299,7 @@ object OnDemandModuleLoader {
                         line
                     }
                 }
-                settingsFile.setBinaryContent(restored.toByteArray())
+                settingsFile.setBinaryContent(restored.trimEnd().toByteArray())
             }
             
             logger.info("Restored all modules")

@@ -1,4 +1,4 @@
-# Gradle Buddy
+ Gradle Buddy
 
 **核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
 

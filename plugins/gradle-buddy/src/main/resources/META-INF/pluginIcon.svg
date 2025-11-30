@@ -1,0 +1,22 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="20" cy="20" r="18" fill="#02303A"/>
+  
+  <!-- Gradle elephant simplified -->
+  <path d="M12 24C12 24 13 18 18 16C23 14 26 16 28 18C30 20 30 24 28 26C26 28 22 28 20 27C18 26 16 27 14 26C12 25 12 24 12 24Z" fill="#1BA8A0"/>
+  
+  <!-- Elephant trunk -->
+  <path d="M14 22C14 22 12 23 11 25C10 27 11 28 12 28C13 28 14 27 14 26" stroke="#1BA8A0" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Eye -->
+  <circle cx="24" cy="19" r="1.5" fill="white"/>
+  
+  <!-- Gear/cog overlay for "buddy" concept -->
+  <circle cx="30" cy="28" r="6" fill="#4A90A4" stroke="#02303A" stroke-width="1"/>
+  <circle cx="30" cy="28" r="2.5" fill="#02303A"/>
+  <!-- Gear teeth -->
+  <rect x="29" y="21" width="2" height="3" fill="#4A90A4"/>
+  <rect x="29" y="32" width="2" height="3" fill="#4A90A4"/>
+  <rect x="23" y="27" width="3" height="2" fill="#4A90A4"/>
+  <rect x="34" y="27" width="3" height="2" fill="#4A90A4"/>
+</svg>

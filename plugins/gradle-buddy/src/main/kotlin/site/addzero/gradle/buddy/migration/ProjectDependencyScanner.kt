@@ -15,6 +15,11 @@ object ProjectDependencyScanner {
         """(implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*\(\s*project\s*\(\s*["']:([^"']+)["']\s*\)\s*\)"""
     )
 
+    // 匹配 type-safe project accessors: implementation(projects.lib.ksp.common.kspSupport)
+    private val TYPESAFE_PROJECT_PATTERN = Regex(
+        """(implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly)\s*\(\s*(projects\.[a-zA-Z0-9_.]+)\s*\)"""
+    )
+
     /**
      * 扫描项目中所有的 project 依赖
      * @return 找到的所有 project 依赖列表
@@ -28,6 +33,8 @@ object ProjectDependencyScanner {
 
         gradleFiles.forEach { file ->
             val content = String(file.contentsToByteArray())
+            
+            // 扫描传统 project() 格式
             PROJECT_DEPENDENCY_PATTERN.findAll(content).forEach { match ->
                 val configType = match.groupValues[1]
                 val modulePath = match.groupValues[2]
@@ -37,6 +44,22 @@ object ProjectDependencyScanner {
                     file = file,
                     configType = configType,
                     modulePath = modulePath,
+                    moduleName = moduleName,
+                    fullMatch = match.value,
+                    range = match.range
+                ))
+            }
+            
+            // 扫描 type-safe project accessors 格式: projects.xxx.yyy
+            TYPESAFE_PROJECT_PATTERN.findAll(content).forEach { match ->
+                val configType = match.groupValues[1]
+                val projectAccessor = match.groupValues[2] // projects.lib.ksp.common.kspSupport
+                val moduleName = extractModuleNameFromTypeSafeAccessor(projectAccessor)
+                
+                dependencies.add(ProjectDependencyInfo(
+                    file = file,
+                    configType = configType,
+                    modulePath = projectAccessor,
                     moduleName = moduleName,
                     fullMatch = match.value,
                     range = match.range
@@ -54,6 +77,31 @@ object ProjectDependencyScanner {
      */
     private fun extractModuleName(modulePath: String): String {
         return modulePath.trimStart(':').split(':').last()
+    }
+    
+    /**
+     * 从 type-safe project accessor 提取模块名并转换为 kebab-case
+     * "projects.lib.ksp.common.kspSupport" -> "ksp-support"
+     * "projects.lib.toolKmp.toolKoin" -> "tool-koin"
+     */
+    private fun extractModuleNameFromTypeSafeAccessor(accessor: String): String {
+        val lastSegment = accessor.substringAfterLast('.')
+        return camelCaseToKebabCase(lastSegment)
+    }
+    
+    /**
+     * 将小驼峰转换为 kebab-case（横线分隔命名）
+     * "kspSupport" -> "ksp-support"
+     * "toolKoin" -> "tool-koin"
+     * "myAwesomeModule" -> "my-awesome-module"
+     */
+    private fun camelCaseToKebabCase(input: String): String {
+        return input.fold(StringBuilder()) { acc, char ->
+            when {
+                char.isUpperCase() && acc.isNotEmpty() -> acc.append('-').append(char.lowercaseChar())
+                else -> acc.append(char.lowercaseChar())
+            }
+        }.toString()
     }
 
     /**

@@ -1,0 +1,12 @@
+<svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Module box -->
+  <rect x="1" y="3" width="8" height="7" rx="1" fill="#1BA8A0" stroke="#02303A" stroke-width="0.5"/>
+  
+  <!-- Play/run arrow -->
+  <path d="M9 5L12 6.5L9 8V5Z" fill="#4A90A4"/>
+  
+  <!-- Lines in module (representing code) -->
+  <line x1="2.5" y1="5" x2="6" y2="5" stroke="white" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="2.5" y1="7" x2="5" y2="7" stroke="white" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="2.5" y1="9" x2="7" y2="9" stroke="white" stroke-width="0.8" stroke-linecap="round"/>
+</svg>

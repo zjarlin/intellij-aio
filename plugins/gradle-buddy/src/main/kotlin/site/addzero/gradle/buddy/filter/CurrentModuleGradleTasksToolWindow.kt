@@ -23,6 +23,7 @@ import com.intellij.ui.content.ContentFactory
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import site.addzero.gradle.buddy.ondemand.LoadResult
 import site.addzero.gradle.buddy.ondemand.OnDemandModuleLoader
+import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
@@ -220,18 +221,10 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
     }
 
     private fun getFallbackTasks(modulePath: String): List<GradleTaskItem> {
-        return listOf(
-            GradleTaskItem("compileKotlin", modulePath, "build", "Compile Kotlin sources"),
-            GradleTaskItem("compileJava", modulePath, "build", "Compile Java sources"),
-            GradleTaskItem("classes", modulePath, "build", "Assembles main classes"),
-            GradleTaskItem("jar", modulePath, "build", "Assembles a jar archive"),
-            GradleTaskItem("build", modulePath, "build", "Assembles and tests this project"),
-            GradleTaskItem("clean", modulePath, "build", "Deletes the build directory"),
-            GradleTaskItem("test", modulePath, "verification", "Runs the unit tests"),
-            GradleTaskItem("check", modulePath, "verification", "Runs all checks"),
-            GradleTaskItem("assemble", modulePath, "build", "Assembles the outputs"),
-            GradleTaskItem("publishToMavenLocal", modulePath, "publishing", "Publishes to Maven local"),
-        )
+        val defaultTasks = GradleBuddySettingsService.getInstance(project).getDefaultTasks()
+        return defaultTasks.map { taskName ->
+            GradleTaskItem(taskName, modulePath, "default", "")
+        }
     }
 
     private fun detectCurrentModulePath(): String? {
@@ -303,8 +296,8 @@ class TaskListCellRenderer : DefaultListCellRenderer() {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
 
         if (value is GradleTaskItem) {
-            text = "${value.name} - ${value.description}"
-            icon = AllIcons.Actions.Execute
+            text = if (value.description.isNotEmpty()) "${value.name} - ${value.description}" else value.name
+            icon = AllIcons.Nodes.RunnableMark
         }
 
         return this

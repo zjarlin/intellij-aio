@@ -14,7 +14,8 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     data class State(
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
         var moduleIdleTimeoutMinutes: Int = 5,
-        var autoSyncOnFileOpen: Boolean = false
+        var autoSyncOnFileOpen: Boolean = false,
+        var autoSleepEnabled: Boolean? = null // null = auto-detect based on module count
     )
 
     private var myState = State()
@@ -45,7 +46,23 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         myState.defaultTasks = DEFAULT_TASKS.toMutableList()
     }
 
+    /**
+     * 获取自动睡眠设置
+     * @return null = 自动检测, true = 开启, false = 关闭
+     */
+    fun getAutoSleepEnabled(): Boolean? = myState.autoSleepEnabled
+
+    /**
+     * 设置自动睡眠
+     * @param enabled null = 自动检测, true = 开启, false = 关闭
+     */
+    fun setAutoSleepEnabled(enabled: Boolean?) {
+        myState.autoSleepEnabled = enabled
+    }
+
     companion object {
+        // 大型项目阈值：超过此数量模块自动开启睡眠
+        const val LARGE_PROJECT_THRESHOLD = 30
         val DEFAULT_TASKS = listOf(
             "clean",
             "compileKotlin",

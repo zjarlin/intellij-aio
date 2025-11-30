@@ -17,6 +17,7 @@ import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.messages.MessageBusConnection
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import site.addzero.gradle.buddy.ondemand.OnDemandModuleLoader
+import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -185,6 +186,9 @@ class GradleBuddyService(private val project: Project) : Disposable {
     }
 
     private fun checkAndReleaseUnusedModules() {
+        // 检查是否启用自动睡眠
+        if (!isAutoSleepActive()) return
+        
         val now = System.currentTimeMillis()
         val activeModulePaths = openFileModules.values.toSet()
 
@@ -221,6 +225,27 @@ class GradleBuddyService(private val project: Project) : Disposable {
     }
 
     fun getLoadedModules(): Set<String> = loadedModules.toSet()
+    
+    /**
+     * 检查自动睡眠是否生效
+     * - 用户明确设置 true/false 时使用用户设置
+     * - 用户未设置 (null) 时，根据模块数量自动判断
+     */
+    fun isAutoSleepActive(): Boolean {
+        val settings = GradleBuddySettingsService.getInstance(project)
+        return when (val userSetting = settings.getAutoSleepEnabled()) {
+            true -> true
+            false -> false
+            null -> getModuleCount() >= GradleBuddySettingsService.LARGE_PROJECT_THRESHOLD
+        }
+    }
+    
+    /**
+     * 获取项目模块数量
+     */
+    fun getModuleCount(): Int {
+        return OnDemandModuleLoader.discoverAllModules(project).size
+    }
 
     private fun isGradleProject(): Boolean {
         val baseDir = project.guessProjectDir() ?: return false

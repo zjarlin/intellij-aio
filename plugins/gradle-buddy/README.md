@@ -1,4 +1,4 @@
-# Gradle Buddy
+Gradle Buddy: Smart Module Loading for Large Gradle Projects
 
 > **核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
 
@@ -35,84 +35,130 @@
 
 **工作原理很简单**：你打开哪个文件，就加载哪个模块。5 分钟没碰的模块自动释放。
 
-## 前提条件 (Prerequisites)
-
-> **重要**：本插件要求项目中的每个模块都是**独立可运行**的。
->
-> 这意味着每个模块应该：
-> - 有自己完整的 `build.gradle` 或 `build.gradle.kts`
-> - 能够独立编译和运行，不强依赖其他模块的编译产物
-> - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
->
-> 如果模块之间存在强耦合依赖，使用一键迁移模块依赖到 Maven中央仓库依赖 功能
-
 ## 功能特性
 
-- **按需加载**：打开文件时检测所属模块是否已加载，未加载则在状态栏显示提示
-- **自动释放**：30秒内没有打开某模块的任何文件，自动 unload 该模块以释放资源
-- **智能检测**：自动识别 `build.gradle`、`build.gradle.kts`、`settings.gradle`、`settings.gradle.kts`
-- **安全保护**：`includeBuild` 和 `buildSrc` 模块永不释放，确保构建正常
+### 🚀 核心功能
+- **按需加载**：打开文件时自动加载对应模块，未使用的模块不加载
+- **自动释放**：5 分钟未使用的模块自动释放，节省内存
+- **智能排除**：`build-logic`、`buildSrc` 等构建模块自动排除
+- **智能开关**：30+ 模块自动开启睡眠，小项目默认关闭，可手动覆盖
 
-## 使用方法
+### 🛠️ 工具窗口
+- **Module Tasks 面板**：显示当前模块的 Gradle 任务，双击即可运行
+- **💤 Sleep 按钮**：一键休眠其他模块，只保留当前打开的
+- **⏰ Wake 按钮**：一键唤醒所有模块
+- **🔄 Refresh 按钮**：刷新任务列表
 
-1. 在 IntelliJ IDEA 中打开 Gradle 项目
-2. 打开某个模块的文件时，如果该模块未加载，状态栏显示 "Gradle: Load Required"
-3. 点击状态栏指示器触发模块加载
+### ✨ 意图操作 (Alt+Enter)
+- **Update dependency to latest version**：在依赖声明上按 `Alt+Enter`，自动从 Maven Central 获取最新版本并更新
 
-## 安装
+### 🔄 迁移工具
+- **Migrate to Version Catalog**：将硬编码依赖批量迁移到 `libs.versions.toml`
+- **Migrate project() to Maven**：将 `project(":module")` 依赖迁移到 Maven 坐标
 
-```bash
-./gradlew :plugins:gradle-buddy:buildPlugin
+---
+
+## Module Tasks 工具窗口
+
+右侧边栏的 **Module Tasks** 面板，让你专注于当前模块的 Gradle 任务。
+
+### 功能
+
+| 控件 | 功能 | 说明 |
+|-----|------|-----|
+| ☑️ Auto Sleep | 开关 | 开启/关闭自动睡眠功能（30+ 模块自动开启） |
+| 💤 | Sleep | 休眠其他模块，只保留当前打开文件对应的模块 |
+| ⏰ | Wake | 唤醒所有模块，恢复完整项目 |
+| 🔄 | Refresh | 刷新任务列表 |
+
+> **提示**：悬停 Auto Sleep 开关可查看当前模块数量和阈值
+
+### 使用场景
+
+1. **专注开发**：只想看当前模块的任务，不想被其他模块干扰
+2. **快速运行**：双击任务即可运行，无需在 Gradle 面板中找
+3. **模块切换**：切换文件时自动更新任务列表
+
+---
+
+## 意图操作 (Intention Actions)
+
+在 `.gradle.kts` 文件中，光标放在依赖声明上，按 `Alt+Enter` 可触发意图操作。
+
+### Update dependency to latest version
+
+**痛点**：想升级依赖版本，但不知道最新版本是多少，还要去 Maven Central 查。
+
+**解决**：
+1. 光标放在依赖声明上，如 `implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.0")`
+2. 按 `Alt+Enter`
+3. 选择 **Update dependency to latest version**
+4. 插件自动查询 Maven Central，获取最新版本并替换
+
+```kotlin
+// 更新前
+implementation("com.google.guava:guava:31.0-jre")
+
+// 按 Alt+Enter 后自动更新
+implementation("com.google.guava:guava:33.0.0-jre")
 ```
 
-在 `plugins/gradle-buddy/build/libs/` 找到生成的 zip 文件，通过 IntelliJ IDEA 插件管理器安装。
+---
 
-## 工作原理
+## Version Catalog 迁移
 
-1. **文件监听**：监控 FileEditorManager 的文件打开/关闭事件
-2. **模块追踪**：维护当前打开的模块文件集合
-3. **定时检查**：每30秒检查一次，释放没有打开任何文件的模块
-4. **加载提示**：检测到未加载的 Gradle 模块时，在状态栏显示加载提示
+**痛点**：
+- 依赖版本散落在各个 `build.gradle.kts` 中
+- 版本升级要改多个文件
+- 没有统一的版本管理
 
-## 按需加载模块 (On-Demand Module Loading)
-
-核心功能：只加载当前打开的编辑器标签页对应的模块。
+**解决**：一键将所有硬编码依赖迁移到 `gradle/libs.versions.toml`。
 
 ### 使用方法
 
-1. 在 IDE 中打开你需要工作的文件（可以打开多个文件）
-2. 菜单栏选择 **Tools → Load Only Open Tab Modules**
-3. 或使用快捷键 `Ctrl+Alt+Shift+L`
-4. 插件会：
-    - 获取当前所有打开的编辑器标签页
-    - 从文件路径推导对应的 Gradle 模块
-    - 修改 `settings.gradle.kts`，只 include 这些模块
-    - 自动触发 Gradle 同步
+1. 菜单栏选择 **Tools → Migrate to Version Catalog**
+2. 插件会：
+   - 扫描所有 `.gradle.kts` 文件
+   - 提取硬编码依赖（如 `implementation("group:artifact:version")`）
+   - 生成/更新 `gradle/libs.versions.toml`
+   - 将依赖替换为 catalog 引用（如 `implementation(libs.guava)`）
 
-### 恢复所有模块
+### 迁移示例
 
-如果需要恢复所有被排除的模块：
-
-1. 菜单栏选择 **Tools → Restore All Gradle Modules**
-2. 插件会取消所有被注释的 include 语句并同步
-
-### 流程图
-
-```
-获取打开的标签页
-       ↓
-推导文件所属模块
-       ↓
-生成 include 语句
-       ↓
-更新 settings.gradle.kts
-       ↓
-触发 Gradle 同步
+**迁移前** (`build.gradle.kts`)：
+```kotlin
+dependencies {
+    implementation("com.google.guava:guava:33.0.0-jre")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+}
 ```
 
-## 配置
+**迁移后** (`gradle/libs.versions.toml`)：
+```toml
+[versions]
+guava = "33.0.0-jre"
+kotlinx = "1.8.0"
 
-当前版本暂无可配置选项，释放超时时间固定为30秒。
+[libraries]
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx" }
+```
+
+**迁移后** (`build.gradle.kts`)：
+```kotlin
+dependencies {
+    implementation(libs.guava)
+    implementation(libs.kotlinx.coroutines.core)
+}
+```
+
+### 注意事项
+
+- 已有 `libs.versions.toml` 会被合并，不会覆盖
+- 同一依赖在不同模块版本不一致时，会显示警告
+- 建议迁移前提交代码，便于回滚
+
+---
 
 ## 一键迁移 Project 依赖到 Maven
 
@@ -135,3 +181,33 @@
 - 替换前请确保对应的 Maven artifact 确实是你想要的
 - 建议先提交当前更改，以便于回滚
 
+---
+
+## 快捷键汇总
+
+| 快捷键 | 功能 |
+|-------|------|
+| `Ctrl+Alt+Shift+L` | 只加载当前打开的模块 |
+| `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
+
+
+---
+
+## 后续计划
+- [ ] 可配置的模块释放超时时间
+- [ ] 模块白名单/黑名单
+- [ ] 依赖冲突检测和解决建议
+
+---
+
+## 前提条件 (Prerequisites)
+
+> **重要**：本插件的模块睡眠功能,建议项目中的每个模块都是**独立可运行**的。这通常也是模块这一个词的最佳实践,依赖
+应该尽量发到中央用一键迁移来解耦： 
+>
+> 这意味着每个模块
+> - 有自己完整的 `build.gradle` 或 `build.gradle.kts`
+> - 能够独立编译和运行，不强依赖其他模块的编译产物
+> - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
+>
+> 如果模块之间存在强耦合依赖，使用一键迁移模块依赖到 Maven中央仓库依赖 功能

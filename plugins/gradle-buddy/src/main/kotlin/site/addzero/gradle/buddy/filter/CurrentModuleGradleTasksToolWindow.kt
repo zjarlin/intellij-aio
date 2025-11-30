@@ -21,9 +21,11 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import org.jetbrains.plugins.gradle.util.GradleConstants
+import site.addzero.gradle.buddy.GradleBuddyService
 import site.addzero.gradle.buddy.ondemand.LoadResult
 import site.addzero.gradle.buddy.ondemand.OnDemandModuleLoader
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
+import com.intellij.openapi.components.service
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
@@ -65,6 +67,18 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
         toolbar.add(moduleLabel, BorderLayout.CENTER)
 
         val buttonPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 0))
+        
+        // 自动睡眠开关
+        val autoSleepToggle = JCheckBox("Auto Sleep")
+        autoSleepToggle.toolTipText = getAutoSleepTooltip()
+        autoSleepToggle.isSelected = project.service<GradleBuddyService>().isAutoSleepActive()
+        autoSleepToggle.addActionListener {
+            val settings = GradleBuddySettingsService.getInstance(project)
+            settings.setAutoSleepEnabled(autoSleepToggle.isSelected)
+            autoSleepToggle.toolTipText = getAutoSleepTooltip()
+        }
+        buttonPanel.add(autoSleepToggle)
+        buttonPanel.add(JSeparator(SwingConstants.VERTICAL))
         
         val sleepOthersButton = JButton("💤")
         sleepOthersButton.toolTipText = "Sleep other modules (keep only open tabs)"
@@ -144,6 +158,24 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
             .getNotificationGroup("GradleBuddy")
             .createNotification(title, content, type)
             .notify(project)
+    }
+    
+    private fun getAutoSleepTooltip(): String {
+        val service = project.service<GradleBuddyService>()
+        val moduleCount = service.getModuleCount()
+        val threshold = GradleBuddySettingsService.LARGE_PROJECT_THRESHOLD
+        val settings = GradleBuddySettingsService.getInstance(project)
+        val userSetting = settings.getAutoSleepEnabled()
+        
+        return buildString {
+            append("Auto-sleep unused modules after 5 minutes\n")
+            append("Modules: $moduleCount (threshold: $threshold)\n")
+            when (userSetting) {
+                true -> append("Status: Enabled (user setting)")
+                false -> append("Status: Disabled (user setting)")
+                null -> append("Status: Auto (${if (moduleCount >= threshold) "enabled" else "disabled"})")
+            }
+        }
     }
 
     private fun setupListeners() {

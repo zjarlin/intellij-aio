@@ -257,11 +257,12 @@ object OnDemandModuleLoader {
      * 生成 Gradle Buddy 管理块
      */
     private fun generateGradleBuddyBlock(activeModules: Set<String>): String {
+        val validModules = activeModules.filter { it != ":" && it.isNotBlank() }
         return buildString {
             appendLine(GRADLE_BUDDY_START)
             appendLine("// Generated at: ${java.time.LocalDateTime.now()}")
             appendLine("// Only these modules will be loaded:")
-            activeModules.sorted().forEach { modulePath ->
+            validModules.sorted().forEach { modulePath ->
                 appendLine("include(\"$modulePath\")")
             }
             append(GRADLE_BUDDY_END)

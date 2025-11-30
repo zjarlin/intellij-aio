@@ -2,6 +2,7 @@ package site.addzero.gradle.buddy
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -28,7 +29,7 @@ class GradleBuddyPlugin : ProjectActivity {
 }
 
 @Service(Service.Level.PROJECT)
-class GradleBuddyService(private val project: Project) {
+class GradleBuddyService(private val project: Project) : Disposable {
 
     private val logger = Logger.getInstance(GradleBuddyService::class.java)
     private var connection: MessageBusConnection? = null
@@ -248,7 +249,7 @@ class GradleBuddyService(private val project: Project) {
             .notify(project)
     }
 
-    fun dispose() {
+    override fun dispose() {
         connection?.disconnect()
         scheduledExecutor.shutdown()
         moduleLastAccessTime.clear()

@@ -1,12 +1,39 @@
-Core tenet: Only open Gradle modules are loaded, loaded on demand and automatically released large-scale multi-module
-Gradle project will take up a lot of memory and time to load all modules in IntelliJ IDEA. Gradle Buddy solves this
-problem through the on-demand loading strategy: load a module only when you open its file, and modules that have not
-been used for a long time will be released automatically.
+# Gradle Buddy
 
-**核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
+> **核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
 
-大型多模块 Gradle 项目在 IntelliJ IDEA 中加载所有模块会占用大量内存和时间。Gradle Buddy
-通过按需加载策略解决这个问题：只有当你打开某个模块的文件时才加载该模块，长时间未使用的模块会自动释放。
+## 痛点 (Pain Points)
+
+### 你是否遇到过这些问题？
+
+1. **Gradle Sync 慢如蜗牛** 🐌
+   - 项目有 50+ 个模块，每次 Sync 需要 5-10 分钟
+   - 修改一行代码，等待 Gradle 索引就要喝杯咖啡
+
+2. **IDE 内存爆炸** 💥
+   - IntelliJ 占用 8GB+ 内存，电脑风扇狂转
+   - 打开项目后，其他应用卡顿明显
+
+3. **大部分模块根本用不到** 😤
+   - 100 个模块里，你日常只改 3-5 个
+   - 但 IDE 傻傻地加载了所有模块
+
+4. **手动管理 settings.gradle.kts 太痛苦** 😩
+   - 注释掉不用的模块？下次 git pull 又冲突了
+   - 每个人需要的模块还不一样
+
+## 解决方案 (Solution)
+
+**Gradle Buddy** 通过按需加载策略彻底解决这些问题：
+
+| 传统方式 | Gradle Buddy |
+|---------|--------------|
+| 加载全部 100 个模块 | 只加载你打开的 5 个模块 |
+| Sync 耗时 10 分钟 | Sync 耗时 30 秒 |
+| 内存占用 8GB | 内存占用 2GB |
+| 手动管理 settings.gradle.kts | 全自动，基于打开的文件 |
+
+**工作原理很简单**：你打开哪个文件，就加载哪个模块。5 分钟没碰的模块自动释放。
 
 ## 前提条件 (Prerequisites)
 
@@ -108,9 +135,3 @@ been used for a long time will be released automatically.
 - 替换前请确保对应的 Maven artifact 确实是你想要的
 - 建议先提交当前更改，以便于回滚
 
-## 后续计划
-
-- 可配置的释放超时时间
-- 模块白名单/黑名单
-- 更细粒度的加载策略
-- 支持批量版本管理

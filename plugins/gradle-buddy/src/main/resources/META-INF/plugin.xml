@@ -83,8 +83,5 @@
 
     </actions>
 
-    <applicationListeners>
-        <listener class="site.addzero.gradle.buddy.GradleBuddyProjectManagerListener"
-                  topic="com.intellij.openapi.project.ProjectCloseListener"/>
-    </applicationListeners>
+
 </idea-plugin>

@@ -7,19 +7,18 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 plugins {
 //    id("org.gradle.toolchains.foojay-resolver-convention") version "+"
 //    id("site.addzero.repo-buddy") version "+"
-       id("site.addzero.repo-buddy") version "2025.10.07"
+    id("site.addzero.repo-buddy") version "2025.10.07"
 
-//    id("site.addzero.modules-buddy") version "0.0.652"
-    id("io.gitee.zjarlin.auto-modules") version "0.0.608"
+   id("site.addzero.modules-buddy") version "+"
+//    id("io.gitee.zjarlin.auto-modules") version "0.0.608"
     id("me.champeau.includegit") version "+"
 }
-
 val bdlogic = "build-logic"
 
-autoModules {
-    excludeModules = listOf(bdlogic, "buildSrc")
-}
-includeBuild("checkouts/$bdlogic")
+//autoModules {
+//    excludeModules = listOf(bdlogic, "buildSrc")
+//}
+//includeBuild("checkouts/$bdlogic")
 
 fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     include(projectName) {
@@ -28,7 +27,7 @@ fun GitIncludeExtension.includeAddzeroProject(projectName: String) {
     }
 }
 gitRepositories {
-    listOf(bdlogic, "metaprogramming-lsi").forEach {
+    listOf(bdlogic, "metaprogramming-lsi","compose-component").forEach {
         includeAddzeroProject(it)
     }
 }

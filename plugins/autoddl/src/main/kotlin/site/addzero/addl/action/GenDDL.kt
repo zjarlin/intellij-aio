@@ -2,15 +2,12 @@ package site.addzero.addl.action
 
 import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
 import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
-import site.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContext
 import site.addzero.addl.settings.MyPluginSettingsService
 import site.addzero.util.ShowContentUtil.openTextInEditor
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
-import site.addzero.addl.action.anycodegen.util.toLsiClass
-import site.addzero.addl.util.PsiValidateUtil
 import site.addzero.util.lsi_impl.impl.intellij.context.lsiContext
 
 
@@ -30,7 +27,7 @@ class GenDDL : AnAction() {
         // 获取当前项目和编辑器上下文
         val project: Project = e.project ?: return
         val context = project.lsiContext()
-        
+
         val lsiClass = context.currentClass ?: return
 
         // 使用LSI生成DDL上下文

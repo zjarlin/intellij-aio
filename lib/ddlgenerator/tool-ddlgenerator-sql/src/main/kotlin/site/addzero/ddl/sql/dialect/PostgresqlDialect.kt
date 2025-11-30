@@ -2,25 +2,66 @@ package site.addzero.ddl.sql.dialect
 
 import site.addzero.ddl.core.model.ColumnDefinition
 import site.addzero.ddl.core.model.TableDefinition
-import site.addzero.ddl.sql.SqlDialect
-
 
 /**
  * PostgreSQL方言
  */
-class PostgresqlDialect : SqlDialect {
+class PostgresqlDialect : AbstractSqlDialect() {
+    
+    init {
+        // 注册默认类型映射
+        DefaultTypeMappings.registerDefaults(this)
+        
+        // 注册PostgreSQL特定的类型映射
+        registerTypeMapping { column ->
+            when (column.javaType) {
+                // PostgreSQL特定的整型映射
+                "int", "java.lang.Integer" -> "INTEGER"
+                "short", "java.lang.Short" -> "SMALLINT"
+                "byte", "java.lang.Byte" -> "SMALLINT"
+                
+                // PostgreSQL特定的浮点型映射
+                "float", "java.lang.Float" -> "REAL"
+                "double", "java.lang.Double" -> "DOUBLE PRECISION"
+                
+                // PostgreSQL特定的BigDecimal映射
+                "java.math.BigDecimal" -> {
+                    val precision = if (column.precision > 0) column.precision else 10
+                    val scale = if (column.scale >= 0) column.scale else 2
+                    "NUMERIC($precision, $scale)"
+                }
+                
+                // PostgreSQL特定的字符串映射
+                "java.lang.String" -> "TEXT"
+                
+                // PostgreSQL特定的日期时间映射
+                "java.time.ZonedDateTime", "java.time.OffsetDateTime" -> "TIMESTAMP WITH TIME ZONE"
+                
+                else -> null
+            }
+        }
+    }
     
     override val name: String = "pg"
     
     override fun mapJavaType(column: ColumnDefinition): String {
         val javaType = column.javaType
         
+        // 使用注册的类型映射
+        val mappedType = mapJavaTypeWithMappings(column)
+        if (mappedType != null) {
+            return mappedType
+        }
+        
+        // PostgreSQL特定的映射
         return when {
+            // 整型的特殊处理
             javaType in setOf("int", "java.lang.Integer") -> "INTEGER"
             javaType in setOf("long", "java.lang.Long") -> "BIGINT"
             javaType in setOf("short", "java.lang.Short") -> "SMALLINT"
             javaType in setOf("byte", "java.lang.Byte") -> "SMALLINT"
             
+            // 浮点型的特殊处理
             javaType in setOf("float", "java.lang.Float") -> "REAL"
             javaType in setOf("double", "java.lang.Double") -> "DOUBLE PRECISION"
             javaType == "java.math.BigDecimal" -> {
@@ -29,14 +70,19 @@ class PostgresqlDialect : SqlDialect {
                 "NUMERIC($precision, $scale)"
             }
             
+            // 布尔型的特殊处理
             javaType in setOf("boolean", "java.lang.Boolean") -> "BOOLEAN"
+            
+            // 字符型的特殊处理
             javaType in setOf("char", "java.lang.Character") -> "CHAR(1)"
             
+            // 字符串型的特殊处理
             javaType == "java.lang.String" -> {
                 // PostgreSQL推荐使用TEXT而不是VARCHAR
                 "TEXT"
             }
             
+            // 日期时间型的特殊处理
             javaType in setOf("java.time.LocalDate", "java.sql.Date") -> "DATE"
             javaType in setOf("java.time.LocalTime", "java.sql.Time") -> "TIME"
             javaType in setOf(
@@ -50,7 +96,8 @@ class PostgresqlDialect : SqlDialect {
         }
     }
     
-    override fun formatColumnDefinition(column: ColumnDefinition): String {
+    // 覆盖基类方法以处理PostgreSQL特定的列定义（SERIAL类型）
+    override fun getBaseColumnDefinitionParts(column: ColumnDefinition): List<String> {
         val parts = mutableListOf<String>()
         
         parts.add(quoteIdentifier(column.name))
@@ -66,7 +113,7 @@ class PostgresqlDialect : SqlDialect {
             parts.add("NOT NULL")
         }
         
-        return parts.joinToString(" ")
+        return parts
     }
     
     override fun formatCreateTable(table: TableDefinition): String {
@@ -105,28 +152,6 @@ class PostgresqlDialect : SqlDialect {
         }
     }
     
-    override fun formatAlterTable(table: TableDefinition): List<String> {
-        val statements = mutableListOf<String>()
-        
-        table.columns.forEach { column ->
-            val tableRef = if (table.databaseName.isNotBlank()) {
-                "${quoteIdentifier(table.databaseName)}.${quoteIdentifier(table.name)}"
-            } else {
-                quoteIdentifier(table.name)
-            }
-            
-            // ADD COLUMN
-            statements.add("ALTER TABLE $tableRef ADD COLUMN ${formatColumnDefinition(column)};")
-            
-            // 添加注释
-            if (column.comment.isNotBlank()) {
-                statements.add(
-                    "COMMENT ON COLUMN $tableRef.${quoteIdentifier(column.name)} " +
-                    "IS '${escapeString(column.comment)}';"
-                )
-            }
-        }
-        
-        return statements
-    }
+    // PostgreSQL使用双引号引用标识符
+    override fun quoteIdentifier(identifier: String): String = "\"$identifier"
 }

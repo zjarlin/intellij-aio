@@ -1,0 +1,22 @@
+<idea-plugin>
+    <id>site.addzero.gradle-buddy</id>
+    <name>Gradle Buddy</name>
+    <vendor>AddZero</vendor>
+    <description>
+        A plugin that helps you manage Gradle projects by showing an indicator when a project is not loaded.
+        When you open a file in a Gradle project that hasn't been loaded, it shows an indicator in the status bar
+        to remind you to load the Gradle project.
+    </description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
+    </extensions>
+
+    <applicationListeners>
+        <listener class="site.addzero.gradle.buddy.GradleBuddyProjectManagerListener"
+                  topic="com.intellij.openapi.project.ProjectManagerListener"/>
+    </applicationListeners>
+</idea-plugin>

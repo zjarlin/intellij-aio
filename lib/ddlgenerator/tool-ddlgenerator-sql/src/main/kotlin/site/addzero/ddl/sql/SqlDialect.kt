@@ -89,11 +89,13 @@ object SqlDialectRegistry {
     /**
      * 获取所有已注册的方言
      */
+    @Suppress("unused")
     fun getAll(): Map<String, SqlDialect> = dialects.toMap()
 
     /**
      * 检查是否支持指定的数据库类型
      */
+    @Suppress("unused")
     fun isSupported(databaseType: String): Boolean {
         return dialects.containsKey(databaseType)
     }

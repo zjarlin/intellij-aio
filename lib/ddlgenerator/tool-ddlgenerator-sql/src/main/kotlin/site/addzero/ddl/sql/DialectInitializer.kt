@@ -7,6 +7,7 @@ import site.addzero.ddl.sql.dialect.*
  * 
  * 在模块加载时自动注册所有方言
  */
+@Suppress("unused")
 object DialectInitializer {
     
     /**

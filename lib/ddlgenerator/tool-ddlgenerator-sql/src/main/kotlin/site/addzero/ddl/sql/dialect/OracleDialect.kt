@@ -2,24 +2,76 @@ package site.addzero.ddl.sql.dialect
 
 import site.addzero.ddl.core.model.ColumnDefinition
 import site.addzero.ddl.core.model.TableDefinition
-import site.addzero.ddl.sql.SqlDialect
-
 
 /**
  * Oracle方言
  */
-class OracleDialect : SqlDialect {
+class OracleDialect : AbstractSqlDialect() {
+    
+    init {
+        // 注册默认类型映射
+        DefaultTypeMappings.registerDefaults(this)
+        
+        // 注册Oracle特定的类型映射
+        registerTypeMapping { column ->
+            when (column.javaType) {
+                // Oracle特定的整型映射
+                "int", "java.lang.Integer", "short", "java.lang.Short" -> "NUMBER(10)"
+                "long", "java.lang.Long" -> "NUMBER(19)"
+                "byte", "java.lang.Byte" -> "NUMBER(3)"
+                
+                // Oracle特定的浮点型映射
+                "float", "java.lang.Float" -> "BINARY_FLOAT"
+                "double", "java.lang.Double" -> "BINARY_DOUBLE"
+                
+                // Oracle特定的BigDecimal映射
+                "java.math.BigDecimal" -> {
+                    val precision = if (column.precision > 0) column.precision else 10
+                    val scale = if (column.scale >= 0) column.scale else 2
+                    "NUMBER($precision, $scale)"
+                }
+                
+                // Oracle特定的布尔型映射
+                "boolean", "java.lang.Boolean" -> "NUMBER(1)"
+                
+                // Oracle特定的字符串映射
+                "java.lang.String" -> {
+                    val length = if (column.length > 0) column.length else 255
+                    if (length > 4000 || (this as AbstractSqlDialect).isTextType(column)) {
+                        "CLOB"
+                    } else {
+                        "VARCHAR2($length)"
+                    }
+                }
+                
+                // Oracle特定的日期时间映射
+                "java.time.ZonedDateTime", "java.time.OffsetDateTime" -> "TIMESTAMP"
+                "java.time.LocalTime", "java.sql.Time" -> "TIMESTAMP"
+                
+                else -> null
+            }
+        }
+    }
     
     override val name: String = "oracle"
     
     override fun mapJavaType(column: ColumnDefinition): String {
         val javaType = column.javaType
         
+        // 使用注册的类型映射
+        val mappedType = mapJavaTypeWithMappings(column)
+        if (mappedType != null) {
+            return mappedType
+        }
+        
+        // Oracle特定的映射
         return when {
+            // 整型的特殊处理
             javaType in setOf("int", "java.lang.Integer", "short", "java.lang.Short") -> "NUMBER(10)"
             javaType in setOf("long", "java.lang.Long") -> "NUMBER(19)"
             javaType in setOf("byte", "java.lang.Byte") -> "NUMBER(3)"
             
+            // 浮点型的特殊处理
             javaType in setOf("float", "java.lang.Float") -> "BINARY_FLOAT"
             javaType in setOf("double", "java.lang.Double") -> "BINARY_DOUBLE"
             javaType == "java.math.BigDecimal" -> {
@@ -28,9 +80,13 @@ class OracleDialect : SqlDialect {
                 "NUMBER($precision, $scale)"
             }
             
+            // 布尔型的特殊处理
             javaType in setOf("boolean", "java.lang.Boolean") -> "NUMBER(1)"
+            
+            // 字符型的特殊处理
             javaType in setOf("char", "java.lang.Character") -> "CHAR(1)"
             
+            // 字符串型的特殊处理
             javaType == "java.lang.String" -> {
                 val length = if (column.length > 0) column.length else 255
                 if (length > 4000 || isTextType(column)) {
@@ -40,6 +96,7 @@ class OracleDialect : SqlDialect {
                 }
             }
             
+            // 日期时间型的特殊处理
             javaType in setOf("java.time.LocalDate", "java.sql.Date") -> "DATE"
             javaType in setOf(
                 "java.time.LocalDateTime",
@@ -54,14 +111,8 @@ class OracleDialect : SqlDialect {
         }
     }
     
-    private fun isTextType(column: ColumnDefinition): Boolean {
-        val textKeywords = listOf("url", "base64", "text", "path", "introduction", "content", "description")
-        return textKeywords.any { column.name.contains(it, ignoreCase = true) }
-    }
-    
-    override fun quoteIdentifier(identifier: String): String = "\"${identifier.uppercase()}\""
-    
-    override fun formatColumnDefinition(column: ColumnDefinition): String {
+    // 覆盖基类方法以处理Oracle特定的列定义
+    override fun getBaseColumnDefinitionParts(column: ColumnDefinition): List<String> {
         val parts = mutableListOf<String>()
         
         parts.add(quoteIdentifier(column.name))
@@ -71,7 +122,7 @@ class OracleDialect : SqlDialect {
             parts.add("NOT NULL")
         }
         
-        return parts.joinToString(" ")
+        return parts
     }
     
     override fun formatCreateTable(table: TableDefinition): String {
@@ -132,4 +183,7 @@ class OracleDialect : SqlDialect {
         
         return statements
     }
+    
+    // Oracle使用双引号引用标识符并转换为大写
+    override fun quoteIdentifier(identifier: String): String = "\"${identifier.uppercase()}\""
 }

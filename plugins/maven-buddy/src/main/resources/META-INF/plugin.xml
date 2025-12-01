@@ -39,7 +39,7 @@
         <li>Debounce delay for real-time search (100-2000 milliseconds)</li>
         <li>Manual trigger mode for precise control</li>
     </ul>
-    
+
     <h4>Advanced Features:</h4>
     <p>Maven Buddy also provides context-aware completion for Gradle Kotlin script files. When editing .kts files, you'll get intelligent suggestions as you type dependency declarations. Additionally, you can use the "Update dependency to latest version" intention action to quickly upgrade existing dependencies.</p>
     ]]></description>
@@ -49,27 +49,27 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- Search Everywhere Contributor -->
         <searchEverywhereContributor
-            implementation="site.addzero.maven.search.MavenDependencySearchContributorFactory"/>
+                implementation="site.addzero.maven.search.MavenDependencySearchContributorFactory"/>
 
         <!-- Settings Page -->
         <projectConfigurable
-            parentId="tools"
-            instance="site.addzero.maven.search.settings.MavenSearchConfigurable"
-            id="site.addzero.maven.search.settings"
-            bundle="messages.MavenSearchBundle" 
-            key="settings.mavensearch.display.name"/>
+                parentId="tools"
+                instance="site.addzero.maven.search.settings.MavenSearchConfigurable"
+                id="site.addzero.maven.search.settings"
+                bundle="messages.MavenSearchBundle"
+                key="settings.mavensearch.display.name"/>
 
         <!-- Application Service for Settings -->
         <applicationService
-            serviceImplementation="site.addzero.maven.search.settings.MavenSearchSettings"/>
+                serviceImplementation="site.addzero.maven.search.settings.MavenSearchSettings"/>
 
         <!-- Application Service for Search History -->
         <applicationService
-            serviceImplementation="site.addzero.maven.search.history.SearchHistoryService"/>
+                serviceImplementation="site.addzero.maven.search.history.SearchHistoryService"/>
 
         <!-- Application Service for Search Result Cache -->
         <applicationService
-            serviceImplementation="site.addzero.maven.search.cache.SearchResultCacheService"/>
+                serviceImplementation="site.addzero.maven.search.cache.SearchResultCacheService"/>
 
         <!-- Notification Group -->
         <notificationGroup
@@ -77,36 +77,35 @@
                 displayType="BALLOON" bundle="messages.MavenSearchBundle" key="notification.group.maven.search"/>
 
         <!-- Completion contributor for Gradle Kotlin script files -->
-        <completion.contributor 
-            language="kotlin"
-            implementationClass="site.addzero.maven.search.completion.GradleKtsCompletionContributor"/>
+        <completion.contributor
+                language="kotlin"
+                implementationClass="site.addzero.maven.search.completion.GradleKtsCompletionContributor"/>
 
         <!-- Completion contributor for Gradle Version Catalog (libs.versions.toml) -->
-        <completion.contributor 
-            language="any"
-            implementationClass="site.addzero.maven.search.completion.VersionCatalogCompletionContributor"/>
+        <completion.contributor
+                language="any"
+                implementationClass="site.addzero.maven.search.completion.VersionCatalogCompletionContributor"/>
 
         <!-- Intention Action: Update dependency to latest version -->
-        <intentionAction>
-            <language>kotlin</language>
-            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
-            <category>Maven Buddy</category>
-        </intentionAction>
+        <!-- Removed old combined intention -->
+<!--        <intentionAction>-->
+<!--            <language>kotlin</language>-->
+<!--            <language>XML</language>-->
+<!--            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>-->
+<!--            <category>Maven Buddy</category>-->
+<!--        </intentionAction>-->
+<!--        <intentionAction>-->
+<!--            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>-->
+<!--            <category>Maven Buddy</category>-->
+<!--        </intentionAction>-->
+        <!-- New separate intentions -->
         <intentionAction>
             <language>XML</language>
-            <className>site.addzero.maven.search.intentions.UpdateDependencyToLatestIntention</className>
+            <className>site.addzero.maven.search.intentions.MavenUpdateDependencyIntention</className>
             <category>Maven Buddy</category>
+            <descriptionDirectoryName>MavenUpdateDependency</descriptionDirectoryName>
         </intentionAction>
     </extensions>
 
-    <actions>
-        <!-- Migrate to Version Catalog Action -->
-        <action id="site.addzero.maven.search.MigrateToVersionCatalog"
-                class="site.addzero.maven.search.migration.MigrateToVersionCatalogAction"
-                text="Migrate Dependencies to Version Catalog"
-                description="Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
-        </action>
-    </actions>
+
 </idea-plugin>

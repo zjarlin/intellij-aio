@@ -1,10 +1,10 @@
 package site.addzero.ddl.sql
 
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import site.addzero.ddl.core.model.ColumnDefinition
 import site.addzero.ddl.core.model.TableDefinition

@@ -107,9 +107,11 @@ class SearchHistoryService {
     fun recentArtifacts(limit: Int = 15): List<ArtifactHistoryEntry> =
         selectedArtifacts.take(limit)
 
+    @Suppress("unused")
     fun recentKeywords(limit: Int = 10): List<String> =
         searchKeywords.take(limit)
 
+    @Suppress("unused")
     fun matchKeywords(query: String, limit: Int = 10): List<String> {
         if (!enableHistory || query.isBlank()) return emptyList()
         val lowerQuery = query.lowercase()
@@ -161,6 +163,7 @@ data class ArtifactHistoryEntry(
     var version: String = "",
     var timestamp: Long = 0L
 ) {
+    @Suppress("unused")
     constructor() : this("", "", "", 0L)
     
     val key: String get() = "$groupId:$artifactId"

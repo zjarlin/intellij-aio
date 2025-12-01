@@ -1,0 +1,76 @@
+<idea-plugin>
+    <id>site.addzero.jar-deploy</id>
+    <name>Jar Deploy</name>
+    <vendor>zjarlin</vendor>
+
+    <description><![CDATA[
+    <h3>Jar Deploy - One-Click Deployment to Remote Server</h3>
+    <p>Deploy JAR files to remote servers with a single right-click. Integrates with IDE's SSH tunnels for seamless deployment.</p>
+
+    <h4>Key Features:</h4>
+    <ul>
+        <li>🚀 <b>Right-Click Deploy</b>: Right-click any JAR file and deploy to configured servers</li>
+        <li>🔗 <b>IDE SSH Integration</b>: Reuses IDE's existing SSH configurations</li>
+        <li>⚡ <b>Git Push Trigger</b>: Auto-deploy on git push to specific branches</li>
+        <li>📋 <b>Pre/Post Commands</b>: Run commands before and after deployment</li>
+        <li>🎯 <b>JAR-Target Mapping</b>: Remember which JAR deploys to which server</li>
+    </ul>
+
+    <h4>Usage:</h4>
+    <ol>
+        <li>Configure SSH connections in IDE Settings → Tools → SSH Configurations</li>
+        <li>Open the Jar Deploy tool window (View → Tool Windows → Jar Deploy)</li>
+        <li>Add a deploy target with remote directory path</li>
+        <li>Right-click on a JAR file and select "Deploy to Server"</li>
+        <li>Optionally, set up Git push triggers for automatic deployment</li>
+    </ol>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Project Service for Settings -->
+        <projectService
+            serviceImplementation="site.addzero.deploy.JarDeploySettings"/>
+
+        <!-- Project Service for SSH Deploy -->
+        <projectService
+            serviceImplementation="site.addzero.deploy.SshDeployService"/>
+
+        <!-- Settings Page -->
+        <projectConfigurable
+            parentId="tools"
+            instance="site.addzero.deploy.ui.JarDeployConfigurable"
+            id="site.addzero.deploy.settings"
+            displayName="Jar Deploy"/>
+
+        <!-- Tool Window -->
+        <toolWindow
+            id="Jar Deploy"
+            anchor="right"
+            factoryClass="site.addzero.deploy.toolwindow.JarDeployToolWindowFactory"
+            icon="AllIcons.Actions.Upload"/>
+
+        <!-- Notification Group -->
+        <notificationGroup
+            id="JarDeploy"
+            displayType="BALLOON"/>
+
+        <!-- Git Push Listener -->
+        <git4idea.pushListener
+            implementation="site.addzero.deploy.git.GitPushDeployListener"/>
+    </extensions>
+
+    <actions>
+        <!-- Deploy JAR Action in Project View -->
+        <action id="site.addzero.deploy.DeployJarAction"
+                class="site.addzero.deploy.action.DeployJarAction"
+                text="Deploy to Server"
+                description="Deploy JAR file to remote server via SSH"
+                icon="AllIcons.Actions.Upload">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -11,10 +11,10 @@ dependencies {
 
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("site.addzero:tool-jvmstr:+")
-    
+
     // JSON to Kotlin Data Class
     implementation("site.addzero:json2kotlin-dataclass:2025.11.33")
-    
+
     // JTE Template Engine
     implementation("gg.jte:jte:3.1.12")
     implementation("gg.jte:jte-kotlin:3.1.12")

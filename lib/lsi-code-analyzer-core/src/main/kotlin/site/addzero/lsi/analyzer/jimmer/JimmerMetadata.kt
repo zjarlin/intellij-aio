@@ -1,6 +1,5 @@
 package site.addzero.lsi.analyzer.jimmer
 
-import site.addzero.lsi.analyzer.metadata.AnnotationMetadata
 import site.addzero.lsi.analyzer.metadata.FieldMetadata
 import site.addzero.lsi.analyzer.metadata.PojoMetadata
 import site.addzero.util.lsi.clazz.LsiClass

@@ -2,11 +2,9 @@ package site.addzero.lsi.analyzer.template
 
 import gg.jte.ContentType
 import gg.jte.TemplateEngine
-import gg.jte.TemplateOutput
 import gg.jte.output.StringOutput
 import gg.jte.resolve.DirectoryCodeResolver
 import site.addzero.lsi.analyzer.metadata.PojoMetadata
-import site.addzero.lsi.analyzer.settings.PojoMetaSettingsService
 import java.io.File
 import java.nio.file.Path
 
@@ -50,19 +48,13 @@ class JteTemplateManager(templateDir: Path? = null) {
         )
 
     companion object {
-        fun createFromSettings(): JteTemplateManager {
-            return JteTemplateManager()
-        }
-
-        fun getAvailableTemplates(): Map<String, String> =
-            PojoMetaSettingsService.getInstance().state.jteTemplates
-
-        fun saveTemplate(name: String, content: String) {
-            PojoMetaSettingsService.getInstance().state.jteTemplates[name] = content
-        }
-
-        fun deleteTemplate(name: String) {
-            PojoMetaSettingsService.getInstance().state.jteTemplates.remove(name)
-        }
+        const val DEFAULT_TEMPLATE = """@param metadata site.addzero.lsi.analyzer.metadata.PojoMetadata
+// Generated from ${'$'}{metadata.className}
+data class ${'$'}{metadata.className}DTO(
+@for(field in metadata.fields)
+    val ${'$'}{field.name}: ${'$'}{field.typeName}?,
+@endfor
+)
+"""
     }
 }

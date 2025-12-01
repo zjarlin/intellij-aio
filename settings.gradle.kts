@@ -11,8 +11,10 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-01T20:24:22.228557
-// Loaded: 5, Excluded: 0, Total: 5
+// Generated at: 2025-12-01T20:59:41.834955
+// Loaded: 7, Excluded: 0, Total: 7
+include(":checkouts:metaprogramming-lsi:lsi-intellij")
+include(":lib:lsi-code-analyzer-core")
 include(":lib:tool-swing")
 include(":plugins:autoddl")
 include(":plugins:jar-deploy")

@@ -3,6 +3,7 @@ package site.addzero.lsi.analyzer.toolwindow
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -10,13 +11,17 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.table.JBTable
+import site.addzero.lsi.analyzer.ddl.DatabaseDialect
+import site.addzero.lsi.analyzer.ddl.DdlOperationType
+import site.addzero.lsi.analyzer.ddl.DdlTemplateManager
 import site.addzero.lsi.analyzer.metadata.FieldMetadata
 import site.addzero.lsi.analyzer.metadata.PojoMetadata
 import site.addzero.lsi.analyzer.service.PojoScanService
-import site.addzero.lsi.analyzer.settings.PojoMetaSettings
 import site.addzero.lsi.analyzer.settings.PojoMetaSettingsService
+import site.addzero.lsi.analyzer.template.IdeJteTemplateManager
 import site.addzero.lsi.analyzer.template.JteTemplateManager
 import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -67,11 +72,14 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         }
         tabbedPane.addTab("POJO\u5217\u8868", pojoPanel)
         
+        val ddlPanel = createDdlPanel()
+        tabbedPane.addTab("DDL生成", ddlPanel)
+        
         val templatePanel = createTemplatePanel()
-        tabbedPane.addTab("\u6a21\u677f\u914d\u7f6e", templatePanel)
+        tabbedPane.addTab("模板配置", templatePanel)
         
         val settingsPanel = createSettingsPanel()
-        tabbedPane.addTab("\u8bbe\u7f6e", settingsPanel)
+        tabbedPane.addTab("设置", settingsPanel)
 
         add(tabbedPane, BorderLayout.CENTER)
         add(statusLabel, BorderLayout.SOUTH)
@@ -89,13 +97,17 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 addActionListener { exportMetadata() }
             })
             
-            add(JButton("\u751f\u6210Kotlin", AllIcons.FileTypes.Kotlin).apply {
+            add(JButton("生成Kotlin", AllIcons.FileTypes.Kotlin).apply {
                 addActionListener { generateKotlin() }
+            })
+            
+            add(JButton("生成DDL", AllIcons.Nodes.DataTables).apply {
+                addActionListener { showDdlDialog() }
             })
             
             addSeparator()
             
-            add(JButton("\u5e94\u7528\u6a21\u677f", AllIcons.Actions.Execute).apply {
+            add(JButton("应用模板", AllIcons.Actions.Execute).apply {
                 addActionListener { applyTemplate() }
             })
         }
@@ -104,13 +116,13 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
     private fun createTemplatePanel(): JPanel {
         return JPanel(BorderLayout()).apply {
             val listPanel = JPanel(BorderLayout()).apply {
-                JteTemplateManager.getAvailableTemplates().keys.forEach { templateList.addElement(it) }
+                IdeJteTemplateManager.getAvailableTemplates().keys.forEach { templateList.addElement(it) }
                 val list = JList(templateList)
                 list.addListSelectionListener { e ->
                     if (!e.valueIsAdjusting) {
                         val selected = list.selectedValue
                         if (selected != null) {
-                            templateEditor.text = JteTemplateManager.getAvailableTemplates()[selected] ?: ""
+                            templateEditor.text = IdeJteTemplateManager.getAvailableTemplates()[selected] ?: ""
                         }
                     }
                 }
@@ -122,7 +134,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                             val name = Messages.showInputDialog(project, "\u6a21\u677f\u540d\u79f0:", "\u65b0\u5efa\u6a21\u677f", null)
                             if (!name.isNullOrBlank()) {
                                 templateList.addElement(name)
-                                JteTemplateManager.saveTemplate(name, PojoMetaSettings.DEFAULT_TEMPLATE)
+                                IdeJteTemplateManager.saveTemplate(name, JteTemplateManager.DEFAULT_TEMPLATE)
                             }
                         }
                     })
@@ -135,7 +147,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                             selected?.selectedValue?.toString()?.let { name ->
                                 if (name != "default") {
                                     templateList.removeElement(name)
-                                    JteTemplateManager.deleteTemplate(name)
+                                    IdeJteTemplateManager.deleteTemplate(name)
                                 }
                             }
                         }
@@ -153,7 +165,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                         val list = listPanel.components.filterIsInstance<JBScrollPane>()
                             .firstOrNull()?.viewport?.view as? JList<*>
                         list?.selectedValue?.toString()?.let { name ->
-                            JteTemplateManager.saveTemplate(name, templateEditor.text)
+                            IdeJteTemplateManager.saveTemplate(name, templateEditor.text)
                             Messages.showInfoMessage("\u6a21\u677f\u5df2\u4fdd\u5b58", "\u63d0\u793a")
                         }
                     }
@@ -318,7 +330,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             return
         }
         
-        val templateNames = JteTemplateManager.getAvailableTemplates().keys.toTypedArray()
+        val templateNames = IdeJteTemplateManager.getAvailableTemplates().keys.toTypedArray()
         val selected = Messages.showEditableChooseDialog(
             "\u9009\u62e9\u6a21\u677f:",
             "\u5e94\u7528\u6a21\u677f",
@@ -329,10 +341,10 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         ) ?: return
         
         val pojo = currentMetadataList[row]
-        val templateContent = JteTemplateManager.getAvailableTemplates()[selected] ?: return
+        val templateContent = IdeJteTemplateManager.getAvailableTemplates()[selected] ?: return
         
         try {
-            val manager = JteTemplateManager.createFromSettings()
+            val manager = IdeJteTemplateManager.createFromSettings()
             val result = manager.renderWithString(templateContent, pojo)
             
             val dialog = JDialog().apply {
@@ -346,7 +358,136 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 isVisible = true
             }
         } catch (e: Exception) {
-            Messages.showErrorDialog("\u6a21\u677f\u6e32\u67d3\u5931\u8d25: ${e.message}", "\u9519\u8bef")
+            Messages.showErrorDialog("模板渲染失败: ${e.message}", "错误")
+        }
+    }
+    
+    // ==================== DDL 生成相关 ====================
+    
+    private val ddlOutputArea = JBTextArea().apply {
+        isEditable = false
+        font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12)
+    }
+    private var selectedDialect: DatabaseDialect = DatabaseDialect.MYSQL
+    private var selectedOperation: DdlOperationType = DdlOperationType.CREATE_TABLE
+    
+    private fun createDdlPanel(): JPanel {
+        return JPanel(BorderLayout()).apply {
+            // 顶部控制区
+            val controlPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                add(JLabel("数据库方言:"))
+                val dialectCombo = ComboBox(DatabaseDialect.entries.map { it.displayName }.toTypedArray())
+                dialectCombo.addActionListener {
+                    selectedDialect = DatabaseDialect.entries[dialectCombo.selectedIndex]
+                }
+                add(dialectCombo)
+                
+                add(JLabel("  操作类型:"))
+                val operationCombo = ComboBox(DdlOperationType.entries.map { it.templateName }.toTypedArray())
+                operationCombo.addActionListener {
+                    selectedOperation = DdlOperationType.entries[operationCombo.selectedIndex]
+                }
+                add(operationCombo)
+                
+                add(JButton("生成选中", AllIcons.Actions.Execute).apply {
+                    addActionListener { generateDdlForSelected() }
+                })
+                
+                add(JButton("生成全部", AllIcons.Actions.Selectall).apply {
+                    addActionListener { generateDdlForAll() }
+                })
+                
+                add(JButton("复制", AllIcons.Actions.Copy).apply {
+                    addActionListener {
+                        val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
+                        clipboard.setContents(java.awt.datatransfer.StringSelection(ddlOutputArea.text), null)
+                        statusLabel.text = "已复制到剪贴板"
+                    }
+                })
+            }
+            add(controlPanel, BorderLayout.NORTH)
+            
+            // DDL 输出区域
+            add(JBScrollPane(ddlOutputArea), BorderLayout.CENTER)
+            
+            // 底部提示
+            add(JLabel("提示：自定义模板可放置在项目 .lsi/templates/ddl/ 或 ~/.lsi/templates/ddl/ 目录"), BorderLayout.SOUTH)
+        }
+    }
+    
+    private fun generateDdlForSelected() {
+        val row = pojoTable.selectedRow
+        if (row < 0 || row >= currentMetadataList.size) {
+            Messages.showWarningDialog("请先选择一个POJO", "提示")
+            return
+        }
+        
+        val pojo = currentMetadataList[row]
+        try {
+            val ddlManager = DdlTemplateManager.getInstance(project.basePath)
+            val ddl = ddlManager.generate(pojo, selectedDialect, selectedOperation)
+            ddlOutputArea.text = ddl
+            statusLabel.text = "已生成 ${pojo.className} 的 ${selectedDialect.displayName} DDL"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
+        }
+    }
+    
+    private fun generateDdlForAll() {
+        if (currentMetadataList.isEmpty()) {
+            Messages.showWarningDialog("请先扫描POJO", "提示")
+            return
+        }
+        
+        try {
+            val ddlManager = DdlTemplateManager.getInstance(project.basePath)
+            val ddl = ddlManager.generateBatch(currentMetadataList, selectedDialect, selectedOperation)
+            ddlOutputArea.text = ddl
+            statusLabel.text = "已生成 ${currentMetadataList.size} 个表的 ${selectedDialect.displayName} DDL"
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
+        }
+    }
+    
+    private fun showDdlDialog() {
+        val row = pojoTable.selectedRow
+        if (row < 0 || row >= currentMetadataList.size) {
+            Messages.showWarningDialog("请先选择一个POJO", "提示")
+            return
+        }
+        
+        val dialects = DatabaseDialect.entries.map { it.displayName }.toTypedArray()
+        val selected = Messages.showEditableChooseDialog(
+            "选择数据库方言:",
+            "生成DDL",
+            AllIcons.Nodes.DataTables,
+            dialects,
+            dialects.first(),
+            null
+        ) ?: return
+        
+        val dialect = DatabaseDialect.entries.find { it.displayName == selected } ?: DatabaseDialect.MYSQL
+        val pojo = currentMetadataList[row]
+        
+        try {
+            val ddlManager = DdlTemplateManager.getInstance(project.basePath)
+            val ddl = ddlManager.generate(pojo, dialect, DdlOperationType.CREATE_TABLE)
+            
+            JDialog().apply {
+                title = "DDL - ${pojo.className} (${dialect.displayName})"
+                contentPane = JBScrollPane(JBTextArea(ddl).apply {
+                    isEditable = false
+                    font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12)
+                })
+                setSize(700, 500)
+                setLocationRelativeTo(null)
+                isVisible = true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
         }
     }
 }

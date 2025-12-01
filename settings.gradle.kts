@@ -11,7 +11,9 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-01T16:29:41.177178
-// Loaded: 1, Excluded: 0, Total: 1
+// Generated at: 2025-12-01T18:25:27.465303
+// Loaded: 3, Excluded: 0, Total: 3
+include(":plugins:gradle-buddy")
 include(":plugins:jar-deploy")
+include(":plugins:maven-buddy")
 // <<< Gradle Buddy: End Of Block <<<

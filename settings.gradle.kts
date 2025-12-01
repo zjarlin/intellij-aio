@@ -11,13 +11,14 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-01T22:12:26.935844
-// Loaded: 8, Excluded: 0, Total: 8
+// Generated at: 2025-12-01T22:27:27.414773
+// Loaded: 9, Excluded: 0, Total: 9
 include(":checkouts:metaprogramming-lsi:lsi-core")
 include(":checkouts:metaprogramming-lsi:lsi-kt")
 include(":checkouts:metaprogramming-lsi:lsi-psi")
 include(":checkouts:metaprogramming-lsi:lsi-psiandkt")
 include(":lib:lsi-code-analyzer-core")
+include(":lib:tool-awt")
 include(":plugins:gradle-buddy")
 include(":plugins:jar-deploy")
 include(":plugins:lsi-code-analyzer")

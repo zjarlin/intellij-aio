@@ -258,11 +258,10 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun scanPojos() {
-        statusLabel.text = "\u626b\u63cf\u4e2d..."
+        statusLabel.text = "扫描中..."
         scanService.scanNowAsync { metadata ->
-            SwingUtilities.invokeLater {
-                statusLabel.text = "\u626b\u63cf\u5b8c\u6210\uff0c\u5171 ${metadata.size} \u4e2a POJO"
-            }
+            updateTable(metadata)
+            statusLabel.text = "扫描完成，共 ${metadata.size} 个 POJO"
         }
     }
 

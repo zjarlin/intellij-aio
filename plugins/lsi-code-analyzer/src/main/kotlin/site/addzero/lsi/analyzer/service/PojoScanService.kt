@@ -4,6 +4,7 @@ import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -12,7 +13,6 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.base.util.projectScope
 import site.addzero.lsi.analyzer.cache.MetadataCacheManager
 import site.addzero.lsi.analyzer.metadata.PojoMetadata
@@ -69,9 +69,21 @@ class PojoScanService(private val project: Project) {
 
     fun scanNowAsync(callback: ((List<PojoMetadata>) -> Unit)? = null) {
         ApplicationManager.getApplication().executeOnPooledThread {
-            DumbService.getInstance(project).runReadActionInSmartMode {
-                val result = scanNow()
-                callback?.invoke(result)
+            try {
+                // 等待索引完成
+                DumbService.getInstance(project).waitForSmartMode()
+                
+                val result = runReadAction { scanNow() }
+                
+                // 在 EDT 线程调用回调
+                ApplicationManager.getApplication().invokeLater {
+                    callback?.invoke(result)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                ApplicationManager.getApplication().invokeLater {
+                    callback?.invoke(emptyList())
+                }
             }
         }
     }
@@ -83,8 +95,12 @@ class PojoScanService(private val project: Project) {
             val scope = project.projectScope()
             val allFiles = mutableListOf<VirtualFile>()
 
+            // Java 文件
             FileTypeIndex.getFiles(JavaFileType.INSTANCE, scope).forEach { allFiles.add(it) }
-            FileTypeIndex.getFiles(KotlinFileType.INSTANCE, scope).forEach { allFiles.add(it) }
+            
+            // Kotlin 文件 - 使用 FileTypeManager 避免类加载器冲突
+            val kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt")
+            FileTypeIndex.getFiles(kotlinFileType, scope).forEach { allFiles.add(it) }
 
             allFiles.flatMap { file ->
                 file.toAllLsiClassesUnified(project)

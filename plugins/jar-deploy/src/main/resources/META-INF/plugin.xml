@@ -26,6 +26,14 @@
     </ol>
     ]]></description>
 
+    <!-- Add icon definition -->
+    <change-notes><![CDATA[
+    <p>1.0.0 - Initial release</p>
+    ]]></change-notes>
+
+    <!-- Add icon -->
+    <idea-version since-build="242" until-build="262.*"/>
+
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
 
@@ -43,14 +51,15 @@
             parentId="tools"
             instance="site.addzero.deploy.ui.JarDeployConfigurable"
             id="site.addzero.deploy.settings"
-            displayName="Jar Deploy"/>
+            displayName="Jar Deploy"
+            icon="/icons/jar_deploy.svg"/>
 
         <!-- Tool Window -->
         <toolWindow
             id="Jar Deploy"
             anchor="right"
             factoryClass="site.addzero.deploy.toolwindow.JarDeployToolWindowFactory"
-            icon="AllIcons.Actions.Upload"/>
+            icon="/icons/jar_deploy.svg"/>
 
         <!-- Notification Group -->
         <notificationGroup
@@ -68,7 +77,7 @@
                 class="site.addzero.deploy.action.DeployJarAction"
                 text="Deploy to Server"
                 description="Deploy JAR file to remote server via SSH"
-                icon="AllIcons.Actions.Upload">
+                icon="/icons/jar_deploy.svg">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>

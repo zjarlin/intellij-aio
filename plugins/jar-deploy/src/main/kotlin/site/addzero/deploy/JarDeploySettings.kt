@@ -28,12 +28,10 @@ class JarDeploySettings : PersistentStateComponent<JarDeployState> {
     
     fun addTarget(target: DeployTarget) {
         state.targets.add(target)
-        incrementModificationCount()
     }
-    
+
     fun removeTarget(name: String) {
         state.targets.removeIf { it.name == name }
-        incrementModificationCount()
     }
     
     fun getTargetByName(name: String): DeployTarget? = state.targets.find { it.name == name }
@@ -42,30 +40,25 @@ class JarDeploySettings : PersistentStateComponent<JarDeployState> {
     
     fun addTrigger(trigger: DeployTrigger) {
         state.triggers.add(trigger)
-        incrementModificationCount()
     }
-    
+
     fun removeTrigger(targetName: String, triggerType: TriggerType) {
         state.triggers.removeIf { it.targetName == targetName && it.triggerType == triggerType }
-        incrementModificationCount()
     }
     
     fun getConfigurations(): List<DeployConfiguration> = state.configurations.toList()
     
     fun addConfiguration(config: DeployConfiguration) {
         state.configurations.add(config)
-        incrementModificationCount()
     }
-    
+
     fun updateConfiguration(name: String, config: DeployConfiguration) {
         state.configurations.removeIf { it.name == name }
         state.configurations.add(config)
-        incrementModificationCount()
     }
-    
+
     fun removeConfiguration(name: String) {
         state.configurations.removeIf { it.name == name }
-        incrementModificationCount()
     }
     
     fun getConfigurationByName(name: String): DeployConfiguration? = 

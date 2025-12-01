@@ -97,7 +97,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 addActionListener { exportMetadata() }
             })
             
-            add(JButton("生成Kotlin", AllIcons.FileTypes.Kotlin).apply {
+            add(JButton("生成Kotlin", AllIcons.FileTypes.Any_type).apply {
                 addActionListener { generateKotlin() }
             })
             

@@ -10,30 +10,60 @@ import com.intellij.util.xmlb.annotations.XCollection
 class DeployTarget : BaseState() {
     @get:Tag("name")
     var name by string("")
-    
-    @get:Tag("sshConfigName")
-    var sshConfigName by string("")
-    
+
+    // SSH 连接信息
+    @get:Tag("host")
+    var host by string("")
+
+    @get:Tag("port")
+    var port by property(22)
+
+    @get:Tag("username")
+    var username by string("")
+
+    @get:Tag("password")
+    var password by string("")
+
+    @get:Tag("privateKeyPath")
+    var privateKeyPath by string("")
+
+    @get:Tag("passphrase")
+    var passphrase by string("")
+
+    @get:Tag("authType")
+    var authType by enum(AuthType.PASSWORD)
+
     @get:Tag("remoteDir")
     var remoteDir by string("/usr/local/app")
-    
+
     @get:Tag("preDeployCommand")
     var preDeployCommand by string("")
-    
+
     @get:Tag("postDeployCommand")
     var postDeployCommand by string("")
-    
+
     @get:Tag("enabled")
     var enabled by property(true)
 
     fun copyFrom(other: DeployTarget) {
         name = other.name
-        sshConfigName = other.sshConfigName
+        host = other.host
+        port = other.port
+        username = other.username
+        password = other.password
+        privateKeyPath = other.privateKeyPath
+        passphrase = other.passphrase
+        authType = other.authType
         remoteDir = other.remoteDir
         preDeployCommand = other.preDeployCommand
         postDeployCommand = other.postDeployCommand
         enabled = other.enabled
     }
+}
+
+enum class AuthType {
+    PASSWORD,
+    KEY_PAIR
 }
 
 /**

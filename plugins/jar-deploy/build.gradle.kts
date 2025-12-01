@@ -2,9 +2,12 @@ plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
+
 dependencies {
     intellijPlatform {
-        plugin("com.intellij.ssh")
-        plugin("com.intellij.remote")
+        // Git4Idea for git push listener
+        bundledPlugin("Git4Idea")
     }
+    // JSch for SSH/SFTP functionality (IntelliJ SSH API is internal/undocumented)
+    implementation("com.jcraft:jsch:0.1.55")
 }

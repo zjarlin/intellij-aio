@@ -4,48 +4,19 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
-import com.intellij.remote.RemoteCredentials
-import com.intellij.ssh.SshConnectionService
-import com.intellij.ssh.config.SshConnectionConfigService
+import com.jcraft.jsch.*
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
+import java.io.FileInputStream
+import java.util.*
 
 /**
- * SSH 部署服务 - 复用 IDE 的 SSH 隧道
+ * SSH 部署服务 - 使用 JSch 实现 SSH/SFTP 功能
  */
 @Service(Service.Level.PROJECT)
 class SshDeployService(private val project: Project) {
 
     private val log = Logger.getInstance(SshDeployService::class.java)
-
-    /**
-     * 获取 IDE 配置的所有 SSH 连接
-     */
-    fun getAvailableSshConfigs(): List<String> {
-        return try {
-            val configService = SshConnectionConfigService.getInstance()
-            configService.configs.map { it.name }
-        } catch (e: Exception) {
-            log.warn("Failed to get SSH configs", e)
-            emptyList()
-        }
-    }
-
-    /**
-     * 根据名称获取 SSH 凭证
-     */
-    fun getSshCredentials(configName: String): RemoteCredentials? {
-        return try {
-            val configService = SshConnectionConfigService.getInstance()
-            configService.configs.find { it.name == configName }?.let { config ->
-                config.copyToCredentials(null)
-            }
-        } catch (e: Exception) {
-            log.warn("Failed to get SSH credentials for $configName", e)
-            null
-        }
-    }
 
     /**
      * 部署单个文件到远程服务器
@@ -55,41 +26,35 @@ class SshDeployService(private val project: Project) {
         target: DeployTarget,
         indicator: ProgressIndicator
     ): DeployResult {
-        val credentials = getSshCredentials(target.sshConfigName)
-            ?: return DeployResult.failure("SSH config not found: ${target.sshConfigName}")
-
-        return try {
-            val connectionService = SshConnectionService.getInstance()
-            
-            connectionService.connect(credentials).use { connection ->
-                // 执行部署前命令
-                if (target.preDeployCommand.isNotBlank()) {
-                    val preResult = executeCommand(connection, target.preDeployCommand)
-                    if (preResult.exitCode != 0) {
-                        return DeployResult.failure("Pre-deploy command failed: ${preResult.stderr}")
-                    }
+        return withSshSession(target) { session ->
+            // 执行部署前命令
+            if (target.preDeployCommand.isNotBlank()) {
+                indicator.text = "Running pre-deploy command..."
+                val preResult = executeCommand(session, target.preDeployCommand)
+                if (preResult.exitCode != 0) {
+                    return@withSshSession DeployResult.failure("Pre-deploy command failed: ${preResult.stderr}")
                 }
-                
-                // 确保远程目录存在
-                executeCommand(connection, "mkdir -p ${target.remoteDir}")
-                
-                // 上传文件
-                val remotePath = "${target.remoteDir}/${localFile.name}"
-                uploadFile(connection, localFile, remotePath, indicator)
-                
-                // 执行部署后命令
-                if (target.postDeployCommand.isNotBlank()) {
-                    val postResult = executeCommand(connection, target.postDeployCommand)
-                    if (postResult.exitCode != 0) {
-                        log.warn("Post-deploy command failed: ${postResult.stderr}")
-                    }
-                }
-                
-                DeployResult.success("Deployed to ${credentials.host}:$remotePath")
             }
-        } catch (e: Exception) {
-            log.error("Deploy failed", e)
-            DeployResult.failure("Deploy failed: ${e.message}")
+
+            // 确保远程目录存在
+            indicator.text = "Creating remote directory..."
+            executeCommand(session, "mkdir -p ${target.remoteDir}")
+
+            // 上传文件
+            val remotePath = "${target.remoteDir}/${localFile.name}"
+            indicator.text = "Uploading ${localFile.name}..."
+            uploadFile(session, localFile, remotePath, indicator)
+
+            // 执行部署后命令
+            if (target.postDeployCommand.isNotBlank()) {
+                indicator.text = "Running post-deploy command..."
+                val postResult = executeCommand(session, target.postDeployCommand)
+                if (postResult.exitCode != 0) {
+                    log.warn("Post-deploy command failed: ${postResult.stderr}")
+                }
+            }
+
+            DeployResult.success("Deployed to ${target.host}:$remotePath")
         }
     }
 
@@ -101,130 +66,164 @@ class SshDeployService(private val project: Project) {
         target: DeployTarget,
         indicator: ProgressIndicator
     ): DeployResult {
-        val credentials = getSshCredentials(target.sshConfigName)
-            ?: return DeployResult.failure("SSH config not found: ${target.sshConfigName}")
-
-        return try {
-            val connectionService = SshConnectionService.getInstance()
-            
-            connectionService.connect(credentials).use { connection ->
-                // 执行部署前命令
-                if (target.preDeployCommand.isNotBlank()) {
-                    val preResult = executeCommand(connection, target.preDeployCommand)
-                    if (preResult.exitCode != 0) {
-                        return DeployResult.failure("Pre-deploy command failed: ${preResult.stderr}")
-                    }
+        return withSshSession(target) { session ->
+            // 执行部署前命令
+            if (target.preDeployCommand.isNotBlank()) {
+                indicator.text = "Running pre-deploy command..."
+                val preResult = executeCommand(session, target.preDeployCommand)
+                if (preResult.exitCode != 0) {
+                    return@withSshSession DeployResult.failure("Pre-deploy command failed: ${preResult.stderr}")
                 }
-                
-                val remoteBaseDir = "${target.remoteDir}/${localDir.name}"
-                executeCommand(connection, "mkdir -p $remoteBaseDir")
-                
-                // 递归上传所有文件
-                val files = collectFiles(localDir)
-                files.forEachIndexed { index, file ->
-                    val relativePath = file.relativeTo(localDir).path
-                    val remotePath = "$remoteBaseDir/$relativePath"
-                    
-                    if (file.isDirectory) {
-                        executeCommand(connection, "mkdir -p $remotePath")
-                    } else {
-                        val remoteDir = remotePath.substringBeforeLast("/")
-                        executeCommand(connection, "mkdir -p $remoteDir")
-                        uploadFile(connection, file, remotePath, indicator)
-                    }
-                    
-                    indicator.text2 = "Uploading ${file.name}"
-                }
-                
-                // 执行部署后命令
-                if (target.postDeployCommand.isNotBlank()) {
-                    val postResult = executeCommand(connection, target.postDeployCommand)
-                    if (postResult.exitCode != 0) {
-                        log.warn("Post-deploy command failed: ${postResult.stderr}")
-                    }
-                }
-                
-                DeployResult.success("Deployed ${files.size} files to ${credentials.host}:$remoteBaseDir")
             }
-        } catch (e: Exception) {
-            log.error("Deploy directory failed", e)
-            DeployResult.failure("Deploy failed: ${e.message}")
+
+            val remoteBaseDir = "${target.remoteDir}/${localDir.name}"
+            executeCommand(session, "mkdir -p $remoteBaseDir")
+
+            // 递归上传所有文件
+            val files = collectFiles(localDir)
+            files.forEachIndexed { index, file ->
+                val relativePath = file.relativeTo(localDir).path
+                val remotePath = "$remoteBaseDir/$relativePath"
+
+                indicator.text = "Uploading (${index + 1}/${files.size}): ${file.name}"
+                indicator.fraction = (index + 1).toDouble() / files.size
+
+                if (file.isDirectory) {
+                    executeCommand(session, "mkdir -p $remotePath")
+                } else {
+                    val remoteDir = remotePath.substringBeforeLast("/")
+                    executeCommand(session, "mkdir -p $remoteDir")
+                    uploadFile(session, file, remotePath, indicator)
+                }
+            }
+
+            // 执行部署后命令
+            if (target.postDeployCommand.isNotBlank()) {
+                indicator.text = "Running post-deploy command..."
+                val postResult = executeCommand(session, target.postDeployCommand)
+                if (postResult.exitCode != 0) {
+                    log.warn("Post-deploy command failed: ${postResult.stderr}")
+                }
+            }
+
+            DeployResult.success("Deployed ${files.size} files to ${target.host}:$remoteBaseDir")
         }
     }
 
-    private fun collectFiles(dir: File): List<File> {
-        val result = mutableListOf<File>()
-        dir.walkTopDown().forEach { file ->
-            if (file != dir) {
-                result.add(file)
-            }
-        }
-        return result
-    }
+    private fun <T> withSshSession(target: DeployTarget, action: (Session) -> T): T {
+        val jsch = JSch()
 
-    private fun executeCommand(connection: Any, command: String): CommandResult {
-        return try {
-            // 使用反射调用执行命令方法，兼容不同IDE版本
-            val execMethod = connection.javaClass.methods.find { 
-                it.name == "exec" || it.name == "execCommand" 
-            }
-            
-            if (execMethod != null) {
-                val result = execMethod.invoke(connection, command)
-                val exitCode = result.javaClass.getMethod("getExitCode").invoke(result) as Int
-                val stdout = result.javaClass.getMethod("getStdout").invoke(result)?.toString() ?: ""
-                val stderr = result.javaClass.getMethod("getStderr").invoke(result)?.toString() ?: ""
-                CommandResult(exitCode, stdout, stderr)
+        // 添加私钥（如果配置了）
+        target.privateKeyPath?.takeIf { it.isNotBlank() }?.let { keyPath ->
+            if (target.passphrase.isNullOrBlank()) {
+                jsch.addIdentity(keyPath)
             } else {
-                CommandResult(-1, "", "Exec method not found")
+                jsch.addIdentity(keyPath, target.passphrase)
             }
+        }
+
+        val session = jsch.getSession(target.username, target.host, target.port)
+
+        // 设置密码（如果使用密码认证）
+        target.password?.takeIf { it.isNotBlank() }?.let {
+            session.setPassword(it)
+        }
+
+        // 配置
+        val config = Properties().apply {
+            put("StrictHostKeyChecking", "no")
+            put("PreferredAuthentications", "publickey,keyboard-interactive,password")
+        }
+        session.setConfig(config)
+
+        return try {
+            session.connect(30000) // 30秒超时
+            action(session)
+        } finally {
+            if (session.isConnected) {
+                session.disconnect()
+            }
+        }
+    }
+
+    private fun executeCommand(session: Session, command: String): CommandResult {
+        val channel = session.openChannel("exec") as ChannelExec
+        channel.setCommand(command)
+
+        val stdout = ByteArrayOutputStream()
+        val stderr = ByteArrayOutputStream()
+        channel.outputStream = stdout
+        channel.setErrStream(stderr)
+
+        return try {
+            channel.connect(10000)
+
+            // 等待命令完成
+            while (!channel.isClosed) {
+                Thread.sleep(100)
+            }
+
+            CommandResult(
+                exitCode = channel.exitStatus,
+                stdout = stdout.toString(Charsets.UTF_8.name()),
+                stderr = stderr.toString(Charsets.UTF_8.name())
+            )
         } catch (e: Exception) {
             log.error("Command execution failed: $command", e)
             CommandResult(-1, "", e.message ?: "Unknown error")
+        } finally {
+            channel.disconnect()
         }
     }
 
     private fun uploadFile(
-        connection: Any,
+        session: Session,
         localFile: File,
         remotePath: String,
         indicator: ProgressIndicator
     ) {
+        val channel = session.openChannel("sftp") as ChannelSftp
+
         try {
-            // 使用反射获取SFTP通道
-            val sftpMethod = connection.javaClass.methods.find { 
-                it.name == "openSftpChannel" || it.name == "getSftp" 
-            }
-            
-            if (sftpMethod != null) {
-                val sftp = sftpMethod.invoke(connection)
-                val putMethod = sftp.javaClass.methods.find { it.name == "put" }
-                
-                if (putMethod != null) {
-                    localFile.inputStream().use { input ->
-                        val params = putMethod.parameters
-                        when (params.size) {
-                            2 -> putMethod.invoke(sftp, remotePath, input)
-                            3 -> putMethod.invoke(sftp, input, remotePath, null)
-                            else -> {
-                                // 尝试其他上传方式
-                                val uploadMethod = sftp.javaClass.methods.find { 
-                                    it.name == "upload" || it.name == "copyFile" 
-                                }
-                                uploadMethod?.invoke(sftp, localFile.absolutePath, remotePath)
-                            }
-                        }
-                    }
+            channel.connect(10000)
+
+            // 使用进度监控上传
+            val monitor = object : SftpProgressMonitor {
+                private var totalBytes = 0L
+                private var transferredBytes = 0L
+
+                override fun init(op: Int, src: String?, dest: String?, max: Long) {
+                    totalBytes = max
+                    transferredBytes = 0
                 }
+
+                override fun count(count: Long): Boolean {
+                    transferredBytes += count
+                    if (totalBytes > 0) {
+                        indicator.fraction = transferredBytes.toDouble() / totalBytes
+                    }
+                    return !indicator.isCanceled
+                }
+
+                override fun end() {}
             }
-        } catch (e: Exception) {
-            log.error("File upload failed", e)
-            throw e
+
+            FileInputStream(localFile).use { input ->
+                channel.put(input, remotePath, monitor, ChannelSftp.OVERWRITE)
+            }
+        } finally {
+            channel.disconnect()
         }
     }
 
+    private fun collectFiles(dir: File): List<File> {
+        return dir.walkTopDown()
+            .filter { it != dir }
+            .toList()
+    }
+
     companion object {
-        fun getInstance(project: Project): SshDeployService = 
+        fun getInstance(project: Project): SshDeployService =
             project.getService(SshDeployService::class.java)
     }
 }
@@ -238,12 +237,12 @@ data class CommandResult(
 sealed class DeployResult {
     data class Success(val message: String) : DeployResult()
     data class Failure(val error: String) : DeployResult()
-    
+
     companion object {
         fun success(message: String): DeployResult = Success(message)
         fun failure(error: String): DeployResult = Failure(error)
     }
-    
+
     fun isSuccess(): Boolean = this is Success
     fun getMessage(): String = when (this) {
         is Success -> message

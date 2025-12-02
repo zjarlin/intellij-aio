@@ -52,6 +52,28 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 ### ✨ 意图操作 (Alt+Enter)
 - **Update dependency to latest version**：在依赖声明上按 `Alt+Enter`，自动从 Maven Central 获取最新版本并更新
 
+### 🔧 Version Catalog 依赖更新
+
+在 `libs.versions.toml` 文件中，你可以使用意图操作来更新依赖项到最新版本。
+
+**支持的格式**：
+- `junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }`
+- `okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.12.0" }`
+- `retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }`
+
+**功能特点**：
+- 自动从 Maven Central 获取最新版本
+- 支持 `version.ref` 和内联版本两种格式
+- 对于没有版本引用的依赖，自动生成版本引用并添加到 `[versions]` 部分
+- 当已经是最新版本时，会显示提示信息
+
+**使用方法**：
+1. 打开 `libs.versions.toml` 文件
+2. 将光标放在依赖声明上
+3. 按 `Alt+Enter`
+4. 选择 "Update dependency to latest version"
+5. 插件会自动查询并更新到最新版本
+
 ### 🔄 迁移工具
 - **Migrate to Version Catalog**：将硬编码依赖批量迁移到 `libs.versions.toml`
 - **Migrate project() to Maven**：将 `project(":module")` 依赖迁移到 Maven 坐标
@@ -95,7 +117,7 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 3. 选择 **Update dependency to latest version**
 4. 插件自动查询 Maven Central，获取最新版本并替换
 
-```kotlin
+```
 // 更新前
 implementation("com.google.guava:guava:31.0-jre")
 
@@ -190,7 +212,6 @@ dependencies {
 | `Ctrl+Alt+Shift+L` | 只加载当前打开的模块 |
 | `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
 
-
 ---
 
 ## 后续计划
@@ -204,12 +225,12 @@ dependencies {
 
 > **重要**：本插件的模块睡眠功能,建议项目中的每个模块都是**独立可运行**的。这通常也是模块这一个词的最佳实践,依赖
 应该尽量发到中央用一键迁移来解耦： 
->
+
 > 这意味着每个模块
 > - 有自己完整的 `build.gradle` 或 `build.gradle.kts`
 > - 能够独立编译和运行，不强依赖其他模块的编译产物
 > - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
->
+
 > 如果模块之间存在强耦合依赖，使用一键迁移模块依赖到 Maven中央仓库依赖 功能
 
 ## tips 
@@ -218,3 +239,4 @@ dependencies {
 //add in your settings.gradle.kts
 id("site.addzero.gradle.plugin.modules-buddy") version "+"
 ```
+

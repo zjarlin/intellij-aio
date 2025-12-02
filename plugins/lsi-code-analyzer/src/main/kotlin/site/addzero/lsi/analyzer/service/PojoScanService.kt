@@ -1,11 +1,9 @@
 package site.addzero.lsi.analyzer.service
-
 import com.google.gson.GsonBuilder
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -13,6 +11,7 @@ import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.search.FilenameIndex
 import org.jetbrains.jps.model.java.JavaSourceRootType
 import org.jetbrains.kotlin.idea.base.util.projectScope
 import site.addzero.json2kotlin.Json2Kotlin
@@ -46,7 +45,6 @@ class PojoScanService(private val project: Project) {
     fun removeScanListener(listener: (List<PojoMetadata>) -> Unit) {
         listeners.remove(listener)
     }
-
     fun startScheduledScan(intervalMinutes: Int) {
         stopScheduledScan()
         timer = Timer("PojoMetaScanTimer", true).apply {
@@ -97,9 +95,8 @@ class PojoScanService(private val project: Project) {
             // Java 文件
             FileTypeIndex.getFiles(JavaFileType.INSTANCE, scope).forEach { allFiles.add(it) }
 
-            // Kotlin 文件 - 使用 FileTypeManager 避免类加载器冲突
-            val kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt")
-            FileTypeIndex.getFiles(kotlinFileType, scope).forEach { allFiles.add(it) }
+            // Kotlin 文件 - 使用 FilenameIndex 按扩展名搜索，避免类加载器冲突
+            FilenameIndex.getAllFilesByExt(project, "kt", scope).forEach { allFiles.add(it) }
 
             println("[PojoScan] 找到 ${allFiles.size} 个文件 (Java+Kotlin)")
             allFiles.flatMap { file ->

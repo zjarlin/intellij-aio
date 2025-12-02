@@ -15,5 +15,5 @@ dependencies {
         bundledPlugin("org.jetbrains.plugins.gradle")
         bundledPlugin("com.intellij.java")
     }
-    implementation("site.addzero:tool-api-maven:2025.11.28")
+    implementation(libs.tool.api.maven)
 }

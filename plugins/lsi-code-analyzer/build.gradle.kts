@@ -19,11 +19,11 @@ dependencies {
     implementation(project(":checkouts:metaprogramming-lsi:lsi-kt"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-psiandkt"))
 
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation("site.addzero:tool-jvmstr:+")
+    implementation(libs.gson)
+    implementation(libs.tool.jvmstr)
 
     // JSON to Kotlin Data Class
-    implementation("site.addzero:json2kotlin-dataclass:2025.11.33")
+    implementation(libs.json2kotlin.dataclass)
 }
 
 description = "LSI Code Analyzer IDE Plugin - POJO元数据扫描与代码生成 IDE 工具窗口"

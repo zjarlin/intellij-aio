@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-       implementation("site.addzero:tool-jvmstr:+")
+       implementation(libs.tool.jvmstr)
 
    
 

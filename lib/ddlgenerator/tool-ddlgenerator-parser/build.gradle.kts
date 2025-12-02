@@ -12,14 +12,14 @@ dependencies {
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
 
     // 工具依赖
-    implementation("cn.hutool:hutool-core:+")
-    implementation("site.addzero:tool-database-model:+")
-    implementation("site.addzero:tool-jvmstr:+")
-    implementation("site.addzero:tool-pinyin:+")
+    implementation(libs.hutool.core)
+    implementation(libs.tool.database.model)
+    implementation(libs.tool.jvmstr)
+    implementation(libs.tool.pinyin)
 
     // 测试依赖
-//    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-//    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+//    testImplementation(libs.junit.jupiter)
+//    testImplementation(libs.mockito.kotlin)
 //    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

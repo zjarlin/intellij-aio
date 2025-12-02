@@ -9,5 +9,5 @@ dependencies {
         bundledPlugin("Git4Idea")
     }
     // JSch for SSH/SFTP functionality (IntelliJ SSH API is internal/undocumented)
-    implementation("com.jcraft:jsch:0.1.55")
+    implementation(libs.jsch)
 }

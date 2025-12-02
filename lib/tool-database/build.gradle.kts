@@ -17,7 +17,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     
     // 添加您指定的SQL执行器依赖
-    implementation("site.addzero:tool-sql-executor:2025.11.26")
+    implementation(libs.tool.sql.executor)
     
     intellijPlatform {
         bundledPlugin("com.intellij.database")

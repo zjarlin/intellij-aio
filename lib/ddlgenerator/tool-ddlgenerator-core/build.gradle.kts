@@ -6,7 +6,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     
     // 测试依赖
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+    testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

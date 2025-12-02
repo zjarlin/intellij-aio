@@ -9,11 +9,11 @@ dependencies {
     implementation(project(":lib:ddlgenerator:tool-ddlgenerator-core"))
 
     // 工具依赖
-    implementation("cn.hutool:hutool-core:+")
-    implementation("site.addzero:tool-jvmstr:+")
+    implementation(libs.hutool.core)
+    implementation(libs.tool.jvmstr)
 
     // 测试依赖
-//    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+//    testImplementation(libs.junit.jupiter)
 //    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

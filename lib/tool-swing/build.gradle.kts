@@ -4,10 +4,10 @@ plugins {
 }
 
 dependencies {
-    implementation("site.addzero:tool-jvmstr:+")
+    implementation(libs.tool.jvmstr)
 
 //    implementation(tool-str)
 
-    implementation("site.addzero:tool-str:2025.11.27")
+    implementation(libs.tool.str)
 
 }

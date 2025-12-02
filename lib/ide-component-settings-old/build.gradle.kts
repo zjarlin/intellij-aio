@@ -3,6 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation("site.addzero:tool-ai:+")
+    implementation(libs.tool.ai)
     implementation(project(":lib:ide-component-dynamicform"))
 }

@@ -13,11 +13,12 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import org.jetbrains.kotlinx.dataframe.impl.toCamelCaseByDelimiters
 import java.io.File
 
 /**
  * 批量迁移依赖到 Version Catalog
- * 
+ *
  * 扫描项目中所有 .gradle.kts 文件，提取硬编码依赖，
  * 生成/更新 gradle/libs.versions.toml，并替换为 catalog 引用
  */
@@ -58,6 +59,7 @@ class MigrateToVersionCatalogAction : AnAction(
                     "Migration Failed"
                 )
             }
+
             result.totalDependencies == 0 -> {
                 Messages.showInfoMessage(
                     project,
@@ -65,6 +67,7 @@ class MigrateToVersionCatalogAction : AnAction(
                     "Migration Complete"
                 )
             }
+
             else -> {
                 val message = buildString {
                     appendLine("Migration completed successfully!")
@@ -85,7 +88,7 @@ class MigrateToVersionCatalogAction : AnAction(
                         }
                     }
                 }
-                
+
                 val openFile = Messages.showYesNoDialog(
                     project,
                     message,
@@ -94,7 +97,7 @@ class MigrateToVersionCatalogAction : AnAction(
                     "Close",
                     Messages.getInformationIcon()
                 )
-                
+
                 if (openFile == Messages.YES) {
                     result.catalogFile?.let { file ->
                         FileEditorManager.getInstance(project).openFile(file, true)
@@ -118,7 +121,7 @@ class VersionCatalogMigrator(private val project: Project) {
         private val DEPENDENCY_PATTERN = Regex(
             """(implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|kapt|ksp|annotationProcessor|classpath)\s*\(\s*"([^"]+)"\s*\)"""
         )
-        
+
         private val COORDINATE_PATTERN = Regex("""^([^:]+):([^:]+):([^:]+)$""")
     }
 
@@ -126,7 +129,7 @@ class VersionCatalogMigrator(private val project: Project) {
         try {
             indicator.text = "Scanning .gradle.kts files..."
             indicator.fraction = 0.1
-            
+
             val ktsFiles = findAllKtsFiles()
             if (ktsFiles.isEmpty()) {
                 return MigrationResult(error = "No .gradle.kts files found in project")
@@ -134,7 +137,7 @@ class VersionCatalogMigrator(private val project: Project) {
 
             indicator.text = "Extracting dependencies..."
             indicator.fraction = 0.3
-            
+
             val allDependencies = mutableListOf<ExtractedDependency>()
             ktsFiles.forEach { file ->
                 val deps = extractDependencies(file)
@@ -150,17 +153,17 @@ class VersionCatalogMigrator(private val project: Project) {
 
             indicator.text = "Generating version catalog..."
             indicator.fraction = 0.5
-            
+
             val catalog = generateCatalog(allDependencies)
 
             indicator.text = "Writing libs.versions.toml..."
             indicator.fraction = 0.7
-            
+
             val catalogFile = writeCatalogFile(catalog)
 
             indicator.text = "Updating .gradle.kts files..."
             indicator.fraction = 0.9
-            
+
             val modifiedFiles = replaceInKtsFiles(ktsFiles, catalog)
 
             indicator.fraction = 1.0
@@ -181,7 +184,7 @@ class VersionCatalogMigrator(private val project: Project) {
     private fun findAllKtsFiles(): List<VirtualFile> {
         val basePath = project.basePath ?: return emptyList()
         val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
-        
+
         val ktsFiles = mutableListOf<VirtualFile>()
         VfsUtil.iterateChildrenRecursively(baseDir, { file ->
             !file.name.startsWith(".") && file.name != "build" && file.name != "node_modules"
@@ -201,17 +204,19 @@ class VersionCatalogMigrator(private val project: Project) {
         DEPENDENCY_PATTERN.findAll(content).forEach { match ->
             val method = match.groupValues[1]
             val coordinate = match.groupValues[2]
-            
+
             COORDINATE_PATTERN.matchEntire(coordinate)?.let { coordMatch ->
-                dependencies.add(ExtractedDependency(
-                    file = file,
-                    method = method,
-                    groupId = coordMatch.groupValues[1],
-                    artifactId = coordMatch.groupValues[2],
-                    version = coordMatch.groupValues[3],
-                    fullMatch = match.value,
-                    range = match.range
-                ))
+                dependencies.add(
+                    ExtractedDependency(
+                        file = file,
+                        method = method,
+                        groupId = coordMatch.groupValues[1],
+                        artifactId = coordMatch.groupValues[2],
+                        version = coordMatch.groupValues[3],
+                        fullMatch = match.value,
+                        range = match.range
+                    )
+                )
             }
         }
 
@@ -228,7 +233,7 @@ class VersionCatalogMigrator(private val project: Project) {
         grouped.forEach { (coordinate, deps) ->
             val first = deps.first()
             val allVersions = deps.map { it.version }.distinct()
-            
+
             if (allVersions.size > 1) {
                 warnings.add("$coordinate has multiple versions: ${allVersions.joinToString()}, using ${first.version}")
             }
@@ -260,14 +265,19 @@ class VersionCatalogMigrator(private val project: Project) {
             .lowercase()
     }
 
+    // 在 generateVersionRef 方法中使用
     private fun generateVersionRef(groupId: String, artifactId: String): String {
         val parts = groupId.split(".")
         val lastPart = parts.lastOrNull() ?: groupId
-        
+
         return when {
             artifactId.startsWith(lastPart) -> artifactId.substringBefore("-").lowercase()
-            else -> lastPart.lowercase()
+            else -> (parts + artifactId.toCamelCaseByDelimiters().toKebabCase()).joinToString("-")
         }
+    }
+
+    private fun String.toKebabCase(): String {
+        return this.replace(Regex("([a-z])([A-Z])"), "$1-$2").lowercase()
     }
 
     private fun writeCatalogFile(catalog: CatalogData): VirtualFile? {
@@ -278,7 +288,7 @@ class VersionCatalogMigrator(private val project: Project) {
         }
 
         val catalogFile = File(gradleDir, "libs.versions.toml")
-        
+
         val existingContent = if (catalogFile.exists()) {
             parseExistingCatalog(catalogFile.readText())
         } else {
@@ -291,7 +301,7 @@ class VersionCatalogMigrator(private val project: Project) {
             allVersions.toSortedMap().forEach { (name, version) ->
                 appendLine("$name = \"$version\"")
             }
-            
+
             appendLine()
             appendLine("[libraries]")
             val allLibraries = existingContent.libraries + catalog.libraries
@@ -301,11 +311,11 @@ class VersionCatalogMigrator(private val project: Project) {
         }
 
         catalogFile.writeText(content)
-        
+
         LocalFileSystem.getInstance().refreshAndFindFileByPath(catalogFile.absolutePath)?.let {
             return it
         }
-        
+
         return null
     }
 
@@ -319,9 +329,18 @@ class VersionCatalogMigrator(private val project: Project) {
         content.lines().forEach { line ->
             val trimmed = line.trim()
             when {
-                trimmed == "[versions]" -> { inVersions = true; inLibraries = false }
-                trimmed == "[libraries]" -> { inVersions = false; inLibraries = true }
-                trimmed.startsWith("[") -> { inVersions = false; inLibraries = false }
+                trimmed == "[versions]" -> {
+                    inVersions = true; inLibraries = false
+                }
+
+                trimmed == "[libraries]" -> {
+                    inVersions = false; inLibraries = true
+                }
+
+                trimmed.startsWith("[") -> {
+                    inVersions = false; inLibraries = false
+                }
+
                 inVersions && trimmed.contains("=") -> {
                     val parts = trimmed.split("=", limit = 2)
                     if (parts.size == 2) {
@@ -330,12 +349,13 @@ class VersionCatalogMigrator(private val project: Project) {
                         versions[name] = version
                     }
                 }
+
                 inLibraries && trimmed.contains("=") -> {
                     val aliasMatch = Regex("""^([\w-]+)\s*=""").find(trimmed)
                     val groupMatch = Regex("""group\s*=\s*"([^"]+)"""").find(trimmed)
                     val nameMatch = Regex("""name\s*=\s*"([^"]+)"""").find(trimmed)
                     val versionRefMatch = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(trimmed)
-                    
+
                     if (aliasMatch != null && groupMatch != null && nameMatch != null) {
                         val alias = aliasMatch.groupValues[1]
                         libraries[alias] = LibraryEntry(
@@ -363,13 +383,13 @@ class VersionCatalogMigrator(private val project: Project) {
                 catalog.libraries.forEach { (alias, entry) ->
                     val coordinate = "${entry.groupId}:${entry.artifactId}"
                     val libsAccessor = alias.replace("-", ".")
-                    
+
                     val methods = listOf(
                         "implementation", "api", "compileOnly", "runtimeOnly",
                         "testImplementation", "testCompileOnly", "testRuntimeOnly",
                         "kapt", "ksp", "annotationProcessor", "classpath"
                     )
-                    
+
                     methods.forEach { method ->
                         val pattern = Regex("""$method\s*\(\s*"${Regex.escape(coordinate)}:[^"]+"\s*\)""")
                         if (pattern.containsMatchIn(content)) {

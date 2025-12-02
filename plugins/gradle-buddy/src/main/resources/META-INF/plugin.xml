@@ -22,10 +22,16 @@
         <!-- Notification Group -->
         <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
         
-        <!-- Intention: Update dependency to latest version -->
+        <!-- Intention: Update dependency to latest version (Gradle KTS) -->
         <intentionAction>
             <language>kotlin</language>
             <className>site.addzero.gradle.buddy.intentions.GradleKtsUpdateDependencyIntention</className>
+            <category>Gradle Buddy</category>
+        </intentionAction>
+        
+        <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
+        <intentionAction>
+            <className>site.addzero.gradle.buddy.intentions.VersionCatalogUpdateDependencyIntention</className>
             <category>Gradle Buddy</category>
         </intentionAction>
         

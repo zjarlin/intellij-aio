@@ -211,3 +211,10 @@ dependencies {
 > - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
 >
 > 如果模块之间存在强耦合依赖，使用一键迁移模块依赖到 Maven中央仓库依赖 功能
+
+## tips 
+如果想全量加载模块(小型项目) 请使用作者写的另一个settings gradle插件
+```kotlin
+//add in your settings.gradle.kts
+id("site.addzero.gradle.plugin.modules-buddy") version "+"
+```

@@ -102,8 +102,15 @@ class PojoScanService(private val project: Project) {
             val kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt")
             FileTypeIndex.getFiles(kotlinFileType, scope).forEach { allFiles.add(it) }
 
+            println("[PojoScan] 找到 ${allFiles.size} 个文件 (Java+Kotlin)")
+
             allFiles.flatMap { file ->
-                file.toAllLsiClassesUnified(project)
+                val classes = file.toAllLsiClassesUnified(project)
+                println("[PojoScan] 文件 ${file.name}: 解析到 ${classes.size} 个类")
+                classes.forEach { cls ->
+                    println("[PojoScan]   - ${cls.name}: isPojo=${cls.isPojo}, isInterface=${cls.isInterface}, isEnum=${cls.isEnum}")
+                }
+                classes
                     .filter { scanner.support(it) }
                     .map { scanner.scan(it) }
             }

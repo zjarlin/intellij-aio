@@ -1,22 +1,23 @@
 package site.addzero.deploy.ui
 
-import com.intellij.openapi.fileChooser.FileChooser
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.dsl.builder.*
 import site.addzero.deploy.*
+import site.addzero.deploy.pipeline.DeployExecutor
 import java.awt.BorderLayout
 import javax.swing.DefaultListModel
 import javax.swing.JPanel
-import javax.swing.ListSelectionModel
 
 /**
- * 工具窗口面板 - 支持多选构建物
+ * 工具窗口面板 - 支持多选构建物和日志查看
  */
-class JarDeployPanel(private val project: Project) : JPanel(BorderLayout()) {
+class JarDeployPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
     private val targetsModel = DefaultListModel<String>()
     private val configsModel = DefaultListModel<String>()
@@ -25,9 +26,26 @@ class JarDeployPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val targetsList = JBList(targetsModel)
     private val configsList = JBList(configsModel)
     private val triggersList = JBList(triggersModel)
+    
+    private val logPanel = DeployLogPanel(project)
 
     init {
-        val contentPanel = panel {
+        val tabbedPane = JBTabbedPane()
+        
+        // Tab 1: 配置面板
+        tabbedPane.addTab("Configuration", createConfigPanel())
+        
+        // Tab 2: 日志面板
+        tabbedPane.addTab("Logs", logPanel)
+        
+        add(tabbedPane, BorderLayout.CENTER)
+        loadSettings()
+        
+        Disposer.register(this, logPanel)
+    }
+
+    private fun createConfigPanel(): JPanel {
+        return panel {
             group("SSH Targets") {
                 row {
                     val decorator = ToolbarDecorator.createDecorator(targetsList)
@@ -78,9 +96,10 @@ class JarDeployPanel(private val project: Project) : JPanel(BorderLayout()) {
                 button("Refresh") { loadSettings() }
             }
         }
-        
-        add(contentPanel, BorderLayout.CENTER)
-        loadSettings()
+    }
+    
+    override fun dispose() {
+        // Cleanup
     }
 
     private fun loadSettings() {

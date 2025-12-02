@@ -103,7 +103,8 @@ class BuildArtifact : BaseState() {
     var enabled by property(true)
     
     fun getDisplayName(): String {
-        val name = path?.substringAfterLast("/") ?: path ?: ""
+        // path 是非空字符串，所以不需要安全调用
+        val name = path.substringAfterLast("/", path)
         return if (isDirectory) "📁 $name" else "📄 $name"
     }
 }

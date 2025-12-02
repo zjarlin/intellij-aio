@@ -35,7 +35,6 @@
     <idea-version since-build="242" until-build="262.*"/>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>Git4Idea</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Project Service for Settings -->
@@ -46,29 +45,36 @@
         <projectService
             serviceImplementation="site.addzero.deploy.SshDeployService"/>
 
+        <!-- Project Service for Deploy Session -->
+        <projectService
+            serviceImplementation="site.addzero.deploy.pipeline.DeploySessionService"/>
+
+        <!-- Project Service for Git Ref Change Detection -->
+        <projectService
+            serviceImplementation="site.addzero.deploy.git.GitRefChangeService"/>
+
+        <!-- Startup Activity to initialize Git monitoring -->
+        <postStartupActivity
+            implementation="site.addzero.deploy.git.GitRefChangeStartupActivity"/>
+
         <!-- Settings Page -->
         <projectConfigurable
             parentId="tools"
             instance="site.addzero.deploy.ui.JarDeployConfigurable"
             id="site.addzero.deploy.settings"
-            displayName="Jar Deploy"
-            icon="/icons/jar_deploy.svg"/>
+            displayName="Jar Deploy"/>
 
         <!-- Tool Window -->
         <toolWindow
             id="Jar Deploy"
             anchor="right"
             factoryClass="site.addzero.deploy.toolwindow.JarDeployToolWindowFactory"
-            icon="/icons/jar_deploy.svg"/>
+            icon="AllIcons.Actions.Upload"/>
 
         <!-- Notification Group -->
         <notificationGroup
             id="JarDeploy"
             displayType="BALLOON"/>
-
-        <!-- Git Push Listener -->
-        <git4idea.pushListener
-            implementation="site.addzero.deploy.git.GitPushDeployListener"/>
     </extensions>
 
     <actions>

@@ -5,7 +5,6 @@ plugins {
 dependencies {
     implementation(project(":lib:lsi-code-analyzer-core"))
     implementation(project(":lib:ddlgenerator:tool-ddlgenerator-core"))
-    implementation(project(":lib:ddlgenerator:tool-ddlgenerator-sql"))
 //    implementation(project(":lib:ddlgenerator:tool-ddlgenerator-parser"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
     implementation(project(":lib:tool-template"))

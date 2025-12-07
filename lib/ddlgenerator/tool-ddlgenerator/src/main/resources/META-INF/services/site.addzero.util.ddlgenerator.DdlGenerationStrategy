@@ -1,0 +1,2 @@
+site.addzero.util.ddlgenerator.MySqlDdlGenerationStrategy
+site.addzero.util.ddlgenerator.PostgreSqlDdlGenerationStrategy

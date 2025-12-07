@@ -11,8 +11,8 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-07T13:15:27.717538
-// Loaded: 10, Excluded: 0, Total: 10
+// Generated at: 2025-12-07T13:58:02.229786
+// Loaded: 11, Excluded: 0, Total: 11
 include(":checkouts:metaprogramming-lsi:lsi-apt")
 include(":checkouts:metaprogramming-lsi:lsi-core")
 include(":checkouts:metaprogramming-lsi:lsi-kt")
@@ -23,6 +23,7 @@ include(":lib:ddlgenerator:tool-ddlgenerator-core")
 include(":lib:ddlgenerator:tool-ddlgenerator-parser")
 include(":lib:ddlgenerator:tool-ddlgenerator-sql")
 include(":plugins:gradle-buddy")
+include(":plugins:jar-deploy")
 // <<< Gradle Buddy: End Of Block <<<
 
 include(":lib:tool-template")

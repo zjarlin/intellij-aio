@@ -120,6 +120,10 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
     }
     
     private fun sleepOtherModules() {
+        // 1. 关闭除当前标签页之外的所有其他标签页
+        val closedCount = closeOtherTabs()
+        
+        // 2. 执行模块睡眠逻辑
         val result = OnDemandModuleLoader.loadOnlyOpenTabModules(project)
         when (result) {
             is LoadResult.Success -> {
@@ -127,8 +131,8 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
                     "\nExcluded: ${result.excludedModules.size} (${result.excludedModules.sorted().joinToString(", ")})" 
                     else ""
                 showNotification(
-                    "Modules Loaded",
-                    "Loaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
+                    "Sleep Other Modules",
+                    "Closed $closedCount tabs\nLoaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
                     NotificationType.INFORMATION
                 )
             }
@@ -142,6 +146,35 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
                 showNotification("Failed", result.reason, NotificationType.ERROR)
             }
         }
+    }
+    
+    /**
+     * 关闭除当前标签页之外的所有其他标签页
+     * @return 关闭的标签页数量
+     */
+    private fun closeOtherTabs(): Int {
+        val editorManager = FileEditorManager.getInstance(project)
+        
+        // 获取所有打开的文件
+        val allOpenFiles = editorManager.openFiles.toList()
+        
+        // 获取当前选中的文件
+        val currentFile = editorManager.selectedFiles.firstOrNull()
+        
+        if (currentFile == null || allOpenFiles.isEmpty()) {
+            return 0
+        }
+        
+        // 关闭除当前文件之外的所有文件
+        var closedCount = 0
+        allOpenFiles.forEach { file ->
+            if (file != currentFile) {
+                editorManager.closeFile(file)
+                closedCount++
+            }
+        }
+        
+        return closedCount
     }
     
     private fun restoreAllModules() {

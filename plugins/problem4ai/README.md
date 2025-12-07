@@ -30,7 +30,11 @@ GlobalDiagnosticCacheInitializer
 
 #### 2. VirtualFile 扩展函数
 
-提供便捷的扩展函数，可以快速获取任何文件的诊断信息：
+提供便捷的扩展函数，可以快速获取任何文件的诊断信息。
+
+**支持两种使用方式**：
+
+##### 方式 A：显式传入 Project（推荐）
 
 ```kotlin
 import site.addzero.diagnostic.extensions.*
@@ -53,6 +57,32 @@ if (file.hasErrors(project)) {
 val count: ProblemCount = file.problemCount(project)
 println("错误: ${count.errors}, 警告: ${count.warnings}")
 ```
+
+##### 方式 B：自动推导 Project（便捷）
+
+```kotlin
+import site.addzero.diagnostic.extensions.*
+
+// 自动推导 project，无需传参！
+val problems: FileDiagnostics? = file.problems()
+val errors: List<DiagnosticItem> = file.errors()
+val warnings: List<DiagnosticItem> = file.warnings()
+
+// 简洁的检查
+if (file.hasErrors()) {
+    println("文件有错误")
+}
+
+// 一行搞定统计
+val count = file.problemCount()
+```
+
+**自动推导原理**：
+- 通过 `ProjectManager` 查找包含该文件的项目
+- 如果文件在多个项目中或无法推导，会抛出 `IllegalStateException`
+- 提供 `file.inferProject()` 和 `file.requireProject()` 工具函数
+
+**建议**：在明确知道项目上下文时（如 Action、Service 中），优先使用显式 `project` 参数版本，更明确且性能更好。
 
 #### 3. 全局缓存服务
 

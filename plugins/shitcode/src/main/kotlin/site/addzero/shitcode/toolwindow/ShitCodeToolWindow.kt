@@ -135,55 +135,135 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         }
 
         val elements = mutableListOf<PsiElement>()
+        // 使用 projectScope 并排除库文件
         val scope = GlobalSearchScope.projectScope(project)
         val psiManager = PsiManager.getInstance(project)
         val annotationName = ShitCodeSettingsService.getInstance().state.shitAnnotation
 
         ApplicationManager.getApplication().runReadAction {
+            // 扫描 Kotlin 文件
             val ktFiles = com.intellij.psi.search.FileTypeIndex.getFiles(
                 KotlinFileType.INSTANCE,
                 scope
             )
 
-            for (file in ktFiles) {
-                val ktFile = psiManager.findFile(file) as? KtFile ?: continue
-                PsiTreeUtil.processElements(ktFile) { element ->
-                    when (element) {
-                        is KtClass, is KtFunction, is KtProperty -> {
-                            if (element is KtAnnotated && element.annotationEntries.any {
-                                it.shortName?.asString() == annotationName
-                            }) {
-                                elements.add(element)
+            for (virtualFile in ktFiles) {
+                // 跳过构建目录和测试资源
+                if (virtualFile.path.contains("/build/") || 
+                    virtualFile.path.contains("/out/") ||
+                    virtualFile.path.contains("/.gradle/")) {
+                    continue
+                }
+                
+                val ktFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
+                
+                // 扫描类
+                ktFile.declarations.forEach { declaration ->
+                    when (declaration) {
+                        is KtClass -> {
+                            if (hasAnnotation(declaration, annotationName)) {
+                                elements.add(declaration)
+                            }
+                            // 扫描类中的成员
+                            declaration.declarations.forEach { member ->
+                                when (member) {
+                                    is KtFunction -> {
+                                        if (hasAnnotation(member, annotationName)) {
+                                            elements.add(member)
+                                        }
+                                    }
+                                    is KtProperty -> {
+                                        if (hasAnnotation(member, annotationName)) {
+                                            elements.add(member)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        is KtFunction -> {
+                            if (hasAnnotation(declaration, annotationName)) {
+                                elements.add(declaration)
+                            }
+                        }
+                        is KtProperty -> {
+                            if (hasAnnotation(declaration, annotationName)) {
+                                elements.add(declaration)
                             }
                         }
                     }
-                    true
                 }
             }
 
+            // 扫描 Java 文件
             val javaFiles = com.intellij.psi.search.FileTypeIndex.getFiles(
                 JavaFileType.INSTANCE,
                 scope
             )
 
-            for (file in javaFiles) {
-                val javaFile = psiManager.findFile(file) as? PsiJavaFile ?: continue
-                PsiTreeUtil.processElements(javaFile) { element ->
-                    when (element) {
-                        is PsiClass, is PsiMethod, is PsiField -> {
-                            if (element is PsiModifierListOwner && element.modifierList?.annotations?.any {
-                                it.qualifiedName?.endsWith(annotationName) == true
-                            } == true) {
-                                elements.add(element)
-                            }
+            for (virtualFile in javaFiles) {
+                // 跳过构建目录和测试资源
+                if (virtualFile.path.contains("/build/") || 
+                    virtualFile.path.contains("/out/") ||
+                    virtualFile.path.contains("/.gradle/")) {
+                    continue
+                }
+                
+                val javaFile = psiManager.findFile(virtualFile) as? PsiJavaFile ?: continue
+                
+                javaFile.classes.forEach { psiClass ->
+                    if (hasJavaAnnotation(psiClass, annotationName)) {
+                        elements.add(psiClass)
+                    }
+                    
+                    // 扫描方法
+                    psiClass.methods.forEach { method ->
+                        if (hasJavaAnnotation(method, annotationName)) {
+                            elements.add(method)
                         }
                     }
-                    true
+                    
+                    // 扫描字段
+                    psiClass.fields.forEach { field ->
+                        if (hasJavaAnnotation(field, annotationName)) {
+                            elements.add(field)
+                        }
+                    }
                 }
             }
         }
 
         return elements
+    }
+    
+    /**
+     * 检查 Kotlin 元素是否有指定注解
+     */
+    private fun hasAnnotation(element: KtAnnotated, annotationName: String): Boolean {
+        return element.annotationEntries.any { annotation ->
+            val shortName = annotation.shortName?.asString()
+            val fullName = annotation.typeReference?.text
+            
+            // 匹配短名称或完全限定名
+            shortName == annotationName || 
+            fullName == annotationName ||
+            fullName?.endsWith(".$annotationName") == true
+        }
+    }
+    
+    /**
+     * 检查 Java 元素是否有指定注解
+     */
+    private fun hasJavaAnnotation(element: PsiModifierListOwner, annotationName: String): Boolean {
+        val annotations = element.modifierList?.annotations ?: return false
+        return annotations.any { annotation ->
+            val qualifiedName = annotation.qualifiedName
+            val shortName = annotation.nameReferenceElement?.referenceName
+            
+            // 匹配短名称或完全限定名
+            shortName == annotationName ||
+            qualifiedName == annotationName ||
+            qualifiedName?.endsWith(".$annotationName") == true
+        }
     }
 
     private fun handleTreeNodeDoubleClick(path: TreePath) {

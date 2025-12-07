@@ -1,6 +1,5 @@
 package site.addzero.lsi.analyzer.scanner
 
-import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.util.lsi.clazz.LsiClass
 
 class LsiClassScanner : MetadataScanner<LsiClass> {
@@ -18,7 +17,7 @@ class LsiClassScanner : MetadataScanner<LsiClass> {
         return lsiClass.isPojo
     }
 
-    override fun scan(lsiClass: LsiClass) = LsiClass.from(lsiClass)
+    override fun scan(lsiClass: LsiClass) = lsiClass
 
     companion object {
         private const val GENERATED_PACKAGE_PREFIX = "site.addzero.generated."

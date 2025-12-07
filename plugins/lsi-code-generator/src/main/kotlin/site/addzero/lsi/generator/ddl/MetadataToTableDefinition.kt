@@ -1,29 +1,52 @@
 package site.addzero.lsi.generator.ddl
 
-import site.addzero.ddl.core.model.ColumnDefinition
-import site.addzero.lsi.analyzer.metadata.LsiField
-import site.addzero.lsi.analyzer.metadata.LsiClass
+import site.addzero.util.lsi.clazz.LsiClass
+import site.addzero.util.lsi.clazz.guessTableName
+import site.addzero.util.lsi.field.LsiField
+import site.addzero.util.lsi.field.isNullable
+import site.addzero.util.lsi.database.databaseFields
+import site.addzero.util.lsi.database.isPrimaryKey
 
-fun LsiClass.toTableDefinition():LsiClass {
-    val columns = dbFields.map { it.toColumnDefinition() }
+// 注意：TableDefinition 和 ColumnDefinition 需要定义或导入
+// 如果这些类不存在，需要创建它们或使用其他方式
+
+data class TableDefinition(
+    val name: String,
+    val comment: String,
+    val columns: List<ColumnDefinition>,
+    val primaryKey: String?
+)
+
+data class ColumnDefinition(
+    val name: String,
+    val javaType: String,
+    val comment: String,
+    val nullable: Boolean,
+    val primaryKey: Boolean,
+    val autoIncrement: Boolean
+)
+
+fun LsiClass.toTableDefinition(): TableDefinition {
+    val columns = databaseFields.map { it.toColumnDefinition() }
     val primaryKey = columns.find { it.primaryKey }?.name
 
     return TableDefinition(
-        name = tableName ?: className.camelToSnake(),
-        comment = comment?.extractFirstLine() ?: className,
+        name = this.guessTableName,
+        comment = this.comment?.extractFirstLine() ?: (this.name ?: "unknown"),
         columns = columns,
         primaryKey = primaryKey
     )
 }
 
-fun LsiField.toColumnDefinition():LsiField {
+fun LsiField.toColumnDefinition(): ColumnDefinition {
+    val fieldName = this.name ?: "unknown"
     return ColumnDefinition(
-        name = columnName ?: name.camelToSnake(),
-        javaType = typeQualifiedName ?: "java.lang.String",
-        comment = comment?.extractFirstLine() ?: name,
-        nullable = nullable && !isPrimaryKey,
-        primaryKey = isPrimaryKey,
-        autoIncrement = isPrimaryKey && (typeQualifiedName?.contains("Long") == true || typeQualifiedName?.contains("Integer") == true)
+        name = this.columnName ?: fieldName.camelToSnake(),
+        javaType = this.type?.qualifiedName ?: "java.lang.String",
+        comment = this.comment?.extractFirstLine() ?: fieldName,
+        nullable = this.isNullable && !this.isPrimaryKey,
+        primaryKey = this.isPrimaryKey,
+        autoIncrement = this.isPrimaryKey && (this.typeName?.contains("Long") == true || this.typeName?.contains("Int") == true)
     )
 }
 

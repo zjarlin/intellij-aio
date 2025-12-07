@@ -2,7 +2,6 @@ package site.addzero.lsi.analyzer.extension
 
 import site.addzero.lsi.analyzer.jimmer.JimmerAnnotations
 import site.addzero.lsi.analyzer.jimmer.JimmerEntityMetadata
-import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.util.lsi.clazz.LsiClass
 
 /**

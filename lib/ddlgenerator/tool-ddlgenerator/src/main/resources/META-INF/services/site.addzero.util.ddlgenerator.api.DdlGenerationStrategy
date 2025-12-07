@@ -1,0 +1,4 @@
+# MySQL方言策略
+site.addzero.util.ddlgenerator.strategy.MySqlDdlStrategy
+# PostgreSQL方言策略
+site.addzero.util.ddlgenerator.strategy.PostgreSqlDdlStrategy

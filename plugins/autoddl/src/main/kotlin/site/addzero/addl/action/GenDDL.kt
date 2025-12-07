@@ -1,7 +1,5 @@
 package site.addzero.addl.action
 
-import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.getDatabaseDDLGenerator
-import site.addzero.addl.autoddlstarter.generator.entity.DDLContext
 import site.addzero.addl.settings.MyPluginSettingsService
 import site.addzero.util.ShowContentUtil.openTextInEditor
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -9,6 +7,11 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import site.addzero.util.lsi_impl.impl.intellij.context.lsiContext
+import site.addzero.util.ddlgenerator.toCreateTableDDL
+import site.addzero.util.lsi.clazz.guessTableName
+import site.addzero.util.lsi.database.databaseFields
+import site.addzero.util.ddlgenerator.toAddColumnDDL
+import site.addzero.util.db.DatabaseType
 
 
 class GenDDL : AnAction() {
@@ -30,39 +33,41 @@ class GenDDL : AnAction() {
 
         val lsiClass = context.currentClass ?: return
 
-        // 使用LSI生成DDL上下文
-        val ddlContext = generateDDLContextFromLsiClass(lsiClass)
-
-
-        val databaseDDLGenerator = getDatabaseDDLGenerator(defaultDbType())
-
-        val generateCreateTableDDL = databaseDDLGenerator.generateCreateTableDDL(ddlContext)
-        val sql = databaseDDLGenerator.generateAddColDDL(ddlContext)
+        // 使用新的扩展函数API生成DDL
+        val dbType = getDefaultDbType()
+        val tableName = lsiClass.guessTableName
+        
+        // 生成CREATE TABLE DDL
+        val createTableDDL = lsiClass.toCreateTableDDL(dbType)
+        
+        // 生成ADD COLUMN DDL
+        val addColumnDDL = lsiClass.databaseFields.joinToString("\n\n") { field ->
+            field.toAddColumnDDL(tableName, dbType)
+        }
+        
         val lineSeparator = System.lineSeparator()
-        val s = generateCreateTableDDL + lineSeparator + lineSeparator + sql
+        val sql = createTableDDL + lineSeparator + lineSeparator + addColumnDDL
 
         // 将生成的 SQL 语句写入到新的文件并打开
         project.openTextInEditor(
-            s,
-            "alter_table_${ddlContext .tableEnglishName}",
+            sql,
+            "alter_table_$tableName",
             ".sql"
         )
     }
 
-    // 根据 LsiClass 生成 DDLContext 对象
-    private fun generateDDLContextFromLsiClass(lsiClass: site.addzero.util.lsi.clazz.LsiClass): DDLContext {
-        val defaultDbType = defaultDbType()
-        // 使用LSI工厂方法创建DDLContext
-        return site.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4JavaMetaInfo.createDDLContextFromLsi(lsiClass, defaultDbType)
-    }
-
-    private fun defaultDbType(): String {
+    private fun getDefaultDbType(): DatabaseType {
         val settings = MyPluginSettingsService.getInstance().state
         val defaultDbType = settings.dbType
-        if (defaultDbType.isNullOrBlank()) {
-            return "mysql"
+        return if (defaultDbType.isNullOrBlank()) {
+            DatabaseType.MYSQL
+        } else {
+            try {
+                DatabaseType.valueOf(defaultDbType.uppercase())
+            } catch (e: IllegalArgumentException) {
+                DatabaseType.MYSQL
+            }
         }
-        return defaultDbType
     }
 
 

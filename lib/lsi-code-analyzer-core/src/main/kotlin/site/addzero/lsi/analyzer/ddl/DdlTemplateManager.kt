@@ -7,8 +7,8 @@ import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.field.LsiField
 import site.addzero.util.lsi.field.isNullable
-import site.addzero.util.lsi.field.isPrimaryKey
-import site.addzero.util.lsi.field.isTransient
+import site.addzero.util.lsi.database.isPrimaryKey
+import site.addzero.util.lsi.database.isTransient
 import java.io.File
 import java.io.StringWriter
 

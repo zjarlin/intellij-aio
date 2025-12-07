@@ -3,7 +3,7 @@ package site.addzero.lsi.analyzer.template
 import freemarker.template.Configuration
 import freemarker.template.Template
 import freemarker.template.TemplateExceptionHandler
-import site.addzero.lsi.analyzer.metadata.LsiClass
+import site.addzero.util.lsi.clazz.LsiClass
 import java.io.File
 import java.io.StringWriter
 import java.nio.file.Path
@@ -31,7 +31,7 @@ class FreemarkerTemplateManager(templateDir: Path? = null) {
 
     fun renderAll(templateName: String, metadataList: List<LsiClass>): Map<String, String> =
         metadataList.associateBy(
-            keySelector = { it.className },
+            keySelector = { it.name ?: "Unknown" },
             valueTransform = { render(templateName, it) }
         )
 

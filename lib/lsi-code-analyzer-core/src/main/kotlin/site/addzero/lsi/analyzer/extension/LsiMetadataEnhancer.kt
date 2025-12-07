@@ -1,6 +1,5 @@
 package site.addzero.lsi.analyzer.extension
 
-import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.util.lsi.clazz.LsiClass
 
 /**

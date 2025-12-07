@@ -5,6 +5,8 @@ import org.junit.jupiter.api.assertThrows
 import site.addzero.util.ddlgenerator.inter.MetadataExtractor
 import site.addzero.util.ddlgenerator.inter.TableContext
 import site.addzero.util.ddlgenerator.model.*
+import site.addzero.util.lsi.clazz.LsiClass
+import site.addzero.util.lsi.field.LsiField
 import java.util.ServiceLoader
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,10 +15,10 @@ import kotlin.test.assertTrue
 class DdlGeneratorTest {
 
     // 简单的TableContext实现用于测试
-    class SimpleTableContext(private val tables: List<TableDefinition>) : TableContext {
-        override fun getTableDefinitions(): List<TableDefinition> = tables
+    class SimpleTableContext(private val tables: List<LsiClass>) : TableContext {
+        override fun getTableDefinitions(): List<LsiClass> = tables
 
-        override fun getTableDefinition(tableName: String): TableDefinition? {
+        override fun getTableDefinition(tableName: String): LsiClass? {
             return tables.find { it.name == tableName }
         }
 
@@ -49,28 +51,28 @@ class DdlGeneratorTest {
     fun testMySQLDDLGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
 
-        val table = TableDefinition(
+        val table = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "username",
                     type = ColumnType.VARCHAR,
                     nullable = false,
                     comment = "用户名"
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "email",
                     type = ColumnType.VARCHAR,
                     nullable = true
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "created_at",
                     type = ColumnType.TIMESTAMP,
                     defaultValue = "CURRENT_TIMESTAMP"
@@ -92,27 +94,27 @@ class DdlGeneratorTest {
     fun testPostgreSQLDDLGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.POSTGRESQL)
 
-        val table = TableDefinition(
+        val table = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "username",
                     type = ColumnType.VARCHAR,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "email",
                     type = ColumnType.VARCHAR,
                     nullable = true
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "created_at",
                     type = ColumnType.TIMESTAMP,
                     defaultValue = "CURRENT_TIMESTAMP"
@@ -155,7 +157,7 @@ class DdlGeneratorTest {
     @Test
     fun testAddColumnGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
-        val column = ColumnDefinition(
+        val column = LsiField(
             name = "age",
             type = ColumnType.INT,
             nullable = true,
@@ -177,17 +179,17 @@ class DdlGeneratorTest {
     fun testFormattedOutput() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
 
-        val table = TableDefinition(
+        val table = LsiClass(
             name = "products",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "name",
                     type = ColumnType.VARCHAR,
                     nullable = false
@@ -228,10 +230,10 @@ class DdlGeneratorTest {
     fun testMySQLForeignKeyGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
 
-        val userTable = TableDefinition(
+        val userTable = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
@@ -241,17 +243,17 @@ class DdlGeneratorTest {
             )
         )
 
-        val orderTable = TableDefinition(
+        val orderTable = LsiClass(
             name = "orders",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "user_id",
                     type = ColumnType.BIGINT,
                     nullable = false
@@ -280,10 +282,10 @@ class DdlGeneratorTest {
     fun testPostgreSQLForeignKeyGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.POSTGRESQL)
 
-        val userTable = TableDefinition(
+        val userTable = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
@@ -293,17 +295,17 @@ class DdlGeneratorTest {
             )
         )
 
-        val orderTable = TableDefinition(
+        val orderTable = LsiClass(
             name = "orders",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "user_id",
                     type = ColumnType.BIGINT,
                     nullable = false
@@ -332,17 +334,17 @@ class DdlGeneratorTest {
     fun testSchemaGenerationWithMultipleTables() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
 
-        val userTable = TableDefinition(
+        val userTable = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "username",
                     type = ColumnType.VARCHAR,
                     nullable = false
@@ -350,17 +352,17 @@ class DdlGeneratorTest {
             )
         )
 
-        val orderTable = TableDefinition(
+        val orderTable = LsiClass(
             name = "orders",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "user_id",
                     type = ColumnType.BIGINT,
                     nullable = false
@@ -388,18 +390,22 @@ class DdlGeneratorTest {
 
     @Test
     fun testDependencyResolution() {
-        val userTable = TableDefinition(
+        val userTable = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false)
+                LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                    autoIncrement =
+                    true, nullable = false)
             )
         )
 
-        val orderTable = TableDefinition(
+        val orderTable = LsiClass(
             name = "orders",
             columns = listOf(
-                ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false),
-                ColumnDefinition("user_id", ColumnType.BIGINT, nullable = false)
+                LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                    autoIncrement =
+                    true, nullable = false),
+                LsiField("user_id", ColumnType.BIGINT, nullable = false)
             ),
             foreignKeys = listOf(
                 ForeignKeyDefinition("fk_order_user", "user_id", "users", "id")
@@ -419,19 +425,23 @@ class DdlGeneratorTest {
 
     @Test
     fun testSchemaGenerationWithContext() {
-        val userTable = TableDefinition(
+        val userTable = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false),
-                ColumnDefinition("username", ColumnType.VARCHAR, nullable = false)
+                LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                    autoIncrement =
+                    true, nullable = false),
+                LsiField("username", ColumnType.VARCHAR, nullable = false)
             )
         )
 
-        val orderTable = TableDefinition(
+        val orderTable = LsiClass(
             name = "orders",
             columns = listOf(
-                ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false),
-                ColumnDefinition("user_id", ColumnType.BIGINT, nullable = false)
+                LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                    autoIncrement =
+                    true, nullable = false),
+                LsiField("user_id", ColumnType.BIGINT, nullable = false)
             ),
             foreignKeys = listOf(
                 ForeignKeyDefinition("fk_order_user", "user_id", "users", "id")
@@ -474,17 +484,17 @@ class DdlGeneratorTest {
     fun testMySQLCommentGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.MYSQL)
 
-        val table = TableDefinition(
+        val table = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "username",
                     type = ColumnType.VARCHAR,
                     nullable = false,
@@ -503,17 +513,17 @@ class DdlGeneratorTest {
     fun testPostgreSQLCommentGeneration() {
         val generator = DdlGeneratorFactory.create(Dialect.POSTGRESQL)
 
-        val table = TableDefinition(
+        val table = LsiClass(
             name = "users",
             columns = listOf(
-                ColumnDefinition(
+                LsiField(
                     name = "id",
                     type = ColumnType.BIGINT,
                     primaryKey = true,
                     autoIncrement = true,
                     nullable = false
                 ),
-                ColumnDefinition(
+                LsiField(
                     name = "username",
                     type = ColumnType.VARCHAR,
                     nullable = false,
@@ -532,12 +542,14 @@ class DdlGeneratorTest {
     fun `test metadata based table context`() {
         // 创建模拟的元数据提取器
         val userExtractor = object : MetadataExtractor {
-            override fun extractTableDefinition(): TableDefinition {
-                return TableDefinition(
+            override fun extractTableDefinition(): LsiClass {
+                return LsiClass(
                     name = "users",
                     columns = listOf(
-                        ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false),
-                        ColumnDefinition("username", ColumnType.VARCHAR, nullable = false)
+                        LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                            autoIncrement = true, nullable = false),
+                        LsiField("username", ColumnType.VARCHAR, nullable =
+                            false)
                     )
                 )
             }
@@ -546,12 +558,13 @@ class DdlGeneratorTest {
         }
 
         val orderExtractor = object : MetadataExtractor {
-            override fun extractTableDefinition(): TableDefinition {
-                return TableDefinition(
+            override fun extractTableDefinition(): LsiClass {
+                return LsiClass(
                     name = "orders",
                     columns = listOf(
-                        ColumnDefinition("id", ColumnType.BIGINT, primaryKey = true, autoIncrement = true, nullable = false),
-                        ColumnDefinition("user_id", ColumnType.BIGINT, nullable = false)
+                        LsiField("id", ColumnType.BIGINT, primaryKey = true,
+                            autoIncrement = true, nullable = false),
+                        LsiField("user_id", ColumnType.BIGINT, nullable = false)
                     ),
                     foreignKeys = listOf(
                         ForeignKeyDefinition("fk_order_user", "user_id", "users", "id")

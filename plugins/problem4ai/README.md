@@ -1,19 +1,93 @@
- Problem4AI is an IntelliJ IDEA plugin that automatically collects compilation errors and warnings from your project, and generates AI-friendly prompts for quick fixes.
+# Problem4AI
+
+An IntelliJ IDEA plugin that automatically collects compilation errors and warnings from your project, and generates AI-friendly prompts for quick fixes.
+
 代码问题AI修复助手 - 自动收集项目诊断信息，一键生成AI修复提示词。
 
-## 功能
+## Features / 功能
 
-- 自动收集编译错误和警告
-- Errors/Warnings 分类展示
-- 点击文件跳转到问题位置
-- 一键复制生成AI修复提示词
-- 集成到 IDE Problems 面板
+### 🚀 核心功能
 
-## 使用
+- **饿汉式全局扫描**：项目启动时自动扫描所有文件，建立诊断信息缓存
+- **实时更新**：监听代码变化，自动更新缓存
+- **便捷扩展函数**：提供 `VirtualFile.problems()` 等扩展函数，快速获取文件问题
+- **统计信息**：提供项目级别的错误/警告统计
+- **分类显示**：按错误/警告分类显示
+- **一键导航**：点击问题跳转到源码位置
+- **AI 提示生成**：一键复制生成 AI 修复提示
+- **集成到 Problems 面板**：无缝集成到 IDE 原生面板
+
+### 🆕 新特性
+
+#### 1. 饿汉式全局扫描
+
+项目启动后自动进行全量扫描，不再需要打开文件才能收集问题：
+
+```kotlin
+// 项目启动时自动触发
+GlobalDiagnosticCacheInitializer
+```
+
+#### 2. VirtualFile 扩展函数
+
+提供便捷的扩展函数，可以快速获取任何文件的诊断信息：
+
+```kotlin
+import site.addzero.diagnostic.extensions.*
+
+// 获取文件的所有问题
+val problems: FileDiagnostics? = file.problems(project)
+
+// 获取错误列表
+val errors: List<DiagnosticItem> = file.errors(project)
+
+// 获取警告列表  
+val warnings: List<DiagnosticItem> = file.warnings(project)
+
+// 检查文件状态
+if (file.hasErrors(project)) {
+    println("文件有错误")
+}
+
+// 获取统计信息
+val count: ProblemCount = file.problemCount(project)
+println("错误: ${count.errors}, 警告: ${count.warnings}")
+```
+
+#### 3. 全局缓存服务
+
+提供高性能的全局缓存，支持快速查询和统计：
+
+```kotlin
+val cache = GlobalDiagnosticCache.getInstance(project)
+
+// 获取所有问题文件
+val allProblems = cache.getAllDiagnostics()
+
+// 获取项目统计
+val stats = cache.getStatistics()
+println("错误文件: ${stats.errorFiles}, 警告文件: ${stats.warningFiles}")
+
+// 监听缓存更新
+cache.addListener { event ->
+    when (event) {
+        is CacheUpdateEvent.FullScan -> println("完成全量扫描")
+        is CacheUpdateEvent.IncrementalUpdate -> println("增量更新")
+    }
+}
+```
+
+## 使用指南
+
+### 基本使用
 
 1. 打开 **Problems** 面板 → **Problem4Ai** Tab
 2. 查看问题文件列表
 3. 点击复制按钮，粘贴给AI修复
+
+### 高级用法
+
+详细的使用示例请参见 [USAGE_EXAMPLES.md](./USAGE_EXAMPLES.md)
 
 ## 支持的文件
 

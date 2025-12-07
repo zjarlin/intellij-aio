@@ -20,7 +20,15 @@
     <depends>com.intellij.modules.lang</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <!-- 项目启动时注入到 Problems 面板 -->
         <postStartupActivity implementation="site.addzero.diagnostic.problemsview.AiFixProblemsInjector"/>
+
+        <!-- 项目启动时触发全局诊断扫描（饿汉式） -->
+        <postStartupActivity implementation="site.addzero.diagnostic.service.GlobalDiagnosticCacheInitializer"/>
+
+        <!-- 通知组 -->
         <notificationGroup id="Problem4AI Notifications" displayType="BALLOON" isLogByDefault="true"/>
+
+        <!-- 项目级服务 -->
     </extensions>
 </idea-plugin>

@@ -1,5 +1,6 @@
 package site.addzero.ddl.sql
 
+import site.addzero.util.db.DatabaseType
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.field.LsiField
 
@@ -13,7 +14,7 @@ interface IDdlGen{
     /**
      * 方言名称（对应数据库类型）
      */
-    val name: Databasetype
+    val name: DatabaseType
 
     /**
      * 将Java类型映射为数据库类型
@@ -75,7 +76,7 @@ object SqlDialectRegistry {
      * 注册方言
      */
     fun register(dialect: IDdlGen) {
-        dialects[dialect.name] = dialect
+        dialects[dialect.name.toString()] = dialect
     }
 
     /**

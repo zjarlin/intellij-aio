@@ -122,4 +122,4 @@ public class LegacyUserService {
 
 - 作者：zjarlin
 - Email：zjarlin@outlook.com
-- 项目主页：https://gitee.com/zjarlin/autoddl-idea-plugin
+- 项目主页：https://gitee.com/zjarlin/intellij-aio.git

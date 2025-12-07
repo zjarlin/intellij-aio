@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-database"))
     implementation(kotlin("stdlib"))
 
 }

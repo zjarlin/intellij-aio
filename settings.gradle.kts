@@ -11,11 +11,12 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-07T15:12:53.666557
-// Loaded: 11, Excluded: 0, Total: 11
+// Generated at: 2025-12-07T15:47:02.303827
+// Loaded: 12, Excluded: 0, Total: 12
 include(":checkouts:metaprogramming-lsi:lsi-core")
 include(":checkouts:metaprogramming-lsi:lsi-database")
 include(":checkouts:metaprogramming-lsi:lsi-kt")
+include(":checkouts:metaprogramming-lsi:lsi-reflection")
 include(":lib:ddlgenerator:tool-ddlgenerator")
 include(":lib:ddlgenerator:tool-ddlgenerator-core")
 include(":lib:ddlgenerator:tool-ddlgenerator-koin")

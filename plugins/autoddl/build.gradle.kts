@@ -12,6 +12,7 @@ intellijPlatform {
 dependencies {
 
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-database"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-intellij"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-psi"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-kt"))

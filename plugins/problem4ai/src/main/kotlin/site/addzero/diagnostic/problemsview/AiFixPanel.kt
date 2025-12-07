@@ -12,6 +12,7 @@ import com.intellij.util.ui.tree.TreeUtil
 import site.addzero.diagnostic.model.DiagnosticSeverity
 import site.addzero.diagnostic.model.FileDiagnostics
 import site.addzero.diagnostic.service.DiagnosticCollectorService
+import site.addzero.diagnostic.service.GlobalDiagnosticCache
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout
@@ -29,10 +30,13 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val tree: Tree
     private val treeModel: DefaultTreeModel
     private val rootNode = DefaultMutableTreeNode("Problems")
-    private val statusLabel = JBLabel("点击刷新按钮收集诊断信息")
+    private val statusLabel = JBLabel("正在初始化...")
     
     private var currentDiagnostics: List<FileDiagnostics> = emptyList()
     private val diagnosticsListener: (List<FileDiagnostics>) -> Unit = { updateTree(it) }
+    
+    // 全局缓存服务（饿汉式）
+    private val globalCache = GlobalDiagnosticCache.getInstance(project)
     
     init {
         treeModel = DefaultTreeModel(rootNode)
@@ -42,6 +46,9 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         
         setupUI()
         setupAutoRefresh()
+        
+        // 从全局缓存加载初始数据
+        loadFromGlobalCache()
     }
     
     private fun setupUI() {
@@ -84,12 +91,33 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
     
     private fun setupAutoRefresh() {
+        // 监听按需收集服务（手动刷新）
         DiagnosticCollectorService.getInstance(project).addListener(diagnosticsListener)
+        
+        // 监听全局缓存更新（饿汉式自动刷新）
+        globalCache.addListener {
+            loadFromGlobalCache()
+        }
+    }
+    
+    /**
+     * 从全局缓存加载数据（饿汉式）
+     */
+    private fun loadFromGlobalCache() {
+        if (!globalCache.isInitialized()) {
+            statusLabel.text = "正在扫描项目..."
+            return
+        }
+        
+        // 将缓存数据转换为 FileDiagnostics 列表
+        val diagnostics = globalCache.getAllDiagnostics()
+        updateTree(diagnostics)
     }
     
     private fun refreshDiagnostics() {
-        statusLabel.text = "正在收集诊断信息..."
-        DiagnosticCollectorService.getInstance(project).collectDiagnostics { updateTree(it) }
+        statusLabel.text = "正在重新扫描..."
+        // 触发全局缓存重新扫描（这会自动触发监听器更新）
+        globalCache.performFullScan()
     }
     
     private fun updateTree(diagnostics: List<FileDiagnostics>) {

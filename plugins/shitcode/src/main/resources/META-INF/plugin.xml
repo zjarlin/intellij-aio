@@ -38,6 +38,12 @@
         <!-- 注册设置服务 -->
         <applicationService serviceImplementation="site.addzero.shitcode.settings.ShitCodeSettingsService"/>
         
+        <!-- 注册项目级缓存服务（饿汉式） -->
+        <projectService serviceImplementation="site.addzero.shitcode.service.ShitCodeCacheService"/>
+        
+        <!-- 项目启动时触发全局扫描（饿汉式） -->
+        <postStartupActivity implementation="site.addzero.shitcode.service.ShitCodeStartupActivity"/>
+        
         <!-- 注册配置页面 -->
         <projectConfigurable 
             instance="site.addzero.shitcode.settings.ShitCodeConfigurable" 

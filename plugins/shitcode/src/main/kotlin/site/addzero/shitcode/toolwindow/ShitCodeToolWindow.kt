@@ -1,22 +1,16 @@
 package site.addzero.shitcode.toolwindow
 
-import site.addzero.shitcode.settings.ShitCodeSettingsService
+import site.addzero.shitcode.service.CacheUpdateListener
+import site.addzero.shitcode.service.ShitCodeCacheService
 import com.intellij.icons.AllIcons
-import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.psi.*
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
-import org.jetbrains.kotlin.idea.KotlinFileType
-import org.jetbrains.kotlin.psi.*
 import java.awt.BorderLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -45,6 +39,12 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
     private val tree: Tree
     private val treeModel: DefaultTreeModel
     private val rootNode = DefaultMutableTreeNode("垃圾代码列表")
+    private val cacheService = ShitCodeCacheService.getInstance(project)
+    
+    // 缓存更新监听器
+    private val cacheUpdateListener = CacheUpdateListener {
+        refreshTree()
+    }
 
     init {
         treeModel = DefaultTreeModel(rootNode)
@@ -61,7 +61,8 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         toolbar.add(deleteAllButton)
 
         refreshButton.addActionListener {
-            refreshTree()
+            // 触发重新扫描
+            cacheService.performFullScan()
         }
 
         deleteButton.addActionListener {
@@ -69,8 +70,11 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         }
 
         deleteAllButton.addActionListener {
-            val elements = findAnnotatedElements()
-            if (elements.isEmpty()) return@addActionListener
+            val elements = cacheService.getAllElementsList()
+            if (elements.isEmpty()) {
+                Messages.showInfoMessage("没有找到需要删除的元素", "提示")
+                return@addActionListener
+            }
 
             val result = Messages.showYesNoDialog(
                 project,
@@ -82,8 +86,9 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
             if (result == Messages.YES) {
                 WriteCommandAction.runWriteCommandAction(project) {
                     try {
-                        elements.forEach { it.delete() }
-                        refreshTree()
+                        elements.forEach { it.psiElement.delete() }
+                        // 重新扫描以更新缓存
+                        cacheService.performFullScan()
                         Messages.showInfoMessage("删除成功", "提示")
                     } catch (e: Exception) {
                         Messages.showErrorDialog("删除失败: ${e.message}", "错误")
@@ -104,19 +109,32 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         add(toolbar, BorderLayout.NORTH)
         add(JBScrollPane(tree), BorderLayout.CENTER)
 
+        // 注册缓存更新监听器
+        cacheService.addListener(cacheUpdateListener)
+        
+        // 初始加载
         refreshTree()
     }
 
     private fun refreshTree() {
         rootNode.removeAllChildren()
-        val elements = findAnnotatedElements()
+        
+        // 从缓存获取数据
+        val elementsMap = cacheService.getAllElements()
+        val statistics = cacheService.getStatistics()
+        
+        // 更新根节点显示统计信息
+        rootNode.userObject = "垃圾代码列表 (${statistics.totalElements} 个元素)"
 
-        elements.groupBy { it.containingFile }.forEach { (file, elements) ->
-            val fileNode = DefaultMutableTreeNode(file?.name ?: "Unknown File")
+        elementsMap.forEach { (filePath, elements) ->
+            val fileName = elements.firstOrNull()?.fileName ?: "Unknown File"
+            val fileNode = DefaultMutableTreeNode("$fileName (${elements.size})")
+            
             elements.forEach { element ->
-                val elementNode = DefaultMutableTreeNode(ElementInfo(element))
+                val elementNode = DefaultMutableTreeNode(ElementInfo(element.psiElement, element.name))
                 fileNode.add(elementNode)
             }
+            
             rootNode.add(fileNode)
         }
 
@@ -289,7 +307,10 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
             }
         }
 
-        if (elementsToDelete.isEmpty()) return
+        if (elementsToDelete.isEmpty()) {
+            Messages.showInfoMessage("请选择要删除的元素", "提示")
+            return
+        }
 
         val result = Messages.showYesNoDialog(
             project,
@@ -305,7 +326,8 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
             WriteCommandAction.runWriteCommandAction(project) {
                 try {
                     elementsToDelete.forEach { it.delete() }
-                    refreshTree()
+                    // 重新扫描以更新缓存
+                    cacheService.performFullScan()
                 } catch (e: Exception) {
                     success = false
                     errorMessage = e.message
@@ -321,16 +343,13 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 }
 
-data class ElementInfo(val element: PsiElement) {
+data class ElementInfo(val element: PsiElement, val displayName: String? = null) {
     override fun toString(): String {
-        return when (element) {
-            is KtClass -> "类: ${element.name}"
-            is KtFunction -> "函数: ${element.name}"
-            is KtProperty -> "属性: ${element.name}"
+        return displayName ?: when (element) {
             is PsiClass -> "类: ${element.name}"
             is PsiMethod -> "方法: ${element.name}"
             is PsiField -> "字段: ${element.name}"
-            else -> element.text
+            else -> element.toString()
         }
     }
 }

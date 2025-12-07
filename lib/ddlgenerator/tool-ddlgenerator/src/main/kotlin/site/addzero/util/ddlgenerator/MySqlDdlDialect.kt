@@ -1,9 +1,10 @@
 package site.addzero.util.ddlgenerator
 
+import site.addzero.util.lsi.clazz.LsiClass
+
 /**
  * MySQL 方言实现
  */
-@Single
 class MySqlDdlDialect : DdlDialect {
 
     override val databaseType: DatabaseType = DatabaseType.MYSQL

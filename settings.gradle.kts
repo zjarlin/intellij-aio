@@ -19,7 +19,7 @@ include(":checkouts:metaprogramming-lsi:lsi-kt")
 include(":checkouts:metaprogramming-lsi:lsi-reflection")
 include(":lib:ddlgenerator:tool-ddlgenerator")
 include(":lib:ddlgenerator:tool-ddlgenerator-core")
-include(":lib:ddlgenerator:tool-ddlgenerator-koin")
+//include(":lib:ddlgenerator:tool-ddlgenerator-koin") // 目录不存在，暂时注释
 include(":lib:ide-component-dynamicform")
 include(":plugins:gradle-buddy")
 include(":plugins:jar-deploy")

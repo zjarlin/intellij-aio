@@ -14,7 +14,8 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import org.jetbrains.kotlinx.dataframe.impl.toCamelCaseByDelimiters
+import site.addzero.gradle.buddy.util.StringUtils.toCamelCaseByDelimiters
+import site.addzero.gradle.buddy.util.StringUtils.toKebabCase
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
@@ -275,10 +276,6 @@ class VersionCatalogUpdateDependencyIntention : PsiElementBaseIntentionAction(),
             artifactId.startsWith(lastPart) -> artifactId.substringBefore("-").lowercase()
             else -> (parts + artifactId.toCamelCaseByDelimiters().toKebabCase()).joinToString("-")
         }
-    }
-
-    private fun String.toKebabCase(): String {
-        return this.replace(Regex("([a-z])([A-Z])"), "$1-$2").lowercase()
     }
 
     private fun getLineText(element: PsiElement): String {

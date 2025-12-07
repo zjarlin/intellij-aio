@@ -13,7 +13,8 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
-import org.jetbrains.kotlinx.dataframe.impl.toCamelCaseByDelimiters
+import site.addzero.gradle.buddy.util.StringUtils.toCamelCaseByDelimiters
+import site.addzero.gradle.buddy.util.StringUtils.toKebabCase
 import java.io.File
 
 /**
@@ -274,10 +275,6 @@ class VersionCatalogMigrator(private val project: Project) {
             artifactId.startsWith(lastPart) -> artifactId.substringBefore("-").lowercase()
             else -> (parts + artifactId.toCamelCaseByDelimiters().toKebabCase()).joinToString("-")
         }
-    }
-
-    private fun String.toKebabCase(): String {
-        return this.replace(Regex("([a-z])([A-Z])"), "$1-$2").lowercase()
     }
 
     private fun writeCatalogFile(catalog: CatalogData): VirtualFile? {

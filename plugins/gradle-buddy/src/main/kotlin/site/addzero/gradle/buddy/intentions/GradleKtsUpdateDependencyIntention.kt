@@ -60,14 +60,25 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
                 indicator.isIndeterminate = true
 
                 val latestVersion = runCatching {
-                    MavenCentralSearchUtil.getLatestVersion(dependencyInfo.groupId, dependencyInfo.artifactId)
+                    if (dependencyInfo.isGradlePlugin) {
+                        // 对于 Gradle 插件，使用插件 ID 查询
+                        getLatestGradlePluginVersion(dependencyInfo.groupId)
+                    } else {
+                        // 对于普通依赖，使用 Maven Central 查询
+                        MavenCentralSearchUtil.getLatestVersion(dependencyInfo.groupId, dependencyInfo.artifactId)
+                    }
                 }.getOrNull()
 
                 ApplicationManager.getApplication().invokeLater {
                     if (latestVersion == null) {
+                        val identifier = if (dependencyInfo.isGradlePlugin) {
+                            dependencyInfo.groupId // 插件 ID
+                        } else {
+                            "${dependencyInfo.groupId}:${dependencyInfo.artifactId}"
+                        }
                         Messages.showWarningDialog(
                             project,
-                            "Could not find latest version for ${dependencyInfo.groupId}:${dependencyInfo.artifactId}",
+                            "Could not find latest version for $identifier",
                             "Update Failed"
                         )
                         return@invokeLater
@@ -105,21 +116,67 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
 
     private fun detectGradleKtsDependency(element: PsiElement): DependencyInfo? {
         val lineText = getLineText(element)
+        
+        // 格式1: implementation("group:artifact:version")
+        val dependencyPattern = Regex("""(\w+)\s*\(\s*["']([^:]+):([^:]+):([^"']+)["']\s*\)""")
+        val depMatch = dependencyPattern.find(lineText)
+        if (depMatch != null) {
+            val (_, groupId, artifactId, version) = depMatch.destructured
+            return DependencyInfo(
+                groupId = groupId,
+                artifactId = artifactId,
+                currentVersion = version,
+                fullMatch = depMatch.value,
+                approximateOffset = element.textOffset - 100
+            )
+        }
+        
+        // 格式2: id("plugin.id") version "version" (settings.gradle.kts 插件)
+        val pluginPattern = Regex("""id\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["']""")
+        val pluginMatch = pluginPattern.find(lineText)
+        if (pluginMatch != null) {
+            val pluginId = pluginMatch.groupValues[1]
+            val version = pluginMatch.groupValues[2]
+            
+            // 使用插件 ID 作为 groupId 和 artifactId（用于显示）
+            // 实际查询时需要特殊处理
+            return DependencyInfo(
+                groupId = pluginId, // 插件 ID
+                artifactId = "", // 插件没有 artifactId
+                currentVersion = version,
+                fullMatch = pluginMatch.value,
+                approximateOffset = element.textOffset - 100,
+                isGradlePlugin = true
+            )
+        }
 
-        val pattern = Regex("""(\w+)\s*\(\s*["']([^:]+):([^:]+):([^"']+)["']\s*\)""")
-        val match = pattern.find(lineText) ?: return null
-
-        val (_, groupId, artifactId, version) = match.destructured
-
-        return DependencyInfo(
-            groupId = groupId,
-            artifactId = artifactId,
-            currentVersion = version,
-            fullMatch = match.value,
-            approximateOffset = element.textOffset - 100
-        )
+        return null
     }
 
+    /**
+     * 获取 Gradle 插件的最新版本
+     * 通过 Gradle Plugin Portal API 查询
+     */
+    private fun getLatestGradlePluginVersion(pluginId: String): String? {
+        return try {
+            val url = "https://plugins.gradle.org/m2/${pluginId.replace('.', '/')}/$pluginId.gradle.plugin/maven-metadata.xml"
+            val connection = java.net.URL(url).openConnection()
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            
+            val xml = connection.getInputStream().bufferedReader().readText()
+            
+            // 简单的 XML 解析，提取 <latest> 或 <release> 标签
+            val latestPattern = Regex("""<latest>([^<]+)</latest>""")
+            val releasePattern = Regex("""<release>([^<]+)</release>""")
+            
+            latestPattern.find(xml)?.groupValues?.get(1)
+                ?: releasePattern.find(xml)?.groupValues?.get(1)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
     private fun getLineText(element: PsiElement): String {
         val file = element.containingFile ?: return ""
         val document = file.viewProvider.document ?: return ""
@@ -135,6 +192,7 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
         val artifactId: String,
         val currentVersion: String,
         val fullMatch: String,
-        val approximateOffset: Int
+        val approximateOffset: Int,
+        val isGradlePlugin: Boolean = false
     )
 }

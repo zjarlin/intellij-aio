@@ -14,6 +14,13 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
   - `implementation`, `api`, `compileOnly`, `runtimeOnly`
   - `testImplementation`, `testCompileOnly`, `testRuntimeOnly`
   - `annotationProcessor`, `kapt`, `ksp`
+- **Gradle 插件版本更新**：在 settings.gradle.kts 中支持插件版本更新
+  - 支持 `id("plugin.id") version "version"` 格式
+  - 自动从 Gradle Plugin Portal 查询最新版本
+  - 与依赖版本更新使用相同的 Alt+Enter 意图操作
+- **字符串工具类**：新增 `StringUtils` 替代 dataframe 依赖
+  - `toCamelCaseByDelimiters()`: 转换为 camelCase
+  - `toKebabCase()`: 转换为 kebab-case
 - **测试覆盖**：新增 `OnDemandModuleLoaderTest` 单元测试
 - **文档完善**：新增 `RECURSIVE_DEPENDENCY_DETECTION.md` 详细说明递归依赖推导原理
 
@@ -28,6 +35,9 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
 ### 🐛 Fixed
 - 修复按需加载时可能遗漏传递依赖导致编译失败的问题
 - 修复注释掉的依赖被错误解析的问题
+- 修复缺失 `org.jetbrains.kotlinx.dataframe` 依赖导致的二进制不兼容问题
+  - 移除了对 dataframe 库的依赖
+  - 使用自实现的字符串工具函数替代
 
 ### 📝 Documentation
 - 更新 README 添加递归依赖推导功能说明

@@ -52,6 +52,10 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 
 ### ✨ 意图操作 (Alt+Enter)
 - **Update dependency to latest version**：在依赖声明上按 `Alt+Enter`，自动从 Maven Central 获取最新版本并更新
+- **支持多种格式**：
+  - `.gradle.kts` 文件中的依赖：`implementation("group:artifact:version")`
+  - `settings.gradle.kts` 文件中的插件：`id("plugin.id") version "version"`
+  - `libs.versions.toml` 文件中的 catalog 依赖
 
 ### 🔧 Version Catalog 依赖更新
 
@@ -106,24 +110,49 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 
 ## 意图操作 (Intention Actions)
 
-在 `.gradle.kts` 文件中，光标放在依赖声明上，按 `Alt+Enter` 可触发意图操作。
+在 `.gradle.kts` 或 `settings.gradle.kts` 文件中，光标放在依赖或插件声明上，按 `Alt+Enter` 可触发意图操作。
 
 ### Update dependency to latest version
 
-**痛点**：想升级依赖版本，但不知道最新版本是多少，还要去 Maven Central 查。
+**痛点**：想升级依赖或插件版本，但不知道最新版本是多少，还要去 Maven Central 或 Gradle Plugin Portal 查。
 
 **解决**：
-1. 光标放在依赖声明上，如 `implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.0")`
+1. 光标放在依赖或插件声明上
 2. 按 `Alt+Enter`
 3. 选择 **Update dependency to latest version**
-4. 插件自动查询 Maven Central，获取最新版本并替换
+4. 插件自动查询最新版本并替换
 
-```
+#### 支持的格式
+
+**1. Gradle 依赖（.gradle.kts）**
+```kotlin
 // 更新前
 implementation("com.google.guava:guava:31.0-jre")
 
 // 按 Alt+Enter 后自动更新
 implementation("com.google.guava:guava:33.0.0-jre")
+```
+
+**2. Gradle 插件（settings.gradle.kts）**
+```kotlin
+// 更新前
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "1.8.0"
+    id("site.addzero.gradle.plugin.repo-buddy") version "1.0.0"
+}
+
+// 按 Alt+Enter 后自动更新
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "1.9.20"
+    id("site.addzero.gradle.plugin.repo-buddy") version "2.0.0"
+}
+```
+
+**3. Version Catalog（libs.versions.toml）**
+```toml
+[libraries]
+# 将光标放在这一行，按 Alt+Enter 即可更新版本
+junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
 ```
 
 ---

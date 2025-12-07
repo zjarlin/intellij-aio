@@ -159,8 +159,9 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
      */
     private fun getLatestGradlePluginVersion(pluginId: String): String? {
         return try {
-            val url = "https://plugins.gradle.org/m2/${pluginId.replace('.', '/')}/$pluginId.gradle.plugin/maven-metadata.xml"
-            val connection = java.net.URL(url).openConnection()
+            val urlString = "https://plugins.gradle.org/m2/${pluginId.replace('.', '/')}/$pluginId.gradle.plugin/maven-metadata.xml"
+            val uri = java.net.URI(urlString)
+            val connection = uri.toURL().openConnection()
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
             

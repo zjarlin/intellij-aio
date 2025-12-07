@@ -38,6 +38,9 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
 - 修复缺失 `org.jetbrains.kotlinx.dataframe` 依赖导致的二进制不兼容问题
   - 移除了对 dataframe 库的依赖
   - 使用自实现的字符串工具函数替代
+- 修复 `URL(String)` 废弃 API 使用警告
+  - 使用 `URI.toURL()` 替代废弃的构造函数
+  - 兼容未来版本的 Java API 变更
 
 ### 📝 Documentation
 - 更新 README 添加递归依赖推导功能说明

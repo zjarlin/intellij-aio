@@ -1,0 +1,5 @@
+<!-- Database 插件相关扩展配置 -->
+<!-- 当 Database 插件可用时，这里的扩展会被加载 -->
+<idea-plugin>
+    <!-- 目前使用反射访问 Database API，无需额外扩展 -->
+</idea-plugin>

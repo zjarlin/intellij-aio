@@ -9,25 +9,19 @@
         
         <h2>功能特性</h2>
         <ul>
-            <li>自动/手动扫描项目中的POJO类</li>
+            <li>扫描项目中的POJO类（支持Java/Kotlin混编）</li>
             <li>可视化展示POJO元数据（类名、字段、注解等）</li>
             <li>多数据库方言DDL生成（MySQL/PostgreSQL/Oracle/H2/达梦/TaosDB）</li>
             <li>支持Jimmer框架特有注解解析</li>
-            <li>JTE模板引擎支持自定义代码生成</li>
-            <li>可扩展的元数据增强器（Extension Point）</li>
-            <li>导出元数据为JSON和Kotlin Data Class</li>
+            <li>完整Schema DDL生成（表、索引、外键、中间表）</li>
         </ul>
-        
-        <h2>扩展开发</h2>
-        <p>其他插件可以通过 metadataEnhancer 扩展点添加自定义的元数据解析器</p>
         
         <h2>使用方法</h2>
         <ol>
             <li>打开右侧 LSI Code Analyzer 工具窗口</li>
             <li>点击"扫描"按钮扫描项目POJO</li>
             <li>选择POJO查看字段详情</li>
-            <li>使用DDL生成功能生成各方言SQL</li>
-            <li>在模板配置Tab中自定义JTE模板</li>
+            <li>切换到DDL生成Tab生成各方言SQL</li>
         </ol>
     ]]></description>
 
@@ -35,19 +29,12 @@
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
 
-    <!-- 扩展点声明 -->
-    <extensionPoints>
-        <extensionPoint 
-            name="metadataEnhancer"
-            interface="site.addzero.lsi.analyzer.extension.LsiMetadataEnhancer"
-            dynamic="true"/>
-    </extensionPoints>
+    <!-- K2 模式兼容性声明 -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true" />
+    </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="site.addzero.lsi.analyzer.settings.PojoMetaSettingsService"/>
-        
-        <projectService serviceImplementation="site.addzero.lsi.analyzer.service.PojoScanService"/>
-
         <toolWindow id="LSI Code Analyzer"
                     anchor="right"
                     factoryClass="site.addzero.lsi.analyzer.toolwindow.PojoMetaToolWindowFactory"
@@ -55,12 +42,5 @@
                     secondary="false"/>
 
         <notificationGroup id="LSI Code Analyzer Notifications" displayType="BALLOON" isLogByDefault="true"/>
-        
-        <postStartupActivity implementation="site.addzero.lsi.analyzer.PojoMetaStartupActivity"/>
-    </extensions>
-    
-    <!-- 内置的 Jimmer 增强器 -->
-    <extensions defaultExtensionNs="site.addzero.lsi-code-analyzer">
-        <metadataEnhancer implementation="site.addzero.lsi.analyzer.extension.JimmerMetadataEnhancer"/>
     </extensions>
 </idea-plugin>

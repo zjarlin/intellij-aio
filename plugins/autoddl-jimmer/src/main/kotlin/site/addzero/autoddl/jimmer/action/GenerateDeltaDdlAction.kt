@@ -49,10 +49,8 @@ class GenerateDeltaDdlAction : AnAction() {
                 logPanel.logInfo("开始扫描项目中的 Jimmer 实体类...")
                 logPanel.logInfo("扫描包路径：${settings.scanPackages}")
 
-                val generator = DeltaDdlGenerator(project)
+                val generator = DeltaDdlGenerator(project, logPanel)
                 val entities = generator.scanJimmerEntities()
-
-                logPanel.logInfo("扫描完成，找到 ${entities.size} 个实体类")
 
                 if (entities.isEmpty()) {
                     logPanel.logError("未找到 Jimmer 实体类",

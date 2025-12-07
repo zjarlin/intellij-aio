@@ -3,24 +3,14 @@ plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
-
-dependencies {
-    intellijPlatform {
-        bundledPlugins(
-            "com.intellij.database",
-        )
-    }
-}
-
-
-
 dependencies {
     // LSI 核心依赖
     implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-database"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-intellij"))
     implementation(project(":checkouts:metaprogramming-lsi:lsi-psi"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-kt"))
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-kt2"))  // K2 Analysis API
+    implementation(project(":checkouts:metaprogramming-lsi:lsi-psiandkt"))
 
     // DDL Generator
     implementation(project(":lib:ddlgenerator:tool-ddlgenerator"))
@@ -38,4 +28,7 @@ dependencies {
     implementation(libs.tool.str)
     implementation(libs.tool.coll)
     implementation(libs.tool.io.codegen)
+
+    // YAML 解析（用于读取 Spring 配置）
+    implementation("org.yaml:snakeyaml:2.2")
 }

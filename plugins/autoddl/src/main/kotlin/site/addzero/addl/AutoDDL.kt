@@ -4,7 +4,6 @@ import site.addzero.addl.autoddlstarter.generator.IDatabaseGenerator.Companion.g
 import site.addzero.addl.autoddlstarter.generator.entity.DDLRangeContextUserInput
 import site.addzero.addl.autoddlstarter.generator.factory.DDLContextFactory4UserInputMetaInfo
 import site.addzero.util.ShowContentUtil.openTextInEditor
-import com.alibaba.fastjson2.JSON
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent

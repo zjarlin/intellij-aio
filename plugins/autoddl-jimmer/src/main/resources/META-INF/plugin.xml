@@ -43,7 +43,8 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <depends>org.jetbrains.kotlin</depends>
-    <depends>com.intellij.database</depends>
+    <!-- Database 插件为可选依赖，用于 SQL 自动执行功能 -->
+    <depends optional="true" config-file="database-features.xml">com.intellij.database</depends>
 
     <!-- K2 模式兼容性声明 -->
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

@@ -35,9 +35,9 @@ class JimmerDdlSettings : PersistentStateComponent<JimmerDdlSettings> {
     var generateRollback: Boolean = true
     
     /**
-     * 数据源名称（从 Database 插件获取）
+     * 选择的数据源名称（从 Spring 配置自动解析的多数据源中选择）
      */
-    var dataSourceName: String = ""
+    var selectedDataSourceName: String = ""
     
     /**
      * 是否包含索引
@@ -59,6 +59,24 @@ class JimmerDdlSettings : PersistentStateComponent<JimmerDdlSettings> {
      * 默认为空，表示扫描整个项目
      */
     var scanPackages: String = ""
+
+    // ========== 手动 JDBC 配置（当无法自动解析 Spring 配置时使用） ==========
+    
+    /**
+     * 手动配置的 JDBC URL
+     * 优先级高于自动解析
+     */
+    var manualJdbcUrl: String = ""
+    
+    /**
+     * 手动配置的 JDBC 用户名
+     */
+    var manualJdbcUsername: String = ""
+    
+    /**
+     * 手动配置的 JDBC 密码
+     */
+    var manualJdbcPassword: String = ""
     
     override fun getState(): JimmerDdlSettings = this
     

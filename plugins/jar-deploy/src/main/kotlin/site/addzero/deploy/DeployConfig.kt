@@ -72,13 +72,13 @@ enum class AuthType {
 class DeployTrigger : BaseState() {
     @get:Tag("targetName")
     var targetName by string("")
-    
+
     @get:Tag("triggerType")
     var triggerType by enum(TriggerType.MANUAL)
-    
+
     @get:Tag("gitBranch")
     var gitBranch by string("master")
-    
+
     @get:Tag("enabled")
     var enabled by property(true)
 }
@@ -95,16 +95,16 @@ enum class TriggerType {
 class BuildArtifact : BaseState() {
     @get:Tag("path")
     var path by string("")
-    
+
     @get:Tag("isDirectory")
     var isDirectory by property(false)
-    
+
     @get:Tag("enabled")
     var enabled by property(true)
-    
+
     fun getDisplayName(): String {
         // path 是非空字符串，所以不需要安全调用
-        val name = path.substringAfterLast("/", path)
+        val name = path?.substringAfterLast("/", path)
         return if (isDirectory) "📁 $name" else "📄 $name"
     }
 }
@@ -115,13 +115,13 @@ class BuildArtifact : BaseState() {
 class DeployConfiguration : BaseState() {
     @get:Tag("name")
     var name by string("")
-    
+
     @get:Tag("targetName")
     var targetName by string("")
-    
+
     @get:XCollection(style = XCollection.Style.v2)
     val artifacts by list<BuildArtifact>()
-    
+
     @get:Tag("enabled")
     var enabled by property(true)
 }
@@ -132,10 +132,10 @@ class DeployConfiguration : BaseState() {
 class JarDeployState : BaseState() {
     @get:XCollection(style = XCollection.Style.v2)
     val targets by list<DeployTarget>()
-    
+
     @get:XCollection(style = XCollection.Style.v2)
     val triggers by list<DeployTrigger>()
-    
+
     @get:XCollection(style = XCollection.Style.v2)
     val configurations by list<DeployConfiguration>()
 }

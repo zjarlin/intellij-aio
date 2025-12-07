@@ -39,6 +39,7 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 
 ### 🚀 核心功能
 - **按需加载**：打开文件时自动加载对应模块，未使用的模块不加载
+- **递归依赖推导**：自动分析并加载模块的所有依赖模块，确保项目能正常编译
 - **自动释放**：5 分钟未使用的模块自动释放，节省内存
 - **智能排除**：`build-logic`、`buildSrc` 等构建模块自动排除
 - **智能开关**：30+ 模块自动开启睡眠，小项目默认关闭，可手动覆盖
@@ -205,11 +206,77 @@ dependencies {
 
 ---
 
+## 递归依赖推导
+
+**新特性**：智能分析模块依赖关系，自动加载所有必需的依赖模块。
+
+### 工作原理
+
+当你打开一个文件时，插件会：
+
+1. 检测文件所属的模块（如 `:plugins:autoddl`）
+2. 解析该模块的 `build.gradle.kts` 文件
+3. 提取所有 project 依赖（支持两种格式）
+4. 递归处理每个依赖模块，直到找到完整的依赖树
+5. 将所有相关模块应用到 `settings.gradle.kts`
+
+### 支持的依赖格式
+
+#### 1. 标准 project() 格式
+```kotlin
+dependencies {
+    implementation(project(":lib:tool-swing"))
+    api(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    testImplementation(project(":lib:test-utils"))
+}
+```
+
+#### 2. Type-safe Project Accessors 格式
+```kotlin
+dependencies {
+    implementation(projects.lib.toolSwing)
+    api(projects.checkouts.metaprogrammingLsi.lsiCore)
+}
+```
+
+### 支持的依赖配置
+
+- `implementation`, `api`, `compileOnly`, `runtimeOnly`
+- `testImplementation`, `testCompileOnly`, `testRuntimeOnly`
+- `annotationProcessor`, `kapt`, `ksp`
+
+### 示例场景
+
+假设你打开了 `plugins/autoddl/src/main/kotlin/SomeClass.kt`：
+
+```
+打开的模块: :plugins:autoddl
+  ├─ 依赖: :checkouts:metaprogramming-lsi:lsi-core
+  │   ├─ 依赖: :checkouts:metaprogramming-lsi:lsi-reflection
+  │   └─ 依赖: (其他依赖...)
+  ├─ 依赖: :lib:tool-swing
+  │   └─ 依赖: :lib:tool-awt
+  └─ 依赖: :lib:tool-psi-toml
+      └─ (无进一步依赖)
+
+最终加载: 10+ 个模块（包括所有递归依赖）
+```
+
+**优势**：
+- ✅ 确保项目能正常编译和运行
+- ✅ 不需要手动管理依赖模块
+- ✅ 避免循环依赖导致的问题
+- ✅ 自动忽略注释掉的依赖
+
+更多详情请参见 [递归依赖推导文档](./RECURSIVE_DEPENDENCY_DETECTION.md)。
+
+---
+
 ## 快捷键汇总
 
 | 快捷键 | 功能 |
 |-------|------|
-| `Ctrl+Alt+Shift+L` | 只加载当前打开的模块 |
+| `Ctrl+Alt+Shift+L` | 只加载当前打开的模块（包含递归依赖） |
 | `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
 
 ---

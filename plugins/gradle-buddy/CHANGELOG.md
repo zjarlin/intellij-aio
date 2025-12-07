@@ -2,6 +2,39 @@
 
 All notable changes to the Gradle Buddy plugin will be documented in this file.
 
+## [Unreleased] - 2025-12-07
+
+### ✨ Added
+- **递归依赖推导**：自动分析并加载模块的所有依赖模块
+  - 支持 `project(":path:to:module")` 格式
+  - 支持 `projects.path.to.module` Type-safe accessors 格式
+  - 使用 BFS 算法避免循环依赖
+  - 自动忽略注释掉的依赖声明
+- **依赖配置支持**：支持所有 Gradle 依赖配置类型
+  - `implementation`, `api`, `compileOnly`, `runtimeOnly`
+  - `testImplementation`, `testCompileOnly`, `testRuntimeOnly`
+  - `annotationProcessor`, `kapt`, `ksp`
+- **测试覆盖**：新增 `OnDemandModuleLoaderTest` 单元测试
+- **文档完善**：新增 `RECURSIVE_DEPENDENCY_DETECTION.md` 详细说明递归依赖推导原理
+
+### 🔧 Changed
+- `detectModulesFromOpenFiles()` 现在返回包含递归依赖的完整模块集合
+- `OnDemandModuleLoader` 新增私有方法：
+  - `expandWithDependencies()`: 递归展开模块及其依赖
+  - `extractProjectDependencies()`: 从 build.gradle.kts 提取依赖
+  - `findBuildFile()`: 查找模块的构建文件
+  - `parseProjectDependencies()`: 解析依赖声明（支持两种格式）
+
+### 🐛 Fixed
+- 修复按需加载时可能遗漏传递依赖导致编译失败的问题
+- 修复注释掉的依赖被错误解析的问题
+
+### 📝 Documentation
+- 更新 README 添加递归依赖推导功能说明
+- 新增依赖格式示例和使用场景说明
+
+---
+
 ## [2025.11.33] - 2025-11-30
 
 ### ✨ Added

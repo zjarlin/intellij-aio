@@ -47,7 +47,9 @@ class PojoMetaToolWindowFactory : ToolWindowFactory, DumbAware {
 class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
     private val pojoTableModel = DefaultTableModel(arrayOf("类名", "包名", "字段数", "表名", "注释"), 0)
-    private val pojoTable = JBTable(pojoTableModel)
+    private val pojoTable = JBTable(pojoTableModel).apply {
+        setSelectionMode(javax.swing.ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+    }
     private val fieldTableModel = DefaultTableModel(arrayOf("字段名", "类型", "列名", "注释", "主键", "可空"), 0)
     private val fieldTable = JBTable(fieldTableModel)
     private val ddlOutputArea = JBTextArea().apply {
@@ -374,19 +376,26 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun generateDdlForSelected() {
-        val row = pojoTable.selectedRow
-        if (row < 0 || row >= currentPojoList.size) {
-            Messages.showWarningDialog("请先选择一个POJO", "提示")
+        val selectedRows = pojoTable.selectedRows
+        val selectedPojos = if (selectedRows.isNotEmpty()) {
+            selectedRows.filter { it in currentPojoList.indices }.map { currentPojoList[it] }
+        } else {
+            currentPojoList // 未选中时生成全部
+        }
+        
+        if (selectedPojos.isEmpty()) {
+            Messages.showWarningDialog("请先扫描POJO", "提示")
             return
         }
 
-        val pojo = currentPojoList[row]
         try {
             val ddl = ReadAction.compute<String, Throwable> {
-                pojo.toCreateTableDDL(selectedDialect)
+                selectedPojos.joinToString("\n\n") { pojo ->
+                    pojo.toCreateTableDDL(selectedDialect)
+                }
             }
             ddlOutputArea.text = ddl
-            statusLabel.text = "已生成 ${pojo.name} 的 ${selectedDialect.name} DDL"
+            statusLabel.text = "已生成 ${selectedPojos.size} 个表的 ${selectedDialect.name} DDL"
         } catch (e: Exception) {
             e.printStackTrace()
             Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")

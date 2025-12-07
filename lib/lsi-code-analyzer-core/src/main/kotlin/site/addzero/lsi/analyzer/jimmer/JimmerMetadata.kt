@@ -1,8 +1,7 @@
 package site.addzero.lsi.analyzer.jimmer
 
-import site.addzero.lsi.analyzer.metadata.FieldMetadata
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
 import site.addzero.util.lsi.clazz.LsiClass
+import site.addzero.util.lsi.field.LsiField
 
 enum class IdGenerationStrategy {
     AUTO, IDENTITY, SEQUENCE, USER
@@ -32,8 +31,8 @@ data class JimmerAssociation(
     val inverseJoinColumnName: String?
 )
 
-data class JimmerFieldMetadata(
-    val base: FieldMetadata,
+data class JimmerLsiField(
+    val base: LsiField,
     val columnInfo: JimmerColumnInfo?,
     val association: JimmerAssociation?,
     val isFormula: Boolean,
@@ -49,24 +48,23 @@ data class JimmerColumnInfo(
 )
 
 data class JimmerEntityMetadata(
-    val base: PojoMetadata,
+    val base: LsiClass,
     val tableInfo: JimmerTableInfo,
     val associations: List<JimmerAssociation>,
     val keys: List<JimmerKeyInfo>,
     val idStrategy: IdGenerationStrategy?,
-    val jimmerFields: List<JimmerFieldMetadata>
+    val jimmerFields: List<JimmerLsiField>
 ) {
     companion object {
         fun from(lsiClass: LsiClass): JimmerEntityMetadata {
-            val base = PojoMetadata.from(lsiClass)
             val tableInfo = extractTableInfo(lsiClass)
             val associations = extractAssociations(lsiClass)
             val keys = extractKeys(lsiClass)
             val idStrategy = extractIdStrategy(lsiClass)
-            val jimmerFields = extractJimmerFields(lsiClass, base.fields)
+            val jimmerFields = extractJimmerFields(lsiClass, lsiClass.fields)
 
             return JimmerEntityMetadata(
-                base = base,
+                base = lsiClass,
                 tableInfo = tableInfo,
                 associations = associations,
                 keys = keys,
@@ -147,9 +145,9 @@ data class JimmerEntityMetadata(
             }
         }
 
-        private fun extractJimmerFields(lsiClass: LsiClass, baseFields: List<FieldMetadata>): List<JimmerFieldMetadata> =
+        private fun extractJimmerFields(lsiClass: LsiClass, baseFields: List<LsiField>): List<JimmerLsiField> =
             lsiClass.fields.mapIndexed { index, lsiField ->
-                val baseField = baseFields.getOrElse(index) { FieldMetadata.from(lsiField) }
+                val baseField = baseFields.getOrElse(index) { lsiField }
                 val columnAnno = lsiField.annotations.find {
                     it.qualifiedName == JimmerAnnotations.COLUMN
                 }
@@ -187,7 +185,7 @@ data class JimmerEntityMetadata(
                     it.qualifiedName == JimmerAnnotations.DEFAULT
                 }
 
-                JimmerFieldMetadata(
+                JimmerLsiField(
                     base = baseField,
                     columnInfo = columnInfo,
                     association = association,

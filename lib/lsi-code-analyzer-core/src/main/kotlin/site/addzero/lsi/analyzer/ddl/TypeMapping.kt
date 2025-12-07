@@ -1,12 +1,13 @@
 package site.addzero.lsi.analyzer.ddl
 
-import site.addzero.lsi.analyzer.metadata.FieldMetadata
+import site.addzero.util.db.DatabaseType
+import site.addzero.util.lsi.field.LsiField
 
 /**
  * Java/Kotlin 类型到数据库类型的映射
  */
 object TypeMapping {
-    
+
     private val mysqlMapping = mapOf(
         "String" to "VARCHAR(255)",
         "java.lang.String" to "VARCHAR(255)",
@@ -38,7 +39,7 @@ object TypeMapping {
         "UUID" to "VARCHAR(36)",
         "java.util.UUID" to "VARCHAR(36)"
     )
-    
+
     private val postgresqlMapping = mapOf(
         "String" to "VARCHAR(255)",
         "java.lang.String" to "VARCHAR(255)",
@@ -70,7 +71,7 @@ object TypeMapping {
         "UUID" to "UUID",
         "java.util.UUID" to "UUID"
     )
-    
+
     private val oracleMapping = mapOf(
         "String" to "VARCHAR2(255)",
         "java.lang.String" to "VARCHAR2(255)",
@@ -102,9 +103,9 @@ object TypeMapping {
         "UUID" to "VARCHAR2(36)",
         "java.util.UUID" to "VARCHAR2(36)"
     )
-    
+
     private val dmMapping = oracleMapping // 达梦兼容Oracle
-    
+
     private val h2Mapping = mapOf(
         "String" to "VARCHAR(255)",
         "java.lang.String" to "VARCHAR(255)",
@@ -136,7 +137,7 @@ object TypeMapping {
         "UUID" to "UUID",
         "java.util.UUID" to "UUID"
     )
-    
+
     private val taosMapping = mapOf(
         "String" to "NCHAR(255)",
         "java.lang.String" to "NCHAR(255)",
@@ -162,53 +163,48 @@ object TypeMapping {
         "Instant" to "TIMESTAMP",
         "java.time.Instant" to "TIMESTAMP"
     )
-    
-    fun getColumnType(field: FieldMetadata, dialect: DatabaseDialect): String {
+
+    fun getColumnType(field: LsiField, dialect: DatabaseType): String {
         val mapping = when (dialect) {
-            DatabaseDialect.MYSQL -> mysqlMapping
-            DatabaseDialect.POSTGRESQL -> postgresqlMapping
-            DatabaseDialect.ORACLE -> oracleMapping
-            DatabaseDialect.DM -> dmMapping
-            DatabaseDialect.H2 -> h2Mapping
-            DatabaseDialect.TAOS -> taosMapping
-            DatabaseDialect.SQLITE -> mysqlMapping // SQLite 比较灵活
-            DatabaseDialect.SQLSERVER -> mysqlMapping // 简化处理
+            DatabaseType.MYSQL -> mysqlMapping
+            DatabaseType.POSTGRESQL -> postgresqlMapping
+            DatabaseType.ORACLE -> oracleMapping
+            DatabaseType.DAMENG -> dmMapping
+            DatabaseType.H2 -> h2Mapping
+            DatabaseType.SQLITE -> mysqlMapping // SQLite 比较灵活
+            DatabaseType.SQLSERVER -> mysqlMapping // 简化处理
+            DatabaseType.KINGBASE -> TODO()
+            DatabaseType.GAUSSDB -> TODO()
+            DatabaseType.OCEANBASE -> TODO()
+            DatabaseType.POLARDB -> TODO()
+            DatabaseType.TIDB -> TODO()
+            DatabaseType.DB2 -> TODO()
+            DatabaseType.SYBASE -> TODO()
         }
-        
-        val typeName = field.typeName.substringAfterLast('.')
-        val qualifiedName = field.typeQualifiedName
-        
-        return mapping[typeName] 
-            ?: mapping[qualifiedName] 
+
+        val typeName = (field.typeName ?: "").substringAfterLast('.')
+        val qualifiedName = field.type?.qualifiedName
+        return mapping[typeName]
+            ?: mapping[qualifiedName]
             ?: guessType(typeName, dialect)
     }
-    
-    private fun guessType(typeName: String, dialect: DatabaseDialect): String {
+
+    private fun guessType(typeName: String, dialect: DatabaseType): String {
         return when {
-            typeName.contains("String", ignoreCase = true) -> 
-                if (dialect == DatabaseDialect.ORACLE || dialect == DatabaseDialect.DM) "VARCHAR2(255)" else "VARCHAR(255)"
+            typeName.contains("String", ignoreCase = true) ->
+                if (dialect == DatabaseType.ORACLE || dialect == DatabaseType.DAMENG) "VARCHAR2(255)" else "VARCHAR(255)"
             typeName.contains("Int", ignoreCase = true) -> "INT"
             typeName.contains("Long", ignoreCase = true) -> "BIGINT"
             typeName.contains("Double", ignoreCase = true) || typeName.contains("Float", ignoreCase = true) -> "DOUBLE"
-            typeName.contains("Boolean", ignoreCase = true) -> 
-                if (dialect == DatabaseDialect.MYSQL) "TINYINT(1)" else "BOOLEAN"
+            typeName.contains("Boolean", ignoreCase = true) ->
+                if (dialect == DatabaseType.MYSQL) "TINYINT(1)" else "BOOLEAN"
             typeName.contains("Date", ignoreCase = true) || typeName.contains("Time", ignoreCase = true) -> "TIMESTAMP"
             else -> "VARCHAR(255)"
         }
     }
 }
 
-/**
- * 字段扩展函数
- */
-fun FieldMetadata.toColumnName(): String {
-    return columnName ?: name.toSnakeCase()
-}
-
-fun FieldMetadata.toColumnType(dialect: DatabaseDialect): String {
+fun LsiField.toColumnType(dialect: DatabaseType): String {
     return TypeMapping.getColumnType(this, dialect)
 }
 
-private fun String.toSnakeCase(): String {
-    return this.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase()
-}

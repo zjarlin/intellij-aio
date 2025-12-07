@@ -43,7 +43,7 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
 
     private val listeners = CopyOnWriteArrayList<(List<FileDiagnostics>) -> Unit>()
     private val debounceAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, this)
-    
+
     @Volatile
     private var latestDiagnostics: List<FileDiagnostics> = emptyList()
 
@@ -58,7 +58,7 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
 
     private fun setupListeners() {
         val connection = project.messageBus.connect(this)
-        
+
         connection.subscribe(
             DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC,
             object : DaemonCodeAnalyzer.DaemonListener {
@@ -67,7 +67,7 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
                 }
             }
         )
-        
+
         connection.subscribe(
             ProblemListener.TOPIC,
             object : ProblemListener {
@@ -112,9 +112,10 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
     fun collectDiagnostics(onComplete: (List<FileDiagnostics>) -> Unit) {
         doCollect(onComplete)
     }
-    
+
     private fun doCollect(onComplete: (List<FileDiagnostics>) -> Unit) {
-        if (DumbService.getInstance(project).isDumb) {
+        val instance = DumbService.getInstance(project)
+        if (instance.isDumb) {
             onComplete(emptyList())
             return
         }
@@ -135,9 +136,9 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
         val fileDocumentManager = FileDocumentManager.getInstance()
         val wolf = WolfTheProblemSolver.getInstance(project)
         val diagnosticsList = mutableListOf<FileDiagnostics>()
-        
+
         val sourceRoots = ProjectRootManager.getInstance(project).contentSourceRoots
-        
+
         sourceRoots.forEach { root ->
             VfsUtilCore.visitChildrenRecursively(root, object : VirtualFileVisitor<Unit>() {
                 override fun visitFile(file: VirtualFile): Boolean {
@@ -150,10 +151,10 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
                 }
             })
         }
-        
+
         return diagnosticsList.sortedBy { it.file.path }
     }
-    
+
     private fun collectFileDiagnostics(
         file: VirtualFile,
         psiManager: PsiManager,
@@ -162,7 +163,7 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
     ): FileDiagnostics? {
         val psiFile = psiManager.findFile(file) ?: return null
         val document = fileDocumentManager.getDocument(file) ?: return null
-        
+
         val items = try {
             val markupModel = DocumentMarkupModel.forDocument(document, project, false)
             markupModel?.allHighlighters
@@ -176,11 +177,11 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
         } catch (e: Exception) {
             emptyList()
         }
-        
+
         if (items.isNotEmpty()) {
             return FileDiagnostics(file, psiFile, items)
         }
-        
+
         // 如果没有 highlights 但 wolf 标记为问题文件，也记录
         if (wolf.isProblemFile(file)) {
             val item = DiagnosticItem(
@@ -192,7 +193,7 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
             )
             return FileDiagnostics(file, psiFile, listOf(item))
         }
-        
+
         return null
     }
 
@@ -260,31 +261,31 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
         val scope = AnalysisScope(project)
         val inspectionManager = InspectionManager.getInstance(project) as InspectionManagerEx
         val profile = InspectionProjectProfileManager.getInstance(project).currentProfile as InspectionProfileImpl
-        
+
         val problemsByFile = mutableMapOf<VirtualFile, MutableList<DiagnosticItem>>()
         val psiManager = PsiManager.getInstance(project)
-        
+
         ReadAction.run<Throwable> {
             val tools = profile.getAllEnabledInspectionTools(project)
             val totalTools = tools.size
-            
+
             tools.forEachIndexed { index, toolState ->
                 if (indicator.isCanceled) return@run
-                
+
                 indicator.fraction = index.toDouble() / totalTools
                 val wrapper = toolState.tool
                 indicator.text2 = "Running: ${wrapper.shortName}"
-                
+
                 runInspectionTool(wrapper, scope, psiManager, problemsByFile)
             }
         }
-        
+
         return problemsByFile.map { (vFile, items) ->
             val psiFile = psiManager.findFile(vFile)!!
             FileDiagnostics(vFile, psiFile, items.sortedBy { it.lineNumber })
         }.sortedBy { it.file.path }
     }
-    
+
     private fun runInspectionTool(
         toolWrapper: InspectionToolWrapper<*, *>,
         scope: AnalysisScope,
@@ -293,22 +294,22 @@ class DiagnosticCollectorService(private val project: Project) : Disposable {
     ) {
         try {
             val tool = toolWrapper.tool
-            
+
             if (tool is com.intellij.codeInspection.LocalInspectionTool) {
                 scope.accept { file ->
                     if (!isSourceFile(file)) return@accept true
-                    
+
                     val psiFile = psiManager.findFile(file) ?: return@accept true
                     val holder = com.intellij.codeInspection.ProblemsHolder(
-                        InspectionManager.getInstance(project), 
-                        psiFile, 
+                        InspectionManager.getInstance(project),
+                        psiFile,
                         false
                     )
-                    
+
                     try {
                         val visitor = tool.buildVisitor(holder, false)
                         psiFile.accept(visitor)
-                        
+
                         holder.results.forEach { descriptor ->
                             val vFile = psiFile.virtualFile ?: return@forEach
                             val lineNumber = descriptor.lineNumber + 1

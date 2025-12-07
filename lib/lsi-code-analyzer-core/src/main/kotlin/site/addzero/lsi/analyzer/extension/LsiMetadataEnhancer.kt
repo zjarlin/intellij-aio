@@ -1,6 +1,6 @@
 package site.addzero.lsi.analyzer.extension
 
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
+import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.util.lsi.clazz.LsiClass
 
 /**
@@ -27,7 +27,7 @@ interface LsiMetadataEnhancer<T> {
     fun support(lsiClass: LsiClass): Boolean
     
     /** 增强元数据，返回扩展后的元数据对象 */
-    fun enhance(lsiClass: LsiClass, base: PojoMetadata): T
+    fun enhance(lsiClass: LsiClass, base: LsiClass): T
     
     /** 获取扩展元数据的类型 */
     fun getEnhancedType(): Class<T>
@@ -56,7 +56,7 @@ object MetadataEnhancerRegistry {
         return enhancers.find { it.support(lsiClass) } as? LsiMetadataEnhancer<T>
     }
     
-    fun <T> enhance(lsiClass: LsiClass, base: PojoMetadata): Any? {
+    fun <T> enhance(lsiClass: LsiClass, base: LsiClass): Any? {
         return findEnhancer<T>(lsiClass)?.enhance(lsiClass, base)
     }
     

@@ -78,10 +78,10 @@ lib/ddlgenerator/
 ```kotlin
 interface SqlDialect {
     val name: String
-    fun mapJavaType(column: ColumnDefinition): String
-    fun formatColumnDefinition(column: ColumnDefinition): String
-    fun formatCreateTable(table: TableDefinition): String
-    fun formatAlterTable(table: TableDefinition): List<String>
+    fun mapJavaType(column:LsiField): String
+    fun formatColumnDefinition(column:LsiField): String
+    fun formatCreateTable(table:LsiClass): String
+    fun formatAlterTable(table:LsiClass): List<String>
 }
 ```
 
@@ -121,19 +121,19 @@ println(createTableSql)
 class MyDatabaseDialect : SqlDialect {
     override val name = "mydb"
     
-    override fun mapJavaType(column: ColumnDefinition): String {
+    override fun mapJavaType(column:LsiField): String {
         // 实现类型映射
     }
     
-    override fun formatColumnDefinition(column: ColumnDefinition): String {
+    override fun formatColumnDefinition(column:LsiField): String {
         // 实现列定义格式化
     }
     
-    override fun formatCreateTable(table: TableDefinition): String {
+    override fun formatCreateTable(table:LsiClass): String {
         // 实现 CREATE TABLE 格式化
     }
     
-    override fun formatAlterTable(table: TableDefinition): List<String> {
+    override fun formatAlterTable(table:LsiClass): List<String> {
         // 实现 ALTER TABLE 格式化
     }
 }

@@ -5,7 +5,7 @@ import site.addzero.ddl.core.model.ColumnDefinition
 /**
  * MySQL方言
  */
-class MysqlDialect : AbstractSqlDialect() {
+class MysqlDialect : AbstractIDdlGen() {
 
     init {
         // 注册默认类型映射
@@ -27,7 +27,7 @@ class MysqlDialect : AbstractSqlDialect() {
 
     override val name: String = "mysql"
 
-    override fun mapJavaType(column: ColumnDefinition): String {
+    override fun mapJavaType(column:LsiField): String {
         val javaType = column.javaType
 
         // 使用注册的类型映射
@@ -87,7 +87,7 @@ class MysqlDialect : AbstractSqlDialect() {
     }
 
     // 覆盖基类方法以处理MySQL特定的列定义（自增和NULL处理）
-    override fun getBaseColumnDefinitionParts(column: ColumnDefinition): List<String> {
+    override fun getBaseColumnDefinitionParts(column:LsiField): List<String> {
         val parts = super.getBaseColumnDefinitionParts(column).toMutableList()
 
         // MySQL特定的NULL处理

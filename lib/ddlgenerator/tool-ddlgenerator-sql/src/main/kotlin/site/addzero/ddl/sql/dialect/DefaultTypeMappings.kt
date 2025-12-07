@@ -8,7 +8,7 @@ object DefaultTypeMappings {
     /**
      * 注册默认的类型映射到方言
      */
-    fun registerDefaults(dialect: AbstractSqlDialect) {
+    fun registerDefaults(dialect: AbstractIDdlGen) {
         // 整型映射
         dialect.registerTypeMapping { column ->
             when (column.javaType) {

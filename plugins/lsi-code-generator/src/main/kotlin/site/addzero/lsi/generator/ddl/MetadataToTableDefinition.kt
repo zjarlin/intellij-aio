@@ -1,14 +1,13 @@
 package site.addzero.lsi.generator.ddl
 
 import site.addzero.ddl.core.model.ColumnDefinition
-import site.addzero.ddl.core.model.TableDefinition
-import site.addzero.lsi.analyzer.metadata.FieldMetadata
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
+import site.addzero.lsi.analyzer.metadata.LsiField
+import site.addzero.lsi.analyzer.metadata.LsiClass
 
-fun PojoMetadata.toTableDefinition(): TableDefinition {
+fun LsiClass.toTableDefinition():LsiClass {
     val columns = dbFields.map { it.toColumnDefinition() }
     val primaryKey = columns.find { it.primaryKey }?.name
-    
+
     return TableDefinition(
         name = tableName ?: className.camelToSnake(),
         comment = comment?.extractFirstLine() ?: className,
@@ -17,7 +16,7 @@ fun PojoMetadata.toTableDefinition(): TableDefinition {
     )
 }
 
-fun FieldMetadata.toColumnDefinition(): ColumnDefinition {
+fun LsiField.toColumnDefinition():LsiField {
     return ColumnDefinition(
         name = columnName ?: name.camelToSnake(),
         javaType = typeQualifiedName ?: "java.lang.String",

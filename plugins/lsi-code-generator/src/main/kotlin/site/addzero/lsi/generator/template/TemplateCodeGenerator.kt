@@ -1,19 +1,20 @@
 package site.addzero.lsi.generator.template
 
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
+import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.lsi.generator.contract.CodeGenerator
+import site.addzero.tool.template.freemarker.FreemarkerTemplateEngine
 import java.nio.file.Path
 
 class TemplateCodeGenerator(
     private val templateDir: Path,
     private val templateName: String
-) : CodeGenerator<PojoMetadata, String> {
+) : CodeGenerator<LsiClass, String> {
     
-    private val engine = JteTemplateEngine.createForDevelopment(templateDir)
+    private val engine = FreemarkerTemplateEngine.createForDevelopment(templateDir)
     
-    override fun support(input: PojoMetadata): Boolean = true
+    override fun support(input: LsiClass): Boolean = true
     
-    override fun generate(input: PojoMetadata): String {
+    override fun generate(input: LsiClass): String {
         return engine.render(templateName, input)
     }
 }
@@ -23,7 +24,7 @@ class TemplateMapCodeGenerator(
     private val templateName: String
 ) : CodeGenerator<Map<String, Any?>, String> {
     
-    private val engine = JteTemplateEngine.createForDevelopment(templateDir)
+    private val engine = FreemarkerTemplateEngine.createForDevelopment(templateDir)
     
     override fun support(input: Map<String, Any?>): Boolean = true
     

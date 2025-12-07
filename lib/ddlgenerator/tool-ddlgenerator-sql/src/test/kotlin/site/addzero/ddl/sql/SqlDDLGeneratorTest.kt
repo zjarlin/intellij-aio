@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import site.addzero.ddl.core.model.ColumnDefinition
-import site.addzero.ddl.core.model.TableDefinition
 import site.addzero.ddl.sql.dialect.*
 
 @DisplayName("SqlDDLGenerator 测试")
@@ -30,7 +29,7 @@ class SqlDDLGeneratorTest {
             SqlDialectRegistry.register(TdengineDialect())
         }
     }
-    
+
     @BeforeEach
     fun setup() {
         mysqlGenerator = SqlDDLGenerator.forDatabase("mysql")
@@ -246,7 +245,7 @@ class SqlDDLGeneratorTest {
         assertTrue(sql.contains("datetime_field"))
     }
 
-    private fun createTestTable(): TableDefinition {
+    private fun createTestTable():LsiClass {
         return TableDefinition(
             name = "sys_user",
             comment = "系统用户表",

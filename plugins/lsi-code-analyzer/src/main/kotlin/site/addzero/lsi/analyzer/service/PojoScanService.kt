@@ -16,8 +16,8 @@ import org.jetbrains.jps.model.java.JavaSourceRootType
 import org.jetbrains.kotlin.idea.base.util.projectScope
 import site.addzero.json2kotlin.Json2Kotlin
 import site.addzero.lsi.analyzer.cache.MetadataCacheManager
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
-import site.addzero.lsi.analyzer.scanner.PojoMetadataScanner
+import site.addzero.lsi.analyzer.metadata.LsiClass
+import site.addzero.lsi.analyzer.scanner.LsiClassScanner
 import site.addzero.lsi.analyzer.settings.PojoMetaSettingsService
 import site.addzero.util.lsi_impl.impl.intellij.virtualfile.toAllLsiClassesUnified
 import java.io.File
@@ -29,20 +29,20 @@ import java.util.concurrent.CopyOnWriteArrayList
 class PojoScanService(private val project: Project) {
 
     private var timer: Timer? = null
-    private val scanner = PojoMetadataScanner()
-    private val listeners = CopyOnWriteArrayList<(List<PojoMetadata>) -> Unit>()
+    private val scanner = LsiClassScanner()
+    private val listeners = CopyOnWriteArrayList<(List<LsiClass>) -> Unit>()
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     @Volatile
-    private var lastScanResult: List<PojoMetadata> = emptyList()
+    private var lastScanResult: List<LsiClass> = emptyList()
 
-    fun getLastScanResult(): List<PojoMetadata> = lastScanResult
+    fun getLastScanResult(): List<LsiClass> = lastScanResult
 
-    fun addScanListener(listener: (List<PojoMetadata>) -> Unit) {
+    fun addScanListener(listener: (List<LsiClass>) -> Unit) {
         listeners.add(listener)
     }
 
-    fun removeScanListener(listener: (List<PojoMetadata>) -> Unit) {
+    fun removeScanListener(listener: (List<LsiClass>) -> Unit) {
         listeners.remove(listener)
     }
     fun startScheduledScan(intervalMinutes: Int) {
@@ -64,7 +64,7 @@ class PojoScanService(private val project: Project) {
         timer = null
     }
 
-    fun scanNowAsync(callback: ((List<PojoMetadata>) -> Unit)? = null) {
+    fun scanNowAsync(callback: ((List<LsiClass>) -> Unit)? = null) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 // 等待索引完成
@@ -85,7 +85,7 @@ class PojoScanService(private val project: Project) {
         }
     }
 
-    fun scanNow(): List<PojoMetadata> {
+    fun scanNow(): List<LsiClass> {
         if (project.isDisposed) return emptyList()
 
         val result = runReadAction {
@@ -119,7 +119,7 @@ class PojoScanService(private val project: Project) {
         lastScanResult = result
 
         val projectPath = project.basePath ?: return result
-        MetadataCacheManager.savePojoMetadata(projectPath, result)
+        MetadataCacheManager.saveLsiClass(projectPath, result)
 
         listeners.forEach { it.invoke(result) }
         return result
@@ -133,11 +133,11 @@ class PojoScanService(private val project: Project) {
         }
     }
 
-    fun loadFromJson(path: Path): List<PojoMetadata> {
+    fun loadFromJson(path: Path): List<LsiClass> {
         val file = path.toFile()
         if (!file.exists()) return emptyList()
         return try {
-            gson.fromJson(file.readText(), Array<PojoMetadata>::class.java).toList()
+            gson.fromJson(file.readText(), Array<LsiClass>::class.java).toList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -152,9 +152,9 @@ class PojoScanService(private val project: Project) {
         generatedDir.mkdirs()
 
         val json = gson.toJson(lastScanResult)
-        val result = Json2Kotlin.convert(json, "PojoMetadataList", "pojoMetadataList", "site.addzero.generated.pojometa")
+        val result = Json2Kotlin.convert(json, "LsiClassList", "LsiClassList", "site.addzero.generated.pojometa")
 
-        val outputFile = File(generatedDir, "site/addzero/generated/pojometa/PojoMetadataList.kt")
+        val outputFile = File(generatedDir, "site/addzero/generated/pojometa/LsiClassList.kt")
         outputFile.parentFile?.mkdirs()
         outputFile.writeText(result.fullCode)
 

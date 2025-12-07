@@ -1,30 +1,29 @@
 package site.addzero.lsi.generator.ddl
 
-import site.addzero.ddl.sql.SqlDDLGenerator
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
+import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.lsi.generator.contract.BatchCodeGenerator
 
 class DDLCodeGenerator private constructor(
     private val dialect: String
-) : BatchCodeGenerator<PojoMetadata, DDLResult> {
-    
+) : BatchCodeGenerator<LsiClass, DDLResult> {
+
     private val generator: SqlDDLGenerator by lazy {
         SqlDDLGenerator.forDatabase(dialect)
     }
-    
+
     companion object {
         fun forDialect(dialect: String): DDLCodeGenerator = DDLCodeGenerator(dialect)
-        
+
         fun forJdbcUrl(jdbcUrl: String): DDLCodeGenerator {
             val dialect = inferDialectFromUrl(jdbcUrl)
             return DDLCodeGenerator(dialect)
         }
-        
+
         fun mysql(): DDLCodeGenerator = DDLCodeGenerator("mysql")
         fun postgresql(): DDLCodeGenerator = DDLCodeGenerator("postgresql")
         fun oracle(): DDLCodeGenerator = DDLCodeGenerator("oracle")
         fun h2(): DDLCodeGenerator = DDLCodeGenerator("h2")
-        
+
         private fun inferDialectFromUrl(jdbcUrl: String): String {
             val lowerUrl = jdbcUrl.lowercase()
             return when {
@@ -39,17 +38,17 @@ class DDLCodeGenerator private constructor(
             }
         }
     }
-    
-    override fun support(input: PojoMetadata): Boolean {
+
+    override fun support(input: LsiClass): Boolean {
         return input.dbFields.isNotEmpty()
     }
-    
-    override fun generate(input: PojoMetadata): DDLResult {
+
+    override fun generate(input: LsiClass): DDLResult {
         val tableDefinition = input.toTableDefinition()
-        
+
         val createTable = generator.generateCreateTable(tableDefinition)
         val alterTable = generator.generateAlterTableAddColumn(tableDefinition)
-        
+
         return DDLResult(
             tableName = tableDefinition.name,
             className = input.className,

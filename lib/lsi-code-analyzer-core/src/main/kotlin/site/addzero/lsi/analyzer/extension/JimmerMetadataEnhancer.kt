@@ -2,7 +2,7 @@ package site.addzero.lsi.analyzer.extension
 
 import site.addzero.lsi.analyzer.jimmer.JimmerAnnotations
 import site.addzero.lsi.analyzer.jimmer.JimmerEntityMetadata
-import site.addzero.lsi.analyzer.metadata.PojoMetadata
+import site.addzero.lsi.analyzer.metadata.LsiClass
 import site.addzero.util.lsi.clazz.LsiClass
 
 /**
@@ -21,7 +21,7 @@ class JimmerMetadataEnhancer : LsiMetadataEnhancer<JimmerEntityMetadata> {
         return JimmerAnnotations.isJimmerEntity(annotationNames)
     }
     
-    override fun enhance(lsiClass: LsiClass, base: PojoMetadata): JimmerEntityMetadata {
+    override fun enhance(lsiClass: LsiClass, base: LsiClass): JimmerEntityMetadata {
         return JimmerEntityMetadata.from(lsiClass)
     }
     

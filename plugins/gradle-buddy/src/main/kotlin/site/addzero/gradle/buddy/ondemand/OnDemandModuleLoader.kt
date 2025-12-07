@@ -54,17 +54,121 @@ object OnDemandModuleLoader {
     }
 
     /**
-     * 从打开的文件推导模块路径
+     * 从打开的文件推导模块路径（包含递归依赖）
      * @return 模块路径集合，格式如 ":plugins:gradle-buddy"
      */
     fun detectModulesFromOpenFiles(project: Project): Set<String> {
         val openFiles = getOpenEditorFiles(project)
         val projectBasePath = project.basePath ?: return emptySet()
 
-        return openFiles
+        val directModules = openFiles
             .mapNotNull { file -> detectModulePath(file, projectBasePath) }
             .filter { it != ":" } // 排除根项目
             .toSet()
+        
+        // 递归推导依赖模块
+        return expandWithDependencies(project, directModules)
+    }
+    
+    /**
+     * 递归展开模块及其依赖
+     */
+    private fun expandWithDependencies(project: Project, modules: Set<String>): Set<String> {
+        val result = mutableSetOf<String>()
+        val visited = mutableSetOf<String>()
+        val queue = modules.toMutableList()
+        
+        while (queue.isNotEmpty()) {
+            val modulePath = queue.removeFirst()
+            if (modulePath in visited) continue
+            
+            visited.add(modulePath)
+            result.add(modulePath)
+            
+            // 解析此模块的依赖
+            val dependencies = extractProjectDependencies(project, modulePath)
+            dependencies.forEach { dep ->
+                if (dep !in visited) {
+                    queue.add(dep)
+                }
+            }
+        }
+        
+        return result
+    }
+    
+    /**
+     * 从模块的 build.gradle.kts 文件中提取项目依赖
+     */
+    private fun extractProjectDependencies(project: Project, modulePath: String): Set<String> {
+        val buildFile = findBuildFile(project, modulePath) ?: return emptySet()
+        
+        return try {
+            val content = String(buildFile.contentsToByteArray())
+            parseProjectDependencies(content)
+        } catch (e: Exception) {
+            logger.warn("Failed to parse dependencies for $modulePath", e)
+            emptySet()
+        }
+    }
+    
+    /**
+     * 查找模块的 build.gradle.kts 文件
+     */
+    private fun findBuildFile(project: Project, modulePath: String): VirtualFile? {
+        val projectBasePath = project.basePath ?: return null
+        val moduleRelativePath = modulePath.removePrefix(":").replace(':', '/')
+        val moduleDirPath = File(projectBasePath, moduleRelativePath)
+        
+        val buildFileKts = File(moduleDirPath, "build.gradle.kts")
+        if (buildFileKts.exists()) {
+            return VfsUtil.findFileByIoFile(buildFileKts, true)
+        }
+        
+        val buildFile = File(moduleDirPath, "build.gradle")
+        if (buildFile.exists()) {
+            return VfsUtil.findFileByIoFile(buildFile, true)
+        }
+        
+        return null
+    }
+    
+    /**
+     * 解析 build.gradle.kts 内容，提取项目依赖
+     * 支持两种格式:
+     * 1. [配置](project(":path:to:module"))  - 如 implementation(project(":lib:tool-awt"))
+     * 2. [配置](projects.path.to.module)     - 如 implementation(projects.lib.toolAwt)
+     * 
+     * 支持的配置: implementation, api, compileOnly, runtimeOnly, testImplementation, testCompileOnly 等
+     */
+    private fun parseProjectDependencies(content: String): Set<String> {
+        val dependencies = mutableSetOf<String>()
+        
+        // 移除注释行，避免匹配到注释掉的依赖
+        val effectiveContent = content.lines()
+            .filterNot { it.trim().startsWith("//") }
+            .joinToString("\n")
+        
+        // 格式1: project(":path:to:module")
+        // 匹配任何依赖配置 + project()，如: implementation(project(":xxx"))
+        val projectPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*project\(\s*["']([^"']+)["']\s*\)""")
+        projectPattern.findAll(effectiveContent).forEach { match ->
+            dependencies.add(match.groupValues[1])
+        }
+        
+        // 格式2: projects.path.to.module
+        // 匹配任何依赖配置 + projects.xxx，如: implementation(projects.lib.toolAwt)
+        val projectsPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*projects\.([a-zA-Z0-9.]+)""")
+        projectsPattern.findAll(effectiveContent).forEach { match ->
+            val projectAccessor = match.groupValues[1]
+            // 转换 path.to.module -> :path:to:module
+            // 注意: Gradle type-safe accessors 会将 kebab-case 转成 camelCase
+            // 例如 tool-awt -> toolAwt，这里我们先简单转换，实际可能需要更复杂的逻辑
+            val modulePath = ":${projectAccessor.replace('.', ':')}"
+            dependencies.add(modulePath)
+        }
+        
+        return dependencies
     }
 
     /**

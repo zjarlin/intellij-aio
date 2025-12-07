@@ -2,15 +2,22 @@ package site.addzero.shitcode.toolwindow
 
 import site.addzero.shitcode.service.CacheUpdateListener
 import site.addzero.shitcode.service.ShitCodeCacheService
+import site.addzero.shitcode.settings.ShitCodeSettingsService
 import com.intellij.icons.AllIcons
+import com.intellij.ide.highlighter.JavaFileType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.psi.*
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
+import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.psi.*
 import java.awt.BorderLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -36,9 +43,9 @@ class ShitCodeToolWindow : ToolWindowFactory {
 }
 
 class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
-    private val tree: Tree
-    private val treeModel: DefaultTreeModel
     private val rootNode = DefaultMutableTreeNode("垃圾代码列表")
+    private val treeModel = DefaultTreeModel(rootNode)
+    private val tree = Tree(treeModel)
     private val cacheService = ShitCodeCacheService.getInstance(project)
     
     // 缓存更新监听器
@@ -47,8 +54,6 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     init {
-        treeModel = DefaultTreeModel(rootNode)
-        tree = Tree(treeModel)
         tree.isRootVisible = true
         tree.selectionModel.selectionMode = TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION
 
@@ -121,12 +126,14 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         
         // 从缓存获取数据
         val elementsMap = cacheService.getAllElements()
+        @Suppress("UNUSED_VARIABLE")
         val statistics = cacheService.getStatistics()
         
         // 更新根节点显示统计信息
-        rootNode.userObject = "垃圾代码列表 (${statistics.totalElements} 个元素)"
+        val totalElements = elementsMap.values.sumOf { it.size }
+        rootNode.userObject = "垃圾代码列表 ($totalElements 个元素)"
 
-        elementsMap.forEach { (filePath, elements) ->
+        elementsMap.forEach { (_, elements) ->
             val fileName = elements.firstOrNull()?.fileName ?: "Unknown File"
             val fileNode = DefaultMutableTreeNode("$fileName (${elements.size})")
             
@@ -142,147 +149,7 @@ class ShitCodePanel(private val project: Project) : JPanel(BorderLayout()) {
         tree.expandRow(0)
     }
 
-    private fun findAnnotatedElements(): List<PsiElement> {
-        if (DumbService.getInstance(project).isDumb) {
-            Messages.showWarningDialog(
-                project,
-                "索引正在构建中，请稍后再试",
-                "提示"
-            )
-            return emptyList()
-        }
 
-        val elements = mutableListOf<PsiElement>()
-        // 使用 projectScope 并排除库文件
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiManager = PsiManager.getInstance(project)
-        val annotationName = ShitCodeSettingsService.getInstance().state.shitAnnotation
-
-        ApplicationManager.getApplication().runReadAction {
-            // 扫描 Kotlin 文件
-            val ktFiles = com.intellij.psi.search.FileTypeIndex.getFiles(
-                KotlinFileType.INSTANCE,
-                scope
-            )
-
-            for (virtualFile in ktFiles) {
-                // 跳过构建目录和测试资源
-                if (virtualFile.path.contains("/build/") || 
-                    virtualFile.path.contains("/out/") ||
-                    virtualFile.path.contains("/.gradle/")) {
-                    continue
-                }
-                
-                val ktFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
-                
-                // 扫描类
-                ktFile.declarations.forEach { declaration ->
-                    when (declaration) {
-                        is KtClass -> {
-                            if (hasAnnotation(declaration, annotationName)) {
-                                elements.add(declaration)
-                            }
-                            // 扫描类中的成员
-                            declaration.declarations.forEach { member ->
-                                when (member) {
-                                    is KtFunction -> {
-                                        if (hasAnnotation(member, annotationName)) {
-                                            elements.add(member)
-                                        }
-                                    }
-                                    is KtProperty -> {
-                                        if (hasAnnotation(member, annotationName)) {
-                                            elements.add(member)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        is KtFunction -> {
-                            if (hasAnnotation(declaration, annotationName)) {
-                                elements.add(declaration)
-                            }
-                        }
-                        is KtProperty -> {
-                            if (hasAnnotation(declaration, annotationName)) {
-                                elements.add(declaration)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 扫描 Java 文件
-            val javaFiles = com.intellij.psi.search.FileTypeIndex.getFiles(
-                JavaFileType.INSTANCE,
-                scope
-            )
-
-            for (virtualFile in javaFiles) {
-                // 跳过构建目录和测试资源
-                if (virtualFile.path.contains("/build/") || 
-                    virtualFile.path.contains("/out/") ||
-                    virtualFile.path.contains("/.gradle/")) {
-                    continue
-                }
-                
-                val javaFile = psiManager.findFile(virtualFile) as? PsiJavaFile ?: continue
-                
-                javaFile.classes.forEach { psiClass ->
-                    if (hasJavaAnnotation(psiClass, annotationName)) {
-                        elements.add(psiClass)
-                    }
-                    
-                    // 扫描方法
-                    psiClass.methods.forEach { method ->
-                        if (hasJavaAnnotation(method, annotationName)) {
-                            elements.add(method)
-                        }
-                    }
-                    
-                    // 扫描字段
-                    psiClass.fields.forEach { field ->
-                        if (hasJavaAnnotation(field, annotationName)) {
-                            elements.add(field)
-                        }
-                    }
-                }
-            }
-        }
-
-        return elements
-    }
-    
-    /**
-     * 检查 Kotlin 元素是否有指定注解
-     */
-    private fun hasAnnotation(element: KtAnnotated, annotationName: String): Boolean {
-        return element.annotationEntries.any { annotation ->
-            val shortName = annotation.shortName?.asString()
-            val fullName = annotation.typeReference?.text
-            
-            // 匹配短名称或完全限定名
-            shortName == annotationName || 
-            fullName == annotationName ||
-            fullName?.endsWith(".$annotationName") == true
-        }
-    }
-    
-    /**
-     * 检查 Java 元素是否有指定注解
-     */
-    private fun hasJavaAnnotation(element: PsiModifierListOwner, annotationName: String): Boolean {
-        val annotations = element.modifierList?.annotations ?: return false
-        return annotations.any { annotation ->
-            val qualifiedName = annotation.qualifiedName
-            val shortName = annotation.nameReferenceElement?.referenceName
-            
-            // 匹配短名称或完全限定名
-            shortName == annotationName ||
-            qualifiedName == annotationName ||
-            qualifiedName?.endsWith(".$annotationName") == true
-        }
-    }
 
     private fun handleTreeNodeDoubleClick(path: TreePath) {
         val node = path.lastPathComponent as? DefaultMutableTreeNode ?: return

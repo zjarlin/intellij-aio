@@ -11,7 +11,7 @@
     <ul>
         <li>🚀 <b>Right-Click Deploy</b>: Right-click any JAR file and deploy to configured servers</li>
         <li>🔗 <b>IDE SSH Integration</b>: Reuses IDE's existing SSH configurations</li>
-        <li>⚡ <b>Git Push Trigger</b>: Auto-deploy on git push to specific branches</li>
+        <li>⚡ <b>Git-Push Trigger</b>: Auto-deployment on git-push to specific branches</li>
         <li>📋 <b>Pre/Post Commands</b>: Run commands before and after deployment</li>
         <li>🎯 <b>JAR-Target Mapping</b>: Remember which JAR deploys to which server</li>
     </ul>
@@ -37,21 +37,6 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Project Service for Settings -->
-        <projectService
-            serviceImplementation="site.addzero.deploy.JarDeploySettings"/>
-
-        <!-- Project Service for SSH Deploy -->
-        <projectService
-            serviceImplementation="site.addzero.deploy.SshDeployService"/>
-
-        <!-- Project Service for Deploy Session -->
-        <projectService
-            serviceImplementation="site.addzero.deploy.pipeline.DeploySessionService"/>
-
-        <!-- Project Service for Git Ref Change Detection -->
-        <projectService
-            serviceImplementation="site.addzero.deploy.git.GitRefChangeService"/>
 
         <!-- Startup Activity to initialize Git monitoring -->
         <postStartupActivity

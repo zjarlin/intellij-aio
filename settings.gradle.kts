@@ -11,8 +11,8 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-07T17:16:44.618782
-// Loaded: 13, Excluded: 0, Total: 13
+// Generated at: 2025-12-07T18:41:00.763469
+// Loaded: 17, Excluded: 0, Total: 17
 include(":checkouts:metaprogramming-lsi:lsi-core")
 include(":checkouts:metaprogramming-lsi:lsi-database")
 include(":checkouts:metaprogramming-lsi:lsi-kt")
@@ -21,10 +21,14 @@ include(":lib:ddlgenerator:tool-ddlgenerator")
 include(":lib:ddlgenerator:tool-ddlgenerator-core")
 include(":lib:ddlgenerator:tool-ddlgenerator-koin")
 include(":lib:ide-component-dynamicform")
-// include(":lib:tool-database")
+include(":lib:lsi-code-analyzer-core")
+include(":lib:tool-database")
+include(":plugins:autoddl")
+include(":plugins:autoddl-jimmer")
 include(":plugins:gradle-buddy")
 include(":plugins:jar-deploy")
 include(":plugins:lsi-code-generator")
+include(":plugins:maven-buddy")
 include(":plugins:problem4ai")
 // <<< Gradle Buddy: End Of Block <<<
 

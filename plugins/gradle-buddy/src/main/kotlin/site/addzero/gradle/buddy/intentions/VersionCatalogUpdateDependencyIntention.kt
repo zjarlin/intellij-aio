@@ -1,6 +1,7 @@
 package site.addzero.gradle.buddy.intentions
 
 import com.intellij.codeInsight.intention.IntentionAction
+import com.intellij.codeInsight.intention.PriorityAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.application.ApplicationManager
@@ -26,8 +27,12 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
  * - junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
  * - junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
  * - junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version = "5.10.0" }
+ * 
+ * Priority: HIGH - 在版本目录文件中优先显示此intention
  */
-class VersionCatalogUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction {
+class VersionCatalogUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction, PriorityAction {
+
+    override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
     override fun getFamilyName(): String = "Gradle buddy"
 

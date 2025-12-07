@@ -1,0 +1,114 @@
+<!-- noinspection SpellCheckingInspection -->
+<idea-plugin>
+    <id>site.addzero.autoddl.jimmer</id>
+    <name>AutoDDL for Jimmer</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+    
+    <resource-bundle>messages.AutoDDLJimmerBundle</resource-bundle>
+
+    <description><![CDATA[
+        <h3>Jimmer DDL Delta Generation and Execution Plugin</h3>
+        <ul>
+            <li>Automatically scan Jimmer entity classes</li>
+            <li>Compare with database table structures</li>
+            <li>Generate delta DDL statements (CREATE/ALTER)</li>
+            <li>Optional SQL auto-execution (requires Database Tools plugin)</li>
+            <li>Support multiple databases (MySQL, PostgreSQL, Oracle, etc.)</li>
+        </ul>
+
+        <h4>Usage</h4>
+        <ol>
+            <li>Right-click project → AutoDDL Jimmer → Generate Delta DDL</li>
+            <li>View generated DDL files</li>
+            <li>(Optional) Configure database connection to enable auto-execution</li>
+        </ol>
+
+        <h4>Notes</h4>
+        <p>
+            Auto-execution requires Database Tools and SQL plugin (bundled in IntelliJ IDEA Ultimate).<br/>
+            Community Edition users can use DDL generation and execute SQL files manually.
+        </p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h4>Version 1.0.0</h4>
+        <ul>
+            <li>初始版本</li>
+            <li>支持差量 DDL 生成</li>
+            <li>支持可选自动执行</li>
+        </ul>
+    ]]></change-notes>
+
+    <!-- 依赖 -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
+    <depends>com.intellij.database</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 配置界面 -->
+        <!-- noinspection SpellCheckingInspection -->
+        <projectConfigurable
+            instance="site.addzero.autoddl.jimmer.settings.JimmerDdlConfigurable"
+            key="settings.displayName"
+            bundle="messages.AutoDDLJimmerBundle"
+            parentId="tools"/>
+
+        <!-- 工具窗口 -->
+        <!-- noinspection SpellCheckingInspection -->
+        <toolWindow
+            id="Jimmer DDL"
+            anchor="bottom"
+            factoryClass="site.addzero.autoddl.jimmer.toolwindow.JimmerDdlToolWindowFactory"
+            icon="AllIcons.Toolwindows.ToolWindowBuild"/>
+
+        <!-- 状态栏 Widget (右上角图标) -->
+        <!-- noinspection SpellCheckingInspection -->
+        <statusBarWidgetFactory
+            id="JimmerDdl.EntityChange"
+            implementation="site.addzero.autoddl.jimmer.notification.EntityChangeWidgetFactory"
+            order="after git"/>
+
+        <!-- 通知组 -->
+        <!-- noinspection SpellCheckingInspection -->
+        <notificationGroup
+            id="AutoDDL.Jimmer"
+            displayType="BALLOON"
+            key="notification.group.name"
+            bundle="messages.AutoDDLJimmerBundle"/>
+    </extensions>
+
+    <projectListeners>
+        <!-- 文件变更监听器 -->
+        <!-- noinspection SpellCheckingInspection -->
+        <listener
+            class="site.addzero.autoddl.jimmer.listener.JimmerEntityChangeListener"
+            topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </projectListeners>
+
+    <actions>
+        <!-- 右键菜单：生成差量DDL -->
+        <!-- noinspection SpellCheckingInspection -->
+        <action
+            id="autoddl.jimmer.generate"
+            class="site.addzero.autoddl.jimmer.action.GenerateDeltaDdlAction"
+            text="Generate Delta DDL"
+            icon="AllIcons.Actions.Execute">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- 工具栏：快速生成并执行 -->
+        <!-- noinspection SpellCheckingInspection -->
+        <action
+            id="autoddl.jimmer.generate.execute"
+            class="site.addzero.autoddl.jimmer.action.GenerateAndExecuteDdlAction"
+            text="Generate &amp; Execute DDL"
+            icon="AllIcons.Actions.Execute">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

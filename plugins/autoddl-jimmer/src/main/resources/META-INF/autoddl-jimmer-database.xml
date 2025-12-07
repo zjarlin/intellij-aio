@@ -1,0 +1,15 @@
+<idea-plugin>
+    <!-- 
+        此文件仅在 com.intellij.database 插件可用时加载
+        适用于 IntelliJ IDEA Ultimate 版本
+    -->
+    
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 这里可以添加需要 Database Tools 的扩展 -->
+        <!-- 例如：数据库连接相关的配置界面、SQL执行器等 -->
+    </extensions>
+    
+    <actions>
+        <!-- 数据库相关的 Action 可以放在这里 -->
+    </actions>
+</idea-plugin>

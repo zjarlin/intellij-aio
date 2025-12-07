@@ -1,6 +1,7 @@
 package site.addzero.gradle.buddy.intentions
 
 import com.intellij.codeInsight.intention.IntentionAction
+import com.intellij.codeInsight.intention.PriorityAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.application.ApplicationManager
@@ -21,8 +22,12 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
  * 
  * This intention action allows updating Gradle KTS dependencies in .gradle.kts files to their latest versions
  * by fetching version information from Maven Central.
+ * 
+ * Priority: HIGH - 在依赖声明上时优先显示此intention
  */
-class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction {
+class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction, PriorityAction {
+
+    override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
     override fun getFamilyName(): String = "Gradle buddy"
 

@@ -2,7 +2,6 @@ Gradle Buddy: Smart Module Loading for Large Gradle Projects
 
 > **核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
 
-## 痛点 (Pain Points)
 
 ### 你是否遇到过这些问题？
 

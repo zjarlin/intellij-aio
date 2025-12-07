@@ -1,6 +1,5 @@
 package site.addzero.autoddl.jimmer.toolwindow
 
-import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import java.awt.BorderLayout
@@ -15,12 +14,12 @@ import javax.swing.table.DefaultTableModel
  * DDL 日志面板
  * 记录差量 SQL 执行情况
  */
-class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
-    
+class DdlLogPanel() : JPanel(BorderLayout()) {
+
     private val tableModel = LogTableModel()
     private val table = JBTable(tableModel)
     private val scrollPane = JBScrollPane(table)
-    
+
     // 工具栏
     private val toolbar = JToolBar().apply {
         isFloatable = false
@@ -32,27 +31,27 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         })
         addSeparator()
         add(JLabel("  总计: "))
-        add(JLabel("0").apply { 
-            name = "totalCount" 
+        add(JLabel("0").apply {
+            name = "totalCount"
         })
         add(JLabel("  成功: "))
-        add(JLabel("0").apply { 
+        add(JLabel("0").apply {
             name = "successCount"
             foreground = Color(0, 128, 0)
         })
         add(JLabel("  失败: "))
-        add(JLabel("0").apply { 
+        add(JLabel("0").apply {
             name = "failedCount"
             foreground = Color.RED
         })
     }
-    
+
     init {
         setupTable()
         add(toolbar, BorderLayout.NORTH)
         add(scrollPane, BorderLayout.CENTER)
     }
-    
+
     private fun setupTable() {
         // 设置列宽
         table.columnModel.getColumn(0).preferredWidth = 150  // 时间
@@ -60,7 +59,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         table.columnModel.getColumn(2).preferredWidth = 80   // 状态
         table.columnModel.getColumn(3).preferredWidth = 500  // SQL/消息
         table.columnModel.getColumn(4).preferredWidth = 200  // 详情
-        
+
         // 状态列着色
         table.columnModel.getColumn(2).cellRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(
@@ -82,10 +81,10 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
                 return component
             }
         }
-        
+
         table.autoResizeMode = JTable.AUTO_RESIZE_LAST_COLUMN
     }
-    
+
     /**
      * 记录开始生成
      */
@@ -100,7 +99,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         ))
         scrollToBottom()
     }
-    
+
     /**
      * 记录生成完成
      */
@@ -116,7 +115,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         scrollToBottom()
         updateStatistics()
     }
-    
+
     /**
      * 记录SQL执行
      */
@@ -133,7 +132,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         scrollToBottom()
         updateStatistics()
     }
-    
+
     /**
      * 记录批量执行
      */
@@ -149,7 +148,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         scrollToBottom()
         updateStatistics()
     }
-    
+
     /**
      * 记录错误
      */
@@ -165,7 +164,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         scrollToBottom()
         updateStatistics()
     }
-    
+
     /**
      * 记录信息
      */
@@ -180,7 +179,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         ))
         scrollToBottom()
     }
-    
+
     /**
      * 清空日志
      */
@@ -188,7 +187,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         tableModel.rowCount = 0
         updateStatistics()
     }
-    
+
     /**
      * 导出日志
      */
@@ -201,7 +200,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
             JOptionPane.showMessageDialog(this, "日志已导出到：${file.absolutePath}")
         }
     }
-    
+
     /**
      * 导出为文本
      */
@@ -210,7 +209,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
         sb.appendLine("=== DDL 执行日志 ===")
         sb.appendLine("导出时间：${LocalDateTime.now()}")
         sb.appendLine()
-        
+
         for (i in 0 until tableModel.rowCount) {
             sb.appendLine("[${tableModel.getValueAt(i, 0)}] " +
                     "[${tableModel.getValueAt(i, 1)}] " +
@@ -222,10 +221,10 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
             sb.appendLine()
         }
-        
+
         return sb.toString()
     }
-    
+
     /**
      * 滚动到底部
      */
@@ -237,7 +236,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
         }
     }
-    
+
     /**
      * 更新统计信息
      */
@@ -246,7 +245,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
             var totalCount = 0
             var successCount = 0
             var failedCount = 0
-            
+
             for (i in 0 until tableModel.rowCount) {
                 val status = tableModel.getValueAt(i, 2).toString()
                 totalCount++
@@ -255,7 +254,7 @@ class DdlLogPanel(private val project: Project) : JPanel(BorderLayout()) {
                     "FAILED" -> failedCount++
                 }
             }
-            
+
             // 更新工具栏统计
             (toolbar.components.find { (it as? JLabel)?.name == "totalCount" } as? JLabel)?.text = totalCount.toString()
             (toolbar.components.find { (it as? JLabel)?.name == "successCount" } as? JLabel)?.text = successCount.toString()

@@ -74,10 +74,6 @@
         <notificationGroup id="AutoDDL Notifications" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>
 
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true"/>
-    </extensions>
-
     <!--   <extensions defaultExtensionNs="org.jetbrains.kotlin">-->
     <!--    <supportsKotlinPluginMode supportsK1="false" supportsK2="true" />-->
     <!--</extensions> -->

@@ -45,10 +45,6 @@
     <depends>org.jetbrains.kotlin</depends>
     <depends>com.intellij.database</depends>
 
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true"/>
-    </extensions>
-
     <extensions defaultExtensionNs="com.intellij">
         <!-- 配置界面 -->
         <!-- noinspection SpellCheckingInspection -->

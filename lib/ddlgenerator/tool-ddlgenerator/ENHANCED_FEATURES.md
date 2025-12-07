@@ -69,15 +69,37 @@ fun LsiField.getDatabaseColumnType(): DatabaseColumnType {
 }
 ```
 
-### 2. Key 注解索引生成
+### 2. Key 注解索引生成（含联合索引）
 
 #### 实现位置
 - `lsi-database/src/main/kotlin/site/addzero/util/lsi/database/LsiClassIndexExt.kt`
 
 #### 功能说明
-- 自动识别 `@Key` 注解字段并生成索引
-- 识别 `@Unique` 注解或 `@Column(unique=true)` 生成唯一索引
-- 提供索引定义数据模型
+- ✅ 自动识别 `@Key` 注解字段并生成**唯一索引**（Jimmer的@Key是唯一键）
+- ✅ 支持 `@Key(group="groupName")` **联合唯一索引**
+- ✅ 识别 `@Unique` 注解或 `@Column(unique=true)` 生成唯一索引
+- ✅ 提供索引定义数据模型
+
+#### Jimmer @Key 注解说明
+
+Jimmer 框架的 `@Key` 注解有两种用法：
+
+1. **单字段唯一键**：`@Key`
+   ```kotlin
+   @Key
+   val username: String
+   ```
+   生成：`CREATE UNIQUE INDEX uk_user_username ON user (username);`
+
+2. **联合唯一键**：`@Key(group="groupName")`
+   ```kotlin
+   @Key(group = "business_key")
+   val tenantId: Long
+   
+   @Key(group = "business_key")
+   val orderNo: String
+   ```
+   生成：`CREATE UNIQUE INDEX uk_order_business_key ON order (tenantId, orderNo);`
 
 #### 数据模型
 ```kotlin
@@ -100,6 +122,7 @@ enum class IndexType {
 // 检查字段是否为索引
 val LsiField.isKey: Boolean
 val LsiField.isUnique: Boolean
+val LsiField.keyGroup: String?  // 获取@Key的group参数
 
 // 获取类的所有索引定义
 val indexes = lsiClass.getIndexDefinitions()
@@ -109,9 +132,54 @@ val indexDdl = lsiClass.toIndexesDDL(DatabaseType.MYSQL)
 ```
 
 #### 生成的SQL示例
+
+**单字段唯一索引**：
 ```sql
-CREATE INDEX `idx_user_username` ON `user` (`username`);
+CREATE UNIQUE INDEX `uk_user_username` ON `user` (`username`);
 CREATE UNIQUE INDEX `uk_user_email` ON `user` (`email`);
+```
+
+**联合唯一索引**：
+```sql
+-- @Key(group="business_key") on tenantId and orderNo
+CREATE UNIQUE INDEX `uk_order_business_key` ON `order` (`tenantId`, `orderNo`);
+
+-- @Key(group="category_code") on categoryId and code
+CREATE UNIQUE INDEX `uk_product_category_code` ON `product` (`categoryId`, `code`);
+```
+
+#### 完整示例
+
+```kotlin
+@Entity
+@Table(name = "sales_order")
+class SalesOrder(
+    @Id val id: Long,
+    
+    // 联合唯一键：租户ID + 订单号
+    @Key(group = "uk_tenant_orderno")
+    val tenantId: Long,
+    
+    @Key(group = "uk_tenant_orderno")
+    val orderNo: String,
+    
+    val customerName: String,
+    val totalAmount: BigDecimal
+)
+```
+
+生成的DDL：
+```sql
+CREATE TABLE `sales_order` (
+  `id` BIGINT NOT NULL PRIMARY KEY,
+  `tenantId` BIGINT,
+  `orderNo` VARCHAR(255),
+  `customerName` VARCHAR(255),
+  `totalAmount` DECIMAL
+);
+
+CREATE UNIQUE INDEX `uk_salesorder_uk_tenant_orderno` 
+ON `sales_order` (`tenantId`, `orderNo`);
 ```
 
 ### 3. JoinColumn 外键生成（增强）

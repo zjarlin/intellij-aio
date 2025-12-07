@@ -12,6 +12,10 @@ import site.addzero.util.lsi.database.*
  * PostgreSQL方言的DDL生成策略
  */
 class PostgreSqlDdlStrategy : DdlGenerationStrategy {
+    
+    private val columnTypeMapper = PostgreSqlColumnTypeMapper()
+
+    override fun getColumnTypeMapper() = columnTypeMapper
 
     override fun supports(dialect: DatabaseType): Boolean {
         return dialect == DatabaseType.POSTGRESQL

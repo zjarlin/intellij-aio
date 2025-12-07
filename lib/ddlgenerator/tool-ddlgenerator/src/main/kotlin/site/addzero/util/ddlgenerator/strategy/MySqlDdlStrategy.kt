@@ -12,6 +12,10 @@ import site.addzero.util.lsi.database.*
  * MySQL方言的DDL生成策略
  */
 class MySqlDdlStrategy : DdlGenerationStrategy {
+    
+    private val columnTypeMapper = MySqlColumnTypeMapper()
+
+    override fun getColumnTypeMapper() = columnTypeMapper
 
     override fun supports(dialect: DatabaseType): Boolean {
         return dialect == DatabaseType.MYSQL

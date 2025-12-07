@@ -14,8 +14,24 @@ import site.addzero.util.lsi.database.getDatabaseForeignKeys
  * 通过 ServiceLoader 机制自动发现和加载不同数据库的实现
  *
  * 注意：此接口通常不需要直接使用，推荐使用 LsiClass 和 LsiField 的扩展函数
+ * 
+ * 设计原则：
+ * 1. 每个策略应实现自己的ColumnTypeMapper来处理类型映射
+ * 2. 支持数据库特有类型的扩展
+ * 3. getColumnTypeName方法保留用于向后兼容
  */
 interface DdlGenerationStrategy {
+    
+    /**
+     * 获取此策略的列类型映射器
+     * 
+     * 推荐做法：每个策略实现自己的ColumnTypeMapper
+     * 例如：MySqlColumnTypeMapper, PostgreSqlColumnTypeMapper
+     * 
+     * @return 列类型映射器，如果为null则使用旧的getColumnTypeName方法
+     */
+    fun getColumnTypeMapper(): ColumnTypeMapper? = null
+    
     /**
      * 检查此策略是否支持给定的数据库方言
      */
@@ -91,7 +107,13 @@ interface DdlGenerationStrategy {
 
     /**
      * 获取特定列类型的数据库表示形式
+     * 
+     * @deprecated 使用 getColumnTypeMapper() 代替，以获得更好的数据库特有类型支持
      */
+    @Deprecated(
+        message = "Use getColumnTypeMapper() instead for better database-specific type support",
+        replaceWith = ReplaceWith("getColumnTypeMapper()?.mapFieldToColumnType(field)")
+    )
     fun getColumnTypeName(columnType: DatabaseColumnType, precision: Int? = null, scale: Int? = null): String
 
     /**

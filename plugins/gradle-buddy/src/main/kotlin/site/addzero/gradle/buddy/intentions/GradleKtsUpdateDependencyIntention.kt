@@ -2,7 +2,6 @@ package site.addzero.gradle.buddy.intentions
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
-import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
@@ -19,20 +18,20 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
  * Gradle KTS Update Dependency Intention
- * 
+ *
  * This intention action allows updating Gradle KTS dependencies in .gradle.kts files to their latest versions
  * by fetching version information from Maven Central.
- * 
+ *
  * Priority: HIGH - 在依赖声明上时优先显示此intention
  */
-class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), IntentionAction, PriorityAction {
+class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
     override fun getFamilyName(): String = "Gradle buddy"
 
     override fun getText(): String = "Update dependency to latest version"
-    
+
     fun getDescription(): String = "Fetches the latest version from Maven Central and updates the Gradle KTS dependency declaration."
 
     override fun startInWriteAction(): Boolean = false
@@ -41,24 +40,22 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
         return IntentionPreviewInfo.Html("Fetches the latest version from Maven Central and updates the Gradle KTS dependency.")
     }
 
-    override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
-        val file = element.containingFile ?: return false
-        val fileName = file.name
+    override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
+        if (!file.name.endsWith(".gradle.kts")) return false
 
-        return when {
-            fileName.endsWith(".gradle.kts") -> detectGradleKtsDependency(element) != null
-            else -> false
-        }
+        // Find the current caret position and check if there's a dependency at that location
+        val offset = editor?.caretModel?.offset ?: 0
+        val element = file.findElementAt(offset)
+        return element != null && detectGradleKtsDependency(element) != null
     }
 
-    override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
-        val file = element.containingFile ?: return
-        val fileName = file.name
+    override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
+        if (!file.name.endsWith(".gradle.kts")) return
 
-        val dependencyInfo = when {
-            fileName.endsWith(".gradle.kts") -> detectGradleKtsDependency(element)
-            else -> null
-        } ?: return
+        val offset = editor?.caretModel?.offset ?: 0
+        val element = file.findElementAt(offset) ?: return
+
+        val dependencyInfo = detectGradleKtsDependency(element) ?: return
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching latest version...", true) {
             override fun run(indicator: ProgressIndicator) {
@@ -121,7 +118,7 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
 
     private fun detectGradleKtsDependency(element: PsiElement): DependencyInfo? {
         val lineText = getLineText(element)
-        
+
         // 格式1: implementation("group:artifact:version")
         val dependencyPattern = Regex("""(\w+)\s*\(\s*["']([^:]+):([^:]+):([^"']+)["']\s*\)""")
         val depMatch = dependencyPattern.find(lineText)
@@ -135,14 +132,14 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
                 approximateOffset = element.textOffset - 100
             )
         }
-        
+
         // 格式2: id("plugin.id") version "version" (settings.gradle.kts 插件)
         val pluginPattern = Regex("""id\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["']""")
         val pluginMatch = pluginPattern.find(lineText)
         if (pluginMatch != null) {
             val pluginId = pluginMatch.groupValues[1]
             val version = pluginMatch.groupValues[2]
-            
+
             // 使用插件 ID 作为 groupId 和 artifactId（用于显示）
             // 实际查询时需要特殊处理
             return DependencyInfo(
@@ -169,24 +166,28 @@ class GradleKtsUpdateDependencyIntention : PsiElementBaseIntentionAction(), Inte
             val connection = uri.toURL().openConnection()
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
-            
+
             val xml = connection.getInputStream().bufferedReader().readText()
-            
+
             // 简单的 XML 解析，提取 <latest> 或 <release> 标签
             val latestPattern = Regex("""<latest>([^<]+)</latest>""")
             val releasePattern = Regex("""<release>([^<]+)</release>""")
-            
+
             latestPattern.find(xml)?.groupValues?.get(1)
                 ?: releasePattern.find(xml)?.groupValues?.get(1)
         } catch (e: Exception) {
             null
         }
     }
-    
+
     private fun getLineText(element: PsiElement): String {
         val file = element.containingFile ?: return ""
-        val document = file.viewProvider.document ?: return ""
         val offset = element.textOffset
+        return getLineTextFromFile(file, offset)
+    }
+
+    private fun getLineTextFromFile(file: PsiFile, offset: Int): String {
+        val document = file.viewProvider.document ?: return ""
         val lineNumber = document.getLineNumber(offset)
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)

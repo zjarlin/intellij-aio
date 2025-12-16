@@ -6,16 +6,19 @@ import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * Gradle KTS Hardcoded Dependency to TOML Intention
  *
  * This intention action allows converting hardcoded dependency strings in build.gradle.kts files
- * to TOML format and replaces the original hardcoded string with a version catalog reference.
+ * to TOML version catalog format and replaces the original hardcoded string with a version catalog reference.
  *
  * Priority: HIGH - 在硬编码依赖声明上时优先显示此intention
  *
@@ -27,12 +30,12 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "Convert hardcoded dependency to TOML format"
+    override fun getText(): String = "Convert dependency to version catalog (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Converts hardcoded dependency to TOML format.")
+        return IntentionPreviewInfo.Html("Converts hardcoded dependency to use version catalog reference.")
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -40,7 +43,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset)
-        return element != null && detectHardcodedDependency(element) != null
+        return element != null && findHardcodedDependency(element) != null
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -49,110 +52,182 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return
 
-        val dependencyInfo = detectHardcodedDependency(element) ?: return
+        val dependencyInfo = findHardcodedDependency(element) ?: return
 
         WriteCommandAction.runWriteCommandAction(project) {
-            convertHardcodedDependencyToToml(file, dependencyInfo)
+            convertToVersionCatalog(file, dependencyInfo)
         }
     }
 
-    private fun convertHardcodedDependencyToToml(file: PsiFile, info: HardcodedDependencyInfo) {
-        val document = file.viewProvider.document ?: return
-        val text = document.text
+    private fun findHardcodedDependency(element: PsiElement): DependencyInfo? {
+        // 向上查找 KtCallExpression
+        val callExpr = element.parentOfType<KtCallExpression>(true) ?: return null
 
-        // 生成 TOML 格式的库声明
-        val libraryName = generateLibraryName(info)
-        val tomlFormat = generateTomlFormat(info, libraryName)
+        // 检查是否是依赖声明
+        val callee = callExpr.calleeExpression?.text ?: return null
+        if (!isDependencyConfiguration(callee)) return null
 
-        // 替换原始硬编码依赖
-        val startOffset = text.indexOf(info.originalText, info.approximateOffset.coerceAtLeast(0))
-        if (startOffset >= 0) {
-            val endOffset = startOffset + info.originalText.length
-            val catalogReference = "libs.$libraryName"
-            document.replaceString(startOffset, endOffset, catalogReference)
-
-            // 在文件末尾添加 TOML 格式注释
-            val comment = "\n\n# Add to libs.versions.toml:\n# $tomlFormat"
-            document.insertString(document.textLength, comment)
-        }
+        // 提取依赖信息
+        return extractDependencyInfo(callExpr, callee)
     }
 
-    private fun generateLibraryName(info: HardcodedDependencyInfo): String {
-        // 根据 group ID 和 artifact ID 生成库名
-        val groupPart = info.groupId.split(".").last()
-        val artifactPart = info.artifactId.split("-").joinToString("") { part ->
-            part.replaceFirstChar { it.uppercase() }
+    private fun isDependencyConfiguration(callee: String): Boolean {
+        val dependencyConfigurations = setOf(
+            "implementation", "api", "compileOnly", "runtimeOnly",
+            "testImplementation", "testApi", "testCompileOnly", "testRuntimeOnly",
+            "androidTestImplementation", "androidTestApi", "androidTestCompileOnly", "androidTestRuntimeOnly",
+            "debugImplementation", "releaseImplementation", "kapt", "ksp",
+            "annotationProcessor", "lintChecks"
+        )
+        return callee in dependencyConfigurations
+    }
+
+    private fun extractDependencyInfo(callExpr: KtCallExpression, configuration: String): DependencyInfo? {
+        // 获取第一个参数（依赖字符串）
+        val firstArg = callExpr.valueArguments.firstOrNull() ?: return null
+
+        // 提取字符串内容
+        val dependencyString = when (val arg = firstArg.getArgumentExpression()) {
+            is KtStringTemplateExpression -> arg.text.trim('"', '\'')
+            else -> return null
         }
+
+        // 解析依赖字符串格式
+        // 支持格式:
+        // 1. "group:artifact:version"
+        // 2. "group:artifact:version@classifier"
+        // 3. "group:artifact:version:extension@classifier"
+        val parts = dependencyString.split(":")
+        if (parts.size < 3) return null
+
+        val groupId = parts[0]
+        val artifactId = parts[1]
+        var version = parts[2]
+        var classifier: String? = null
+        var extension: String? = null
+
+        // 处理扩展和分类器
+        if (parts.size > 3) {
+            if (parts[3].contains("@")) {
+                val extParts = parts[3].split("@")
+                extension = extParts[0]
+                classifier = extParts.getOrNull(1)
+            } else {
+                extension = parts[3]
+                if (parts.size > 4 && parts[4].startsWith("@")) {
+                    classifier = parts[4].substring(1)
+                }
+            }
+        }
+
+        // 检查是否已经是版本目录引用
+        if (dependencyString.startsWith("libs.") || dependencyString.contains(".libs.")) {
+            return null
+        }
+
+        return DependencyInfo(
+            groupId = groupId,
+            artifactId = artifactId,
+            version = version,
+            classifier = classifier,
+            extension = extension,
+            configuration = configuration,
+            originalText = callExpr.text,
+            element = callExpr
+        )
+    }
+
+    private fun convertToVersionCatalog(file: PsiFile, info: DependencyInfo) {
+        val document = PsiDocumentManager.getInstance(file.project).getDocument(file) ?: return
+
+        // 生成版本目录中的名称
+        val libraryKey = generateLibraryKey(info.groupId, info.artifactId)
+        val versionKey = generateVersionKey(info.groupId, info.artifactId)
+
+        // 生成 TOML 格式
+        val tomlContent = generateTomlContent(info, libraryKey, versionKey)
+
+        // 生成新的依赖声明
+        val dependencyRef = when {
+            info.classifier != null && info.extension != null -> {
+                "libs.$libraryKey(\"${info.extension}\", \"${info.classifier}\")"
+            }
+            info.classifier != null -> {
+                "libs.$libraryKey(classifier = \"${info.classifier}\")"
+            }
+            info.extension != null -> {
+                "libs.$libraryKey(\"${info.extension}\")"
+            }
+            else -> {
+                "libs.$libraryKey"
+            }
+        }
+
+        // 生成完整的依赖声明
+        val newDeclaration = "${info.configuration}($dependencyRef)"
+
+        // 替换原始声明
+        val startOffset = info.element.textOffset
+        val endOffset = startOffset + info.element.text.length
+        document.replaceString(startOffset, endOffset, newDeclaration)
+
+        // 在文件末尾添加 TOML 配置注释
+        val comment = "\n\n// Add to gradle/libs.versions.toml:\n$tomlContent"
+        document.insertString(document.textLength, comment)
+    }
+
+    private fun generateLibraryKey(groupId: String, artifactId: String): String {
+        // 将 group 和 artifact 转换为库键名
+        val groupPart = groupId.split(".").last()
+            .replace("-", "")
+            .replace("_", "")
+
+        val artifactPart = artifactId
+            .split("-", "_")
+            .joinToString("") { part ->
+                part.replaceFirstChar { it.uppercase() }
+            }
+
         return "${groupPart}${artifactPart}"
     }
 
-    private fun generateTomlFormat(info: HardcodedDependencyInfo, libraryName: String): String {
-        val versionKey = "${libraryName.lowercase()}-version"
-
-        return """[versions]
-$versionKey = "${info.version}"
-
-[libraries]
-$libraryName = { group = "${info.groupId}", name = "${info.artifactId}", version.ref = "$versionKey" }"""
+    private fun generateVersionKey(groupId: String, artifactId: String): String {
+        // 生成版本键名
+        val libraryKey = generateLibraryKey(groupId, artifactId)
+        return "${libraryKey.lowercase()}-version"
     }
 
-    private fun detectHardcodedDependency(element: PsiElement): HardcodedDependencyInfo? {
-        var current: PsiElement? = element
+    private fun generateTomlContent(info: DependencyInfo, libraryKey: String, versionKey: String): String {
+        val builder = StringBuilder()
 
-        // 向上遍历查找 KtCallExpression
-        while (current != null) {
-            if (current is KtCallExpression) {
-                val callExpression = current
+        // Versions section
+        builder.appendLine("[versions]")
+        builder.appendLine("$versionKey = \"${info.version}\"")
 
-                // 检查是否是依赖声明
-                if (isDependencyDeclaration(callExpression)) {
-                    return extractDependencyInfo(callExpression)
-                }
-            }
-            current = current.parent
+        // Libraries section
+        builder.appendLine()
+        builder.appendLine("[libraries]")
+        builder.append("$libraryKey = { group = \"${info.groupId}\", name = \"${info.artifactId}\", version.ref = \"$versionKey\"")
+
+        // Add classifier if present
+        if (info.classifier != null) {
+            builder.appendLine(", classifier = \"${info.classifier}\"")
         }
 
-        return null
+        // Close the library declaration
+        builder.appendLine(" }")
+
+        return builder.toString()
     }
 
-    private fun isDependencyDeclaration(callExpr: KtCallExpression): Boolean {
-        val callee = callExpr.calleeExpression?.text
-        val dependencyKeywords = setOf(
-            "implementation", "api", "compileOnly", "runtimeOnly", "testImplementation",
-            "testApi", "testCompileOnly", "testRuntimeOnly", "androidTestImplementation",
-            "androidTestApi", "androidTestCompileOnly", "androidTestRuntimeOnly",
-            "debugImplementation", "releaseImplementation"
-        )
-        return callee in dependencyKeywords
-    }
-
-    private fun extractDependencyInfo(callExpr: KtCallExpression): HardcodedDependencyInfo? {
-        val text = callExpr.text
-
-        // 匹配格式: implementation("group:artifact:version")
-        val dependencyPattern = Regex("""(\w+)\s*\(\s*["']([^:]+):([^:]+):([^"']+)["']\s*\)""")
-        val match = dependencyPattern.find(text)
-        if (match != null) {
-            val (_, config, groupId, artifactId, version) = match.destructured
-            return HardcodedDependencyInfo(
-                groupId = groupId,
-                artifactId = artifactId,
-                version = version,
-                configuration = config,
-                originalText = match.value,
-                approximateOffset = callExpr.textOffset
-            )
-        }
-
-        return null
-    }
-
-    private data class HardcodedDependencyInfo(
+    private data class DependencyInfo(
         val groupId: String,
         val artifactId: String,
         val version: String,
+        val classifier: String?,
+        val extension: String?,
         val configuration: String,
         val originalText: String,
-        val approximateOffset: Int
+        val element: PsiElement
     )
 }

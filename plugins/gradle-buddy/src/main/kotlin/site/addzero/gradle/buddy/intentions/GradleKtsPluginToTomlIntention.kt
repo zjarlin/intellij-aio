@@ -6,16 +6,17 @@ import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * Gradle KTS Plugin to TOML Intention
  *
- * This intention action allows converting Gradle plugin declarations from Groovy DSL format
- * to TOML format in build.gradle.kts files.
+ * This intention action allows converting Gradle plugin declarations from hardcoded format
+ * to TOML version catalog format in build.gradle.kts files.
  *
  * Priority: HIGH - 在插件声明上时优先显示此intention
  *
@@ -27,12 +28,12 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "Convert plugin declaration to TOML format"
+    override fun getText(): String = "Convert plugin to version catalog (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Converts the Gradle plugin declaration to TOML format.")
+        return IntentionPreviewInfo.Html("Converts the plugin declaration to use version catalog reference.")
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -40,7 +41,7 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
 
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset)
-        return element != null && detectGradleKtsPlugin(element) != null
+        return element != null && findPluginDeclaration(element) != null
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -49,109 +50,139 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return
 
-        val pluginInfo = detectGradleKtsPlugin(element) ?: return
+        val pluginInfo = findPluginDeclaration(element) ?: return
 
         WriteCommandAction.runWriteCommandAction(project) {
-            convertPluginToTomlComment(file, pluginInfo)
+            convertToVersionCatalog(file, pluginInfo)
         }
     }
 
-    private fun convertPluginToTomlComment(file: PsiFile, info: PluginInfo) {
-        val document = file.viewProvider.document ?: return
+    private fun findPluginDeclaration(element: PsiElement): PluginInfo? {
+        // 向上查找 KtCallExpression
+        val callExpr = element.parentOfType<KtCallExpression>(true) ?: return null
 
-        // 生成 TOML 格式的注释
-        val tomlFormat = generateTomlFormat(info)
+        // 检查是否在 plugins 块中
+        val isInPluginsBlock = isInsidePluginsBlock(callExpr)
+        if (!isInPluginsBlock) return null
 
-        // 在当前行之后插入 TOML 格式的注释
-        val currentLine = IntentionUtils.getLineNumber(document, info.element.textOffset)
-        val lineEnd = document.getLineEndOffset(currentLine)
-        val nextLineStart = if (currentLine + 1 < document.lineCount) {
-            document.getLineStartOffset(currentLine + 1)
-        } else {
-            lineEnd
+        val callee = callExpr.calleeExpression?.text ?: return null
+
+        // 匹配不同的插件声明格式
+        when (callee) {
+            "id" -> return extractIdPluginInfo(callExpr)
+            "kotlin" -> return extractKotlinPluginInfo(callExpr)
+            "alias" -> return extractAliasPluginInfo(callExpr)
         }
 
-        val comment = "\n# TOML format:\n# $tomlFormat"
-        document.insertString(nextLineStart, comment)
+        return null
     }
 
-    private fun generateTomlFormat(info: PluginInfo): String {
-        val id = info.id
-        val version = info.version
-
-        // 生成版本目录库名称
-        val libraryName = id.replace(".", "-")
-
-        return if (info.isKotlinPlugin) {
-            """[plugins]
-$id = { id = "$id", version.ref = "$version" }"""
-        } else {
-            """[versions]
-$libraryName = "$version"
-
-[plugins]
-$id = { id = "$id", version.ref = "$libraryName" }"""
-        }
-    }
-
-    private fun detectGradleKtsPlugin(element: PsiElement): PluginInfo? {
+    private fun isInsidePluginsBlock(element: PsiElement): Boolean {
         var current: PsiElement? = element
-
-        // 向上遍历查找 KtCallExpression
         while (current != null) {
-            if (current is KtCallExpression) {
-                val callExpression = current
-
-                // 检查是否是插件声明
-                if (isPluginDeclaration(callExpression)) {
-                    return extractPluginInfo(callExpression)
-                }
+            val text = current.text
+            if (text.contains("plugins") && text.contains("{")) {
+                return true
             }
             current = current.parent
         }
-
-        return null
+        return false
     }
 
-    private fun isPluginDeclaration(callExpr: KtCallExpression): Boolean {
-        val callee = callExpr.calleeExpression?.text
-        return callee == "id" || callee == "kotlin"
-    }
-
-    private fun extractPluginInfo(callExpr: KtCallExpression): PluginInfo? {
+    private fun extractIdPluginInfo(callExpr: KtCallExpression): PluginInfo? {
         val text = callExpr.text
 
-        // 格式1: id("plugin.id") version "version"
-        val pluginPattern = Regex("""id\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["']""")
-        val pluginMatch = pluginPattern.find(text)
-        if (pluginMatch != null) {
-            return PluginInfo(
-                id = pluginMatch.groupValues[1],
-                version = pluginMatch.groupValues[2],
-                isKotlinPlugin = false,
-                element = callExpr
-            )
-        }
+        // 匹配: id("plugin.id") version "version"
+        val pattern = Regex("""id\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["'].*""")
+        val match = pattern.find(text) ?: return null
 
-        // 格式2: kotlin("jvm") version "1.9.10"
-        val kotlinPattern = Regex("""kotlin\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["']""")
-        val kotlinMatch = kotlinPattern.find(text)
-        if (kotlinMatch != null) {
-            return PluginInfo(
-                id = "org.jetbrains.kotlin.${kotlinMatch.groupValues[1]}",
-                version = kotlinMatch.groupValues[2],
-                isKotlinPlugin = true,
-                element = callExpr
-            )
-        }
+        return PluginInfo(
+            id = match.groupValues[1],
+            version = match.groupValues[2],
+            displayName = match.groupValues[1],
+            originalText = match.value,
+            element = callExpr
+        )
+    }
 
+    private fun extractKotlinPluginInfo(callExpr: KtCallExpression): PluginInfo? {
+        val text = callExpr.text
+
+        // 匹配: kotlin("jvm") version "1.9.10"
+        val pattern = Regex("""kotlin\s*\(\s*["']([^"']+)["']\s*\)\s+version\s+["']([^"']+)["'].*""")
+        val match = pattern.find(text) ?: return null
+
+        val module = match.groupValues[1]
+        return PluginInfo(
+            id = "org.jetbrains.kotlin.$module",
+            version = match.groupValues[2],
+            displayName = "kotlin-$module",
+            originalText = match.value,
+            element = callExpr
+        )
+    }
+
+    private fun extractAliasPluginInfo(callExpr: KtCallExpression): PluginInfo? {
+        // alias 插件已经在使用版本目录，不需要转换
         return null
+    }
+
+    private fun convertToVersionCatalog(file: PsiFile, info: PluginInfo) {
+        val document = PsiDocumentManager.getInstance(file.project).getDocument(file) ?: return
+
+        // 生成版本目录中的名称
+        val versionKey = generateVersionKey(info.id)
+        val pluginKey = generatePluginKey(info.id)
+
+        // 生成 TOML 格式
+        val tomlContent = generateTomlContent(info, versionKey, pluginKey)
+
+        // 生成新的插件声明
+        val newDeclaration = "alias(libs.plugins.$pluginKey)"
+
+        // 替换原始声明
+        val originalText = info.originalText
+        val startOffset = info.element.textOffset
+        val endOffset = startOffset + info.element.text.length
+
+        document.replaceString(startOffset, endOffset, newDeclaration)
+
+        // 在文件末尾添加 TOML 配置注释
+        val comment = "\n\n// Add to gradle/libs.versions.toml:\n$tomlContent"
+        document.insertString(document.textLength, comment)
+    }
+
+    private fun generateVersionKey(pluginId: String): String {
+        // 将插件ID转换为版本键名
+        return pluginId
+            .replace(".", "-")
+            .replace("org-", "")
+            .replace("jetbrains-", "")
+            .lowercase()
+    }
+
+    private fun generatePluginKey(pluginId: String): String {
+        // 将插件ID转换为插件键名
+        return pluginId
+            .replace(".", "-")
+            .replace("org-", "")
+            .replace("jetbrains-", "")
+            .lowercase()
+    }
+
+    private fun generateTomlContent(info: PluginInfo, versionKey: String, pluginKey: String): String {
+        return """[versions]
+$versionKey = "${info.version}"
+
+[plugins]
+$pluginKey = { id = "${info.id}", version.ref = "$versionKey" }"""
     }
 
     private data class PluginInfo(
         val id: String,
         val version: String,
-        val isKotlinPlugin: Boolean,
+        val displayName: String,
+        val originalText: String,
         val element: PsiElement
     )
 }

@@ -25,7 +25,7 @@ graph TD
 ```kotlin
 dependencies {
     implementation(project(":lib:tool-swing"))
-    api(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    api(project(":lib-git:metaprogramming-lsi:lsi-core"))
     testImplementation(project(":lib:test-utils"))
 }
 ```
@@ -112,10 +112,10 @@ dependencies {
 1. 打开文件：`plugins/autoddl/src/main/kotlin/SomeClass.kt`
 2. 检测到模块：`:plugins:autoddl`
 3. 解析依赖：
-   - `:checkouts:metaprogramming-lsi:lsi-core`
-   - `:checkouts:metaprogramming-lsi:lsi-intellij`
-   - `:checkouts:metaprogramming-lsi:lsi-psi`
-   - `:checkouts:metaprogramming-lsi:lsi-kt`
+   - `:lib-git:metaprogramming-lsi:lsi-core`
+   - `:lib-git:metaprogramming-lsi:lsi-intellij`
+   - `:lib-git:metaprogramming-lsi:lsi-psi`
+   - `:lib-git:metaprogramming-lsi:lsi-kt`
    - `:lib:tool-swing`
    - `:lib:tool-awt`
    - `:lib:tool-psi-toml`

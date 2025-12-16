@@ -335,8 +335,8 @@ fun `test SEQUENCE with generator name`() {
 
 ### 运行特定测试类
 ```bash
-./gradlew :checkouts:metaprogramming-lsi:lsi-database:test --tests "JimmerIdGenerationTest"
-./gradlew :checkouts:metaprogramming-lsi:lsi-database:test --tests "LongTextDetectionTest"
+./gradlew :lib-git:metaprogramming-lsi:lsi-database:test --tests "JimmerIdGenerationTest"
+./gradlew :lib-git:metaprogramming-lsi:lsi-database:test --tests "LongTextDetectionTest"
 ./gradlew :lib:ddlgenerator:tool-ddlgenerator:test --tests "SequenceDdlGenerationTest"
 ./gradlew :lib:ddlgenerator:tool-ddlgenerator:test --tests "LongTextDdlGenerationTest"
 ```

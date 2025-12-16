@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-core"))
     implementation("site.addzero:tool-str:2025.12.04")
 
 }

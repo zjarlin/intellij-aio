@@ -11,10 +11,10 @@ intellijPlatform {
 
 dependencies {
     // LSI 核心依赖
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-database"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-intellij"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-psiandkt"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-core"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-database"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-intellij"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-psiandkt"))
 
     // DDL Generator
     implementation(project(":lib:ddlgenerator:tool-ddlgenerator"))

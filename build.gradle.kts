@@ -7,7 +7,7 @@ plugins {
 }
 //afterEvaluate {
     subprojects {
-        if (!path.startsWith(":checkouts:")) return@subprojects
+        if (!path.startsWith(":lib-git:")) return@subprojects
         apply(plugin = "site.addzero.gradle.plugin.publish-buddy")
     }
 //}

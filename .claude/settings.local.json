@@ -4,7 +4,11 @@
       "Bash(./gradlew tasks:*)",
       "Bash(cat:*)",
       "Bash(rm:*)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "WebSearch",
+      "Bash(xargs:*)",
+      "Bash(unzip:*)",
+      "Bash(../../gradlew:*)"
     ],
     "deny": [],
     "ask": []

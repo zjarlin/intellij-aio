@@ -11,11 +11,11 @@ intellijPlatform {
 
 dependencies {
 
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-core"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-database"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-intellij"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-psi"))
-    implementation(project(":checkouts:metaprogramming-lsi:lsi-kt"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-core"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-database"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-intellij"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-psi"))
+    implementation(project(":lib-git:metaprogramming-lsi:lsi-kt"))
     implementation(project(":lib:tool-swing"))
     implementation(project(":lib:tool-awt"))
     implementation(project(":lib:tool-psi-toml"))

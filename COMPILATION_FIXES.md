@@ -109,8 +109,8 @@ import site.addzero.util.ddlgenerator.inter.DatabaseType
 运行以下命令验证核心模块编译：
 ```bash
 cd /Users/zjarlin/IdeaProjects/intellij-aio
-./gradlew :checkouts:metaprogramming-lsi:lsi-core:compileKotlin
-./gradlew :checkouts:metaprogramming-lsi:lsi-database:compileKotlin
+./gradlew :lib-git:metaprogramming-lsi:lsi-core:compileKotlin
+./gradlew :lib-git:metaprogramming-lsi:lsi-database:compileKotlin
 ```
 
 ## 下一步行动

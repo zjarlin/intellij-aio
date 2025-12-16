@@ -4,7 +4,7 @@
     <vendor>AddZero</vendor>
 
     <!-- K2 Compatibility Declaration -->
-    <!--<idea-version since-build="242" until-build="262.*" supports-kotlin-k2="true"/>-->
+    <idea-version since-build="242" until-build="262.*"/>
 
     <description>
         A plugin that helps you manage Gradle projects by showing an indicator when a project is not loaded.

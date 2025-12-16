@@ -1,0 +1,4 @@
+dependencies {
+    implementation("site.addzero:tool-curl:<spot>0.0.672</spot>")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}

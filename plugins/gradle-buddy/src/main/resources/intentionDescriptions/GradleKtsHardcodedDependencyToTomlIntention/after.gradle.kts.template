@@ -1,0 +1,9 @@
+dependencies {
+    implementation(libs.tool-curl)
+    <spot>// TOML format:
+// [libraries.tool-curl]
+// group = "site.addzero"
+// name = "tool-curl"
+// version = "0.0.672"</spot>
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}

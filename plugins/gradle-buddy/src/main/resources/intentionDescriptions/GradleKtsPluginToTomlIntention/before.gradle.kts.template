@@ -1,0 +1,4 @@
+plugins {
+    id("site.addzero.gradle.plugin.kotlin-convention") <spot>version "2025.12.20"</spot>
+    kotlin("jvm") version "1.9.10"
+}

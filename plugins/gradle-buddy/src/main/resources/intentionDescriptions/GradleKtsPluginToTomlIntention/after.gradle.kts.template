@@ -1,0 +1,8 @@
+plugins {
+    id("site.addzero.gradle.plugin.kotlin-convention") version "2025.12.20"
+    <spot>// TOML format:
+// [plugins.site-addzero-gradle-plugin-kotlin-convention]
+// id = "site.addzero.gradle.plugin.kotlin-convention"
+// version = "2025.12.20"</spot>
+    kotlin("jvm") version "1.9.10"
+}

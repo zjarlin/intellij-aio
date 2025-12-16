@@ -1,27 +1,54 @@
 <html>
 <body>
-Write your description here.
-Start the description with a verb in 3rd person singular, like reports, detects, highlights.
-In the first sentence, briefly explain what exactly the inspection helps you detect.
-Make sure the sentence is not very long and complicated.
+Converts Gradle plugin declarations to TOML format for version catalogs.
+
 <p>
-    The first sentence must be in a dedicated paragraph separated from the rest of the text. This will make the
-    description easier to read.
-    Make sure the description doesn’t just repeat the inspection title.
+    Detects plugin declarations in <code>plugins { ... }</code> blocks and provides a quick action
+    to convert them to TOML format. This helps modernize Gradle build scripts by centralizing
+    plugin management in version catalogs.
 </p>
+
 <p>
-    See https://plugins.jetbrains.com/docs/intellij/inspections.html#descriptions for more information.
-</p>
-<p>
-    Embed code snippets:
+    Before:
 </p>
 <pre><code>
-// automatically highlighted according to inspection registration 'language' attribute
+plugins {
+    id("site.addzero.gradle.plugin.kotlin-convention") version "2025.12.20"
+    kotlin("jvm") version "1.9.10"
+    alias("my-alias") version "1.0.0" applied false
+}
+</code></pre>
+
+<p>
+    After applying the intention, TOML format comments are generated:
+</p>
+<pre><code>
+plugins {
+    id("site.addzero.gradle.plugin.kotlin-convention") version "2025.12.20"
+    // TOML format:
+    // [plugins.site-addzero-gradle-plugin-kotlin-convention]
+    // id = "site.addzero.gradle.plugin.kotlin-convention"
+    // version = "2025.12.20"
+
+    kotlin("jvm") version "1.9.10"
+    // TOML format:
+    // [plugins.kotlin-jvm]
+    // id = "org.jetbrains.kotlin.jvm"
+    // version = "1.9.10"
+}
+</code></pre>
+
+<p>
+    The generated TOML format can be copied to the <code>libs.versions.toml</code> file:
+</p>
+<pre><code>
+[plugins]
+site-addzero-gradle-plugin-kotlin-convention = { id = "site.addzero.gradle.plugin.kotlin-convention", version = "2025.12.20" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "1.9.10" }
 </code></pre>
 <!-- tooltip end -->
-<p>Text after this comment will only be shown in the settings of the inspection.</p>
+<p>Supports various plugin declaration formats: <code>id("plugin.id") version "version"</code>, <code>kotlin("jvm") version "version"</code>, and <code>alias("name") version "version"</code>.</p>
 
-<p>To open related settings directly from the description, add a link with `settings://$` optionally followed by `?$` to
-    pre-select a UI element.</p>
+<p>Works with Gradle version catalogs and helps migrate from traditional plugin declarations to the modern TOML-based approach.</p>
 </body>
 </html>

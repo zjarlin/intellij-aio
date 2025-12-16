@@ -1,27 +1,47 @@
 <html>
 <body>
-Write your description here.
-Start the description with a verb in 3rd person singular, like reports, detects, highlights.
-In the first sentence, briefly explain what exactly the inspection helps you detect.
-Make sure the sentence is not very long and complicated.
+Converts hardcoded dependency strings to TOML format and replaces them with version catalog references.
+
 <p>
-    The first sentence must be in a dedicated paragraph separated from the rest of the text. This will make the
-    description easier to read.
-    Make sure the description doesn’t just repeat the inspection title.
+    Detects hardcoded dependency declarations in <code>build.gradle.kts</code> files and provides a quick action
+    to convert them to version catalog format. This helps modernize Gradle build scripts by centralizing
+    dependency management in <code>libs.versions.toml</code>.
 </p>
+
 <p>
-    See https://plugins.jetbrains.com/docs/intellij/inspections.html#descriptions for more information.
-</p>
-<p>
-    Embed code snippets:
+    Before:
 </p>
 <pre><code>
-// automatically highlighted according to inspection registration 'language' attribute
+dependencies {
+    implementation("site.addzero:tool-curl:0.0.672")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}
+</code></pre>
+
+<p>
+    After:
+</p>
+<pre><code>
+dependencies {
+    implementation(libs.tool-curl)
+    implementation(libs.okhttp)
+}
+</code></pre>
+
+<p>
+    The intention also generates the corresponding TOML library declarations as comments that can be
+    copied to the <code>libs.versions.toml</code> file:
+</p>
+<pre><code>
+// TOML format:
+// [libraries.tool-curl]
+// group = "site.addzero"
+// name = "tool-curl"
+// version = "0.0.672"
 </code></pre>
 <!-- tooltip end -->
-<p>Text after this comment will only be shown in the settings of the inspection.</p>
+<p>This intention supports all common dependency configurations: implementation, api, compileOnly, runtimeOnly, testImplementation, and more.</p>
 
-<p>To open related settings directly from the description, add a link with `settings://$` optionally followed by `?$` to
-    pre-select a UI element.</p>
+<p>Works with Gradle version catalogs and helps migrate from traditional dependency declarations to the modern TOML-based approach.</p>
 </body>
 </html>

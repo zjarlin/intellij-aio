@@ -4,6 +4,7 @@ HELP.md
 .xcodemap
 .DS_Store
 build/
+.claude
 .idea
 gradle/wrapper/gradle-8.10.2-all.zip
 !gradle/wrapper/gradle-wrapper.jar

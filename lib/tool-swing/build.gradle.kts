@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(libs.tool.jvmstr)
+    implementation(libs.hutool.core)
 
 //    implementation(tool-str)
 

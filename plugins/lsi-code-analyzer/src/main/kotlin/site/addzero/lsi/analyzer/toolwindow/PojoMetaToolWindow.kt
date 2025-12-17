@@ -1,6 +1,7 @@
 package site.addzero.lsi.analyzer.toolwindow
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
@@ -307,16 +308,30 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun updateTable(pojos: List<LsiClass>) {
-        pojoTableModel.rowCount = 0
-        pojos.forEach { pojo ->
-            val packageName = pojo.qualifiedName?.substringBeforeLast('.', "") ?: "-"
-            pojoTableModel.addRow(arrayOf(
-                pojo.name ?: "-",
-                packageName,
-                pojo.fields.size,
-                pojo.guessTableName,
-                pojo.comment ?: "-"
-            ))
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val rows = ReadAction.compute<List<Array<String?>>, Throwable> {
+                    pojos.map { pojo ->
+                        val packageName = pojo.qualifiedName?.substringBeforeLast('.', "") ?: "-"
+                        arrayOf(
+                            pojo.name ?: "-",
+                            packageName,
+                            pojo.fields.size.toString(),
+                            pojo.guessTableName,
+                            pojo.comment ?: "-"
+                        )
+                    }
+                } ?: emptyList()
+
+                SwingUtilities.invokeLater {
+                    pojoTableModel.rowCount = 0
+                    rows.forEach { rowArray ->
+                        pojoTableModel.addRow(rowArray)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -327,17 +342,29 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         val pojo = currentPojoList[row]
         fieldTableModel.rowCount = 0
 
-        // 在 ReadAction 中处理字段访问，避免 EDT 线程违规
-        ReadAction.run<Throwable> {
-            pojo.fields.forEach { field ->
-                fieldTableModel.addRow(arrayOf(
-                    field.name ?: "-",
-                    field.typeName ?: "-",
-                    field.columnName ?: "-",
-                    field.comment ?: "-",
-                    if (field.isPrimaryKey) "✓" else "",
-                    if (field.isNullable) "✓" else ""
-                ))
+        // 在 pooled thread 中处理字段访问，避免 EDT 线程违规
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                ReadAction.compute<List<Array<String?>?>, Throwable> {
+                    pojo.fields.map { field ->
+                        arrayOf(
+                            field.name,
+                            field.typeName,
+                            field.columnName,
+                            field.comment,
+                            if (field.isPrimaryKey) "✓" else "",
+                            if (field.isNullable) "✓" else ""
+                        )
+                    }
+                }?.let { rows ->
+                    SwingUtilities.invokeLater {
+                        rows.forEach { rowArray ->
+                            fieldTableModel.addRow(rowArray)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

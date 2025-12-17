@@ -27,7 +27,6 @@ import site.addzero.lsi.analyzer.service.DatabaseSchemaService
 import site.addzero.lsi.analyzer.service.JdbcConnectionDetectorService
 import site.addzero.util.db.DatabaseType
 import site.addzero.util.ddlgenerator.extension.toCompleteSchemaDDL
-import site.addzero.util.ddlgenerator.extension.toCreateTableDDL
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.database.isPrimaryKey
@@ -518,79 +517,15 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 indicator.text = "正在连接数据库并获取表结构..."
 
                 try {
-                    // 1. 比较数据库和 POJO 元数据
+                    // 使用新的 delta 生成逻辑
                     SwingUtilities.invokeLater {
                         statusLabel.text = "正在比较数据库表结构..."
                     }
 
-                    val comparison = databaseSchemaService.compareWithDatabase(currentPojoList, selectedDialect)
-
-                    // 2. 生成差量 DDL
-                    indicator.text = "正在生成差量 DDL..."
-
-                    val ddlStatements = mutableListOf<String>()
-
-                    // 处理新增的表
-                    if (comparison.newTables.isNotEmpty()) {
-                        ddlStatements.add("-- 新增表")
-                        val newTables = currentPojoList.filter {
-                            comparison.newTables.contains(it.guessTableName)
-                        }
-                        newTables.forEach { pojo ->
-                            val ddl = pojo.toCreateTableDDL(selectedDialect)
-                            ddlStatements.add(ddl)
-                        }
-                    }
-
-                    // 处理修改的表
-                    if (comparison.modifiedTables.isNotEmpty()) {
-                        ddlStatements.add("\n-- 修改表")
-                        comparison.modifiedTables.forEach { (tableName, modifications) ->
-                            ddlStatements.add("-- 表: $tableName")
-
-                            // 添加新列
-                            modifications.addedColumns.forEach { column ->
-                                val ddl = "ALTER TABLE `$tableName` ADD COLUMN `${column.name}` ${column.type}" +
-                                        if (!column.isNullable) " NOT NULL" else "" +
-                                        if (column.defaultValue != null) " DEFAULT ${column.defaultValue}" else ""
-                                ddlStatements.add(ddl + ";")
-                            }
-
-                            // 修改列
-                            modifications.modifiedColumns.forEach { column ->
-                                val ddl = "ALTER TABLE `$tableName` MODIFY COLUMN `${column.name}` ${column.type}" +
-                                        if (!column.isNullable) " NOT NULL" else "" +
-                                        if (column.comment != null) " COMMENT '${column.comment}'" else ""
-                                ddlStatements.add(ddl + ";")
-                            }
-
-                            // 删除列（警告）
-                            if (modifications.droppedColumns.isNotEmpty()) {
-                                ddlStatements.add("-- 警告：删除列将导致数据丢失")
-                                modifications.droppedColumns.forEach { column ->
-                                    val ddl = "ALTER TABLE `$tableName` DROP COLUMN `${column.name}`;"
-                                    ddlStatements.add("-- $ddl")
-                                }
-                            }
-                        }
-                    }
-
-                    // 处理删除的表
-                    if (comparison.droppedTables.isNotEmpty()) {
-                        ddlStatements.add("\n-- 警告：以下表将被删除（将导致数据丢失）")
-                        comparison.droppedTables.forEach { tableName ->
-                            ddlStatements.add("-- DROP TABLE IF EXISTS `$tableName`;")
-                        }
-                    }
-
-                    val resultDdl = if (ddlStatements.isNotEmpty()) {
-                        ddlStatements.joinToString("\n")
-                    } else {
-                        "-- 数据库结构已是最新，无需更新"
-                    }
+                    val deltaDdl = databaseSchemaService.generateDeltaDdl(currentPojoList, selectedDialect)
 
                     SwingUtilities.invokeLater {
-                        ddlOutputArea.text = resultDdl
+                        ddlOutputArea.text = deltaDdl
                         statusLabel.text = "✓ 差量 DDL 生成完成"
                     }
 
@@ -623,12 +558,13 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         // 确认对话框
         val result = Messages.showYesNoDialog(
-            project,
             "确定要将以下 DDL 应用到数据库吗？\n\n" +
                     "数据库: ${connInfo.url}\n\n" +
                     "警告：此操作将修改数据库结构，请确保已备份数据！",
             "确认应用 DDL",
-            AllIcons.General.Pin
+            Messages.getYesButton(),
+            Messages.getNoButton(),
+            AllIcons.General.Warning
         )
 
         if (result != Messages.YES) return
@@ -651,22 +587,22 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
                     indicator.text = "正在执行 DDL 语句..."
 
-                    // 获取数据库连接并执行
-                    databaseSchemaService.getConnection(connInfo).use { conn ->
-                        conn.autoCommit = false
+                    // 使用 SqlExecutor 执行 DDL
+                    val sqlExecutor = databaseSchemaService.getSqlExecutor(connInfo)
 
-                        statements.forEachIndexed { index, sql ->
-                            indicator.fraction = (index + 1).toDouble() / statements.size
-                            indicator.text2 = "执行语句 ${index + 1}/${statements.size}"
+                    statements.forEachIndexed { index, sql ->
+                        indicator.fraction = (index + 1).toDouble() / statements.size
+                        indicator.text2 = "执行语句 ${index + 1}/${statements.size}"
 
-                            if (sql.isNotBlank()) {
-                                conn.createStatement().use { stmt ->
-                                    stmt.execute(sql)
-                                }
+                        if (sql.isNotBlank()) {
+                            try {
+                                val executeUpdate = sqlExecutor.executeUpdate(sql)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                // 对于 DDL 语句，如果 executeUpdate 失败，尝试使用 execute
+                                sqlExecutor.execute(sql)
                             }
                         }
-
-                        conn.commit()
                     }
 
                     SwingUtilities.invokeLater {

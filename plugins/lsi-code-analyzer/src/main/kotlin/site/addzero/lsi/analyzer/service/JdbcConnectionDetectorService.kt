@@ -20,7 +20,11 @@ class JdbcConnectionDetectorService {
         var password: String = "",
         var driver: String = "",
         var dialect: String = ""
-    )
+    ) {
+        override fun toString(): String {
+            return "ConnectionInfo(url='$url', username='$username', driver='$driver', dialect='$dialect')"
+        }
+    }
 
     /**
      * 自动检测项目的数据库连接信息
@@ -39,8 +43,8 @@ class JdbcConnectionDetectorService {
             connectionInfo.password = settings.jdbcPassword ?: ""
         }
 
-        // 3. 总是从 URL 推断数据库方言（如果有的话）
-        if (connectionInfo.url.isNotEmpty()) {
+        // 3. 如果方言为空，总是从 URL 推断数据库方言
+        if (connectionInfo.dialect.isEmpty() && connectionInfo.url.isNotEmpty()) {
             connectionInfo.dialect = detectDialectFromUrl(connectionInfo.url)
         }
 
@@ -160,7 +164,6 @@ class JdbcConnectionDetectorService {
                 }
                 inDatasourceSection && trimmedLine.startsWith("url:") -> {
                     connectionInfo.url = extractYamlValue(trimmedLine)
-                    connectionInfo.dialect = detectDialectFromUrl(connectionInfo.url)
                 }
                 inDatasourceSection && trimmedLine.startsWith("username:") -> {
                     connectionInfo.username = extractYamlValue(trimmedLine)
@@ -198,6 +201,8 @@ class JdbcConnectionDetectorService {
             url.contains("sqlserver://") || url.contains("jdbc:sqlserver") -> "sqlserver"
             url.contains("db2://") || url.contains("jdbc:db2") -> "db2"
             url.contains("h2://") || url.contains("jdbc:h2") -> "h2"
+            url.contains("sqlite://") || url.contains("jdbc:sqlite") -> "sqlite"
+            url.contains("derby://") || url.contains("jdbc:derby") -> "derby"
             else -> "mysql" // 默认
         }
     }

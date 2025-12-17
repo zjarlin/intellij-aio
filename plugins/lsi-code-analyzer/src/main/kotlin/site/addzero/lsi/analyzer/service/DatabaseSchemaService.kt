@@ -1,13 +1,17 @@
 package site.addzero.lsi.analyzer.service
 
-import com.intellij.openapi.components.ServiceManager
+//import site.addzero.entity.JdbcTableMetadata
+//import site.addzero.entity.JdbcColumnMetadata
 import com.intellij.openapi.project.Project
-import site.addzero.lsi.analyzer.service.JdbcConnectionDetectorService
+import site.addzero.entity.JdbcColumnMetadata
+import site.addzero.entity.JdbcTableMetadata
 import site.addzero.util.db.DatabaseType
+import site.addzero.util.db.SqlExecutor
+import site.addzero.util.ddlgenerator.delta.compareTo
+import site.addzero.util.ddlgenerator.delta.generateDeltaDdl
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.database.getDatabaseColumnType
-import java.sql.*
 
 /**
  * 数据库 Schema 服务
@@ -18,36 +22,30 @@ class DatabaseSchemaService(private val project: Project) {
     private val jdbcDetector = com.intellij.openapi.components.ServiceManager.getService(JdbcConnectionDetectorService::class.java)
 
     /**
-     * 获取数据库连接
+     * 获取 SQL 执行器
      */
-    fun getConnection(connInfo: JdbcConnectionDetectorService.ConnectionInfo): Connection {
-        try {
-            // 根据数据库类型加载驱动
-            val dialect = connInfo.dialect.lowercase()
-            when {
-                dialect.contains("mysql") -> Class.forName("com.mysql.cj.jdbc.Driver")
-                dialect.contains("postgresql") -> Class.forName("org.postgresql.Driver")
-                dialect.contains("oracle") -> Class.forName("oracle.jdbc.OracleDriver")
-                dialect.contains("sqlserver") -> Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-                else -> Class.forName("com.mysql.cj.jdbc.Driver")
-            }
-            return DriverManager.getConnection(
-                connInfo.url,
-                connInfo.username,
-                connInfo.password
-            )
-        } catch (e: Exception) {
-            throw RuntimeException("无法连接到数据库: ${e.message}", e)
-        }
+    fun getSqlExecutor(connInfo: JdbcConnectionDetectorService.ConnectionInfo): SqlExecutor {
+        return SqlExecutor(
+            url = connInfo.url,
+            username = connInfo.username ?: "",
+            password = connInfo.password ?: ""
+        )
     }
 
     /**
-     * 获取数据库中所有表的元数据信息
+     * 获取数据库中所有表的元数据信息（返回 JdbcTableMetadata 列表）
      */
-    fun getDatabaseTables(connInfo: JdbcConnectionDetectorService.ConnectionInfo): Map<String, DatabaseTableInfo> {
-        val tables = mutableMapOf<String, DatabaseTableInfo>()
+    fun getDatabaseTablesAsJdbcMetadata(connInfo: JdbcConnectionDetectorService.ConnectionInfo): List<JdbcTableMetadata> {
+        val tables = mutableListOf<JdbcTableMetadata>()
 
-        getConnection(connInfo).use { conn ->
+        // 建立数据库连接以获取元数据
+        val conn = java.sql.DriverManager.getConnection(
+            connInfo.url,
+            connInfo.username ?: "",
+            connInfo.password ?: ""
+        )
+
+        try {
             val databaseMetaData = conn.metaData
 
             // 获取所有表
@@ -60,15 +58,12 @@ class DatabaseSchemaService(private val project: Project) {
 
             while (rs.next()) {
                 val tableName = rs.getString("TABLE_NAME")
-                val tableComment = rs.getString("REMARKS")
-
-                val tableInfo = DatabaseTableInfo(
-                    name = tableName,
-                    comment = tableComment,
-                    columns = mutableMapOf()
-                )
+                val tableSchema = rs.getString("TABLE_SCHEM") ?: ""
+                val tableType = rs.getString("TABLE_TYPE")
+                val tableComment = rs.getString("REMARKS") ?: ""
 
                 // 获取表的列信息
+                val columns = mutableListOf<JdbcColumnMetadata>()
                 val columnsRs = databaseMetaData.getColumns(
                     null,
                     null,
@@ -76,209 +71,138 @@ class DatabaseSchemaService(private val project: Project) {
                     null
                 )
 
+                // 获取主键信息
+                val primaryKeys = mutableSetOf<String>()
+                val primaryKeyRs = databaseMetaData.getPrimaryKeys(
+                    null,
+                    null,
+                    tableName
+                )
+                while (primaryKeyRs.next()) {
+                    primaryKeys.add(primaryKeyRs.getString("COLUMN_NAME"))
+                }
+                primaryKeyRs.close()
+
                 while (columnsRs.next()) {
                     val columnName = columnsRs.getString("COLUMN_NAME")
                     val columnType = columnsRs.getString("TYPE_NAME")
                     val columnSize = columnsRs.getInt("COLUMN_SIZE")
                     val isNullable = columnsRs.getString("IS_NULLABLE") == "YES"
                     val columnDefault = columnsRs.getString("COLUMN_DEF")
-                    val comment = columnsRs.getString("REMARKS")
+                    val comment = columnsRs.getString("REMARKS") ?: ""
 
-                    tableInfo.columns[columnName] = DatabaseColumnInfo(
-                        name = columnName,
-                        type = columnType,
-                        size = columnSize,
-                        isNullable = isNullable,
-                        defaultValue = columnDefault,
-                        comment = comment
-                    )
-                }
+                    // 获取 JDBC 类型
+                    val jdbcType = columnsRs.getInt("DATA_TYPE")
 
-                // 获取主键信息
-                val primaryKeyRs = databaseMetaData.getPrimaryKeys(
-                    null,
-                    null,
-                    tableName
-                )
-
-                val primaryKeys = mutableListOf<String>()
-                while (primaryKeyRs.next()) {
-                    primaryKeys.add(primaryKeyRs.getString("COLUMN_NAME"))
-                }
-                tableInfo.primaryKeys = primaryKeys
-
-                // 获取外键信息
-                val foreignKeyRs = databaseMetaData.getImportedKeys(
-                    null,
-                    null,
-                    tableName
-                )
-
-                val foreignKeys = mutableListOf<ForeignKeyInfo>()
-                while (foreignKeyRs.next()) {
-                    foreignKeys.add(
-                        ForeignKeyInfo(
-                            columnName = foreignKeyRs.getString("FKCOLUMN_NAME"),
-                            referencedTable = foreignKeyRs.getString("PKTABLE_NAME"),
-                            referencedColumn = foreignKeyRs.getString("PKCOLUMN_NAME"),
-                            constraintName = foreignKeyRs.getString("FK_NAME")
+                    columns.add(
+                        JdbcColumnMetadata(
+                            tableName = tableName,
+                            columnName = columnName,
+                            jdbcType = jdbcType,
+                            columnType = columnType,
+                            columnLength = if (columnSize > 0) columnSize else null,
+                            nullable = isNullable,
+                            nullableFlag = if (isNullable) "YES" else "NO",
+                            remarks = comment,
+                            defaultValue = columnDefault,
+                            isPrimaryKey = primaryKeys.contains(columnName)
                         )
                     )
                 }
-                tableInfo.foreignKeys = foreignKeys
+                columnsRs.close()
 
-                tables[tableName] = tableInfo
+                tables.add(
+                    JdbcTableMetadata(
+                        tableName = tableName,
+                        schema = tableSchema,
+                        tableType = tableType,
+                        remarks = tableComment,
+                        columns = columns
+                    )
+                )
             }
+
+            rs.close()
+        } finally {
+            conn.close()
         }
 
         return tables
     }
 
     /**
-     * 比较数据库表结构和 POJO 元数据
+     * 生成差量 DDL（使用现有的 delta 逻辑）
      */
+    fun generateDeltaDdl(
+        pojos: List<LsiClass>,
+        databaseType: DatabaseType = DatabaseType.MYSQL
+    ): String {
+        val connInfo = jdbcDetector.detectConnectionInfo(project)
+        val dbTables = getDatabaseTablesAsJdbcMetadata(connInfo)
+
+        return pojos.generateDeltaDdl(dbTables, databaseType)
+    }
+
+    /**
+     * 比较数据库表结构和 POJO 元数据（保留原有方法以兼容）
+     * @deprecated 使用 generateDeltaDdl 方法代替
+     */
+    @Deprecated("使用 generateDeltaDdl 方法代替")
     fun compareWithDatabase(
         pojos: List<LsiClass>,
         databaseType: DatabaseType
     ): SchemaComparison {
+        // 使用新的 delta 生成逻辑来获取比较结果
         val connInfo = jdbcDetector.detectConnectionInfo(project)
-        val databaseTables = getDatabaseTables(connInfo)
-        val pojoTables = pojos.associateBy { pojo -> pojo.guessTableName }
+        val dbTables = getDatabaseTablesAsJdbcMetadata(connInfo)
+        val schemaDiff = pojos.compareTo(dbTables)
 
-        val newTables = mutableListOf<String>()
+        // 转换为旧格式以保持兼容
+        val newTables = schemaDiff.newTables.map { it.guessTableName }
+        val droppedTables = schemaDiff.droppedTables
+
         val modifiedTables = mutableMapOf<String, TableModification>()
-        val droppedTables = mutableListOf<String>()
-
-        // 找出新增的表
-        pojoTables.keys.forEach { tableName ->
-            if (!databaseTables.containsKey(tableName)) {
-                newTables.add(tableName)
-            }
-        }
-
-        // 找出删除的表
-        databaseTables.keys.forEach { tableName ->
-            if (!pojoTables.containsKey(tableName)) {
-                droppedTables.add(tableName)
-            }
-        }
-
-        // 找出修改的表
-        pojoTables.entries.forEach { (tableName, lsiClass) ->
-            val dbTable = databaseTables[tableName]
-            if (dbTable != null) {
-                val modifications = compareTables(lsiClass, dbTable, databaseType)
-                if (modifications.addedColumns.isNotEmpty() ||
-                    modifications.modifiedColumns.isNotEmpty() ||
-                    modifications.droppedColumns.isNotEmpty()) {
-                    modifiedTables[tableName] = modifications
-                }
-            }
-        }
-
-        return SchemaComparison(
-            newTables = newTables,
-            modifiedTables = modifiedTables,
-            droppedTables = droppedTables,
-            databaseTables = databaseTables
-        )
-    }
-
-    private fun compareTables(
-        lsiClass: LsiClass,
-        dbTable: DatabaseTableInfo,
-        databaseType: DatabaseType
-    ): TableModification {
-        val addedColumns = mutableListOf<ColumnInfo>()
-        val modifiedColumns = mutableListOf<ColumnInfo>()
-        val droppedColumns = mutableListOf<ColumnInfo>()
-
-        val pojoColumns = lsiClass.fields.associateBy { field -> field.columnName ?: field.name ?: "" }
-
-        // 找出新增的列
-        pojoColumns.forEach { (columnName, field) ->
-            if (!dbTable.columns.containsKey(columnName)) {
-                addedColumns.add(
+        schemaDiff.modifiedTables.forEach { modifiedTable ->
+            val tableDiff = modifiedTable.diff
+            val modifications = TableModification(
+                addedColumns = tableDiff.addedColumns.map { field ->
                     ColumnInfo(
-                        name = columnName,
+                        name = field.columnName ?: field.name ?: "",
                         type = field.getDatabaseColumnType().name,
                         isNullable = field.isNullable,
                         defaultValue = field.defaultValue,
                         comment = field.comment
                     )
-                )
-            }
-        }
-
-        // 找出删除的列
-        dbTable.columns.keys.forEach { columnName ->
-            if (!pojoColumns.containsKey(columnName)) {
-                droppedColumns.add(
+                },
+                modifiedColumns = tableDiff.modifiedColumns.map { modification ->
                     ColumnInfo(
-                        name = columnName,
-                        type = dbTable.columns[columnName]?.type ?: "",
-                        isNullable = dbTable.columns[columnName]?.isNullable ?: true
+                        name = modification.field.columnName ?: modification.field.name ?: "",
+                        type = modification.field.getDatabaseColumnType().name,
+                        isNullable = modification.field.isNullable,
+                        defaultValue = modification.field.defaultValue,
+                        comment = modification.field.comment
                     )
-                )
-            }
-        }
-
-        // 找出修改的列
-        pojoColumns.forEach { (columnName, field) ->
-            val dbColumn = dbTable.columns[columnName]
-            if (dbColumn != null) {
-                // 这里可以比较类型、是否可空、默认值等
-                // 简化处理，只比较类型
-                val expectedType = mapDatabaseType(field.getDatabaseColumnType(), databaseType)
-                if (expectedType != dbColumn.type) {
-                    modifiedColumns.add(
-                        ColumnInfo(
-                            name = columnName,
-                            type = expectedType,
-                            isNullable = field.isNullable,
-                            defaultValue = field.defaultValue,
-                            comment = field.comment,
-                            oldType = dbColumn.type
-                        )
+                },
+                droppedColumns = tableDiff.droppedColumns.map { column ->
+                    ColumnInfo(
+                        name = column.columnName,
+                        type = "",
+                        isNullable = true
                     )
                 }
-            }
+            )
+            modifiedTables[tableDiff.tableName] = modifications
         }
 
-        return TableModification(
-            addedColumns = addedColumns,
-            modifiedColumns = modifiedColumns,
-            droppedColumns = droppedColumns
+        // 创建一个空的 DatabaseTableInfo map 以保持兼容
+        val emptyDatabaseTables = emptyMap<String, DatabaseTableInfo>()
+
+        return SchemaComparison(
+            newTables = newTables,
+            modifiedTables = modifiedTables,
+            droppedTables = droppedTables,
+            databaseTables = emptyDatabaseTables
         )
-    }
-
-    private fun mapDatabaseType(columnType: site.addzero.util.lsi.database.DatabaseColumnType, databaseType: DatabaseType): String {
-        // 根据数据库类型映射列类型名
-        return when (databaseType) {
-            DatabaseType.MYSQL -> {
-                when (columnType) {
-                    site.addzero.util.lsi.database.DatabaseColumnType.BIGINT -> "BIGINT"
-                    site.addzero.util.lsi.database.DatabaseColumnType.INT -> "INT"
-                    site.addzero.util.lsi.database.DatabaseColumnType.VARCHAR -> "VARCHAR"
-                    site.addzero.util.lsi.database.DatabaseColumnType.TEXT -> "TEXT"
-                    site.addzero.util.lsi.database.DatabaseColumnType.DATETIME -> "DATETIME"
-                    site.addzero.util.lsi.database.DatabaseColumnType.BOOLEAN -> "TINYINT(1)"
-                    else -> columnType.name
-                }
-            }
-            DatabaseType.POSTGRESQL -> {
-                when (columnType) {
-                    site.addzero.util.lsi.database.DatabaseColumnType.BIGINT -> "BIGINT"
-                    site.addzero.util.lsi.database.DatabaseColumnType.INT -> "INTEGER"
-                    site.addzero.util.lsi.database.DatabaseColumnType.VARCHAR -> "VARCHAR"
-                    site.addzero.util.lsi.database.DatabaseColumnType.TEXT -> "TEXT"
-                    site.addzero.util.lsi.database.DatabaseColumnType.DATETIME -> "TIMESTAMP"
-                    site.addzero.util.lsi.database.DatabaseColumnType.BOOLEAN -> "BOOLEAN"
-                    else -> columnType.name
-                }
-            }
-            else -> columnType.name
-        }
     }
 }
 

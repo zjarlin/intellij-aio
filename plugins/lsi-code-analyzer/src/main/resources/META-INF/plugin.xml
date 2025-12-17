@@ -42,5 +42,8 @@
                     secondary="false"/>
 
         <notificationGroup id="LSI Code Analyzer Notifications" displayType="BALLOON" isLogByDefault="true"/>
+
+        <applicationConfigurable parentId="tools" instance="site.addzero.lsi.analyzer.config.DdlSettingsConfigurable"
+                                 id="site.addzero.lsi.ddl.settings" displayName="LSI DDL Settings"/>
     </extensions>
 </idea-plugin>

@@ -31,6 +31,8 @@ import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.database.isPrimaryKey
 import site.addzero.util.lsi.field.isNullable
 import site.addzero.util.lsi_impl.impl.intellij.virtualfile.toAllLsiClassesUnified
+import site.addzero.lsi.analyzer.config.DdlSettings
+import site.addzero.lsi.analyzer.util.DdlFileUtil
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import javax.swing.*
@@ -152,6 +154,10 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                         clipboard.setContents(java.awt.datatransfer.StringSelection(ddlOutputArea.text), null)
                         statusLabel.text = "已复制到剪贴板"
                     }
+                })
+
+                add(JButton("保存到文件", AllIcons.Actions.Menu_saveall).apply {
+                    addActionListener { saveDdlToFile() }
                 })
             }
             add(controlPanel, BorderLayout.NORTH)
@@ -417,20 +423,38 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         } else {
             currentPojoList // 未选中时生成全部
         }
-        
+
         if (selectedPojos.isEmpty()) {
             Messages.showWarningDialog("请先扫描POJO", "提示")
             return
         }
 
         try {
+            val ddlContents = mutableMapOf<String, String>()
             val ddl = ReadAction.compute<String, Throwable> {
-                selectedPojos.joinToString("\n\n") { pojo ->
-                    pojo.toCreateTableDDL(selectedDialect)
-                }
+                selectedPojos.map { pojo ->
+                    val tableName = pojo.guessTableName
+                    val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
+                    ddlContents[tableName] = pojoDdl
+                    pojoDdl
+                }.joinToString("\n\n")
             }
+
             ddlOutputArea.text = ddl
             statusLabel.text = "已生成 ${selectedPojos.size} 个表的 ${selectedDialect.name} DDL"
+
+            // 自动保存功能
+            val settings = DdlSettings.getInstance()
+            if (settings.autoSaveDdl) {
+                if (selectedPojos.size == 1) {
+                    // 单个表保存
+                    val tableName = selectedPojos.first().guessTableName
+                    DdlFileUtil.saveDdlToFile(project, tableName, selectedDialect.name, ddl)
+                } else {
+                    // 多个表保存到单个文件
+                    DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
@@ -454,9 +478,83 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
             ddlOutputArea.text = ddl
             statusLabel.text = "已生成 ${currentPojoList.size} 个表的 ${selectedDialect.name} DDL"
+
+            // 自动保存功能
+            val settings = DdlSettings.getInstance()
+            if (settings.autoSaveDdl) {
+                // 创建表名到DDL的映射
+                val ddlContents = ReadAction.compute<Map<String, String>, Throwable> {
+                    currentPojoList.associate { pojo ->
+                        val tableName = pojo.guessTableName
+                        val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
+                        tableName to pojoDdl
+                    }
+                }
+                // 保存完整schema到文件
+                DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
+        }
+    }
+
+    private fun saveDdlToFile() {
+        val ddlText = ddlOutputArea.text
+        if (ddlText.isBlank()) {
+            Messages.showWarningDialog("请先生成DDL", "提示")
+            return
+        }
+
+        // 检查是否配置了保存目录
+        if (!DdlFileUtil.isSaveDirectoryConfigured()) {
+            val result = Messages.showYesNoDialog(
+                "尚未配置DDL保存目录，是否现在配置？",
+                "配置保存目录",
+                Messages.getQuestionIcon()
+            )
+            if (result == Messages.YES) {
+                // 打开设置窗口
+                com.intellij.openapi.options.ShowSettingsUtil.getInstance().showSettingsDialog(
+                    project,
+                    "LSI DDL Settings"
+                )
+            }
+            return
+        }
+
+        // 获取选中的POJO来决定文件名
+        val selectedRows = pojoTable.selectedRows
+        val selectedPojos = if (selectedRows.isNotEmpty()) {
+            selectedRows.filter { it in currentPojoList.indices }.map { currentPojoList[it] }
+        } else {
+            currentPojoList
+        }
+
+        try {
+            if (selectedPojos.size == 1) {
+                // 单个表
+                val tableName = selectedPojos.first().guessTableName
+                DdlFileUtil.saveDdlToFile(project, tableName, selectedDialect.name, ddlText)
+            } else {
+                // 多个表或全部表
+                val ddlContents = if (selectedPojos.isNotEmpty()) {
+                    ReadAction.compute<Map<String, String>, Throwable> {
+                        selectedPojos.associate { pojo ->
+                            val tableName = pojo.guessTableName
+                            val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
+                            tableName to pojoDdl
+                        }
+                    }
+                } else {
+                    // 使用当前显示的DDL
+                    mapOf("schema" to ddlText)
+                }
+                DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Messages.showErrorDialog("保存DDL文件失败: ${e.message}", "错误")
         }
     }
 }

@@ -1,6 +1,8 @@
 package site.addzero.util.ddlgenerator.api
 
 import site.addzero.util.db.DatabaseType
+import site.addzero.util.ddlgenerator.strategy.MySqlDdlStrategy
+import site.addzero.util.ddlgenerator.strategy.PostgreSqlDdlStrategy
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -19,9 +21,41 @@ internal object DdlGeneratorFactory {
      * 懒加载所有通过 ServiceLoader 注册的策略实现
      */
     private val allStrategies: List<DdlGenerationStrategy> by lazy {
-        val toList = ServiceLoader.load(DdlGenerationStrategy::class.java).toList()
-        toList.also {
+        // 尝试使用不同的类加载器来加载服务
+        val serviceClass = DdlGenerationStrategy::class.java
+        val contextClassLoader = Thread.currentThread().contextClassLoader
+
+        val strategies = try {
+            // 首先尝试使用上下文类加载器（插件环境中通常需要）
+            ServiceLoader.load(serviceClass, contextClassLoader).toList()
+        } catch (e: Exception) {
+            println("Failed to load strategies with context class loader: ${e.message}")
+            try {
+                // 回退到服务类的类加载器
+                ServiceLoader.load(serviceClass, serviceClass.classLoader).toList()
+            } catch (e2: Exception) {
+                println("Failed to load strategies with service class loader: ${e2.message}")
+                emptyList()
+            }
+        }
+
+        // 如果 ServiceLoader 没有找到任何策略，使用手动注册的备用策略
+        if (strategies.isEmpty()) {
+            println("ServiceLoader found no strategies, falling back to manual registration")
+            listOf(
+                MySqlDdlStrategy(),
+                PostgreSqlDdlStrategy()
+            )
+        } else {
+            strategies
+        }.also {
             println("Loaded ${it.size} DDL generation strategies via ServiceLoader")
+            if (it.isEmpty()) {
+                println("Available class loaders:")
+                println("  Context class loader: $contextClassLoader")
+                println("  Service class loader: ${serviceClass.classLoader}")
+                println("  Current class loader: ${this::class.java.classLoader}")
+            }
         }
     }
 
@@ -78,7 +112,7 @@ internal object DdlGeneratorFactory {
         // 如果ServiceLoader没有找到，抛出异常
         throw IllegalArgumentException(
             "No DDL generation strategy found for dialect: $dialect. " +
-            "Please ensure the strategy is registered via META-INF/services/site.addzero.util.ddlgenerator.DdlGenerationStrategy"
+            "Please ensure the strategy is registered via META-INF/services/site.addzero.util.ddlgenerator.api.DdlGenerationStrategy"
         )
     }
 

@@ -46,4 +46,9 @@
         <applicationConfigurable parentId="tools" instance="site.addzero.lsi.analyzer.config.DdlSettingsConfigurable"
                                  id="site.addzero.lsi.ddl.settings" displayName="LSI DDL Settings"/>
     </extensions>
+
+    <!-- 注册服务 -->
+<!--    <application-services>-->
+<!--        <service implementation="site.addzero.lsi.analyzer.service.JdbcConnectionDetectorService"/>-->
+<!--    </application-services>-->
 </idea-plugin>

@@ -19,71 +19,17 @@ import java.nio.file.Paths
 class DdlSettings : PersistentStateComponent<DdlSettings> {
 
     /**
-     * DDL 文件保存目录路径
-     * 支持变量: {projectDir} - 项目根目录, {entityName} - 实体名称
+     * 是否启用文件变化自动检测
      */
-    var ddlSaveDirectory: String = "{projectDir}/.autoddl/{entityName}"
+    var enableFileChangeDetection: Boolean = true
 
-    /**
-     * 是否自动保存 DDL 到文件
-     */
-    var autoSaveDdl: Boolean = false
-
-    /**
-     * DDL 文件名模板（遵循 Flyway 命名规范）
-     * 可用变量: {table}, {dialect}, {timestamp}, {version}
-     * 默认格式: V{timestamp}__Create_{table}_{dialect}.sql
-     */
-    var ddlFileNameTemplate: String = "V{timestamp}__Create_{table}_{dialect}.sql"
-
-    /**
-     * 是否在生成后打开文件
-     */
-    var openFileAfterGeneration: Boolean = true
-
-    /**
-     * 获取动态生成的保存目录（支持变量替换）
-     * @param entityName 实体名称
-     * @param projectBasePath 项目根目录
-     * @return 完整的保存路径
-     */
-    fun getDynamicSaveDirectory(entityName: String, projectBasePath: String): Path {
-        val resolvedPath = ddlSaveDirectory
-            .replace("{projectDir}", projectBasePath)
-            .replace("{entityName}", entityName)
-        return Paths.get(resolvedPath)
-    }
-
-    /**
-     * 设置保存目录
-     */
-    fun setSaveDirectory(path: String) {
-        ddlSaveDirectory = path
-    }
-
-    /**
-     * 生成文件名
-     */
-    fun generateFileName(tableName: String, dialect: String): String {
-        val timestamp = System.currentTimeMillis().toString()
-        val version = generateVersionNumber()
-
-        return ddlFileNameTemplate
-            .replace("{table}", tableName)
-            .replace("{dialect}", dialect.lowercase())
-            .replace("{timestamp}", timestamp)
-            .replace("{version}", version)
-    }
-
-    /**
-     * 生成版本号（基于时间戳的格式化版本）
-     * 格式: YYYYMMDDHHMM
-     */
-    private fun generateVersionNumber(): String {
-        val now = java.time.LocalDateTime.now()
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmm")
-        return now.format(formatter)
-    }
+    // JDBC 连接配置
+    var jdbcUrl: String? = null
+    var jdbcUsername: String? = null
+    var jdbcPassword: String? = null
+    // 注意：jdbcDialect 会自动从 URL 推断，不需要手动设置
+    @Deprecated("Dialect is automatically inferred from URL", level = DeprecationLevel.WARNING)
+    var jdbcDialect: String? = null
 
     override fun getState(): DdlSettings = this
 

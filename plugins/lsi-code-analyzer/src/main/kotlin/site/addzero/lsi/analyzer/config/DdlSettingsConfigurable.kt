@@ -1,17 +1,15 @@
 package site.addzero.lsi.analyzer.config
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
-import java.awt.GridLayout
 import javax.swing.JComponent
-import javax.swing.JFileChooser
 import javax.swing.JPanel
 
 /**
@@ -19,31 +17,19 @@ import javax.swing.JPanel
  */
 class DdlSettingsConfigurable : Configurable {
 
-    private val ddlSaveDirectoryField = TextFieldWithBrowseButton()
-    private val autoSaveDdlCheckBox = JBCheckBox("自动保存 DDL 到文件")
-    private val openFileAfterGenerationCheckBox = JBCheckBox("生成后打开文件")
-    private val ddlFileNameTemplateField = JBTextField()
+    private val enableFileChangeDetectionCheckBox = JBCheckBox("启用文件变化自动检测")
+
+    // JDBC 配置字段
+    private val jdbcUrlField = JBTextField()
+    private val jdbcUsernameField = JBTextField()
+    private val jdbcPasswordField = JBPasswordField()
+    // 移除 jdbcDialectField，因为方言会自动从 URL 推断
 
     private var settings: DdlSettings = DdlSettings()
 
     override fun getDisplayName(): String = "LSI Code Analyzer - DDL Settings"
 
     override fun createComponent(): JComponent {
-        // 设置目录选择器
-        ddlSaveDirectoryField.addActionListener {
-            val chooser = JFileChooser()
-            chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            chooser.dialogTitle = "选择 DDL 保存目录"
-
-            if (ddlSaveDirectoryField.text.isNotBlank()) {
-                chooser.currentDirectory = java.io.File(ddlSaveDirectoryField.text)
-            }
-
-            if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                ddlSaveDirectoryField.text = chooser.selectedFile.absolutePath
-            }
-        }
-
         // 创建表单
         val formPanel = JPanel(GridBagLayout())
         val gbc = GridBagConstraints()
@@ -51,53 +37,69 @@ class DdlSettingsConfigurable : Configurable {
         gbc.anchor = GridBagConstraints.WEST
         gbc.fill = GridBagConstraints.HORIZONTAL
 
-        // 第一行：DDL 保存目录
+        // 第一行：文件变化检测
         gbc.gridx = 0
         gbc.gridy = 0
-        formPanel.add(JBLabel("DDL 保存目录:"), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        formPanel.add(ddlSaveDirectoryField, gbc)
-
-        // 第二行：目录说明
-        gbc.gridx = 0
-        gbc.gridy = 1
-        gbc.gridwidth = 2
-        gbc.weightx = 1.0
-        val directoryHint = JBLabel("<html><small>可用变量: {projectDir} 项目根目录, {entityName} 实体名称<br>默认模板: {projectDir}/.autoddl/{entityName}</small></html>")
-        formPanel.add(directoryHint, gbc)
-
-        // 第三行：文件名模板
-        gbc.gridx = 0
-        gbc.gridy = 2
-        gbc.weightx = 0.0
-        formPanel.add(JBLabel("文件名模板:"), gbc)
-
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        formPanel.add(ddlFileNameTemplateField, gbc)
-
-        // 第四行：模板说明
-        gbc.gridx = 0
-        gbc.gridy = 3
-        gbc.gridwidth = 2
-        gbc.weightx = 1.0
-        val templateHint =
-            JBLabel("<html><small>可用变量: {table} 表名, {dialect} 数据库方言, {timestamp} 时间戳, {version} 版本号(YYYYMMDDHHMM)<br>Flyway 命名规范示例: V{version}__Create_{table}_{dialect}.sql</small></html>")
-        formPanel.add(templateHint, gbc)
-
-        // 第五行：复选框
-        gbc.gridx = 0
-        gbc.gridy = 4
         gbc.gridwidth = 2
         gbc.weightx = 1.0
         gbc.fill = GridBagConstraints.NONE
         gbc.anchor = GridBagConstraints.NORTHWEST
-        val checkboxPanel = JPanel(GridLayout(2, 1, 0, 5))
-        checkboxPanel.add(autoSaveDdlCheckBox)
-        checkboxPanel.add(openFileAfterGenerationCheckBox)
-        formPanel.add(checkboxPanel, gbc)
+        formPanel.add(enableFileChangeDetectionCheckBox, gbc)
+
+        // 第二行：说明
+        gbc.gridy = 1
+        gbc.fill = GridBagConstraints.HORIZONTAL
+        val hint = JBLabel("<html><small>启用后，当 POJO 文件发生变化时，会自动生成差量 DDL 并提醒应用到数据库</small></html>")
+        formPanel.add(hint, gbc)
+
+        // 第三行：JDBC 配置标题
+        gbc.gridx = 0
+        gbc.gridy = 3
+        gbc.gridwidth = 2
+        gbc.weightx = 1.0
+        gbc.fill = GridBagConstraints.HORIZONTAL
+        val jdbcTitle = JBLabel("<html><b><font size='4'>JDBC 连接配置</font></b></html>")
+        jdbcTitle.border = JBUI.Borders.emptyTop(10)
+        formPanel.add(jdbcTitle, gbc)
+
+        // 第四行：JDBC URL
+        gbc.gridy = 4
+        gbc.weightx = 0.0
+        gbc.fill = GridBagConstraints.HORIZONTAL
+        formPanel.add(JBLabel("JDBC URL:"), gbc)
+
+        gbc.gridx = 1
+        gbc.weightx = 1.0
+        jdbcUrlField.text = "jdbc:mysql://localhost:3306/db_name"
+        formPanel.add(jdbcUrlField, gbc)
+
+        // 第五行：用户名
+        gbc.gridx = 0
+        gbc.gridy = 5
+        gbc.weightx = 0.0
+        formPanel.add(JBLabel("用户名:"), gbc)
+
+        gbc.gridx = 1
+        gbc.weightx = 1.0
+        formPanel.add(jdbcUsernameField, gbc)
+
+        // 第六行：密码
+        gbc.gridx = 0
+        gbc.gridy = 6
+        gbc.weightx = 0.0
+        formPanel.add(JBLabel("密码:"), gbc)
+
+        gbc.gridx = 1
+        gbc.weightx = 1.0
+        formPanel.add(jdbcPasswordField, gbc)
+
+        // 第七行：说明
+        gbc.gridx = 0
+        gbc.gridy = 7
+        gbc.gridwidth = 2
+        gbc.weightx = 1.0
+        val jdbcHint = JBLabel("<html><small>如果不填写，系统将自动从 Spring Boot 配置文件中读取<br>数据库方言将自动从 JDBC URL 推断<br>支持的数据库：mysql, postgresql, oracle, sqlserver, db2, h2</small></html>")
+        formPanel.add(jdbcHint, gbc)
 
         // 主面板
         val mainPanel = JPanel(BorderLayout())
@@ -109,30 +111,31 @@ class DdlSettingsConfigurable : Configurable {
 
     override fun isModified(): Boolean {
         settings = DdlSettings.getInstance()
-        return ddlSaveDirectoryField.text != settings.ddlSaveDirectory ||
-                autoSaveDdlCheckBox.isSelected != settings.autoSaveDdl ||
-                openFileAfterGenerationCheckBox.isSelected != settings.openFileAfterGeneration ||
-                ddlFileNameTemplateField.text != settings.ddlFileNameTemplate
+        return enableFileChangeDetectionCheckBox.isSelected != settings.enableFileChangeDetection ||
+                jdbcUrlField.text != (settings.jdbcUrl ?: "") ||
+                jdbcUsernameField.text != (settings.jdbcUsername ?: "") ||
+                String(jdbcPasswordField.password) != (settings.jdbcPassword ?: "")
     }
 
     override fun apply() {
         settings = DdlSettings.getInstance()
-        settings.ddlSaveDirectory = ddlSaveDirectoryField.text
-        settings.autoSaveDdl = autoSaveDdlCheckBox.isSelected
-        settings.openFileAfterGeneration = openFileAfterGenerationCheckBox.isSelected
-        settings.ddlFileNameTemplate = ddlFileNameTemplateField.text
+        settings.enableFileChangeDetection = enableFileChangeDetectionCheckBox.isSelected
+
+        // 保存 JDBC 配置
+        settings.jdbcUrl = jdbcUrlField.text.takeIf { it.isNotBlank() }
+        settings.jdbcUsername = jdbcUsernameField.text.takeIf { it.isNotBlank() }
+        settings.jdbcPassword = String(jdbcPasswordField.password).takeIf { it.isNotBlank() }
+        // jdbcDialect 会自动从 URL 推断
     }
 
     override fun reset() {
         settings = DdlSettings.getInstance()
-        // 显示默认值模板（如果没有修改过）
-        ddlSaveDirectoryField.text = if (settings.ddlSaveDirectory == "{projectDir}/.autoddl/{entityName}") {
-            "{projectDir}/.autoddl/{entityName}"
-        } else {
-            settings.ddlSaveDirectory
-        }
-        autoSaveDdlCheckBox.isSelected = settings.autoSaveDdl
-        openFileAfterGenerationCheckBox.isSelected = settings.openFileAfterGeneration
-        ddlFileNameTemplateField.text = settings.ddlFileNameTemplate
+        enableFileChangeDetectionCheckBox.isSelected = settings.enableFileChangeDetection
+
+        // 重置 JDBC 配置
+        jdbcUrlField.text = settings.jdbcUrl ?: ""
+        jdbcUsernameField.text = settings.jdbcUsername ?: ""
+        jdbcPasswordField.text = settings.jdbcPassword ?: ""
+        // jdbcDialect 会自动从 URL 推断，不需要重置
     }
 }

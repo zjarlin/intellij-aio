@@ -23,8 +23,8 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.table.JBTable
 import org.jetbrains.kotlin.idea.stubindex.KotlinFullClassNameIndex
-import site.addzero.lsi.analyzer.config.DdlSettings
-import site.addzero.lsi.analyzer.util.DdlFileUtil
+import site.addzero.lsi.analyzer.service.DatabaseSchemaService
+import site.addzero.lsi.analyzer.service.JdbcConnectionDetectorService
 import site.addzero.util.db.DatabaseType
 import site.addzero.util.ddlgenerator.extension.toCompleteSchemaDDL
 import site.addzero.util.ddlgenerator.extension.toCreateTableDDL
@@ -70,6 +70,8 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
     private var currentPojoList: List<LsiClass> = emptyList()
     private var selectedDialect: DatabaseType = DatabaseType.MYSQL
+    private val jdbcDetector = com.intellij.openapi.components.ServiceManager.getService(JdbcConnectionDetectorService::class.java)
+    private val databaseSchemaService = DatabaseSchemaService(project)
 
     init {
         setupUI()
@@ -82,7 +84,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         val tabbedPane = JBTabbedPane()
 
-        // POJO 列表面板
+        // POJO 元数据页面
         val pojoPanel = JPanel(BorderLayout()).apply {
             val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT).apply {
                 topComponent = JBScrollPane(pojoTable)
@@ -91,9 +93,9 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
             add(splitPane, BorderLayout.CENTER)
         }
-        tabbedPane.addTab("POJO列表", pojoPanel)
+        tabbedPane.addTab("POJO元数据", pojoPanel)
 
-        // DDL 生成面板
+        // DDL 生成页面
         val ddlPanel = createDdlPanel()
         tabbedPane.addTab("DDL生成", ddlPanel)
 
@@ -120,32 +122,78 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 toolTipText = "打开所选POJO的源文件"
                 addActionListener { navigateToSelectedPojo() }
             })
-
-            addSeparator()
-
-            add(JButton("生成DDL", AllIcons.Nodes.DataTables).apply {
-                addActionListener { generateDdlForSelected() }
-            })
         }
     }
 
     private fun createDdlPanel(): JPanel {
         return JPanel(BorderLayout()).apply {
-            val controlPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+            // 顶部控制面板
+            val controlPanel = JPanel(BorderLayout())
+
+            // 第一行：方言选择和生成按钮
+            val topPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
                 add(JLabel("数据库方言:"))
                 val dialectCombo = ComboBox(DatabaseType.entries.map { it.name }.toTypedArray())
+                dialectCombo.selectedItem = selectedDialect.name
                 dialectCombo.addActionListener {
                     selectedDialect = DatabaseType.entries[dialectCombo.selectedIndex]
                 }
                 add(dialectCombo)
 
-                add(JButton("生成选中", AllIcons.Actions.Execute).apply {
-                    addActionListener { generateDdlForSelected() }
+                add(JButton("全量生成", AllIcons.Actions.Selectall).apply {
+                    toolTipText = "生成所有表的完整DDL（包括外键、索引等）"
+                    addActionListener { generateFullDdl() }
                 })
 
-                add(JButton("生成全部", AllIcons.Actions.Selectall).apply {
-                    addActionListener { generateDdlForAll() }
+                add(JButton("差量生成", AllIcons.Actions.Diff).apply {
+                    toolTipText = "基于数据库当前状态生成差量DDL"
+                    addActionListener { generateDeltaDdl() }
                 })
+            }
+            controlPanel.add(topPanel, BorderLayout.NORTH)
+
+            // 第二行：连接信息显示和操作按钮
+            val bottomPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                // 显示当前连接信息
+                val connInfo = jdbcDetector.detectConnectionInfo(project)
+                val connLabel = JLabel("连接: ${connInfo.url.ifEmpty { "未配置" }}").apply {
+                    toolTipText = if (connInfo.url.isNotEmpty()) {
+                        "用户名: ${connInfo.username}\n数据库类型: ${connInfo.dialect}"
+                    } else {
+                        "请在设置中配置数据库连接信息"
+                    }
+                }
+                add(connLabel)
+
+                // 显示推断的数据库方言
+                val dialectLabel = if (connInfo.dialect.isNotEmpty()) {
+                    JLabel("数据库: ${connInfo.dialect}").apply {
+                        foreground = java.awt.Color.BLUE
+                    }
+                } else {
+                    JLabel("")
+                }
+                add(dialectLabel)
+
+                add(JButton("刷新连接", AllIcons.Actions.Refresh).apply {
+                    toolTipText = "重新检测数据库连接信息"
+                    addActionListener {
+                        val newConnInfo = jdbcDetector.detectConnectionInfo(project)
+                        connLabel.text = "连接: ${newConnInfo.url.ifEmpty { "未配置" }}"
+                        dialectLabel.text = if (newConnInfo.dialect.isNotEmpty()) {
+                            "数据库: ${newConnInfo.dialect}"
+                        } else {
+                            ""
+                        }
+                        connLabel.toolTipText = if (newConnInfo.url.isNotEmpty()) {
+                            "用户名: ${newConnInfo.username}\n数据库类型: ${newConnInfo.dialect}"
+                        } else {
+                            "请在设置中配置数据库连接信息"
+                        }
+                    }
+                })
+
+                add(Box.createHorizontalStrut(10))
 
                 add(JButton("复制", AllIcons.Actions.Copy).apply {
                     addActionListener {
@@ -155,10 +203,13 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                     }
                 })
 
-                add(JButton("保存到文件", AllIcons.Actions.Menu_saveall).apply {
-                    addActionListener { saveDdlToFile() }
+                add(JButton("应用到数据库", AllIcons.Actions.Execute).apply {
+                    toolTipText = "将生成的 DDL 应用到数据库"
+                    addActionListener { applyDdlToDatabase() }
                 })
             }
+            controlPanel.add(bottomPanel, BorderLayout.CENTER)
+
             add(controlPanel, BorderLayout.NORTH)
             add(JBScrollPane(ddlOutputArea), BorderLayout.CENTER)
         }
@@ -415,55 +466,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         return false
     }
 
-    private fun generateDdlForSelected() {
-        val selectedRows = pojoTable.selectedRows
-        val selectedPojos = if (selectedRows.isNotEmpty()) {
-            selectedRows.filter { it in currentPojoList.indices }.map { currentPojoList[it] }
-        } else {
-            currentPojoList // 未选中时生成全部
-        }
-
-        if (selectedPojos.isEmpty()) {
-            Messages.showWarningDialog("请先扫描POJO", "提示")
-            return
-        }
-
-        try {
-            val ddlContents = mutableMapOf<String, String>()
-            val ddl = ReadAction.compute<String, Throwable> {
-                selectedPojos.map { pojo ->
-                    val tableName = pojo.guessTableName
-                    val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
-                    ddlContents[tableName] = pojoDdl
-                    pojoDdl
-                }.joinToString("\n\n")
-            }
-
-            ddlOutputArea.text = ddl
-            statusLabel.text = "已生成 ${selectedPojos.size} 个表的 ${selectedDialect.name} DDL"
-
-            // 自动保存功能
-            val settings = DdlSettings.getInstance()
-            if (settings.autoSaveDdl) {
-                // 使用第一个 POJO 的简单类名作为实体名称
-                val entityName = selectedPojos.first().name ?: "Entity"
-
-                if (selectedPojos.size == 1) {
-                    // 单个表保存
-                    val tableName = selectedPojos.first().guessTableName
-                    DdlFileUtil.saveDdlToFile(project, entityName, tableName, selectedDialect.name, ddl)
-                } else {
-                    // 多个表保存到单个文件
-                    DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
-        }
-    }
-
-    private fun generateDdlForAll() {
+    private fun generateFullDdl() {
         if (currentPojoList.isEmpty()) {
             Messages.showWarningDialog("请先扫描POJO", "提示")
             return
@@ -479,77 +482,212 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                 )
             }
             ddlOutputArea.text = ddl
-            statusLabel.text = "已生成 ${currentPojoList.size} 个表的 ${selectedDialect.name} DDL"
-
-            // 自动保存功能
-            val settings = DdlSettings.getInstance()
-            if (settings.autoSaveDdl) {
-                // 使用第一个 POJO 的简单类名作为实体名称
-                val entityName = currentPojoList.first().name ?: "Entity"
-
-                // 创建表名到DDL的映射
-                val ddlContents = ReadAction.compute<Map<String, String>, Throwable> {
-                    currentPojoList.associate { pojo ->
-                        val tableName = pojo.guessTableName
-                        val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
-                        tableName to pojoDdl
-                    }
-                }
-                // 保存完整schema到文件
-                DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
-            }
+            statusLabel.text = "已生成 ${currentPojoList.size} 个表的 ${selectedDialect.name} 全量 DDL"
         } catch (e: Exception) {
             e.printStackTrace()
             Messages.showErrorDialog("DDL生成失败: ${e.message}", "错误")
         }
     }
 
-    private fun saveDdlToFile() {
+    private fun generateDeltaDdl() {
+        if (currentPojoList.isEmpty()) {
+            Messages.showWarningDialog("请先扫描POJO", "提示")
+            return
+        }
+
+        // 检查数据库连接配置
+        val connInfo = jdbcDetector.detectConnectionInfo(project)
+        if (connInfo.url.isEmpty() || connInfo.username.isEmpty()) {
+            val result = Messages.showYesNoDialog(
+                "未检测到数据库连接配置，是否去设置？",
+                "配置未找到",
+                Messages.getYesButton(),
+                Messages.getNoButton(),
+                null
+            )
+            if (result == Messages.YES) {
+                // TODO: 打开设置界面
+            }
+            return
+        }
+
+        // 使用后台任务执行差量 DDL 生成
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "生成差量DDL", true) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "正在连接数据库并获取表结构..."
+
+                try {
+                    // 1. 比较数据库和 POJO 元数据
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "正在比较数据库表结构..."
+                    }
+
+                    val comparison = databaseSchemaService.compareWithDatabase(currentPojoList, selectedDialect)
+
+                    // 2. 生成差量 DDL
+                    indicator.text = "正在生成差量 DDL..."
+
+                    val ddlStatements = mutableListOf<String>()
+
+                    // 处理新增的表
+                    if (comparison.newTables.isNotEmpty()) {
+                        ddlStatements.add("-- 新增表")
+                        val newTables = currentPojoList.filter {
+                            comparison.newTables.contains(it.guessTableName)
+                        }
+                        newTables.forEach { pojo ->
+                            val ddl = pojo.toCreateTableDDL(selectedDialect)
+                            ddlStatements.add(ddl)
+                        }
+                    }
+
+                    // 处理修改的表
+                    if (comparison.modifiedTables.isNotEmpty()) {
+                        ddlStatements.add("\n-- 修改表")
+                        comparison.modifiedTables.forEach { (tableName, modifications) ->
+                            ddlStatements.add("-- 表: $tableName")
+
+                            // 添加新列
+                            modifications.addedColumns.forEach { column ->
+                                val ddl = "ALTER TABLE `$tableName` ADD COLUMN `${column.name}` ${column.type}" +
+                                        if (!column.isNullable) " NOT NULL" else "" +
+                                        if (column.defaultValue != null) " DEFAULT ${column.defaultValue}" else ""
+                                ddlStatements.add(ddl + ";")
+                            }
+
+                            // 修改列
+                            modifications.modifiedColumns.forEach { column ->
+                                val ddl = "ALTER TABLE `$tableName` MODIFY COLUMN `${column.name}` ${column.type}" +
+                                        if (!column.isNullable) " NOT NULL" else "" +
+                                        if (column.comment != null) " COMMENT '${column.comment}'" else ""
+                                ddlStatements.add(ddl + ";")
+                            }
+
+                            // 删除列（警告）
+                            if (modifications.droppedColumns.isNotEmpty()) {
+                                ddlStatements.add("-- 警告：删除列将导致数据丢失")
+                                modifications.droppedColumns.forEach { column ->
+                                    val ddl = "ALTER TABLE `$tableName` DROP COLUMN `${column.name}`;"
+                                    ddlStatements.add("-- $ddl")
+                                }
+                            }
+                        }
+                    }
+
+                    // 处理删除的表
+                    if (comparison.droppedTables.isNotEmpty()) {
+                        ddlStatements.add("\n-- 警告：以下表将被删除（将导致数据丢失）")
+                        comparison.droppedTables.forEach { tableName ->
+                            ddlStatements.add("-- DROP TABLE IF EXISTS `$tableName`;")
+                        }
+                    }
+
+                    val resultDdl = if (ddlStatements.isNotEmpty()) {
+                        ddlStatements.joinToString("\n")
+                    } else {
+                        "-- 数据库结构已是最新，无需更新"
+                    }
+
+                    SwingUtilities.invokeLater {
+                        ddlOutputArea.text = resultDdl
+                        statusLabel.text = "✓ 差量 DDL 生成完成"
+                    }
+
+                } catch (e: Exception) {
+                    SwingUtilities.invokeLater {
+                        val errorMsg = "-- 生成差量 DDL 失败\n-- 错误信息: ${e.message}\n" +
+                                "-- 请检查数据库连接配置"
+                        ddlOutputArea.text = errorMsg
+                        statusLabel.text = "✗ 差量 DDL 生成失败: ${e.message}"
+                        e.printStackTrace()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun applyDdlToDatabase() {
         val ddlText = ddlOutputArea.text
         if (ddlText.isBlank()) {
             Messages.showWarningDialog("请先生成DDL", "提示")
             return
         }
 
-        // 获取选中的POJO来决定文件名
-        val selectedRows = pojoTable.selectedRows
-        val selectedPojos = if (selectedRows.isNotEmpty()) {
-            selectedRows.filter { it in currentPojoList.indices }.map { currentPojoList[it] }
-        } else {
-            currentPojoList
+        // 检查数据库连接
+        val connInfo = jdbcDetector.detectConnectionInfo(project)
+        if (connInfo.url.isEmpty()) {
+            Messages.showErrorDialog("未配置数据库连接信息", "错误")
+            return
         }
 
-        try {
-            // 使用第一个 POJO 的简单类名作为实体名称
-            val entityName = if (selectedPojos.isNotEmpty()) {
-                selectedPojos.first().name ?: "Entity"
-            } else {
-                "Entity"
-            }
+        // 确认对话框
+        val result = Messages.showYesNoDialog(
+            project,
+            "确定要将以下 DDL 应用到数据库吗？\n\n" +
+                    "数据库: ${connInfo.url}\n\n" +
+                    "警告：此操作将修改数据库结构，请确保已备份数据！",
+            "确认应用 DDL",
+            AllIcons.General.Pin
+        )
 
-            if (selectedPojos.size == 1) {
-                // 单个表
-                val tableName = selectedPojos.first().guessTableName
-                DdlFileUtil.saveDdlToFile(project, entityName, tableName, selectedDialect.name, ddlText)
-            } else {
-                // 多个表或全部表
-                val ddlContents = if (selectedPojos.isNotEmpty()) {
-                    ReadAction.compute<Map<String, String>, Throwable> {
-                        selectedPojos.associate { pojo ->
-                            val tableName = pojo.guessTableName
-                            val pojoDdl = pojo.toCreateTableDDL(selectedDialect)
-                            tableName to pojoDdl
-                        }
+        if (result != Messages.YES) return
+
+        // 执行 DDL
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "应用DDL到数据库", true) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "正在连接数据库..."
+
+                try {
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "正在连接数据库..."
                     }
-                } else {
-                    // 使用当前显示的DDL
-                    mapOf("schema" to ddlText)
+
+                    // 分割 SQL 语句
+                    val statements = ddlText.split(";")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() && !it.startsWith("--") }
+
+                    indicator.text = "正在执行 DDL 语句..."
+
+                    // 获取数据库连接并执行
+                    databaseSchemaService.getConnection(connInfo).use { conn ->
+                        conn.autoCommit = false
+
+                        statements.forEachIndexed { index, sql ->
+                            indicator.fraction = (index + 1).toDouble() / statements.size
+                            indicator.text2 = "执行语句 ${index + 1}/${statements.size}"
+
+                            if (sql.isNotBlank()) {
+                                conn.createStatement().use { stmt ->
+                                    stmt.execute(sql)
+                                }
+                            }
+                        }
+
+                        conn.commit()
+                    }
+
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "✓ DDL 已成功应用到数据库"
+                        Messages.showInfoMessage(
+                            "DDL 已成功应用到数据库！\n执行了 ${statements.size} 个语句",
+                            "成功"
+                        )
+                    }
+
+                } catch (e: Exception) {
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "✗ 应用 DDL 失败: ${e.message}"
+                        Messages.showErrorDialog(
+                            "应用 DDL 失败：\n${e.message}",
+                            "错误"
+                        )
+                        e.printStackTrace()
+                    }
                 }
-                DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Messages.showErrorDialog("保存DDL文件失败: ${e.message}", "错误")
-        }
+        })
     }
 }

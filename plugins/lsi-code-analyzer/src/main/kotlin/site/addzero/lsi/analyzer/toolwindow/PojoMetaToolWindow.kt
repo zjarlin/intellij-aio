@@ -326,15 +326,19 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         val pojo = currentPojoList[row]
         fieldTableModel.rowCount = 0
-        pojo.fields.forEach { field ->
-            fieldTableModel.addRow(arrayOf(
-                field.name ?: "-",
-                field.typeName ?: "-",
-                field.columnName ?: "-",
-                field.comment ?: "-",
-                if (field.isPrimaryKey) "✓" else "",
-                if (field.isNullable) "✓" else ""
-            ))
+
+        // 在 ReadAction 中处理字段访问，避免 EDT 线程违规
+        ReadAction.run<Throwable> {
+            pojo.fields.forEach { field ->
+                fieldTableModel.addRow(arrayOf(
+                    field.name ?: "-",
+                    field.typeName ?: "-",
+                    field.columnName ?: "-",
+                    field.comment ?: "-",
+                    if (field.isPrimaryKey) "✓" else "",
+                    if (field.isNullable) "✓" else ""
+                ))
+            }
         }
     }
 

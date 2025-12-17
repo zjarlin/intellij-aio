@@ -7,10 +7,7 @@ import site.addzero.entity.JdbcColumnMetadata
 import site.addzero.util.lsi.database.DatabaseColumnType
 import site.addzero.util.lsi.database.getDatabaseColumnType
 import site.addzero.util.lsi.database.guessLength
-import site.addzero.util.lsi.database.precision
-import site.addzero.util.lsi.database.scale
 import site.addzero.util.lsi.field.LsiField
-import site.addzero.util.lsi.field.isNullable
 
 /**
  * 列类型匹配器

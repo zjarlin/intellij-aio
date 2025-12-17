@@ -1,7 +1,7 @@
 package site.addzero.util.ddlgenerator.api
 
 import site.addzero.util.db.DatabaseType
-import java.util.ServiceLoader
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -19,7 +19,8 @@ internal object DdlGeneratorFactory {
      * 懒加载所有通过 ServiceLoader 注册的策略实现
      */
     private val allStrategies: List<DdlGenerationStrategy> by lazy {
-        ServiceLoader.load(DdlGenerationStrategy::class.java).toList().also {
+        val toList = ServiceLoader.load(DdlGenerationStrategy::class.java).toList()
+        toList.also {
             println("Loaded ${it.size} DDL generation strategies via ServiceLoader")
         }
     }

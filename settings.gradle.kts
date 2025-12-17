@@ -11,15 +11,15 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-16T23:01:22.775109
+// Generated at: 2025-12-17T11:38:50.948787
 // Loaded: 8, Excluded: 0, Total: 8
-include(":lib-git:metaprogramming-lsi:lsi-apt")
 include(":lib-git:metaprogramming-lsi:lsi-core")
+include(":lib-git:metaprogramming-lsi:lsi-ksp")
 include(":lib-git:metaprogramming-lsi:lsi-kt2")
+include(":lib-git:metaprogramming-lsi:lsi-psi")
 include(":lib:ddlgenerator:tool-ddlgenerator")
-include(":lib:lsi-code-analyzer-core")
 include(":lib:tool-swing")
-include(":plugins:gradle-buddy")
+include(":plugins:autoddl")
 include(":plugins:lsi-code-analyzer")
 // <<< Gradle Buddy: End Of Block <<<
 

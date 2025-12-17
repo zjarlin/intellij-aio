@@ -283,11 +283,15 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
 
                     val entities = result.distinctBy { it.qualifiedName }
 
+                    // ReadAction 内部处理，避免 EDT 线程违规
+                    ReadAction.run<Throwable> {
+                        currentPojoList = entities
+                        updateTable(entities)
+                    }
+
                     SwingUtilities.invokeLater {
                         progressBar.isVisible = false
                         progressLabel.isVisible = false
-                        currentPojoList = entities
-                        updateTable(entities)
                         statusLabel.text = "✓ 扫描完成，共找到 ${entities.size} 个 POJO (来自 $total 个文件)"
                     }
                 } catch (e: Exception) {

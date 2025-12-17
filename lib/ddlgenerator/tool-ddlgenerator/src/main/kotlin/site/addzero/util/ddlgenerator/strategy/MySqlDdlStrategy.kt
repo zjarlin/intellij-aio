@@ -4,9 +4,8 @@ import site.addzero.util.db.DatabaseType
 import site.addzero.util.ddlgenerator.api.DdlGenerationStrategy
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
-import site.addzero.util.lsi.field.LsiField
-import site.addzero.util.lsi.field.isNullable
 import site.addzero.util.lsi.database.*
+import site.addzero.util.lsi.field.LsiField
 
 /**
  * MySQL方言的DDL生成策略

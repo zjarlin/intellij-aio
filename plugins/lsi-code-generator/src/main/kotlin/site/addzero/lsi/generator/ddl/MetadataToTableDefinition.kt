@@ -3,7 +3,7 @@ package site.addzero.lsi.generator.ddl
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.field.LsiField
-import site.addzero.util.lsi.field.isNullable
+
 import site.addzero.util.lsi.database.databaseFields
 import site.addzero.util.lsi.database.isPrimaryKey
 

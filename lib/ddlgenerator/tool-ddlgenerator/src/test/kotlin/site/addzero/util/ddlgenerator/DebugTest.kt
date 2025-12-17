@@ -5,7 +5,7 @@ import site.addzero.util.db.DatabaseType
 import site.addzero.util.ddlgenerator.extension.toCreateTableDDL
 import site.addzero.util.lsi.clazz.guessTableName
 import site.addzero.util.lsi.database.databaseFields
-import site.addzero.util.lsi.field.isNullable
+
 
 class DebugTest {
     @Test

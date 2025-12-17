@@ -11,10 +11,11 @@ implementationRemoteGit{
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2025-12-17T12:54:12.144693
-// Loaded: 9, Excluded: 0, Total: 9
+// Generated at: 2025-12-17T13:59:30.729091
+// Loaded: 10, Excluded: 0, Total: 10
 include(":lib-git:metaprogramming-lsi:lsi-core")
 include(":lib-git:metaprogramming-lsi:lsi-ksp")
+include(":lib-git:metaprogramming-lsi:lsi-kt")
 include(":lib-git:metaprogramming-lsi:lsi-kt2")
 include(":lib-git:metaprogramming-lsi:lsi-psi")
 include(":lib-git:metaprogramming-lsi:lsi-reflection")

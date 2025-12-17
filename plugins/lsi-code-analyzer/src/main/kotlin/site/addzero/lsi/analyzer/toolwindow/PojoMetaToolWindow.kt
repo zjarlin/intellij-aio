@@ -446,13 +446,16 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             // 自动保存功能
             val settings = DdlSettings.getInstance()
             if (settings.autoSaveDdl) {
+                // 使用第一个 POJO 的简单类名作为实体名称
+                val entityName = selectedPojos.first().name ?: "Entity"
+
                 if (selectedPojos.size == 1) {
                     // 单个表保存
                     val tableName = selectedPojos.first().guessTableName
-                    DdlFileUtil.saveDdlToFile(project, tableName, selectedDialect.name, ddl)
+                    DdlFileUtil.saveDdlToFile(project, entityName, tableName, selectedDialect.name, ddl)
                 } else {
                     // 多个表保存到单个文件
-                    DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+                    DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
                 }
             }
         } catch (e: Exception) {
@@ -482,6 +485,9 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             // 自动保存功能
             val settings = DdlSettings.getInstance()
             if (settings.autoSaveDdl) {
+                // 使用第一个 POJO 的简单类名作为实体名称
+                val entityName = currentPojoList.first().name ?: "Entity"
+
                 // 创建表名到DDL的映射
                 val ddlContents = ReadAction.compute<Map<String, String>, Throwable> {
                     currentPojoList.associate { pojo ->
@@ -491,7 +497,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                     }
                 }
                 // 保存完整schema到文件
-                DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+                DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -506,23 +512,6 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
             return
         }
 
-        // 检查是否配置了保存目录
-        if (!DdlFileUtil.isSaveDirectoryConfigured()) {
-            val result = Messages.showYesNoDialog(
-                "尚未配置DDL保存目录，是否现在配置？",
-                "配置保存目录",
-                Messages.getQuestionIcon()
-            )
-            if (result == Messages.YES) {
-                // 打开设置窗口
-                com.intellij.openapi.options.ShowSettingsUtil.getInstance().showSettingsDialog(
-                    project,
-                    "LSI DDL Settings"
-                )
-            }
-            return
-        }
-
         // 获取选中的POJO来决定文件名
         val selectedRows = pojoTable.selectedRows
         val selectedPojos = if (selectedRows.isNotEmpty()) {
@@ -532,10 +521,17 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
         }
 
         try {
+            // 使用第一个 POJO 的简单类名作为实体名称
+            val entityName = if (selectedPojos.isNotEmpty()) {
+                selectedPojos.first().name ?: "Entity"
+            } else {
+                "Entity"
+            }
+
             if (selectedPojos.size == 1) {
                 // 单个表
                 val tableName = selectedPojos.first().guessTableName
-                DdlFileUtil.saveDdlToFile(project, tableName, selectedDialect.name, ddlText)
+                DdlFileUtil.saveDdlToFile(project, entityName, tableName, selectedDialect.name, ddlText)
             } else {
                 // 多个表或全部表
                 val ddlContents = if (selectedPojos.isNotEmpty()) {
@@ -550,7 +546,7 @@ class PojoMetaPanel(private val project: Project) : JPanel(BorderLayout()) {
                     // 使用当前显示的DDL
                     mapOf("schema" to ddlText)
                 }
-                DdlFileUtil.saveAllDdlToFile(project, selectedDialect.name, ddlContents)
+                DdlFileUtil.saveAllDdlToFile(project, entityName, selectedDialect.name, ddlContents)
             }
         } catch (e: Exception) {
             e.printStackTrace()

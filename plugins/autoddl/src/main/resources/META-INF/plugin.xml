@@ -148,7 +148,7 @@
                     class="site.addzero.addl.action.anycodegen.impl.GenJimmerDTO"/>
 
             <action id="GenController"
-                    class="site.addzero.addl.action.anycodegen.impl.GenController"/>
+                    class="site.addzero.addl.action.anycodegen.impl.GenControllerLsi"/>
 
             <action id="GenExcelDTO"
                     class="site.addzero.addl.action.anycodegen.impl.GenExcelDTO"/>

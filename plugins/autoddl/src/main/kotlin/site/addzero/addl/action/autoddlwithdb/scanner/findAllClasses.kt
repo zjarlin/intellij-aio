@@ -1,6 +1,5 @@
 package site.addzero.addl.action.autoddlwithdb.scanner
 
-import site.addzero.addl.util.fieldinfo.PsiUtil.guessTableNameByAnno
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.psi.PsiClass
@@ -18,7 +17,8 @@ fun findktEntityClasses(project: Project): List<KtClass> {
     val filter = files1.flatMap {
         val findFile = PsiManager.getInstance(project).findFile(it)
         val b = findFile as KtFile
-        b.declarations.filterIsInstance<KtClass>()
+        val declarations = b.declarations
+        declarations.filterIsInstance<KtClass>()
     }
     .filter { kotlinChecker.isEntityClass(it) }
 

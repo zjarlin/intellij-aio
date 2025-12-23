@@ -6,8 +6,8 @@ dependencies {
     implementation(project(":lib:lsi-code-analyzer-core"))
     implementation(project(":lib:ddlgenerator:tool-ddlgenerator-core"))
 //    implementation(project(":lib:ddlgenerator:tool-ddlgenerator-parser"))
-    implementation(project(":lib-git:metaprogramming-lsi:lsi-core"))
-    implementation(project(":lib-git:metaprogramming-lsi:lsi-database"))
+    implementation(project(":checkouts:lsi:lsi-core"))
+    implementation(project(":checkouts:lsi:lsi-database"))
     implementation(project(":lib:tool-template"))
 
     implementation(libs.gson)

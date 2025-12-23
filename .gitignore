@@ -53,4 +53,4 @@ out/
 .intellijPlatform
 /.kotlin
 /buildSrc/.kotlin
-/checkouts/metaprogramming-lsi/lsi-core/build/kotlin/compileKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len
+/checkouts/lsi/lsi-core/build/kotlin/compileKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len

@@ -4,8 +4,8 @@ plugins {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation(project(":lib-git:metaprogramming-lsi:lsi-core"))
-    implementation(project(":lib-git:metaprogramming-lsi:lsi-database"))
+    implementation(project(":checkouts:lsi:lsi-core"))
+    implementation(project(":checkouts:lsi:lsi-database"))
     implementation("site.addzero:tool-database-model:2025.11.15")
     implementation(libs.gson)
     // FreeMarker Template Engine

@@ -263,7 +263,7 @@ dependencies {
 ```kotlin
 dependencies {
     implementation(project(":lib:tool-swing"))
-    api(project(":lib-git:metaprogramming-lsi:lsi-core"))
+    api(project(":checkouts:lsi:lsi-core"))
     testImplementation(project(":lib:test-utils"))
 }
 ```
@@ -288,8 +288,8 @@ dependencies {
 
 ```
 打开的模块: :plugins:autoddl
-  ├─ 依赖: :lib-git:metaprogramming-lsi:lsi-core
-  │   ├─ 依赖: :lib-git:metaprogramming-lsi:lsi-reflection
+  ├─ 依赖: :checkouts:lsi:lsi-core
+  │   ├─ 依赖: :checkouts:lsi:lsi-reflection
   │   └─ 依赖: (其他依赖...)
   ├─ 依赖: :lib:tool-swing
   │   └─ 依赖: :lib:tool-awt

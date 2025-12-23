@@ -7,16 +7,16 @@ plugins {
     id("site.addzero.gradle.plugin.modules-buddy") version "+"
 }
 implementationRemoteGit{
-    remoteGits=listOf("metaprogramming-lsi")
+    remoteGits=listOf("lsi")
 }
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
 // Generated at: 2025-12-07T17:16:44.618782
 // Loaded: 13, Excluded: 0, Total: 13
-include(":lib-git:metaprogramming-lsi:lsi-core")
-include(":lib-git:metaprogramming-lsi:lsi-database")
-include(":lib-git:metaprogramming-lsi:lsi-kt")
-include(":lib-git:metaprogramming-lsi:lsi-reflection")
+include(":checkouts:lsi:lsi-core")
+include(":checkouts:lsi:lsi-database")
+include(":checkouts:lsi:lsi-kt")
+include(":checkouts:lsi:lsi-reflection")
 include(":lib:ddlgenerator:tool-ddlgenerator")
 include(":lib:ddlgenerator:tool-ddlgenerator-core")
 include(":lib:ddlgenerator:tool-ddlgenerator-koin")

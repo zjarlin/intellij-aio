@@ -16,7 +16,7 @@ class OnDemandModuleLoaderTest {
             dependencies {
                 implementation(project(":lib:tool-swing"))
                 implementation(project(":lib:tool-awt"))
-                api(project(":lib-git:metaprogramming-lsi:lsi-core"))
+                api(project(":checkouts:lsi:lsi-core"))
                 testImplementation(project(":lib:test-utils"))
             }
         """.trimIndent()
@@ -26,7 +26,7 @@ class OnDemandModuleLoaderTest {
         assertEquals(4, dependencies.size)
         assertTrue(dependencies.contains(":lib:tool-swing"))
         assertTrue(dependencies.contains(":lib:tool-awt"))
-        assertTrue(dependencies.contains(":lib-git:metaprogramming-lsi:lsi-core"))
+        assertTrue(dependencies.contains(":checkouts:lsi:lsi-core"))
         assertTrue(dependencies.contains(":lib:test-utils"))
     }
 
@@ -61,7 +61,7 @@ class OnDemandModuleLoaderTest {
 
         assertEquals(2, dependencies.size)
         assertTrue(dependencies.contains(":lib:toolSwing"))
-        assertTrue(dependencies.contains(":lib-git:metaprogrammingLsi:lsiCore"))
+        assertTrue(dependencies.contains(":checkouts:metaprogrammingLsi:lsiCore"))
     }
 
     @Test
@@ -70,7 +70,7 @@ class OnDemandModuleLoaderTest {
             dependencies {
                 implementation(project(":lib:tool-swing"))
                 implementation(projects.lib.toolAwt)
-                api(project(":lib-git:metaprogramming-lsi:lsi-core"))
+                api(project(":checkouts:lsi:lsi-core"))
                 // implementation(project(":lib:ignored"))
             }
         """.trimIndent()
@@ -80,7 +80,7 @@ class OnDemandModuleLoaderTest {
         assertEquals(3, dependencies.size)
         assertTrue(dependencies.contains(":lib:tool-swing"))
         assertTrue(dependencies.contains(":lib:toolAwt"))
-        assertTrue(dependencies.contains(":lib-git:metaprogramming-lsi:lsi-core"))
+        assertTrue(dependencies.contains(":checkouts:lsi:lsi-core"))
     }
 
     @Test

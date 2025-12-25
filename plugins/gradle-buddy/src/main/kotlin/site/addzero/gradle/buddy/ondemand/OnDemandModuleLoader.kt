@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
+import site.addzero.gradle.buddy.util.StringUtils.toKebabCase
 import java.io.File
 
 /**
@@ -158,13 +159,16 @@ object OnDemandModuleLoader {
         
         // 格式2: projects.path.to.module
         // 匹配任何依赖配置 + projects.xxx，如: implementation(projects.lib.toolAwt)
+        // 注意: Gradle type-safe accessors 会将 kebab-case 目录名转成 camelCase
+        // 例如 tool-awt -> toolAwt，这里需要逆向转换回实际的目录名
         val projectsPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*projects\.([a-zA-Z0-9.]+)""")
         projectsPattern.findAll(effectiveContent).forEach { match ->
             val projectAccessor = match.groupValues[1]
             // 转换 path.to.module -> :path:to:module
-            // 注意: Gradle type-safe accessors 会将 kebab-case 转成 camelCase
-            // 例如 tool-awt -> toolAwt，这里我们先简单转换，实际可能需要更复杂的逻辑
-            val modulePath = ":${projectAccessor.replace('.', ':')}"
+            // 将每段 camelCase 转换回 kebab-case（如 iocCore -> ioc-core）
+            val segments = projectAccessor.split('.')
+            val convertedSegments = segments.map { it.toKebabCase() }
+            val modulePath = ":${convertedSegments.joinToString(":")}"
             dependencies.add(modulePath)
         }
         

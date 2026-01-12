@@ -50,15 +50,17 @@ class MavenDependencySearchContributor(
         modifiers: Int,
         searchText: String
     ): Boolean {
-        // 复制依赖声明到剪贴板
-        val dependencyString = formatDependency(selected)
+        val dialog = VersionSelectionDialog(project, selected)
+        if (!dialog.showAndGet()) return true
+
+        val selectedVersion = dialog.getSelectedVersion() ?: selected.latestVersion
+        val artifactWithVersion = selected.copy(latestVersion = selectedVersion)
+        val dependencyString = formatDependency(artifactWithVersion)
         copyToClipboard(dependencyString)
 
-        // 自动记录历史（使用 += 操作符自动去重）
-        historyService.record(selected.groupId, selected.artifactId, selected.latestVersion.ifBlank { selected.version })
+        historyService.record(selected.groupId, selected.artifactId, selectedVersion)
         historyService.record(searchText)
 
-        // 显示通知
         showNotification(
             project,
             "Maven Dependency Copied",

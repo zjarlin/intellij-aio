@@ -46,7 +46,6 @@ out/
 
 ### VS Code ###
 .vscode/
-
 ### Kotlin ###
 .kotlin.intellijPlatform/
 .aider*
@@ -54,3 +53,7 @@ out/
 /.kotlin
 /buildSrc/.kotlin
 /checkouts/lsi/lsi-core/build/kotlin/compileKotlin/cacheable/caches-jvm/jvm/kotlin/class-attributes.tab.keystream.len
+/.cursorignore
+/.editorconfig
+/.qoderignore
+/.warpindexignore

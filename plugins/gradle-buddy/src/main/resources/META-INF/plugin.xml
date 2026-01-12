@@ -81,6 +81,9 @@
         <!-- Status Bar Widget -->
         <statusBarWidgetFactory id="GradleBuddyWidget"
                                 implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
+
+        <!-- Version Catalog Editor Notification -->
+        <editorNotificationProvider implementation="site.addzero.gradle.buddy.catalog.VersionCatalogEditorNotificationProvider"/>
     </extensions>
 
     <actions>

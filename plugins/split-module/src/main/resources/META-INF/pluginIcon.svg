@@ -1,0 +1,26 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background gradient -->
+    <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#9C27B0;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+
+    <!-- Outer rounded square -->
+    <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#grad1)" opacity="0.2"/>
+    <rect x="2" y="2" width="36" height="36" rx="8" stroke="url(#grad1)" stroke-width="2" fill="none"/>
+
+    <!-- Split line (diagonal) -->
+    <line x1="10" y1="10" x2="30" y2="30" stroke="url(#grad1)" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Top-left module piece -->
+    <path d="M 12 12 L 18 12 L 12 18 Z" fill="#2196F3" opacity="0.8"/>
+
+    <!-- Bottom-right module piece -->
+    <path d="M 28 28 L 22 28 L 28 22 Z" fill="#9C27B0" opacity="0.8"/>
+
+    <!-- Small arrow indicators -->
+    <path d="M 14 16 L 12 18 L 10 16" stroke="#2196F3" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 26 24 L 28 22 L 30 24" stroke="#9C27B0" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,60 @@
+<idea-plugin>
+    <id>site.addzero.gradle-module-sleep</id>
+    <name>Gradle Module Sleep</name>
+    <vendor>AddZero</vendor>
+
+    <!-- K2 Compatibility Declaration -->
+    <idea-version since-build="242" until-build="262.*"/>
+
+    <description>
+        Automatically manages Gradle module loading based on open editor tabs.
+
+        Features:
+        - On-demand module loading: Only load modules you're actively working on
+        - Auto-sleep: Automatically unload idle modules to save memory
+        - Manual control: Load or restore modules as needed
+
+        Perfect for large multi-module Gradle projects to improve IDE performance.
+    </description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <!-- K2 模式兼容性声明 -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true" />
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="site.addzero.gradle.sleep.GradleModuleSleepPlugin"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="GradleModuleSleep" displayType="BALLOON" isLogByDefault="true"/>
+
+        <!-- Settings -->
+        <projectConfigurable
+            parentId="tools"
+            instance="site.addzero.gradle.sleep.settings.ModuleSleepSettingsConfigurable"
+            id="site.addzero.gradle.sleep.settings"
+            displayName="Gradle Module Sleep"/>
+    </extensions>
+
+    <actions>
+        <!-- On-Demand Module Loading Actions -->
+        <action id="GradleModuleSleep.LoadOnlyOpenTabModules"
+                class="site.addzero.gradle.sleep.actions.LoadOnlyOpenTabModulesAction"
+                text="Load Only Open Tab Modules"
+                description="Load only Gradle modules that correspond to currently open editor tabs">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
+        </action>
+
+        <action id="GradleModuleSleep.RestoreAllModules"
+                class="site.addzero.gradle.sleep.actions.RestoreAllModulesAction"
+                text="Restore All Gradle Modules"
+                description="Restore all modules that were excluded by Gradle Module Sleep">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

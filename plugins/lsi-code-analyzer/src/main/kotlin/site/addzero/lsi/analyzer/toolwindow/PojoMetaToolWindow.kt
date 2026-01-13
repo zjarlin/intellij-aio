@@ -26,10 +26,8 @@ import org.jetbrains.kotlin.idea.stubindex.KotlinFullClassNameIndex
 import site.addzero.lsi.analyzer.service.DatabaseSchemaService
 import site.addzero.lsi.analyzer.service.JdbcConnectionDetectorService
 import site.addzero.util.db.DatabaseType
-import site.addzero.util.ddlgenerator.extension.toCompleteSchemaDDL
 import site.addzero.util.lsi.clazz.LsiClass
 import site.addzero.util.lsi.clazz.guessTableName
-import site.addzero.util.lsi.database.isPrimaryKey
 import site.addzero.util.lsi_impl.impl.intellij.virtualfile.toAllLsiClassesUnified
 import java.awt.BorderLayout
 import java.awt.FlowLayout

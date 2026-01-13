@@ -12,12 +12,12 @@ intellijPlatform {
 dependencies {
     // LSI 核心依赖
     implementation(project(":checkouts:lsi:lsi-core"))
-    implementation(project(":checkouts:lsi:lsi-database"))
+
     implementation(project(":checkouts:lsi:lsi-intellij"))
     implementation(project(":checkouts:lsi:lsi-psiandkt"))
 
     // DDL Generator
-    implementation(project(":lib:ddlgenerator:tool-ddlgenerator"))
+
     implementation("site.addzero:tool-database-model:2025.12.04")
     implementation("site.addzero:tool-sql-executor:2025.11.26")
     implementation("site.addzero:tool-jdbc:2025.10.07")

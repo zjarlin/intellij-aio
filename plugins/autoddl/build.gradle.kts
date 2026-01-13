@@ -12,7 +12,7 @@ intellijPlatform {
 dependencies {
 
     implementation(project(":checkouts:lsi:lsi-core"))
-    implementation(project(":checkouts:lsi:lsi-database"))
+
     implementation(project(":checkouts:lsi:lsi-intellij"))
     implementation(project(":checkouts:lsi:lsi-psi"))
     implementation(project(":checkouts:lsi:lsi-kt"))

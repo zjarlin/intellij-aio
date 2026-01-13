@@ -103,22 +103,6 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
 
-        <!-- On-Demand Module Loading Actions -->
-        <action id="GradleBuddy.LoadOnlyOpenTabModules"
-                class="site.addzero.gradle.buddy.ondemand.LoadOnlyOpenTabModulesAction"
-                text="Load Only Open Tab Modules"
-                description="Load only Gradle modules that correspond to currently open editor tabs">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
-        </action>
-
-        <action id="GradleBuddy.RestoreAllModules"
-                class="site.addzero.gradle.buddy.ondemand.RestoreAllModulesAction"
-                text="Restore All Gradle Modules"
-                description="Restore all modules that were excluded by Gradle Buddy">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-        </action>
-
     </actions>
 
 

@@ -1,0 +1,12 @@
+<idea-plugin>
+    <actions>
+        <!-- Manual Pull Action -->
+        <action id="site.addzero.autoupdate.ManualPullAction"
+                class="site.addzero.autoupdate.ManualPullAction"
+                text="Pull from Remote"
+                description="Pull latest changes from remote repository"
+                icon="AllIcons.Actions.Refresh">
+            <add-to-group group-id="VcsGroup" anchor="after" relative-to-action="Vcs.Push"/>
+        </action>
+    </actions>
+</idea-plugin>

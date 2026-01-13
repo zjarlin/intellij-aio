@@ -2,6 +2,13 @@
 
 All notable changes to the Split Module plugin will be documented in this file.
 
+## [1.1.0] - 2026-01-13
+
+### Added
+- **Multi-Build System Support**: Added support for Maven (`pom.xml`) and Gradle Groovy DSL (`build.gradle`) in addition to Kotlin DSL.
+- **Automatic Detection**: The plugin now automatically detects the build system in the source module.
+- **Smart Dependency Injection**: Refactored dependency adding logic to use specific syntax for each build system (XML for Maven, Groovy/Kotlin DSL for Gradle).
+
 ## [2026.01.12] - 2026-01-12
 
 ### Added
@@ -24,7 +31,6 @@ All notable changes to the Split Module plugin will be documented in this file.
 ## [Unreleased]
 
 ### Planned
-- Support for Gradle Groovy DSL
 - Dependency analysis and optimization
 - Batch module splitting
 - Undo/redo support improvements

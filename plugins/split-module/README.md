@@ -6,9 +6,9 @@
 
 - **Right-click to split**: Select files in Project View, right-click, and choose "Split Module"
 - **Automatic sibling module creation**: New module is created at the same level as the source module
-- **Configuration copy**: Automatically copies `build.gradle.kts` from source module
-- **Dependency injection**: Automatically adds the new module as a dependency in the source module
-- **Structure preservation**: Maintains file paths and package hierarchy
+- **Multi-build system support**: Supports **Maven** (`pom.xml`), **Gradle Kotlin DSL** (`build.gradle.kts`), and **Gradle Groovy DSL** (`build.gradle`)
+- **Smart dependency injection**: Automatically adds the new module as a dependency in the source module using the appropriate syntax
+- **Structure preservation**: Maintains file paths and package hierarchy (e.g., `src/main/kotlin/...`)
 
 ## Usage
 
@@ -49,12 +49,11 @@ project/
 ## Requirements
 
 - IntelliJ IDEA 2024.2+
-- Gradle project with Kotlin DSL (`build.gradle.kts`)
-- All selected files must be from the same Gradle module
+- Maven project OR Gradle project (Kotlin/Groovy DSL)
+- All selected files must be from the same module
 
 ## Limitations
 
-- Only supports Gradle Kotlin DSL (not Groovy DSL or Maven)
 - Copies all dependencies from source module (manual cleanup required)
 - Module registration in `settings.gradle.kts` is handled by external plugins
 

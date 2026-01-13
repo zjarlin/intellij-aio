@@ -53,15 +53,15 @@ class SplitModuleAction : AnAction() {
     val enabled = project != null &&
       selectedFiles != null &&
       selectedFiles.isNotEmpty() &&
-      areFilesInSameGradleModule(project, selectedFiles.toList())
+      areFilesInSameModule(project, selectedFiles.toList())
 
     e.presentation.isEnabledAndVisible = enabled
   }
 
   /**
-   * 检查所有文件是否属于同一个 Gradle 模块
+   * 检查所有文件是否属于同一个模块
    */
-  private fun areFilesInSameGradleModule(project: Project, files: List<VirtualFile>): Boolean {
+  private fun areFilesInSameModule(project: Project, files: List<VirtualFile>): Boolean {
     if (files.isEmpty()) return false
 
     val firstModule = findSourceModule(project, listOf(files.first())) ?: return false
@@ -73,7 +73,7 @@ class SplitModuleAction : AnAction() {
   }
 
   /**
-   * 查找文件所属的 Gradle 模块根目录
+   * 查找文件所属的模块根目录 (Gradle 或 Maven)
    */
   private fun findSourceModule(project: Project, files: List<VirtualFile>): VirtualFile? {
     if (files.isEmpty()) return null
@@ -82,9 +82,12 @@ class SplitModuleAction : AnAction() {
     var current: VirtualFile? = file.parent
 
     while (current != null) {
-      // 检查是否有 build.gradle.kts 文件
-      val buildFile = current.findChild("build.gradle.kts")
-      if (buildFile != null && buildFile.exists()) {
+      // 检查常见的构建文件
+      val isModuleRoot = current.findChild("build.gradle.kts") != null ||
+        current.findChild("build.gradle") != null ||
+        current.findChild("pom.xml") != null
+
+      if (isModuleRoot) {
         return current
       }
 

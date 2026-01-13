@@ -1,15 +1,17 @@
 package site.addzero.autoupdate
 
-import com.intellij.openapi.actionSystem.*
-import com.intellij.openapi.actionSystem.ex.AnActionListener
-import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.intellij.openapi.actionSystem.ex.AnActionListener
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 
 /**
  * Git Push Detector - Listens for Push actions to trigger Update Project before push
@@ -29,7 +31,7 @@ class GitPushDetectorService(private val project: Project) : Disposable {
                 val actionId = ActionManager.getInstance().getId(action) ?: ""
 
                 // Broad detection: match any action that contains "Push"
-                // This covers Vcs.Push, Git.Push, CommitAndPush, GitHub.Push etc.
+                // This covers Vcs.Push, Git.Push, CommitAndPush, GitHub.Push, etc.
                 if (actionId.contains("Push", ignoreCase = true) || actionId.contains("Checkin", ignoreCase = true)) {
                     log.info("Detected push-related action: $actionId")
                     handlePushActionDetected(event)
@@ -50,15 +52,7 @@ class GitPushDetectorService(private val project: Project) : Disposable {
             if (updateAction != null) {
                 isUpdating = true
                 try {
-                    // Create a proper event with current context
-                    val event = AnActionEvent.createFromAnAction(
-                        updateAction,
-                        originalEvent.inputEvent,
-                        originalEvent.place,
-                        originalEvent.dataContext
-                    )
-                    log.info("Invoking native Update Project before $originalEvent")
-                    ActionUtil.performActionDumbAwareWithCallbacks(updateAction, event)
+                    ActionUtil.performAction(updateAction, originalEvent)
                 } catch (e: Exception) {
                     log.error("Failed to trigger Update Project", e)
                 } finally {

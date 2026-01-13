@@ -1,6 +1,9 @@
 package site.addzero.autoupdate
 
-import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import git4idea.repo.GitRepositoryManager
 
@@ -14,14 +17,7 @@ class ManualPullAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val action = ActionManager.getInstance().getAction("Vcs.UpdateProject") ?: return
 
-        // Create a proper event to ensure project and context are passed correctly
-        val event = AnActionEvent.createFromAnAction(
-            action,
-            e.inputEvent,
-            e.place,
-            e.dataContext
-        )
-        ActionUtil.performActionDumbAwareWithCallbacks(action, event)
+        ActionUtil.performAction(action, e)
     }
 
     override fun update(e: AnActionEvent) {

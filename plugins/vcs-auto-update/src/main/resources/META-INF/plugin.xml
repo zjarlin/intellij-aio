@@ -2,7 +2,6 @@
     <id>site.addzero.vcs-auto-update</id>
     <name>VCS Auto Update</name>
     <vendor>zjarlin</vendor>
-    <icon>/META-INF/pluginIcon.svg</icon>
 
     <description><![CDATA[
     <h3>VCS Auto Update - Auto Pull Before Git Push</h3>

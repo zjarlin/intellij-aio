@@ -2,12 +2,6 @@ plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
-intellijPlatform {
-    pluginConfiguration {
-        id = "site.addzero.lsi-code-analyzer"
-        name = "LSI Code Analyzer"
-    }
-}
 
 dependencies {
     // LSI 核心依赖

@@ -1,4 +1,4 @@
-package site.addzero.gradle.buddy.intentions
+package site.addzero.gradle.buddy.intentions.convert
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
@@ -12,7 +12,6 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * 将硬编码依赖转换为版本目录格式的意图操作
@@ -30,7 +29,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "将依赖转换为版本目录格式 (TOML)"
+    override fun getText(): String = "convert dependencies to (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 

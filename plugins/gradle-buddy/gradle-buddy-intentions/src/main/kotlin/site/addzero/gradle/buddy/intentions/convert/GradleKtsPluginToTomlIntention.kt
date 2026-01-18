@@ -1,4 +1,4 @@
-package site.addzero.gradle.buddy.intentions
+package site.addzero.gradle.buddy.intentions.convert
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
@@ -28,7 +28,7 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "Convert plugins to version catlog (TOML)"
+    override fun getText(): String = "convert plugins to version directory format (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 

@@ -30,30 +30,37 @@
         <!-- Notification Group -->
         <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
 
-        <!-- Intention: Update dependency to latest version (Gradle KTS) -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.GradleKtsUpdateDependencyIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
+         <!-- Intention: Update dependency to latest version (Gradle KTS) -->
+         <!-- order="FIRST" 确保在intention列表中优先显示 -->
+         <intentionAction order="FIRST">
+             <language>kotlin</language>
+             <className>site.addzero.gradle.buddy.intentions.update.GradleKtsUpdateDependencyIntention</className>
+             <category>Gradle Buddy</category>
+         </intentionAction>
 
+         <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
+         <!-- order="FIRST" 确保在intention列表中优先显示 -->
+         <intentionAction order="FIRST">
+             <language>kotlin</language>
+             <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateDependencyIntention</className>
+             <category>Gradle Buddy</category>
+         </intentionAction>
 
-        <!-- Intention: Convert plugin declaration to TOML format -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.GradleKtsPluginToTomlIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
+         <!-- Intention: Convert plugin declaration to TOML format -->
+         <!-- order="FIRST" 确保在intention列表中优先显示 -->
+         <intentionAction order="FIRST">
+             <language>kotlin</language>
+             <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsPluginToTomlIntention</className>
+             <category>Gradle Buddy</category>
+         </intentionAction>
 
-        <!-- Intention: Convert hardcoded dependency to TOML format -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.GradleKtsHardcodedDependencyToTomlIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
+         <!-- Intention: Convert hardcoded dependency to TOML format -->
+         <!-- order="FIRST" 确保在intention列表中优先显示 -->
+         <intentionAction order="FIRST">
+             <language>kotlin</language>
+             <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToTomlIntention</className>
+             <category>Gradle Buddy</category>
+         </intentionAction>
 
         <!-- Current Module Tasks Tool Window -->
         <toolWindow id="Module Tasks"

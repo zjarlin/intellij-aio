@@ -1,4 +1,4 @@
-package site.addzero.gradle.buddy.intentions
+package site.addzero.gradle.buddy.intentions.update
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
@@ -32,12 +32,10 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getText(): String = "update dependency to the latest version"
 
-    fun getDescription(): String = "Retrieve the latest version from Maven Central and update Gradle KTS dependency declarations."
-
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Retrieve the latest version from Maven Central and update Gradle KTS dependencies.")
+        return IntentionPreviewInfo.Html("从 Maven Central 获取最新版本并更新 Gradle KTS 依赖。")
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {

@@ -1,4 +1,4 @@
-package site.addzero.gradle.buddy.intentions
+package site.addzero.gradle.buddy.intentions.catalog
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction

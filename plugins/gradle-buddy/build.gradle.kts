@@ -12,9 +12,8 @@ intellijPlatform {
 }
 
 dependencies {
-    intellijPlatform {
-        bundledPlugin("org.jetbrains.plugins.gradle")
-        bundledPlugin("com.intellij.java")
-    }
-    implementation(libs.tool.api.maven)
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-intentions"))
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-migration"))
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-tasks"))
 }

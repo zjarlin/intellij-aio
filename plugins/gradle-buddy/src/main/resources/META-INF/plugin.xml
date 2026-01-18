@@ -7,18 +7,16 @@
     <idea-version since-build="242" until-build="262.*"/>
 
     <description>
-        A plugin that helps you manage Gradle projects by showing an indicator when a project is not loaded.
-        When you open a file in a Gradle project that hasn't been loaded, it shows an indicator in the status bar
-        to remind you to load the Gradle project.
+        A plugin that helps you manage Gradle projects.
 
         Features:
-        - On-demand module loading
-        - Auto-release unused modules
+        - Show Gradle tasks for current module in a tool window
         - Migrate project() dependencies to Maven artifacts
+        - Migrate hardcoded dependencies to version catalog
+        - Intention actions for updating dependencies
     </description>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>org.jetbrains.plugins.gradle</depends>
     <depends>org.jetbrains.kotlin</depends>
     <!-- K2 模式兼容性声明 -->
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
@@ -40,13 +38,6 @@
             <category>Gradle Buddy</category>
         </intentionAction>
 
-        <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.VersionCatalogUpdateDependencyIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
 
         <!-- Intention: Convert plugin declaration to TOML format -->
         <!-- order="FIRST" 确保在intention列表中优先显示 -->
@@ -81,9 +72,6 @@
         <!-- Status Bar Widget -->
         <statusBarWidgetFactory id="GradleBuddyWidget"
                                 implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
-
-        <!-- Version Catalog Editor Notification -->
-        <editorNotificationProvider implementation="site.addzero.gradle.buddy.catalog.VersionCatalogEditorNotificationProvider"/>
     </extensions>
 
     <actions>
@@ -96,7 +84,7 @@
         </action>
 
         <action id="GradleBuddy.MigrateToVersionCatalog"
-                class="site.addzero.gradle.buddy.catalog.MigrateToVersionCatalogAction"
+                class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
                 text="Migrate to Version Catalog"
                 description="Migrate hardcoded dependencies to gradle/libs.versions.toml">
             <add-to-group group-id="ToolsMenu" anchor="last"/>

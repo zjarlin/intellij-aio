@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Gradle Buddy plugin will be documented in this file.
+All notable changes to Gradle Buddy plugin will be documented in this file.
 
 ## [Unreleased] - 2025-12-07
 
@@ -18,10 +18,6 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
   - 支持 `id("plugin.id") version "version"` 格式
   - 自动从 Gradle Plugin Portal 查询最新版本
   - 与依赖版本更新使用相同的 Alt+Enter 意图操作
-- **Sleep 功能增强**：点击 💤 Sleep 按钮时自动关闭其他标签页
-  - 关闭除当前文件外的所有编辑器标签页
-  - 只保留当前模块及其依赖
-  - 提供更干净的专注工作环境
 - **字符串工具类**：新增 `StringUtils` 替代 dataframe 依赖
   - `toCamelCaseByDelimiters()`: 转换为 camelCase
   - `toKebabCase()`: 转换为 kebab-case
@@ -45,7 +41,7 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
 - 修复缺失 `org.jetbrains.kotlinx.dataframe` 依赖导致的二进制不兼容问题
   - 移除了对 dataframe 库的依赖
   - 使用自实现的字符串工具函数替代
-- 修复 `URL(String)` 废弃 API 使用警告
+- 修复 `URL(String)` 已弃用 API 使用警告
   - 使用 `URI.toURL()` 替代废弃的构造函数
   - 兼容未来版本的 Java API 变更
 
@@ -55,20 +51,7 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
 
 ---
 
-## [2025.11.33] - 2025-11-30
-
-### ✨ Added
-- **Auto Sleep 开关**：Module Tasks 面板新增开关，可手动开启/关闭自动睡眠功能
-- **智能自动检测**：30+ 模块的大型项目自动开启睡眠，小型项目默认关闭
-- **详细 Tooltip**：悬停开关显示模块数量、阈值、当前状态
-
-### 🔧 Changed
-- `GradleBuddySettingsService` 新增 `autoSleepEnabled` 设置项
-- `GradleBuddyService.isAutoSleepActive()` 方法支持用户设置覆盖自动检测
-
----
-
-## [2025.11.32] - 2025-11-30
+## [2025.11.31] - 2025-11-30
 
 ### 🎯 解决的痛点
 - **Gradle Sync 慢**：大型多模块项目 Sync 需要 5-10 分钟，现在只需 30 秒
@@ -90,25 +73,15 @@ All notable changes to the Gradle Buddy plugin will be documented in this file.
 - **实验性 API 依赖**：移除 `ProjectCloseListener` 的使用
 
 ### 🐛 Fixed
-- 修复 `StatusBar.addWidget(StatusBarWidget)` 废弃警告
+- 修复 `StatusBar.addWidget(StatusBarWidget)` 已弃用警告
 - 修复 `ProjectCloseListener` 实验性 API 警告
 
 ---
 
-## [2025.11.31] - 2025-11-30
+## [2025.11.32] - 2025-11-30
 
 ### ✨ Added
 - **按需模块加载**：只加载当前打开的编辑器标签页对应的模块
-- **自动释放机制**：5 分钟未使用的模块自动释放
-- **一键加载**：`Ctrl+Alt+Shift+L` 快捷键一键应用按需加载
-- **一键恢复**：恢复所有被排除的模块
-- **状态栏组件**：显示 Gradle 项目加载状态
-
-### 🛠️ Module Tasks 工具窗口
-- 右侧边栏显示当前模块的 Gradle 任务
-- 💤 Sleep 按钮：休眠其他模块，只保留当前打开的
-- ⏰ Wake 按钮：唤醒所有模块
-- 双击任务即可运行
 
 ### ✨ 意图操作 (Alt+Enter)
 - **Update dependency to latest version**：在依赖声明上按 `Alt+Enter`，自动从 Maven Central 获取最新版本

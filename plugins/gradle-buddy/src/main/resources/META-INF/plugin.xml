@@ -28,39 +28,15 @@
         <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
 
         <!-- Notification Group -->
-        <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+         <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
 
-     <!-- Intention: Update dependency to latest version (Gradle KTS) -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.update.GradleKtsUpdateDependencyIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
-
-        <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateDependencyIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
-
-        <!-- Intention: Convert plugin declaration to TOML format -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsPluginToTomlIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
-
-        <!-- Intention: Convert hardcoded dependency to TOML format -->
-        <!-- order="FIRST" 确保在intention列表中优先显示 -->
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
-            <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToTomlIntention</className>
-            <category>Gradle Buddy</category>
-        </intentionAction>
+         <!-- Intention: Update dependency to latest version (Gradle KTS) -->
+         <!-- order="FIRST" 确保在intention列表中优先显示 -->
+         <intentionAction order="FIRST">
+             <language>kotlin</language>
+             <className>site.addzero.gradle.buddy.intentions.update.GradleKtsUpdateDependencyIntention</className>
+             <category>Gradle Buddy</category>
+         </intentionAction>
 
          <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
          <!-- order="FIRST" 确保在intention列表中优先显示 -->
@@ -86,7 +62,13 @@
              <category>Gradle Buddy</category>
          </intentionAction>
 
-        <!-- Current Module Tasks Tool Window -->
+         <!-- Completion: Gradle Kotlin Script dependencies -->
+         <completion.contributor language="kotlin" implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
+
+          <!-- Completion: Version Catalog TOML -->
+          <completion.contributor language="any" implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
+
+         <!-- Current Module Tasks Tool Window -->
         <toolWindow id="Module Tasks"
                     anchor="right"
                     secondary="true"
@@ -100,29 +82,11 @@
             id="site.addzero.gradle.buddy.settings"
             displayName="Gradle Buddy"/>
 
-        <!-- Status Bar Widget -->
-        <statusBarWidgetFactory id="GradleBuddyWidget"
-                                implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
+         <!-- Status Bar Widget -->
+         <statusBarWidgetFactory id="GradleBuddyWidget"
+                                 implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
+
     </extensions>
-
-    <actions>
-        <action id="GradleBuddy.MigrateProjectDependencies"
-                class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
-                text="Migrate project() to Maven Dependencies"
-                description="Scan project() dependencies and replace them with Maven artifacts">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
-        </action>
-
-        <action id="GradleBuddy.MigrateToVersionCatalog"
-                class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
-                text="Migrate to Version Catalog"
-                description="Migrate hardcoded dependencies to gradle/libs.versions.toml">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
-        </action>
-
-    </actions>
 
 
 </idea-plugin>

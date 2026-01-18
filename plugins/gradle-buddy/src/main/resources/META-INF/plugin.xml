@@ -25,10 +25,11 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
-        <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
+         <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
 
-        <!-- Notification Group -->
-         <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+         <!-- Notification Group -->
+          <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+
 
          <!-- Intention: Update dependency to latest version (Gradle KTS) -->
          <!-- order="FIRST" 确保在intention列表中优先显示 -->

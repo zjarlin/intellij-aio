@@ -14,16 +14,13 @@ implementationRemoteGit{
 
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-13T13:38:46.004249
-// Loaded: 11, Excluded: 0, Total: 11
+// Generated at: 2026-01-16T11:20:56.132113
+// Loaded: 8, Excluded: 0, Total: 8
 include(":checkouts:lsi:lsi-intellij")
 include(":lib:lsi-code-analyzer-core")
 include(":plugins:autoddl")
-include(":plugins:autoddl-jimmer")
 include(":plugins:gradle-buddy")
 include(":plugins:gradle-module-sleep")
-include(":plugins:jar-deploy")
-include(":plugins:lsi-code-analyzer")
 include(":plugins:maven-buddy")
 include(":plugins:split-module")
 include(":plugins:vcs-auto-update")

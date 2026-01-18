@@ -39,11 +39,10 @@ class VersionSelectionDialog(
 
     private fun loadVersions() {
         val versions = runCatching {
-            MavenCentralSearchUtil.searchByGroupAndArtifact(
-                artifact.groupId,
-                artifact.artifactId,
-                maxResults = 50
-            ).map { it.version }.distinct().sortedDescending()
+            val sortedDescending = MavenCentralSearchUtil.searchAllVersions(
+              artifact.groupId,artifact.artifactId,50
+            ).map { it.latestVersion }.distinct().sortedDescending()
+          sortedDescending
         }.getOrElse {
             listOf(artifact.latestVersion)
         }

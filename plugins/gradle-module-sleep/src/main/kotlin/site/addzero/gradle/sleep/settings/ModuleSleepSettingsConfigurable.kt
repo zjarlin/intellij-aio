@@ -2,25 +2,24 @@ package site.addzero.gradle.sleep.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
+import com.intellij.util.ui.ThreeStateCheckBox
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSlider
 
 class ModuleSleepSettingsConfigurable(private val project: Project) : Configurable {
 
-    private var autoSleepCheckBox: JBCheckBox? = null
+    private var autoSleepCheckBox: ThreeStateCheckBox? = null
     private var idleTimeoutSlider: JSlider? = null
     private var mainPanel: JPanel? = null
 
     override fun getDisplayName(): String = "Gradle Module Sleep"
 
     override fun createComponent(): JComponent {
-        autoSleepCheckBox = JBCheckBox("Enable Auto-Sleep (uncheck to disable, leave unchecked for auto-detect)").apply {
-            isSelected = false
-            isThreeState = true
+        autoSleepCheckBox = ThreeStateCheckBox("Enable auto-sleep (uncheck to disable, leave unchecked for auto-detect)").apply {
+            state = ThreeStateCheckBox.State.DONT_CARE
         }
 
         idleTimeoutSlider = JSlider(1, 30, 5).apply {
@@ -31,10 +30,10 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
 
         mainPanel = FormBuilder.createFormBuilder()
-            .addComponent(JBLabel("Module Sleep Settings"))
+            .addComponent(JBLabel("Module sleep settings"))
             .addVerticalGap(10)
             .addComponent(autoSleepCheckBox!!)
-            .addLabeledComponent("Module Idle Timeout (minutes):", idleTimeoutSlider!!)
+            .addLabeledComponent("Module idle timeout (minutes):", idleTimeoutSlider!!)
             .addComponentFillVertically(JPanel(), 0)
             .panel
 
@@ -44,9 +43,9 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
 
     override fun isModified(): Boolean {
         val settings = ModuleSleepSettingsService.getInstance(project)
-        val currentAutoSleep = when {
-            autoSleepCheckBox?.isSelected == true -> true
-            autoSleepCheckBox?.isSelected == false -> false
+        val currentAutoSleep = when (autoSleepCheckBox?.state) {
+            ThreeStateCheckBox.State.SELECTED -> true
+            ThreeStateCheckBox.State.NOT_SELECTED -> false
             else -> null
         }
         return currentAutoSleep != settings.getAutoSleepEnabled() ||
@@ -55,9 +54,9 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
 
     override fun apply() {
         val settings = ModuleSleepSettingsService.getInstance(project)
-        val autoSleep = when {
-            autoSleepCheckBox?.isSelected == true -> true
-            autoSleepCheckBox?.isSelected == false -> false
+        val autoSleep = when (autoSleepCheckBox?.state) {
+            ThreeStateCheckBox.State.SELECTED -> true
+            ThreeStateCheckBox.State.NOT_SELECTED -> false
             else -> null
         }
         settings.setAutoSleepEnabled(autoSleep)
@@ -66,13 +65,10 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
 
     override fun reset() {
         val settings = ModuleSleepSettingsService.getInstance(project)
-        when (settings.getAutoSleepEnabled()) {
-            true -> autoSleepCheckBox?.isSelected = true
-            false -> autoSleepCheckBox?.isSelected = false
-            null -> {
-                // Three-state checkbox for auto-detect
-                autoSleepCheckBox?.isSelected = false
-            }
+        autoSleepCheckBox?.state = when (settings.getAutoSleepEnabled()) {
+            true -> ThreeStateCheckBox.State.SELECTED
+            false -> ThreeStateCheckBox.State.NOT_SELECTED
+            null -> ThreeStateCheckBox.State.DONT_CARE
         }
         idleTimeoutSlider?.value = settings.getModuleIdleTimeoutMinutes()
     }

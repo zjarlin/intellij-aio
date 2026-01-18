@@ -106,7 +106,8 @@ object OnDemandModuleLoader {
 
         return try {
             val content = String(buildFile.contentsToByteArray())
-            parseProjectDependencies(content)
+            val projectBasePath = project.basePath
+            parseProjectDependencies(content, projectBasePath)
         } catch (e: Exception) {
             logger.warn("Failed to parse dependencies for $modulePath", e)
             emptySet()
@@ -142,7 +143,7 @@ object OnDemandModuleLoader {
      *
      * 支持的配置: implementation, api, compileOnly, runtimeOnly, testImplementation, testCompileOnly 等
      */
-    private fun parseProjectDependencies(content: String): Set<String> {
+    private fun parseProjectDependencies(content: String, projectBasePath: String? = null): Set<String> {
         val dependencies = mutableSetOf<String>()
 
         // 移除注释行，避免匹配到注释掉的依赖
@@ -164,15 +165,58 @@ object OnDemandModuleLoader {
         val projectsPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*projects\.([a-zA-Z0-9.]+)""")
         projectsPattern.findAll(effectiveContent).forEach { match ->
             val projectAccessor = match.groupValues[1]
-            // 转换 path.to.module -> :path:to:module
-            // 将每段 camelCase 转换回 kebab-case（如 iocCore -> ioc-core）
-            val segments = projectAccessor.split('.')
-            val convertedSegments = segments.map { it.toKebabCase() }
-            val modulePath = ":${convertedSegments.joinToString(":")}"
-            dependencies.add(modulePath)
+            val modulePath = resolveModulePath(projectAccessor)
+            if (modulePath != null) {
+                dependencies.add(modulePath)
+            } else {
+                logger.warn("Could not resolve module path for projects.$projectAccessor")
+            }
         }
 
         return dependencies
+    }
+
+    /**
+     * 解析 projects accessor 路径到 Gradle 模块路径
+     * 支持模糊匹配，因为 camelCase -> kebab-case 的转换不是一一对应的
+     * 例如: singletonAdapterApi 可能对应 singleton-adapter-api 或 singleton-adapter-kcp
+     */
+    private fun resolveModulePath(projectAccessor: String, projectBasePath: String? = null): String? {
+        val segments = projectAccessor.split('.')
+        val convertedSegments = segments.map { it.toKebabCase() }
+        val baseModulePath = ":${convertedSegments.joinToString(":")}"
+
+        // 如果项目路径可用，尝试验证目录是否存在
+        projectBasePath?.let { basePath ->
+            val moduleRelativePath = baseModulePath.removePrefix(":").replace(':', '/')
+            val moduleDirPath = java.io.File(basePath, moduleRelativePath)
+
+            if (!moduleDirPath.exists()) {
+                // 目录不存在，尝试模糊匹配
+                val parentDir = moduleDirPath.parentFile
+                val lastSegmentName = moduleDirPath.name
+                val lastSegmentAccessor = segments.last()
+
+                if (parentDir.exists()) {
+                    val candidates = parentDir.listFiles()?.filter { it.isDirectory }?.filter { dir ->
+                        dir.name.startsWith(lastSegmentName.split('-')[0])
+                    }
+
+                    if (candidates != null && candidates.isNotEmpty()) {
+                        if (candidates.size == 1) {
+                            val matchedPath = parentDir.toPath().relativize(candidates[0].toPath()).toString().replace(java.io.File.separatorChar, ':')
+                            val resolvedPath = ":${baseModulePath.substringBeforeLast(':')}:$matchedPath"
+                            logger.info("Resolved '$projectAccessor' to '$resolvedPath' via fuzzy match")
+                            return resolvedPath
+                        } else {
+                            logger.warn("Multiple candidates for '$projectAccessor': ${candidates.map { it.name }}")
+                        }
+                    }
+                }
+            }
+        }
+
+        return baseModulePath
     }
 
     /**

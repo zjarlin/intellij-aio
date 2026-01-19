@@ -17,7 +17,7 @@ import com.intellij.psi.PsiFile
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
- * 版本目录依赖更新意图操作
+ * 版本目录依赖更新意图操作(不起作用)
  *
  * 在 libs.versions.toml 文件中升级依赖版本
  * 支持格式:

@@ -14,9 +14,10 @@ implementationRemoteGit{
 
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-18T14:44:49.809324
-// Loaded: 6, Excluded: 0, Total: 6
+// Generated at: 2026-01-19T11:34:59.354190
+// Loaded: 7, Excluded: 0, Total: 7
 include(":plugins:gradle-buddy")
+include(":plugins:gradle-buddy:gradle-buddy-core")
 include(":plugins:gradle-buddy:gradle-buddy-intentions")
 include(":plugins:gradle-buddy:gradle-buddy-migration")
 include(":plugins:gradle-module-sleep")

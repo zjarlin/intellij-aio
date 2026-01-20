@@ -1,25 +1,27 @@
 package site.addzero.gradle.buddy.notification
 
-import com.intellij.openapi.editor.Document
-import com.intellij.openapi.editor.event.DocumentEvent
-import com.intellij.openapi.editor.event.DocumentListener
-import com.intellij.openapi.externalSystem.service.execution.ProgressExecutionMode
-import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
-import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotificationProvider
 import com.intellij.ui.EditorNotifications
-import org.jetbrains.plugins.gradle.util.GradleConstants
+import com.intellij.ui.JBColor
+import com.intellij.ui.components.ActionLink
+import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.panels.NonOpaquePanel
+import com.intellij.util.ui.JBFont
+import com.intellij.util.ui.JBUI
 import site.addzero.gradle.buddy.GradleBuddyIcons
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.awt.BorderLayout
+import java.awt.FlowLayout
 import java.util.function.Function
 import javax.swing.JComponent
+import javax.swing.JPanel
+import javax.swing.SwingConstants
 
 /**
  * Shows a banner on top of `libs.versions.toml` similar to the Gradle "Sync Changes"
@@ -33,91 +35,76 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
   ): Function<in FileEditor, out JComponent?>? {
     if (file.name != "libs.versions.toml") return null
 
-    val documentManager = FileDocumentManager.getInstance()
-    val notifications = EditorNotifications.getInstance(project)
-    val syncState = VersionCatalogSyncStateService.getInstance(project)
+    val properties = PropertiesComponent.getInstance(project)
+    if (properties.getBoolean(DONT_REMIND_KEY, false)) return null
+    if (file.getUserData(SUPPRESSED_KEY) == true) return null
 
-    return Function { fileEditor ->
-      val document = documentManager.getDocument(file) ?: return@Function null
-
-      document.addDocumentListener(object : DocumentListener {
-        override fun documentChanged(event: DocumentEvent) {
-          notifications.updateNotifications(file)
-        }
-      }, fileEditor)
-
-      if (!syncState.needsSync(file, document.modificationStamp)) {
-        null
-      } else {
-        createPanel(project, file, document, syncState)
-      }
+    return Function {
+      createPanel(project, file, properties)
     }
   }
 
   private fun createPanel(
     project: Project,
     file: VirtualFile,
-    document: Document,
-    syncState: VersionCatalogSyncStateService
+    propertiesComponent: PropertiesComponent
   ): JComponent {
-    val panel = EditorNotificationPanel(EditorNotificationPanel.Status.Info).apply {
-      text = "Version Catalog changes detected. Sync Gradle to apply them."
-      icon(GradleBuddyIcons.PluginIcon)
+    val appearance = EditorNotificationPanel(EditorNotificationPanel.Status.Info)
+    val container = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
+      border = JBUI.Borders.merge(
+        JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0),
+        JBUI.Borders.empty(2, 8),
+        true
+      )
+      background = appearance.background
+      isOpaque = true
     }
 
-    panel.createActionLabel("Sync Gradle changes") {
-      if (syncGradle(project)) {
-        syncState.markSynced(file, document.modificationStamp)
+    val labelPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
+      add(
+        JBLabel(
+          "Version Catalog helpers",
+          GradleBuddyIcons.PluginIcon,
+          SwingConstants.LEFT
+        ).apply {
+          font = JBFont.medium()
+          foreground = appearance.foreground
+        }
+      )
+    }
+
+    val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(10), 0)).apply {
+      addAction("Sort catalog") {
+        VersionCatalogSorter(project).sort(file)
+        EditorNotifications.getInstance(project).updateNotifications(file)
+      }
+
+      addAction("Don't remind") {
+        propertiesComponent.setValue(DONT_REMIND_KEY, true)
+        EditorNotifications.getInstance(project).updateNotifications(file)
+      }
+
+      addAction("Close") {
+        file.putUserData(SUPPRESSED_KEY, true)
         EditorNotifications.getInstance(project).updateNotifications(file)
       }
     }
 
-    panel.createActionLabel("Sort catalog") {
-      VersionCatalogSorter(project).sort(file)
-      EditorNotifications.getInstance(project).updateNotifications(file)
-    }
-
-    panel.createActionLabel("Close reminder") {
-      syncState.markSynced(file, document.modificationStamp)
-      EditorNotifications.getInstance(project).updateNotifications(file)
-    }
-
-    return panel
+    container.add(labelPanel, BorderLayout.CENTER)
+    container.add(actionsPanel, BorderLayout.EAST)
+    return container
   }
 
-  private fun syncGradle(project: Project): Boolean {
-    val projectPath = findGradleEntryFile(project)
-    if (projectPath == null) {
-      Messages.showErrorDialog(
-        project,
-        "Unable to locate the Gradle project directory, cannot sync.",
-        "Gradle Buddy"
-      )
-      return false
+  private fun NonOpaquePanel.addAction(text: String, action: () -> Unit) {
+    val link = ActionLink(text) { action() }.apply {
+      font = JBFont.medium()
+      foreground = JBColor.foreground()
     }
-
-    ExternalSystemUtil.refreshProject(
-      project,
-      GradleConstants.SYSTEM_ID,
-      projectPath,
-      false,
-      ProgressExecutionMode.IN_BACKGROUND_ASYNC
-    )
-    return true
+    add(link)
   }
 
-  private fun findGradleEntryFile(project: Project): String? {
-    val basePath = project.basePath ?: return null
-    val candidates = listOf(
-      "settings.gradle.kts",
-      "settings.gradle",
-      "build.gradle.kts",
-      "build.gradle"
-    )
-
-    return candidates
-      .map { Paths.get(basePath, it) }
-      .firstOrNull { Files.exists(it) }
-      ?.toString()
+  companion object {
+    private const val DONT_REMIND_KEY = "gradle.buddy.version.catalog.notification.hidden"
+    private val SUPPRESSED_KEY = Key.create<Boolean>("GradleBuddy.VersionCatalog.Notification.Suppressed")
   }
 }

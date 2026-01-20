@@ -122,19 +122,21 @@ class VersionCatalogSorter(private val project: Project) {
         sb.append(header).append("\n")
 
         processedEntries.forEach { entry ->
-            entry.comments.forEach { sb.append(it).append("\n") }
-            sb.append(entry.line).append("\n")
+            entry.comments.forEach { sb.append(entryOrCommentLine(it)) }
+            sb.append(entryOrCommentLine(entry.line))
         }
 
-        trailingComments.forEach { sb.append(it).append("\n") }
+        trailingComments.forEach { sb.append(entryOrCommentLine(it)) }
 
-        // Remove the extra newline at the very end if it was added by joinToString logic logic
-        // But here we are building manually.
-        // We need to ensure we don't double up newlines between sections if the original file had them at the end of sections.
-        // The parsing logic included all lines.
+        val cleaned = sb.lineSequence()
+            .map { it.trimEnd() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
 
-        return sb.toString().replace(Regex("\\n+$"), "\n") // Ensure exactly one newline at end of section string
+        return if (cleaned.isEmpty()) "" else "$cleaned\n"
     }
+
+    private fun entryOrCommentLine(text: String) = "${text.trimEnd()}\n"
 
     private fun sortVersions(entries: List<RawEntry>): List<RawEntry> {
         return sortByKey(entries)
@@ -165,28 +167,40 @@ class VersionCatalogSorter(private val project: Project) {
         val grouped = parsed.groupBy { it.group.ifEmpty { "~" } }
         val seen = mutableSetOf<String>()
         val result = mutableListOf<RawEntry>()
+        val singleGroupEntries = mutableListOf<RawEntry>()
         val duplicates = mutableListOf<RawEntry>()
 
         grouped.toSortedMap().forEach { (groupKey, groupEntries) ->
             val normalizedGroup = groupKey.takeIf { it != "~" }
             val sortedEntries = groupEntries.sortedWith(compareBy({ it.name }, { it.key }))
 
-            val shouldPrintHeader = normalizedGroup != null && sortedEntries.size > 1
-            if (shouldPrintHeader && normalizedGroup != null) {
-                result.add(RawEntry(createGroupHeader(normalizedGroup), emptyList()))
-            }
-
-            sortedEntries.forEach { item ->
+            sortedEntries.forEachIndexed { index, item ->
                 val identifier = if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
                     "${item.group}:${item.name}"
                 } else null
 
                 if (identifier != null && !seen.add(identifier)) {
-                    duplicates.add(item.entry.copy(line = "# DUPLICATE: ${item.entry.line}"))
+                    duplicates.add(
+                        item.entry.copy(line = "# DUPLICATE [libraries]: ${item.entry.line}")
+                    )
+                    return@forEachIndexed
+                }
+
+                val isSingleGroup = normalizedGroup != null && sortedEntries.size == 1
+                if (isSingleGroup) {
+                    singleGroupEntries.add(item.entry)
                 } else {
+                    if (normalizedGroup != null && index == 0) {
+                        result.add(RawEntry(createGroupHeader(normalizedGroup), emptyList()))
+                    }
                     result.add(item.entry)
                 }
             }
+        }
+
+        if (singleGroupEntries.isNotEmpty()) {
+            result.add(RawEntry(createGroupHeader("single group"), emptyList()))
+            result.addAll(singleGroupEntries.sortedBy { extractKey(it.line) })
         }
 
         if (duplicates.isNotEmpty()) {

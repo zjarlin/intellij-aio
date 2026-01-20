@@ -86,7 +86,8 @@ class VersionCatalogSorter(private val project: Project) {
         // Simple state machine to group comments with entries
         for (i in 1 until section.lines.size) {
             val line = section.lines[i]
-            if (line.trim().isBlank()) {
+            val trimmed = line.trim()
+            if (trimmed.isBlank()) {
                 // If we have accumulated comments but no entry, attach them to the next entry or flush if end
                  if (comments.isNotEmpty()) {
                      // For simplicity, empty lines reset comment blocks unless attached to an entry immediately
@@ -94,7 +95,10 @@ class VersionCatalogSorter(private val project: Project) {
                      // Strategy: Treat blank lines as part of "comments" block for the next entry
                  }
                 comments.add(line)
-            } else if (line.trim().startsWith("#")) {
+            } else if (GROUP_HEADER_PATTERN.matches(trimmed)) {
+                comments.clear()
+                continue
+            } else if (trimmed.startsWith("#")) {
                 comments.add(line)
             } else {
                 // It's likely an entry
@@ -193,15 +197,6 @@ class VersionCatalogSorter(private val project: Project) {
         return result
     }
 
-    private fun createGroupHeader(group: String): String {
-        val targetWidth = 70
-        val label = " $group "
-        val hyphenSpace = (targetWidth - label.length).coerceAtLeast(2)
-        val left = hyphenSpace / 2
-        val right = hyphenSpace - left
-        return "#${"-".repeat(left)}$label${"-".repeat(right)}"
-    }
-
     private fun sortByKey(entries: List<RawEntry>): List<RawEntry> {
         return entries.sortedBy { extractKey(it.line) }
     }
@@ -226,6 +221,19 @@ class VersionCatalogSorter(private val project: Project) {
     private fun extractModule(line: String): String? {
         val match = Regex("module\\s*=\\s*\"([^\"]+)\"").find(line)
         return match?.groupValues?.get(1)
+    }
+
+    private fun createGroupHeader(group: String): String {
+        val targetWidth = 70
+        val label = " $group "
+        val hyphenSpace = (targetWidth - label.length).coerceAtLeast(2)
+        val left = hyphenSpace / 2
+        val right = hyphenSpace - left
+        return "#${"-".repeat(left)}$label${"-".repeat(right)}"
+    }
+
+    companion object {
+        private val GROUP_HEADER_PATTERN = Regex("^#-+\\s.+\\s-+$")
     }
 
     data class Section(val name: String, val lines: List<String>)

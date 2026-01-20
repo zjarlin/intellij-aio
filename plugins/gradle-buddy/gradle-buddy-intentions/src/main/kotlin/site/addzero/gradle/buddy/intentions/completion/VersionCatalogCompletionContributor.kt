@@ -112,7 +112,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
     val definedVersions = parseVersions(text)
 
     // 模式：xxx = "value" 或 xxx = { ... }
-    val assignmentPattern = Regex("""^([\w-]+)\s*=(""")
+    val assignmentPattern = Regex("""^\s*([\w-]+)\s*=""")
     val match = assignmentPattern.find(lineText) ?: return null
 
     val key = match.groupValues[1].trim()
@@ -120,7 +120,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
 
     return CatalogContext(
       query = query,
-      keyStartOffset = offset - query.length,
+      keyStartOffset = lineStart,
       inVersionsSection = inVersionsSection,
       inLibrariesSection = inLibrariesSection,
       definedVersions = definedVersions

@@ -66,8 +66,11 @@
          <!-- Completion: Gradle Kotlin Script dependencies -->
          <completion.contributor language="kotlin" implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
 
-          <!-- Completion: Version Catalog TOML -->
+         <!-- Completion: Version Catalog TOML -->
           <completion.contributor language="any" implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
+
+         <!-- Notification: Version Catalog sort reminder -->
+         <editorNotificationProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogEditorNotificationProvider"/>
 
          <!-- Current Module Tasks Tool Window -->
         <toolWindow id="Module Tasks"

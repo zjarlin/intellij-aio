@@ -14,22 +14,12 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotificationProvider
 import com.intellij.ui.EditorNotifications
-import com.intellij.ui.JBColor
-import com.intellij.ui.components.ActionLink
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.panels.NonOpaquePanel
-import com.intellij.util.ui.JBFont
-import com.intellij.util.ui.JBUI
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import site.addzero.gradle.buddy.GradleBuddyIcons
-import java.awt.BorderLayout
-import java.awt.FlowLayout
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.function.Function
 import javax.swing.JComponent
-import javax.swing.JPanel
-import javax.swing.SwingConstants
 
 /**
  * Shows a banner on top of `libs.versions.toml` similar to the Gradle "Sync Changes"
@@ -70,62 +60,29 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
     document: Document,
     syncState: VersionCatalogSyncStateService
   ): JComponent {
-    val appearance = EditorNotificationPanel(EditorNotificationPanel.Status.Info)
-    val container = JPanel(BorderLayout(JBUI.scale(8), 0)).apply {
-      border = JBUI.Borders.merge(
-        JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0),
-        JBUI.Borders.empty(4, 10),
-        true
-      )
-      isOpaque = true
-      background = appearance.background
+    val panel = EditorNotificationPanel(EditorNotificationPanel.Status.Info).apply {
+      text = "Version Catalog changes detected. Sync Gradle to apply them."
+      icon(GradleBuddyIcons.PluginIcon)
     }
 
-    val messagePanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(10), 0)).apply {
-      isOpaque = false
-      val label = JBLabel(
-        "Version Catalog changes detected. Sync Gradle to apply them.",
-        GradleBuddyIcons.PluginIcon,
-        SwingConstants.LEFT
-      ).apply {
-        font = JBFont.medium()
-        foreground = appearance.foreground
-      }
-      add(label)
-    }
-
-    val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(12), 0)).apply {
-      isOpaque = false
-    }
-
-    fun addAction(text: String, action: () -> Unit) {
-      val link = ActionLink(text) { action() }.apply {
-        font = JBFont.medium()
-        foreground = appearance.foreground
-      }
-      actionsPanel.add(link)
-    }
-
-    addAction("Sync Gradle changes") {
+    panel.createActionLabel("Sync Gradle changes") {
       if (syncGradle(project)) {
         syncState.markSynced(file, document.modificationStamp)
         EditorNotifications.getInstance(project).updateNotifications(file)
       }
     }
 
-    addAction("Sort catalog") {
+    panel.createActionLabel("Sort catalog") {
       VersionCatalogSorter(project).sort(file)
       EditorNotifications.getInstance(project).updateNotifications(file)
     }
 
-    addAction("Close reminder") {
+    panel.createActionLabel("Close reminder") {
       syncState.markSynced(file, document.modificationStamp)
       EditorNotifications.getInstance(project).updateNotifications(file)
     }
 
-    container.add(messagePanel, BorderLayout.CENTER)
-    container.add(actionsPanel, BorderLayout.EAST)
-    return container
+    return panel
   }
 
   private fun syncGradle(project: Project): Boolean {

@@ -158,50 +158,48 @@ class VersionCatalogSorter(private val project: Project) {
             ParsedLibrary(entry, key, fullGroup, fullName)
         }
 
-        // Identify duplicates: key should be unique, but we also want to group by "group:name"
-        // The requirements say: "sort (same groupId together), and wrap duplicate elements with annotation blocks"
-
-        val sorted = parsed.sortedWith(compareBy({ it.group.ifEmpty { "~" } }, { it.name }, { it.key }))
-
+        val grouped = parsed.groupBy { it.group.ifEmpty { "~" } }
         val seen = mutableSetOf<String>()
         val result = mutableListOf<RawEntry>()
-        var currentGroup: String? = null
+        val duplicates = mutableListOf<RawEntry>()
 
-        fun closeGroup() {
-            currentGroup?.let {
-                result.add(RawEntry("# ######$it [group end]", emptyList()))
-                currentGroup = null
+        grouped.toSortedMap().forEach { (groupKey, groupEntries) ->
+            val normalizedGroup = groupKey.takeIf { it != "~" }
+            val sortedEntries = groupEntries.sortedWith(compareBy({ it.name }, { it.key }))
+
+            val shouldPrintHeader = normalizedGroup != null && sortedEntries.size > 1
+            if (shouldPrintHeader && normalizedGroup != null) {
+                result.add(RawEntry(createGroupHeader(normalizedGroup), emptyList()))
             }
-        }
 
-        for (item in sorted) {
-            val normalizedGroup = item.group.takeIf { it.isNotBlank() }
-            if (normalizedGroup != currentGroup) {
-                closeGroup()
-                if (normalizedGroup != null) {
-                    result.add(RawEntry("# ####$normalizedGroup [group begin]", emptyList()))
-                    currentGroup = normalizedGroup
+            sortedEntries.forEach { item ->
+                val identifier = if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
+                    "${item.group}:${item.name}"
+                } else null
+
+                if (identifier != null && !seen.add(identifier)) {
+                    duplicates.add(item.entry.copy(line = "# DUPLICATE: ${item.entry.line}"))
+                } else {
+                    result.add(item.entry)
                 }
             }
-
-            val identifier = if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
-                "${item.group}:${item.name}"
-            } else {
-                null
-            }
-
-            val entryToAdd = if (identifier != null && !seen.add(identifier)) {
-                item.entry.copy(line = "# DUPLICATE: ${item.entry.line}")
-            } else {
-                item.entry
-            }
-
-            result.add(entryToAdd)
         }
 
-        closeGroup()
+        if (duplicates.isNotEmpty()) {
+            result.add(RawEntry(createGroupHeader("duplicates"), emptyList()))
+            result.addAll(duplicates)
+        }
 
         return result
+    }
+
+    private fun createGroupHeader(group: String): String {
+        val targetWidth = 70
+        val label = " $group "
+        val hyphenSpace = (targetWidth - label.length).coerceAtLeast(2)
+        val left = hyphenSpace / 2
+        val right = hyphenSpace - left
+        return "#${"-".repeat(left)}$label${"-".repeat(right)}"
     }
 
     private fun sortByKey(entries: List<RawEntry>): List<RawEntry> {

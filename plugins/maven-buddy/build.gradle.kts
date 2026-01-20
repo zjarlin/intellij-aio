@@ -3,6 +3,7 @@ plugins {
 }
 dependencies {
   implementation(libs.tool.api.maven)
-  implementation(libs.sqlite.jdbc)
+
+  implementation(project(":plugins:maven-buddy-core"))
 }
 

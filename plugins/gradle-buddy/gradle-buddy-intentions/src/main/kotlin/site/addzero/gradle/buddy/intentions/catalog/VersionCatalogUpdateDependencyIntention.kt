@@ -17,7 +17,7 @@ import com.intellij.psi.PsiFile
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
- * 版本目录依赖更新意图操作(不起作用)
+ * Version Catalog Update Dependency Intention
  *
  * 在 libs.versions.toml 文件中升级依赖版本
  * 支持格式:
@@ -25,20 +25,20 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
  * - junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
  * - junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version = "5.10.0" }
  *
- * 优先级：高 - 在版本目录文件中优先显示此意图操作
+ * Priority: HIGH - 在版本目录文件中优先显示此intention
  */
 class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "update dependency to the latest version"
+    override fun getText(): String = "Update dependency to latest version"
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Retrieve the latest version from Maven Central and update the version directory dependencies.")
+        return IntentionPreviewInfo.Html("Fetches the latest version from Maven Central and updates the version catalog dependency.")
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -56,7 +56,8 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
         val element = file.findElementAt(offset) ?: return
 
         val dependencyInfo = detectCatalogDependency(element) ?: return
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "正在获取最新版本...", true) {
+
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching latest version...", true) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -68,8 +69,8 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
                     if (latestVersion == null) {
                         Messages.showWarningDialog(
                             project,
-                            "无法找到 ${dependencyInfo.groupId}:${dependencyInfo.artifactId} 的最新版本",
-                            "更新失败"
+                            "Could not find latest version for ${dependencyInfo.groupId}:${dependencyInfo.artifactId}",
+                            "Update Failed"
                         )
                         return@invokeLater
                     }
@@ -77,8 +78,8 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
                     if (latestVersion == dependencyInfo.currentVersion) {
                         Messages.showInfoMessage(
                             project,
-                            "已经是最新版本: $latestVersion",
-                            "无需更新"
+                            "Already at latest version: $latestVersion",
+                            "No Update Needed"
                         )
                         return@invokeLater
                     }
@@ -96,6 +97,7 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
         val text = document.text
 
         if (info.isVersionRef) {
+            // 查找并更新版本引用
             val versionPattern = Regex("""${Regex.escape(info.versionKey)}\s*=\s*["']${Regex.escape(info.currentVersion)}["']""")
             val versionMatch = versionPattern.find(text)
             if (versionMatch != null) {
@@ -106,6 +108,7 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
                 }
             }
         } else {
+            // 直接更新版本
             val oldText = "${info.key} = ${info.originalValue}"
             val newText = oldText.replace(info.currentVersion, newVersion)
             val startOffset = text.indexOf(oldText, info.approximateOffset.coerceAtLeast(0))
@@ -116,7 +119,7 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
     }
 
     private fun detectCatalogDependency(element: PsiElement): CatalogDependencyInfo? {
-        val text = getLineText(element) ?: return null
+        val text = getLineText(element)
 
         // 格式1: junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
         val groupPattern = Regex("""(\w+(?:-\w+)*)\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}""")
@@ -184,11 +187,10 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
         return match?.groupValues?.get(1)
     }
 
-    private fun getLineText(element: PsiElement): String? {
-        val file = element.containingFile ?: return null
+    private fun getLineText(element: PsiElement): String {
+        val file = element.containingFile ?: return ""
         val offset = element.textOffset
-        val document = file.viewProvider.document ?: return null
-
+        val document = file.viewProvider.document ?: return ""
         val lineNumber = document.getLineNumber(offset)
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)

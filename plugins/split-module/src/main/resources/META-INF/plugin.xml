@@ -3,9 +3,6 @@
     <name>Split Module</name>
     <vendor>AddZero</vendor>
 
-    <!-- Plugin Icon -->
-    <icon>/META-INF/pluginIcon.svg</icon>
-
     <!-- K2 Compatibility Declaration -->
     <idea-version since-build="242" until-build="262.*"/>
 

@@ -20,7 +20,6 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
  * 3. 空输入时显示推荐依赖列表
  */
 class GradleKtsCompletionContributor : CompletionContributor() {
-
    init {
      // 在所有文件类型中触发补全，然后在代码中检查是否是gradle.kts文件
      extend(

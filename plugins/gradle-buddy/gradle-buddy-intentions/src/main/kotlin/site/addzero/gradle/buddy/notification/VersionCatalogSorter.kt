@@ -1,8 +1,10 @@
 package site.addzero.gradle.buddy.notification
 
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiDocumentManager
 import java.util.regex.Pattern
 
 /**
@@ -11,12 +13,20 @@ import java.util.regex.Pattern
 class VersionCatalogSorter(private val project: Project) {
 
     fun sort(file: VirtualFile) {
-        val content = String(file.contentsToByteArray())
+        val documentManager = FileDocumentManager.getInstance()
+        val document = documentManager.getDocument(file)
+        val content = document?.text ?: String(file.contentsToByteArray())
         val newContent = sortContent(content)
 
         if (content != newContent) {
             WriteCommandAction.runWriteCommandAction(project) {
-                file.setBinaryContent(newContent.toByteArray())
+                if (document != null) {
+                    document.replaceString(0, document.textLength, newContent)
+                    PsiDocumentManager.getInstance(project).commitDocument(document)
+                    documentManager.saveDocument(document)
+                } else {
+                    file.setBinaryContent(newContent.toByteArray())
+                }
             }
         }
     }
@@ -151,30 +161,45 @@ class VersionCatalogSorter(private val project: Project) {
         // Identify duplicates: key should be unique, but we also want to group by "group:name"
         // The requirements say: "sort (same groupId together), and wrap duplicate elements with annotation blocks"
 
-        val sorted = parsed.sortedWith(compareBy({ it.group }, { it.name }, { it.key }))
+        val sorted = parsed.sortedWith(compareBy({ it.group.ifEmpty { "~" } }, { it.name }, { it.key }))
 
         val seen = mutableSetOf<String>()
         val result = mutableListOf<RawEntry>()
+        var currentGroup: String? = null
 
-        for (item in sorted) {
-            val identifier = "${item.group}:${item.name}"
-            // Identify duplicates strictly? Or just group them?
-            // "put duplicate elements wrapped in comment blocks" implies strictly same library
-            // Usually duplication happens if same library is defined with different aliases.
-
-            if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
-                 if (seen.contains(identifier)) {
-                    // It's a duplicate definition for the same artifact
-                    result.add(item.entry.copy(line = "# DUPLICATE: ${item.entry.line}"))
-                } else {
-                    seen.add(identifier)
-                    result.add(item.entry)
-                }
-            } else {
-                // Cannot parse group/name properly, just add it
-                result.add(item.entry)
+        fun closeGroup() {
+            currentGroup?.let {
+                result.add(RawEntry("# ######$it [group end]", emptyList()))
+                currentGroup = null
             }
         }
+
+        for (item in sorted) {
+            val normalizedGroup = item.group.takeIf { it.isNotBlank() }
+            if (normalizedGroup != currentGroup) {
+                closeGroup()
+                if (normalizedGroup != null) {
+                    result.add(RawEntry("# ####$normalizedGroup [group begin]", emptyList()))
+                    currentGroup = normalizedGroup
+                }
+            }
+
+            val identifier = if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
+                "${item.group}:${item.name}"
+            } else {
+                null
+            }
+
+            val entryToAdd = if (identifier != null && !seen.add(identifier)) {
+                item.entry.copy(line = "# DUPLICATE: ${item.entry.line}")
+            } else {
+                item.entry
+            }
+
+            result.add(entryToAdd)
+        }
+
+        closeGroup()
 
         return result
     }

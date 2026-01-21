@@ -19,6 +19,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
     <!-- K2 模式兼容性声明 -->
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true" />

@@ -1,5 +1,6 @@
 package site.addzero.gradle.sleep
 
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
@@ -79,11 +80,21 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
 
       addAction("Sleep other modules (keep this tab module only)") {
         val fileEditorManager = FileEditorManager.getInstance(project)
-        val currentFile = fileEditorManager.currentFile
+
+        /*
+        * 1 experimental API usage
+ gradle-module-sleep 2026.01.21 uses experimental API, which may be changed in future releases leading to binary and source code incompatibilities
+
+ Experimental method usage (1)
+ FileEditorManager.getCurrentFile() (1)
+ Experimental API method FileEditorManager.getCurrentFile() is invoked in ModuleSleepEditorNotificationProvider.createPanel$lambda$2$1(...). This method can be changed in a future release leading to incompatibilities
+        * */
+        val selectedTextEditor = fileEditorManager.selectedTextEditor
+        val currentFile = selectedTextEditor?.document?.let { FileDocumentManager.getInstance().getFile(it) }
         if (currentFile != null) {
-            fileEditorManager.openFiles
-                .filter { it != currentFile }
-                .forEach { fileEditorManager.closeFile(it) }
+          fileEditorManager.openFiles
+            .filter { it != currentFile }
+            .forEach { fileEditorManager.closeFile(it) }
         }
         ModuleSleepActionExecutor.loadOnlyOpenTabs(project)
       }

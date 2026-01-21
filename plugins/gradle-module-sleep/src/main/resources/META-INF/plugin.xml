@@ -32,6 +32,9 @@
         <!-- Notification Group -->
         <notificationGroup id="GradleModuleSleep" displayType="BALLOON" isLogByDefault="true"/>
 
+        <!-- Editor banner -->
+        <editorNotificationProvider implementation="site.addzero.gradle.sleep.ModuleSleepEditorNotificationProvider"/>
+
         <!-- Settings -->
         <projectConfigurable
             parentId="tools"

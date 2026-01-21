@@ -1,0 +1,10 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sleepGradle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4caf50"/>
+      <stop offset="100%" stop-color="#2e7d32"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#sleepGradle)" d="M2 8a6 6 0 1 1 6 6H5.5a.75.75 0 0 1 0-1.5H8a4.5 4.5 0 1 0-4.5-4.5.75.75 0 0 1-1.5 0Z"/>
+  <path fill="#fff" d="M5.75 6.5c0-1.1.9-2 2.25-2s2.25.9 2.25 2c0 1-.75 1.75-1.75 1.93v.07h.75c.41 0 .75.34.75.75s-.34.75-.75.75h-2.5a.75.75 0 0 1 0-1.5h.75v-.07C6.5 8.25 5.75 7.5 5.75 6.5Zm3-1c-.45 0-.75.28-.75.75s.3.75.75.75.75-.28.75-.75-.3-.75-.75-.75Z"/>
+</svg>

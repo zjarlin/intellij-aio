@@ -13,17 +13,7 @@ implementationRemoteGit{
 
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-21T12:28:21.917005
-// Loaded: 11, Excluded: 0, Total: 11
-include(":checkouts:lsi:lsi-ksp")
+// Generated at: 2026-01-21T18:11:22.424443
+// Loaded: 1, Excluded: 0, Total: 1
 include(":plugins:gradle-buddy")
-include(":plugins:gradle-buddy:gradle-buddy-core")
-include(":plugins:gradle-buddy:gradle-buddy-intentions")
-include(":plugins:gradle-buddy:gradle-buddy-migration")
-include(":plugins:gradle-buddy:gradle-buddy-tasks")
-include(":plugins:gradle-module-sleep")
-include(":plugins:maven-buddy")
-include(":plugins:maven-buddy-core")
-include(":plugins:split-module")
-include(":plugins:vcs-auto-update")
 // <<< Gradle Buddy: End Of Block <<<

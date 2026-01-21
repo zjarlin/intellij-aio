@@ -1,20 +1,13 @@
-# Gradle Buddy
-
-> **核心宗旨：提供高效的 Gradle 模块任务管理和依赖意图工具。**
-
+# Gradle Buddy provides efficient task management and dependency tools for multi-module projects, helping you work smarter and faster.
 ---
-
 ## 功能特性
 
-### 🚀 核心功能
+### 🚀 模块面板功能
 - **当前模块任务窗口**：右侧边栏显示当前编辑器文件所属模块的 Gradle 任务，双击即可运行
-- **递归依赖推导**：自动分析并加载模块的所有依赖模块，确保项目能正常编译
-- **智能排除**：`build-logic`、`buildSrc` 等构建模块自动排除
 
 ### 🛠️ 工具窗口
 
 - **Module Tasks 面板**：显示当前模块的 Gradle 任务，双击即可运行
-- **🔄 Refresh 按钮**：刷新任务列表
 
 ### ✨ 意图操作 (Alt+Enter)
 

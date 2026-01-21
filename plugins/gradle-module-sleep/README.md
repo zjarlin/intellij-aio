@@ -1,243 +1,100 @@
-# Gradle Module Sleep: Smart Module Loading for Large Gradle Projects
+# Gradle Module Sleep: Smart On-Demand Module Loading for Large Projects
 
-> **核心宗旨：只加载打开的 Gradle 模块，按需加载，自动释放。**
+Gradle Module Sleep supercharges your IDE performance by intelligently loading only the Gradle modules you are actively working on. Say goodbye to long sync times and high memory usage in large multi-module projects.
 
----
-
-### 你是否遇到过这些问题？
-
-1. **Gradle Sync 慢如蜗牛** 🐌
-   - 项目有 50+ 个模块，每次 Sync 需要 5-10 分钟
-   - 修改一行代码，等待 Gradle 索引就要喝杯咖啡
-
-2. **IDE 内存爆炸** 💥
-   - IntelliJ 占用 8GB+ 内存，电脑风扇狂转
-   - 打开项目后，其他应用卡顿明显
-
-3. **大部分模块根本用不到** 😤
-   - 100 个模块里，你日常只改 3-5 个
-   - 但 IDE 傻傻地加载了所有模块
-
-4. **手动管理 settings.gradle.kts 太痛苦** 😩
-   - 注释掉不用的模块？下次 git pull 又冲突了
-   - 每个人需要的模块还不一样
-
-## 解决方案 (Solution)
-
-**Gradle Module Sleep** 通过按需加载策略彻底解决这些问题：
-
-| 传统方式 | Gradle Module Sleep |
-|---------|--------------|
-| 加载全部 100 个模块 | 只加载你打开的 5 个模块 |
-| Sync 耗时 10 分钟 | Sync 耗时 30 秒 |
-| 内存占用 8GB | 内存占用 2GB |
-| 手动管理 settings.gradle.kts | 全自动，基于打开的文件 |
-
-**工作原理很简单**：你打开哪个文件，就加载哪个模块。5 分钟没碰的模块自动释放。
-
-## 功能特性
-
-### 🚀 核心功能
-- **按需加载**：打开文件时自动加载对应模块，未使用的模块不加载
-- **递归依赖推导**：自动分析并加载模块的所有依赖模块，确保项目能正常编译
-- **自动释放**：5 分钟未使用的模块自动释放，节省内存
-- **智能排除**：`build-logic`、`buildSrc` 等构建模块自动排除
-- **智能开关**：30+ 模块自动开启睡眠，小项目默认关闭，可手动覆盖
-
-### 🛠️ 工具窗口
-- **Module Tasks 面板**：显示当前模块的 Gradle 任务，双击即可运行
-- **💤 Sleep 按钮**：一键休眠其他模块，只保留当前打开的
-- **⏰ Wake 按钮**：一键唤醒所有模块
-- **🔄 Refresh 按钮**：刷新任务列表
-
-### ✨ 意图操作 (Alt+Enter)
-- **Update dependency to latest version**：在依赖声明上按 `Alt+Enter`，自动从 Maven Central 获取最新版本并更新
-- **支持多种格式**：
-  - `.gradle.kts` 文件中的依赖：`implementation("group:artifact:version")`
-  - `settings.gradle.kts` 文件中的插件：`id("plugin.id") version "version"`
-  - `libs.versions.toml` 文件中的 catalog 依赖
 
 ---
 
-## Module Tasks 工具窗口
+### ？ (Do you face these problems?)
 
-右侧边栏的 **Module Tasks** 面板，让你专注于当前模块的 Gradle 任务。
+1.  **Gradle Sync is painfully slow** 🐌
+    -   A project with 50+ modules takes 5-10 minutes to sync.
+    -   Changing one line of code means a long wait for Gradle to re-index.
 
-### 功能
+2.  **IDE memory usage is through the roof** 💥
+    -   IntelliJ IDEA consumes 8GB+ of memory, causing your computer's fan to spin wildly.
+    -   Other applications become sluggish after opening a large project.
 
-| 控件 | 功能 | 说明 |
-|-----|------|-----|
-| ☑️ Auto Sleep | 开关 | 开启/关闭自动睡眠功能（30+ 模块自动开启） |
-| 💤 | Sleep | 休眠其他模块，只保留当前打开文件对应的模块 |
-| ⏰ | Wake | 唤醒所有模块，恢复完整项目 |
-| 🔄 | Refresh | 刷新任务列表 |
+3.  **Most modules are not even used** 😤
+    -   Out of 100 modules, you might only be working on 3-5 at any given time.
+    -   But the IDE loads all of them, wasting resources.
 
-> **提示**：悬停 Auto Sleep 开关可查看当前模块数量和阈值
+4.  **Manually managing `settings.gradle.kts` is a nightmare** 😩
+    -   Commenting out unused modules? That leads to merge conflicts with your team.
+    -   Different team members need different sets of active modules.
 
-### 使用场景
+## (The Solution)
 
-1. **专注开发**：只想看当前模块的任务，不想被其他模块干扰
-2. **快速运行**：双击任务即可运行，无需在 Gradle 面板中找
-3. **模块切换**：切换文件时自动更新任务列表
+**Gradle Module Sleep** solves these problems with an on-demand loading strategy:
 
-### 💤 Sleep 功能增强
+| Traditional Approach | With Gradle Module Sleep |
+|---------------------|--------------------------|
+| Load all 100 modules | Load only the 5 you use |
+| Sync takes 10 minutes | Sync takes 30 seconds |
+| Memory usage: 8GB | Memory usage: 2GB |
+| Manual `settings.gradle.kts` edits | Fully automatic, based on open files |
 
-点击 **💤 Sleep** 按钮时，插件会：
-1. **关闭其他标签页**：自动关闭除当前文件外的所有其他编辑器标签页
-2. **休眠其他模块**：只保留当前文件所属模块及其依赖，卸载其他模块
-3. **显示统计信息**：通知显示关闭的标签页数量和加载的模块信息
+**The principle is simple**: The plugin loads only the modules for the files you have open, including their recursive dependencies.
 
-这样可以获得最干净的工作环境，专注于当前任务。
+## (Features)
 
----
+-   **On-Demand Loading**: Automatically loads modules corresponding to your open editor tabs. Unused modules are not loaded.
+-   **Recursive Dependency Detection**: Intelligently analyzes and loads all transitive project dependencies (`implementation(project(":..."))`) to ensure your project compiles successfully.
+-   **Editor-based Controls**: A convenient notification banner appears on `settings.gradle.kts` and `build.gradle.kts` files for quick access to sleep/wake actions.
+-   **Smart Exclusion**: Build-related modules like `build-logic` and `buildSrc` are automatically ignored to prevent build issues.
+-   **(Experimental) Auto-Sleep**: Automatically unloads modules that have been idle to conserve memory.
+-   **Smart Toggle**: Module sleeping is enabled by default for projects with 30+ modules, but you can configure this.
 
-## 意图操作 (Intention Actions)
+## (How to Use)
 
-在 `.gradle.kts` 或 `settings.gradle.kts` 文件中，光标放在依赖或插件声明上，按 `Alt+Enter` 可触发意图操作。
+Once the plugin is installed, it works automatically. For manual control, open a `settings.gradle.kts` or `build.gradle.kts` file to see the control banner at the top of the editor.
 
-### Update dependency to latest version
+A control banner will appear at the top of your `settings.gradle.kts` or `build.gradle.kts` file with the following actions:
 
-**痛点**：想升级依赖或插件版本，但不知道最新版本是多少，还要去 Maven Central 或 Gradle Plugin Portal 查。
+-   **Sleep other modules**: Unloads all modules except those related to your currently open files.
+-   **Sleep other modules (keep this tab module only)**: Closes all other editor tabs and then unloads all modules except for the one related to your currently active file. This is perfect for focusing on a single task.
+-   **Restore modules**: Reloads all modules in the project.
+-   **Close**: Hides the banner for the current file until the project is reopened.
 
-**解决**：
-1. 光标放在依赖或插件声明上
-2. 按 `Alt+Enter`
-3. 选择 **Update dependency to latest version**
-4. 插件自动查询最新版本并替换
+## (Recursive Dependency Detection)
 
-#### 支持的格式
+A key feature is the intelligent analysis of your module graph. When you open a file, the plugin:
 
-**1. Gradle 依赖（.gradle.kts）**
-```kotlin
-// 更新前
-implementation("com.google.guava:guava:31.0-jre")
+1.  Detects the module the file belongs to (e.g., `:plugins:autoddl`).
+2.  Parses that module's `build.gradle.kts` file.
+3.  Extracts all `project` dependencies.
+4.  Recursively processes each dependency to build a complete dependency tree.
+5.  Applies this list of active modules to your `settings.gradle.kts`.
 
-// 按 Alt+Enter 后自动更新
-implementation("com.google.guava:guava:33.0.0-jre")
-```
+This ensures that even with only a few files open, your project remains fully compilable and navigable.
 
-**2. Gradle 插件（settings.gradle.kts）**
-```kotlin
-// 更新前
-plugins {
-    id("org.jetbrains.kotlin.jvm") version "1.8.0"
-    id("site.addzero.gradle.plugin.repo-buddy") version "1.0.0"
-}
+### Supported Dependency Formats
 
-// 按 Alt+Enter 后自动更新
-plugins {
-    id("org.jetbrains.kotlin.jvm") version "1.9.20"
-    id("site.addzero.gradle.plugin.repo-buddy") version "2.0.0"
-}
-```
-
-**3. Version Catalog（libs.versions.toml）**
-```toml
-[libraries]
-# 将光标放在这一行，按 Alt+Enter 即可更新版本
-junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
-```
-
----
-
-## 递归依赖推导
-
-**新特性**：智能分析模块依赖关系，自动加载所有必需的依赖模块。
-
-### 工作原理
-
-当你打开一个文件时，插件会：
-
-1. 检测文件所属的模块（如 `:plugins:autoddl`）
-2. 解析该模块的 `build.gradle.kts` 文件
-3. 提取所有 project 依赖（支持两种格式）
-4. 递归处理每个依赖模块，直到找到完整的依赖树
-5. 将所有相关模块应用到 `settings.gradle.kts`
-
-### 支持的依赖格式
-
-#### 1. 标准 project() 格式
+#### 1. Standard `project()` syntax
 ```kotlin
 dependencies {
     implementation(project(":lib:tool-swing"))
-    api(project(":checkouts:lsi:lsi-core"))
-    testImplementation(project(":lib:test-utils"))
 }
 ```
 
-#### 2. Type-safe Project Accessors 格式
+#### 2. Type-safe Project Accessors syntax
 ```kotlin
 dependencies {
     implementation(projects.lib.toolSwing)
-    api(projects.checkouts.metaprogrammingLsi.lsiCore)
 }
 ```
 
-### 支持的依赖配置
-
-- `implementation`, `api`, `compileOnly`, `runtimeOnly`
-- `testImplementation`, `testCompileOnly`, `testRuntimeOnly`
-- `annotationProcessor`, `kapt`, `ksp`
-
-### 示例场景
-
-假设你打开了 `plugins/autoddl/src/main/kotlin/SomeClass.kt`：
-
-```
-打开的模块: :plugins:autoddl
-  ├─ 依赖: :checkouts:lsi:lsi-core
-  │   ├─ 依赖: :checkouts:lsi:lsi-reflection
-  │   └─ 依赖: (其他依赖...)
-  ├─ 依赖: :lib:tool-swing
-  │   └─ 依赖: :lib:tool-awt
-  └─ 依赖: :lib:tool-psi-toml
-      └─ (无进一步依赖)
-
-最终加载: 10+ 个模块（包括所有递归依赖）
-```
-
-**优势**：
-- ✅ 确保项目能正常编译和运行
-- ✅ 不需要手动管理依赖模块
-- ✅ 避免循环依赖导致的问题
-- ✅ 自动忽略注释掉的依赖
-
-更多详情请参见 [递归依赖推导文档](./RECURSIVE_DEPENDENCY_DETECTION.md)。
-
----
-
-## 快捷键汇总
-
-| 快捷键 | 功能 |
-|-------|------|
-| `Ctrl+Alt+Shift+L` | 只加载当前打开的模块（包含递归依赖） |
-| `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
-
----
-
-## 后续计划
-- [ ] 可配置的模块释放超时时间
-- [ ] 模块白名单/黑名单
-- [ ] 依赖冲突检测和解决建议
-
----
-
-## 前提条件 (Prerequisites)
-
-> **重要**：本插件的模块睡眠功能，建议项目中的每个模块都是**独立可运行**的。这通常也是模块化开发最佳实践。
-
-> 这意味着每个模块
-> - 有自己完整的 `build.gradle` 或 `build.gradle.kts`
-> - 能够独立编译和运行，不强依赖其他模块的编译产物
-> - 模块间依赖应通过 Maven 坐标或 `includeBuild` 的方式引入，而非直接 `implementation(project(":other-module"))`
-
-> 如果模块之间存在强耦合依赖，使用一键迁移模块依赖到 Maven 中央仓库依赖功能。
 
 ## Tips
 
-如果想全量加载模块（小型项目），请使用作者写的另一个 settings gradle 插件：
-
+For small projects where you want all modules loaded, you can use the author's other plugin
 ```kotlin
-//add in your settings.gradle.kts
-id("site.addzero.gradle.plugin.modules-buddy") version "+"
+// add in your settings.gradle.kts
+plugins {
+    id("site.addzero.gradle.plugin.modules-buddy") version "+"
+}
+autoModules {
+    excludeModules = arrayOf("jackson", "script","pp", "lsi-ksp")
+}
+
 ```

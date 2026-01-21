@@ -11,72 +11,102 @@
 
 ### ✨ 意图操作 (Alt+Enter)
 
-#### Update dependency to latest version
+本插件提供了一系列意图操作，让你在 `.gradle.kts` 和 `libs.versions.toml` 文件中更高效地管理依赖和插件。
 
-**痛点**：想升级依赖或插件版本，但不知道最新版本是多少，还要去 Maven Central 或 Gradle Plugin Portal 查。
+---
 
-**解决**：
-1. 光标放在依赖或插件声明上
-2. 按 `Alt+Enter`
-3. 选择 **Update dependency to latest version**
-4. 插件自动查询最新版本并替换
+#### 在 `.gradle.kts` 或 `settings.gradle.kts` 文件中
 
-#### 支持的格式
+将光标置于依赖或插件声明上，按下 `Alt+Enter`，即可触发以下操作：
 
-**1. Gradle 依赖（.gradle.kts）**
+**1. Update to latest version (更新到最新版本)**
+
+- **痛点**：想升级依赖或插件，但不确定最新版本号，需要手动去 Maven Central 或 Gradle Plugin Portal 查询。
+- **解决**：自动查询并替换为最新稳定版。
+
+*示例 (依赖)*:
 ```kotlin
 // 更新前
 implementation("com.google.guava:guava:31.0-jre")
 
-// 按 Alt+Enter 后自动更新
-implementation("com.google.guava:guava:33.0.0-jre")
+// 更新后
+implementation("com.google.guava:guava:33.2.1-jre")
 ```
 
-**2. Gradle 插件（settings.gradle.kts）**
+*示例 (插件)*:
 ```kotlin
 // 更新前
 plugins {
     id("org.jetbrains.kotlin.jvm") version "1.8.0"
-    id("site.addzero.gradle.plugin.repo-buddy") version "1.0.0"
 }
 
-// 按 Alt+Enter 后自动更新
+// 更新后
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "1.9.20"
-    id("site.addzero.gradle.plugin.repo-buddy") version "2.0.0"
+    id("org.jetbrains.kotlin.jvm") version "1.9.23"
 }
 ```
 
-**3. Version Catalog（libs.versions.toml）**
-```toml
-[libraries]
-# 将光标放在这一行，按 Alt+Enter 即可更新版本
-junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
-```
+**2. Convert to version catalog (转换为版本目录)**
 
-**4. Convert dependency to version catalog (TOML)**
+- **痛点**：项目中存在硬编码的依赖和插件版本，不便于统一管理。
+- **解决**：一键将硬编码的声明转换为 `libs.versions.toml` 中的引用。
+
+*示例 (依赖)*:
 ```kotlin
-// 将硬编码依赖转换为版本目录格式
-// 更新前
+// 转换前
 implementation("com.google.guava:guava:31.0-jre")
 
-// 按 Alt+Enter 后自动转换
+// 转换后 (自动在 toml 创建条目)
 implementation(libs.guava)
 ```
 
-**5. Convert plugin to version catalog (TOML)**
+*示例 (插件)*:
 ```kotlin
-// 将插件声明转换为版本目录格式
-// 更新前
+// 转换前
 plugins {
     id("org.jetbrains.kotlin.jvm") version "1.8.0"
 }
 
-// 按 Alt+Enter 后自动转换
+// 转换后 (自动在 toml 创建条目)
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 ```
+
+---
+
+#### 在 `libs.versions.toml` 文件中
+
+将光标置于 TOML 文件中的任意位置，按下 `Alt+Enter`，即可触发以下操作：
+
+**1. Update to latest version (更新到最新版本)**
+
+- **痛点**：即使在使用版本目录，依然需要手动检查每个依赖的最新版本。
+- **解决**：将光标放在依赖声明上，即可自动更新到最新版本。
+
+*示例*:
+```toml
+[versions]
+# 将光标放在 "jupiter" 版本号上，或在下面的 libraries 定义上
+jupiter = "5.9.1"
+
+[libraries]
+# 将光标放在这一行
+junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
+```
+
+**2. Organize Version Catalog (整理版本目录)**
+
+- **痛点**：`libs.versions.toml` 文件内容一多就变得混乱，手动分组和排序费时费力。
+- **解决**：一键格式化整个 TOML 文件，使其规整、有序、易于维护。
+- **整理规则**：
+    1. **区块排序**：严格按照 `[versions]`, `[libraries]`, `[bundles]`, `[plugins]` 的顺序排列。
+    2. **键值排序**：在每个区块内部，所有键 (key) 均按字母顺序升序排列。
+
+*使用方法*:
+1. 打开 `libs.versions.toml` 文件。
+2. 在编辑器内**任意位置**按下 `Alt+Enter`。
+3. 选择 **Sort Version Catalog** 即可。
 
 ---
 

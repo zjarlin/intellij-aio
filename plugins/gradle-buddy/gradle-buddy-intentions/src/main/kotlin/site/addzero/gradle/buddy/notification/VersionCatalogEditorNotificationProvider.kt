@@ -74,7 +74,7 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
     }
 
     val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(10), 0)).apply {
-      addAction("Organize catlog") {
+      addAction("Organize Version Catalog") {
         VersionCatalogSorter(project).sort(file)
         EditorNotifications.getInstance(project).updateNotifications(file)
       }

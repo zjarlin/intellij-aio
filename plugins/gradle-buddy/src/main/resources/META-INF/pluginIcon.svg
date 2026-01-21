@@ -1,33 +1,22 @@
 <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Main rounded background -->
-  <rect width="40" height="40" rx="8" fill="#2E3C50"/>
-
-  <!-- Subtle tech background pattern -->
-  <g opacity="0.1" stroke-width="1.5">
-    <path d="M-4 10L10 -4" stroke="white"/>
-    <path d="M-4 20L20 -4" stroke="white"/>
-    <path d="M-4 30L30 -4" stroke="white"/>
-    <path d="M-4 40L40 -4" stroke="white"/>
-    <path d="M6 44L44 6" stroke="white"/>
-    <path d="M16 44L44 16" stroke="white"/>
-    <path d="M26 44L44 26" stroke="white"/>
-    <path d="M36 44L44 36" stroke="white"/>
-  </g>
+  <!-- Background circle -->
+  <circle cx="20" cy="20" r="18" fill="#02303A"/>
   
-  <!-- Gradle Elephant, stylized -->
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M26.216,8.213C25.799,7.31,24.81,6.75,23.75,6.75C22.43,6.75,21.28,7.5,20.73,8.75C20.65,8.91,20.5,9.23,20.44,9.52C21.72,9.15,22.88,9.7,23.51,11.02L23.5,11C24.3,12.6,23.5,14.5,22,15.3L22,27.5C22,28.88,20.88,30,19.5,30H10.5C9.12,30,8,28.88,8,27.5V17.5C8,14.53,5.65,12.1,2.75,11.5L2.75,9.25C6.1,10.03,8.25,12.8,8.25,16.25V27.5C8.25,28.7,9.2,29.75,10.5,29.75H19.5C20.7,29.75,21.75,28.7,21.75,27.5V15.75C24.5,14.75,25.7,11.9,24.6,9.5L24.64,9.41C25.43,10.9,27.2,11.45,28.7,10.65C30.2,9.85,30.7,8.08,29.9,6.58C28.9,4.78,26.8,4,25.1,5C26.5,5.6,26.8,7.3,26.216,8.213Z" fill="#3D8DFF"/>
+  <!-- Gradle elephant simplified -->
+  <path d="M12 24C12 24 13 18 18 16C23 14 26 16 28 18C30 20 30 24 28 26C26 28 22 28 20 27C18 26 16 27 14 26C12 25 12 24 12 24Z" fill="#1BA8A0"/>
   
-  <!-- "Intelligent Suggestion" as a glowing spark/idea in the eye area -->
-  <g transform="translate(27, 8)">
-      <path d="M2 0L2.5 1.5L4 2L2.5 2.5L2 4L1.5 2.5L0 2L1.5 1.5L2 0Z" fill="#FFD700">
-          <animateTransform
-              attributeName="transform"
-              attributeType="XML"
-              type="rotate"
-              from="0 2 2"
-              to="360 2 2"
-              dur="4s"
-              repeatCount="indefinite" />
-      </path>
-  </g>
+  <!-- Elephant trunk -->
+  <path d="M14 22C14 22 12 23 11 25C10 27 11 28 12 28C13 28 14 27 14 26" stroke="#1BA8A0" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Eye -->
+  <circle cx="24" cy="19" r="1.5" fill="white"/>
+  
+  <!-- Gear/cog overlay for "buddy" concept -->
+  <circle cx="30" cy="28" r="6" fill="#4A90A4" stroke="#02303A" stroke-width="1"/>
+  <circle cx="30" cy="28" r="2.5" fill="#02303A"/>
+  <!-- Gear teeth -->
+  <rect x="29" y="21" width="2" height="3" fill="#4A90A4"/>
+  <rect x="29" y="32" width="2" height="3" fill="#4A90A4"/>
+  <rect x="23" y="27" width="3" height="2" fill="#4A90A4"/>
+  <rect x="34" y="27" width="3" height="2" fill="#4A90A4"/>
 </svg>

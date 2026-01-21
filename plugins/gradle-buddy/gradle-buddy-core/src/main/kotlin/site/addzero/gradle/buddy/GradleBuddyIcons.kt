@@ -13,4 +13,7 @@ object GradleBuddyIcons {
 
     @JvmField
     val PluginIcon: Icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", GradleBuddyIcons::class.java)
+
+    @JvmField
+    val VersionCatalogBanner: Icon = IconLoader.getIcon("/icons/gradleBannerIcon.svg", GradleBuddyIcons::class.java)
 }

@@ -5,6 +5,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
+import java.util.LinkedHashMap
 import java.util.regex.Pattern
 
 /**
@@ -34,12 +35,23 @@ class VersionCatalogSorter(private val project: Project) {
     private fun sortContent(content: String): String {
         val sections = parseSections(content)
         val sb = StringBuilder()
+        val duplicates = mutableListOf<String>()
 
         sections.forEach { section ->
-            sb.append(processSection(section))
+            val processed = processSection(section, duplicates)
+            if (processed.isNotEmpty()) {
+                sb.append(processed)
+            }
         }
 
-        return sb.toString()
+        if (duplicates.isNotEmpty()) {
+            sb.append(createGroupHeader("duplicates")).append("\n")
+            duplicates.forEach { line ->
+                sb.append(line.trimEnd()).append("\n")
+            }
+        }
+
+        return sb.toString().trimEnd() + "\n"
     }
 
     private fun parseSections(content: String): List<Section> {
@@ -71,12 +83,12 @@ class VersionCatalogSorter(private val project: Project) {
         return sections
     }
 
-    private fun processSection(section: Section): String {
+    private fun processSection(section: Section, duplicates: MutableList<String>): String {
         if (section.lines.isEmpty()) return ""
 
         // Handle empty/top-level section or unknown sections without sorting logic
         if (section.name.isEmpty()) {
-            return section.lines.joinToString("\n") { it } + (if (section.lines.isNotEmpty()) "\n" else "")
+            return section.lines.joinToString("\n") { it }.trim().let { if (it.isEmpty()) "" else "$it\n" }
         }
 
         val header = section.lines.first()
@@ -111,10 +123,10 @@ class VersionCatalogSorter(private val project: Project) {
         val trailingComments = comments.toList()
 
         val processedEntries = when (section.name) {
-            "versions" -> sortVersions(rawEntries)
-            "libraries" -> sortLibraries(rawEntries)
-            "plugins" -> sortPlugins(rawEntries)
-            "bundles" -> sortBundles(rawEntries)
+            "versions" -> sortByKey(rawEntries, section.name, duplicates)
+            "libraries" -> sortLibraries(rawEntries, duplicates, section.name)
+            "plugins" -> sortByKey(rawEntries, section.name, duplicates)
+            "bundles" -> sortByKey(rawEntries, section.name, duplicates)
             else -> rawEntries // Return as is for unknown sections
         }
 
@@ -138,19 +150,7 @@ class VersionCatalogSorter(private val project: Project) {
 
     private fun entryOrCommentLine(text: String) = "${text.trimEnd()}\n"
 
-    private fun sortVersions(entries: List<RawEntry>): List<RawEntry> {
-        return sortByKey(entries)
-    }
-
-    private fun sortPlugins(entries: List<RawEntry>): List<RawEntry> {
-        return sortByKey(entries)
-    }
-
-    private fun sortBundles(entries: List<RawEntry>): List<RawEntry> {
-        return sortByKey(entries)
-    }
-
-    private fun sortLibraries(entries: List<RawEntry>): List<RawEntry> {
+    private fun sortLibraries(entries: List<RawEntry>, duplicates: MutableList<String>, sectionName: String): List<RawEntry> {
         val parsed = entries.map { entry ->
             val key = extractKey(entry.line)
             val group = extractGroup(entry.line)
@@ -168,7 +168,6 @@ class VersionCatalogSorter(private val project: Project) {
         val seen = mutableSetOf<String>()
         val result = mutableListOf<RawEntry>()
         val singleGroupEntries = mutableListOf<RawEntry>()
-        val duplicates = mutableListOf<RawEntry>()
 
         grouped.toSortedMap().forEach { (groupKey, groupEntries) ->
             val normalizedGroup = groupKey.takeIf { it != "~" }
@@ -180,9 +179,7 @@ class VersionCatalogSorter(private val project: Project) {
                 } else null
 
                 if (identifier != null && !seen.add(identifier)) {
-                    duplicates.add(
-                        item.entry.copy(line = "# DUPLICATE [libraries]: ${item.entry.line}")
-                    )
+                    duplicates.add("# DUPLICATE [$sectionName]: ${item.entry.line.trim()}")
                     return@forEachIndexed
                 }
 
@@ -203,16 +200,20 @@ class VersionCatalogSorter(private val project: Project) {
             result.addAll(singleGroupEntries.sortedBy { extractKey(it.line) })
         }
 
-        if (duplicates.isNotEmpty()) {
-            result.add(RawEntry(createGroupHeader("duplicates"), emptyList()))
-            result.addAll(duplicates)
-        }
-
         return result
     }
 
-    private fun sortByKey(entries: List<RawEntry>): List<RawEntry> {
-        return entries.sortedBy { extractKey(it.line) }
+    private fun sortByKey(entries: List<RawEntry>, sectionName: String, duplicates: MutableList<String>): List<RawEntry> {
+        val seen = LinkedHashMap<String, RawEntry>()
+        entries.forEach { entry ->
+            val key = extractKey(entry.line)
+            if (seen.containsKey(key)) {
+                duplicates.add("# DUPLICATE [$sectionName]: ${entry.line.trim()}")
+            } else {
+                seen[key] = entry
+            }
+        }
+        return seen.values.sortedBy { extractKey(it.line) }
     }
 
     private fun extractKey(line: String): String {

@@ -36,7 +36,7 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
     if (file.name != "libs.versions.toml") return null
 
     val properties = PropertiesComponent.getInstance(project)
-    if (properties.getBoolean(DONT_REMIND_KEY, false)) return null
+    if (properties.getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)) return null
     if (file.getUserData(SUPPRESSED_KEY) == true) return null
 
     return Function {
@@ -64,7 +64,7 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
       add(
         JBLabel(
           "Version Catalog helpers",
-          GradleBuddyIcons.PluginIcon,
+          GradleBuddyIcons.VersionCatalogBanner,
           SwingConstants.LEFT
         ).apply {
           font = JBFont.medium()
@@ -74,13 +74,13 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
     }
 
     val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(10), 0)).apply {
-      addAction("Sort catalog") {
+      addAction("Organize catlog") {
         VersionCatalogSorter(project).sort(file)
         EditorNotifications.getInstance(project).updateNotifications(file)
       }
 
       addAction("Don't remind") {
-        propertiesComponent.setValue(DONT_REMIND_KEY, true)
+        propertiesComponent.setValue(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, true)
         EditorNotifications.getInstance(project).updateNotifications(file)
       }
 
@@ -104,7 +104,6 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
   }
 
   companion object {
-    private const val DONT_REMIND_KEY = "gradle.buddy.version.catalog.notification.hidden"
     private val SUPPRESSED_KEY = Key.create<Boolean>("GradleBuddy.VersionCatalog.Notification.Suppressed")
   }
 }

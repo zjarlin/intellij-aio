@@ -1,6 +1,7 @@
 package site.addzero.gradle.sleep
 
 import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
@@ -73,6 +74,17 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
 
     val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(10), 0)).apply {
       addAction("Sleep other modules") {
+        ModuleSleepActionExecutor.loadOnlyOpenTabs(project)
+      }
+
+      addAction("Sleep other modules (keep this tab module only)") {
+        val fileEditorManager = FileEditorManager.getInstance(project)
+        val currentFile = fileEditorManager.currentFile
+        if (currentFile != null) {
+            fileEditorManager.openFiles
+                .filter { it != currentFile }
+                .forEach { fileEditorManager.closeFile(it) }
+        }
         ModuleSleepActionExecutor.loadOnlyOpenTabs(project)
       }
 

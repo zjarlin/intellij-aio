@@ -394,14 +394,14 @@ object OnDemandModuleLoader {
                 }
             }
         } else {
-            // 没有现有块，处理原有的 include 语句并添加新块
-            val includePattern = Regex("""^(\s*)include\s*\(\s*["']([^"']+)["']\s*\)(.*)$""")
-            var hasIncludeStatements = false
+            // No existing block, process original include statements and add a new block if needed.
+            val singleIncludePattern = Regex("""^(\s*)include\s*\(\s*["']([^"']+)["']\s*\)(.*)$""")
+            val anyIncludePattern = Regex("""^\s*include\b""")
+            val hasIncludeStatements = lines.any { anyIncludePattern.containsMatchIn(it) }
 
             for (line in lines) {
-                val match = includePattern.find(line)
+                val match = singleIncludePattern.find(line)
                 if (match != null) {
-                    hasIncludeStatements = true
                     val modulePath = match.groupValues[2]
                     if (activeModules.contains(modulePath)) {
                         result.appendLine(line)
@@ -413,7 +413,8 @@ object OnDemandModuleLoader {
                 }
             }
 
-            // 如果没有 include 语句（使用 auto-modules 插件），添加 Gradle Buddy 块
+            // If there are no include statements (e.g. using an auto-modules plugin), add the Gradle Buddy block.
+            // This prevents adding duplicate modules if the user has multi-module include() statements.
             if (!hasIncludeStatements && activeModules.isNotEmpty()) {
                 result.appendLine()
                 result.appendLine(generateGradleBuddyBlock(activeModules))

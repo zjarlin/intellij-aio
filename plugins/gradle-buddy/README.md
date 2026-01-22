@@ -167,7 +167,7 @@ dependencies {
 
 ---
 
-## 一键迁移 Project 级别依赖到 Maven  中央仓库发布过的依赖(一般是库作者会使用,模块解耦)
+## 一键迁移 Project 级别依赖到 Maven 中央仓库发布过的依赖(一般是库作者会使用,模块解耦)
 
 新增功能：将 `project(":module")` 依赖迁移到 中央仓库发布过的依赖。
 
@@ -190,17 +190,95 @@ dependencies {
 
 ---
 
+## 🔧 Plugin ID 修复工具
+
+### 问题背景
+
+当你在 `build-logic` 中定义预编译脚本插件时，Gradle 要求使用完全限定的插件 ID：
+
+```kotlin
+// build-logic/src/main/kotlin/com/example/my-plugin.gradle.kts
+plugins {
+    `java-library`
+}
+
+// ❌ 错误：使用短 ID 会导致运行时失败
+plugins {
+    id("my-plugin")
+}
+
+// ✅ 正确：必须使用完全限定 ID
+plugins {
+    id("com.example.my-plugin")
+}
+```
+
+这个问题很难调试，因为 IDE 不会报错，只有在运行时才会失败。
+
+### 解决方案
+
+#### 1. 快速修复 (Alt+Enter)
+
+将光标放在短插件 ID 上，按 `Alt+Enter`，选择 **"Fix build-logic qualified name"**：
+
+- 自动扫描 `build-logic` 目录
+- 提取插件的包名
+- 在整个项目中替换所有该插件的短 ID 引用
+
+#### 2. 批量修复
+
+使用菜单 **Tools → Fix All Plugin IDs in Project**：
+
+1. 扫描所有 `build-logic` 目录
+2. 找到所有预编译脚本插件
+3. 检测项目中所有短 ID 引用
+4. 一键替换为完全限定 ID
+
+### 功能特性
+
+- ✅ 自动扫描 `build-logic` 目录结构
+- ✅ 从 Kotlin 文件提取包名
+- ✅ 检测 `plugins {}` 块中的插件引用
+- ✅ 项目范围的批量替换
+- ✅ 线程安全的 PSI 访问
+- ✅ 进度指示器和详细通知
+
+### 使用示例
+
+**修复前**：
+```kotlin
+// build.gradle.kts
+plugins {
+    id("java-library")  // ❌ 短 ID
+    id("spring-conventions")  // ❌ 短 ID
+}
+```
+
+**修复后**：
+```kotlin
+// build.gradle.kts
+plugins {
+    id("com.example.conventions.java-library")  // ✅ 完全限定
+    id("com.example.conventions.spring-conventions")  // ✅ 完全限定
+}
+```
+
+---
+
 ## 快捷键汇总
 
 | 快捷键 | 功能 |
 |-------|------|
 | `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
+| `Alt+Enter` | 在插件 ID 上触发快速修复（修复为完全限定名） |
 
 ---
 
 ## 后续计划
 - [ ] 模块白名单/黑名单
 - [ ] 依赖冲突检测和解决建议
+- [ ] Plugin ID 验证和自动补全
+- [ ] 支持 Groovy DSL 的插件 ID 修复
 
 ---
 

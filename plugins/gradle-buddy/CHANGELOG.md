@@ -2,6 +2,37 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [Unreleased] - 2025-01-22
+
+### ✨ Added
+- **Plugin ID 修复工具**：自动修复 build-logic 预编译脚本插件的 ID 引用
+  - 新增 `FixPluginIdIntention`：Alt+Enter 快速修复单个插件 ID
+  - 新增 `FixAllPluginIdsAction`：批量修复项目中所有插件 ID
+  - 新增 `PluginIdScanner`：递归扫描 build-logic 目录，提取插件元数据
+  - 新增 `IdReplacementEngine`：查找和替换插件 ID 引用
+  - 支持自动提取 Kotlin 文件的包名
+  - 支持嵌套的 build-logic 目录结构
+  - 线程安全的 PSI 访问（所有操作都包装在 ReadAction 中）
+  - 进度指示器和详细的操作结果通知
+- **id-fixer 模块**：独立的插件 ID 修复模块
+  - `PluginIdInfo`：插件元数据数据类
+  - `ReplacementCandidate`：替换候选位置
+  - `ReplacementResult`：替换操作结果
+  - 完整的文档和使用示例
+
+### 🐛 Fixed
+- 修复 `PluginIdScanner.extractPackageName()` 的线程安全问题
+  - 将 PSI 访问移到 ReadAction.compute 块内
+  - 避免在后台线程中直接访问 PSI 元素
+
+### 📝 Documentation
+- 新增 `id-fixer/README.md`：详细的功能说明和架构文档
+- 新增 `id-fixer/CHANGELOG.md`：模块变更记录
+- 更新主 README 添加 Plugin ID 修复工具说明
+- 新增使用示例和问题背景说明
+
+---
+
 ## [Unreleased] - 2025-12-07
 
 ### ✨ Added

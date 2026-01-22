@@ -30,9 +30,9 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
     override fun getText(): String {
         val error = cachedError
         return if (error != null && error.suggestedAliases.isNotEmpty()) {
-            "选择正确的版本目录引用（${error.suggestedAliases.size} 个候选项）"
+            "(Gradle Buddy) Select correct catalog reference (${error.suggestedAliases.size} candidates)"
         } else {
-            "选择正确的版本目录引用"
+            "(Gradle Buddy) Select correct catalog reference"
         }
     }
 

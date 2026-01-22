@@ -32,7 +32,7 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "将插件转换为版本目录格式 (TOML)"
+    override fun getText(): String = "(Gradle Buddy) Convert plugin to version catalog format (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 

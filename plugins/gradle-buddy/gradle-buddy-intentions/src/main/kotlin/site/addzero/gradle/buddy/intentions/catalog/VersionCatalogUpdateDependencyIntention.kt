@@ -33,7 +33,7 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
 
     override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "Update dependency to latest version"
+    override fun getText(): String = "(Gradle Buddy) Update dependency to latest version"
 
     override fun startInWriteAction(): Boolean = false
 

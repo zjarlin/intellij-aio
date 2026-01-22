@@ -30,7 +30,7 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "update dependency to the latest version"
+    override fun getText(): String = "(Gradle Buddy) Update dependency to latest version"
 
     override fun startInWriteAction(): Boolean = false
 

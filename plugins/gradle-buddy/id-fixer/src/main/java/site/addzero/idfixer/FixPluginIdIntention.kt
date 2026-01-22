@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.psi.*
  */
 class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
-    override fun getText(): String = "Fix build-logic qualified name"
+    override fun getText(): String = "(Gradle Buddy) Fix build-logic qualified name"
     override fun getFamilyName(): String = "Gradle Plugin ID"
 
     /**

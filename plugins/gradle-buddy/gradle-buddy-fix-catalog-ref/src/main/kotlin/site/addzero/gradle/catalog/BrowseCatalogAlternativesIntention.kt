@@ -31,9 +31,9 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
     override fun getText(): String {
         val count = cachedCandidates?.size ?: 0
         return if (count > 0) {
-            "浏览其他版本目录引用（$count 个候选项）"
+            "(Gradle Buddy) Browse catalog alternatives ($count candidates)"
         } else {
-            "浏览其他版本目录引用"
+            "(Gradle Buddy) Browse catalog alternatives"
         }
     }
 

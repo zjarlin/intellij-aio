@@ -32,7 +32,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "(gradle-buddy)将依赖转换为版本目录格式 (TOML)"
+    override fun getText(): String = "(Gradle Buddy) Convert dependency to version catalog format (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 

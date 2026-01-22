@@ -1,0 +1,14 @@
+<html>
+
+<body>
+  Replaces short plugin ID references with fully qualified names in build-logic precompiled script plugins.
+  <p>
+    When a local plugin is defined in <code>build-logic/src/main/kotlin/com/example/my-plugin.gradle.kts</code>,
+    it should be referenced as <code>id("com.example.my-plugin")</code> instead of <code>id("my-plugin")</code>.
+  </p>
+  <p>
+    This intention fixes all occurrences of the short ID throughout the entire project.
+  </p>
+</body>
+
+</html>

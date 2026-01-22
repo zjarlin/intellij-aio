@@ -31,7 +31,7 @@
     <!-- Fix all plugin IDs in the project -->
     <action id="site.addzero.idfixer.FixAllPluginIdsAction"
             class="site.addzero.idfixer.FixAllPluginIdsAction"
-            text="Fix All Plugin IDs in Project"
+            text="Fix All Build Script Plugin  Qualified IDs in Project"
             description="Scans all build-logic directories and fixes all plugin ID references to use fully qualified names.">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>

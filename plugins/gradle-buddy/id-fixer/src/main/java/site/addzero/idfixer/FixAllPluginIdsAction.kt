@@ -15,7 +15,7 @@ import com.intellij.psi.search.GlobalSearchScope
  * This action scans all build-logic directories, finds all local precompiled script plugins,
  * and replaces all short plugin ID references with fully qualified IDs throughout the project.
  */
-class FixAllPluginIdsAction : AnAction("Fix All Plugin IDs in Project") {
+class FixAllPluginIdsAction : AnAction("Fix All Build Script Plugin  Qualified IDs in Project") {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return

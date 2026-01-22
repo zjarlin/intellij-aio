@@ -28,11 +28,12 @@
   <!-- Intention: Update dependency to latest version (Gradle KTS) -->
   <!-- order="FIRST" 确保在intention列表中优先显示 -->
   <actions>
-    <action id="site.addzero.idfixer.FixIdsAction"
-            class="site.addzero.idfixer.FixIdsAction"
-            text="Fix Gradle Plugin IDs in Project"
-            description="Scans for convention plugins and updates their usages in the project.">
-      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+    <!-- Fix all plugin IDs in the project -->
+    <action id="site.addzero.idfixer.FixAllPluginIdsAction"
+            class="site.addzero.idfixer.FixAllPluginIdsAction"
+            text="Fix All Plugin IDs in Project"
+            description="Scans all build-logic directories and fixes all plugin ID references to use fully qualified names.">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
   </actions>
 
@@ -43,6 +44,7 @@
 
     <!-- Notification Group -->
     <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+    <notificationGroup id="Gradle Plugin ID Fixer" displayType="BALLOON" isLogByDefault="true"/>
 
 
 
@@ -74,6 +76,13 @@
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToTomlIntention</className>
       <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Fix plugin ID to use fully qualified name -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.idfixer.FixPluginIdIntention</className>
+      <category>Gradle Plugin ID</category>
     </intentionAction>
 
     <!-- Completion: Gradle Kotlin Script dependencies -->

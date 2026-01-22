@@ -21,10 +21,12 @@ sealed class CatalogReferenceError {
     /**
      * 依赖未声明（TOML 中根本没有这个声明）
      * 例如: 代码中使用了 libs.some.library，但 TOML 中没有对应的声明
+     * @param suggestedAliases 建议的相似别名列表（按相似度排序）
      */
     data class NotDeclared(
         override val catalogName: String,
         override val invalidReference: String,
-        val availableAliases: Set<String>
+        val availableAliases: Set<String>,
+        val suggestedAliases: List<AliasSimilarityMatcher.MatchResult> = emptyList()
     ) : CatalogReferenceError()
 }

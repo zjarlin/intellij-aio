@@ -2,15 +2,26 @@
 
 ## What We Built
 
-A new Gradle Buddy module that detects and fixes invalid Gradle version catalog references in `build.gradle.kts` files.
+A new Gradle Buddy module that detects and fixes invalid Gradle version catalog references in `build.gradle.kts` files with **intelligent similarity matching**.
 
 ### Features
 
-1. **Detection**: Identifies invalid catalog references like `libs.gradlePlugin.ksp`
+1. **Detection**: Identifies invalid catalog references like `libs.com.google.devtools.ksp.gradle.plugin`
 2. **Two Error Types**:
    - **WrongFormat**: TOML has the declaration but reference format is wrong (e.g., `gradlePlugin.ksp` → `gradle.plugin.ksp`)
-   - **NotDeclared**: TOML doesn't have the declaration at all
-3. **Two Mechanisms**:
+   - **NotDeclared**: TOML doesn't have the exact declaration, but may have similar ones
+3. **Intelligent Matching**:
+   - Tokenizes the invalid reference (e.g., `com.google.devtools.ksp.gradle.plugin` → `[com, google, devtools, ksp, gradle, plugin]`)
+   - Searches TOML for aliases containing these tokens
+   - Calculates similarity scores using multiple strategies:
+     - Exact token matches (50% weight)
+     - Jaccard similarity (30% weight)
+     - Token order similarity (20% weight)
+   - Returns Top 5 most similar aliases
+4. **User-Friendly Fixes**:
+   - **If similar aliases found**: Shows dialog with Top 5 candidates, user selects the correct one
+   - **If no similar aliases found**: Prompts user to add declaration to TOML
+5. **Two Mechanisms**:
    - **Inspection**: Automatic yellow squiggly lines on invalid references
    - **Intention**: Alt+Enter quick fix to correct the reference
 
@@ -18,40 +29,74 @@ A new Gradle Buddy module that detects and fixes invalid Gradle version catalog 
 
 The fix logic uses a strategy pattern:
 - `CatalogFixStrategy` interface with `support()` method
-- `WrongFormatFixStrategy`: Fixes format issues
-- `NotDeclaredFixStrategy`: Suggests adding to TOML or shows available aliases
+- `WrongFormatFixStrategy`: Fixes format issues (simple case)
+- `NotDeclaredFixStrategy`:
+  - If `suggestedAliases` not empty: Shows selection dialog
+  - If `suggestedAliases` empty: Shows "add to TOML" message
 - `CatalogFixStrategyFactory`: Routes errors to appropriate strategy
+
+### Similarity Matching Algorithm
+
+`AliasSimilarityMatcher` class implements the matching logic:
+
+```kotlin
+// Example: libs.com.google.devtools.ksp.gradle.plugin
+// Tokens: [com, google, devtools, ksp, gradle, plugin]
+
+// TOML has: gradle-plugin-ksp
+// Tokens: [gradle, plugin, ksp]
+// Matched tokens: [gradle, plugin, ksp]
+// Score: High (3/6 exact matches + good Jaccard + good order)
+
+// Result: gradle.plugin.ksp (Top candidate)
+```
 
 ## How to Test
 
-### 1. Build the Plugin
+### Test Case 1: Wrong Format (Simple Fix)
 
-```bash
-./gradlew :plugins:gradle-buddy:build -x test
-```
+**File**: `lib/gradle-plugin/project-plugin/conventions/jvm-conventions/koin-convention/build.gradle.kts`
+**Line 27**: `implementation(libs.gradlePlugin.ksp)`
 
-### 2. Run Test IDE
+**Expected**:
+- Yellow squiggly line under `gradlePlugin.ksp`
+- Alt+Enter shows: "修复版本目录引用: gradlePlugin.ksp → gradle.plugin.ksp"
+- Applying fix changes to `gradle.plugin.ksp`
 
-```bash
-./gradlew :plugins:gradle-buddy:runIde
-```
+### Test Case 2: Not Declared with Similar Aliases
 
-### 3. Open Test Project
+**Create a test line**: `implementation(libs.com.google.devtools.ksp.gradle.plugin)`
 
-Open the project at: `/Users/zjarlin/IdeaProjects/addzero-lib-jvm/`
+**Expected**:
+- Yellow squiggly line under `com.google.devtools.ksp.gradle.plugin`
+- Alt+Enter shows: "选择正确的版本目录引用（找到 X 个相似项）"
+- Applying fix shows dialog with candidates:
+  ```
+  gradle.plugin.ksp (匹配度: 85%, 匹配词: gradle, plugin, ksp)
+  ksp.symbol.processing.api (匹配度: 45%, 匹配词: ksp)
+  ...
+  ```
+- User selects `gradle.plugin.ksp`
+- Reference is replaced
 
-### 4. Navigate to Test File
+### Test Case 3: Not Declared with No Similar Aliases
 
-Open: `lib/gradle-plugin/project-plugin/conventions/jvm-conventions/koin-convention/build.gradle.kts`
+**Create a test line**: `implementation(libs.completely.unknown.library)`
 
-Line 27 has: `implementation(libs.gradlePlugin.ksp)`
+**Expected**:
+- Yellow squiggly line
+- Alt+Enter shows: "版本目录中未声明 'completely.unknown.library'，需要添加到 TOML"
+- Applying fix shows info dialog:
+  ```
+  版本目录 'libs' 中未找到 'completely.unknown.library' 的声明。
 
-### 5. Expected Behavior
+  也没有找到相似的别名。
 
-**What Should Happen:**
-1. Yellow squiggly line under `gradlePlugin.ksp`
-2. Alt+Enter shows intention: "修复版本目录引用: gradlePlugin.ksp → gradle.plugin.ksp"
-3. Applying the fix changes `gradlePlugin.ksp` to `gradle.plugin.ksp`
+  请在 TOML 文件中添加对应的声明，例如：
+
+  [libraries]
+  completely-unknown-library = { group = "...", name = "...", version = "..." }
+  ```
 
 ### 6. Check Debug Logs
 

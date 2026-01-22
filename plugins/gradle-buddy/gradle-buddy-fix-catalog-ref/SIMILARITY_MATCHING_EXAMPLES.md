@@ -73,7 +73,7 @@ implementation(libs.com.google.devtools.ksp.gradle.plugin)
 // TOML has
 gradle-plugin-ksp = { ... }
 
-// Expected Top 5:
+// Expected Top 10:
 1. gradle.plugin.ksp (60% - exact match for gradle, plugin, ksp)
 2. ksp.symbol.processing.api (12% - partial match for ksp)
 3. ... (other ksp-related dependencies)
@@ -90,7 +90,7 @@ kotlin-jvm = { ... }
 kotlin-stdlib = { ... }
 kotlin-reflect = { ... }
 
-// Expected Top 5:
+// Expected Top 10:
 1. kotlin.jvm (high score - exact match for kotlin, jvm)
 2. kotlin.stdlib (medium score - exact match for kotlin)
 3. kotlin.reflect (medium score - exact match for kotlin)
@@ -107,7 +107,7 @@ spring-boot-starter-web = { ... }
 spring-boot-starter-data-jpa = { ... }
 spring-core = { ... }
 
-// Expected Top 5:
+// Expected Top 10:
 1. spring.boot.starter.web (very high - exact match for spring, boot, starter, web)
 2. spring.boot.starter.data.jpa (high - exact match for spring, boot, starter)
 3. spring.core (low - only spring matches)
@@ -144,5 +144,5 @@ spring-core = { ... }
 1. **Tokenization**: Splits on `.`, `-`, `_` and converts to lowercase
 2. **Filtering**: Only returns results with score > 0.0
 3. **Sorting**: Results sorted by score descending
-4. **Top N**: Returns at most N results (default: 5)
+4. **Top N**: Returns at most N results (default: 10)
 5. **Dialog Display**: Shows score as percentage and matched tokens for user clarity

@@ -29,7 +29,7 @@ class AliasSimilarityMatcher {
     fun findSimilarAliases(
         invalidReference: String,
         availableAliases: Set<String>,
-        topN: Int = 5
+        topN: Int = 10
     ): List<MatchResult> {
         // 分词
         val referenceTokens = tokenize(invalidReference)

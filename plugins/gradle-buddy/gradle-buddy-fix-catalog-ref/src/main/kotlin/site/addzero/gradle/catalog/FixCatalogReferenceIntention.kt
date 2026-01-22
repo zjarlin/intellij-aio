@@ -213,7 +213,7 @@ class FixCatalogReferenceIntention : IntentionAction, PriorityAction {
         } else {
             // 找不到正确格式，使用相似度匹配查找候选项
             val matcher = AliasSimilarityMatcher()
-            val suggestedAliases = matcher.findSimilarAliases(invalidReference, availableAliases, topN = 5)
+            val suggestedAliases = matcher.findSimilarAliases(invalidReference, availableAliases, topN = 10)
 
             println("[detectErrorType] Found ${suggestedAliases.size} similar aliases")
 

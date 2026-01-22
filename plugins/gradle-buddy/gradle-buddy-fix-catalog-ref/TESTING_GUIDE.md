@@ -17,9 +17,9 @@ A new Gradle Buddy module that detects and fixes invalid Gradle version catalog 
      - Exact token matches (50% weight)
      - Jaccard similarity (30% weight)
      - Token order similarity (20% weight)
-   - Returns Top 5 most similar aliases
+   - Returns Top 10 most similar aliases
 4. **User-Friendly Fixes**:
-   - **If similar aliases found**: Shows dialog with Top 5 candidates, user selects the correct one
+   - **If similar aliases found**: Shows dialog with Top 10 candidates, user selects the correct one
    - **If no similar aliases found**: Prompts user to add declaration to TOML
 5. **Two Mechanisms**:
    - **Inspection**: Automatic yellow squiggly lines on invalid references

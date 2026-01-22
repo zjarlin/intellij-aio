@@ -5,7 +5,6 @@ import com.intellij.codeInsight.intention.PriorityAction
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.lang.annotation.ProblemGroup
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.project.Project
@@ -94,12 +93,11 @@ class FixCatalogReferenceIntention : IntentionAction, PriorityAction {
         val strategy = CatalogFixStrategyFactory.getStrategy(error) ?: return
         val fix = strategy.createFix(project, error) ?: return
 
-        // 应用修复
-        WriteCommandAction.runWriteCommandAction(project) {
-            // 创建一个简单的 ProblemDescriptor 实现
-            val descriptor = SimpleProblemDescriptor(element, strategy.getFixDescription(error))
-            fix.applyFix(project, descriptor)
-        }
+        // 创建一个简单的 ProblemDescriptor 实现
+        val descriptor = SimpleProblemDescriptor(element, strategy.getFixDescription(error))
+
+        // 应用修复（不在 write action 中，让 fix 自己决定何时执行 write action）
+        fix.applyFix(project, descriptor)
     }
 
     /**

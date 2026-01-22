@@ -77,8 +77,10 @@ class NotDeclaredFixStrategy : CatalogFixStrategy {
             if (selectedIndex >= 0 && selectedIndex < error.suggestedAliases.size) {
                 val selectedAlias = error.suggestedAliases[selectedIndex].alias
 
-                // 替换引用
-                replaceReference(project, element, error.catalogName, error.invalidReference, selectedAlias)
+                // 在 write action 中执行替换
+                com.intellij.openapi.application.ApplicationManager.getApplication().runWriteAction {
+                    replaceReference(project, element, error.catalogName, error.invalidReference, selectedAlias)
+                }
             }
         }
 
@@ -89,23 +91,35 @@ class NotDeclaredFixStrategy : CatalogFixStrategy {
             oldReference: String,
             newReference: String
         ) {
-            // 查找包含此元素的点限定表达式
+            // 查找包含此元素的点限定表达式，并找到最顶层的表达式
             var current = element.parent
             while (current != null && current !is KtDotQualifiedExpression) {
                 current = current.parent
             }
 
-            val dotExpression = current as? KtDotQualifiedExpression ?: return
+            var dotExpression = current as? KtDotQualifiedExpression ?: return
+
+            // 向上查找，直到找到最顶层的点限定表达式
+            // 例如：libs.kotlin.gradle.plugin 是一个嵌套的点表达式
+            // 我们需要找到最外层的那个
+            while (dotExpression.parent is KtDotQualifiedExpression) {
+                dotExpression = dotExpression.parent as KtDotQualifiedExpression
+            }
+
+            // 检查这个表达式是否以 catalogName 开头
+            val fullText = dotExpression.text
+            if (!fullText.startsWith("$catalogName.")) {
+                return
+            }
 
             // 构建新的引用文本
-            val oldFullReference = "$catalogName.$oldReference"
             val newFullReference = "$catalogName.$newReference"
 
             // 创建新的表达式
             val factory = KtPsiFactory(project)
             val newExpression = factory.createExpression(newFullReference)
 
-            // 替换
+            // 替换整个表达式
             dotExpression.replace(newExpression)
         }
     }

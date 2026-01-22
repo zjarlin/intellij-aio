@@ -113,12 +113,12 @@ class PluginIdScanner(private val project: Project) {
         }
         val shortId = fileName.removeSuffix(".gradle.kts")
 
-        // Get PSI file to extract package name
+        // Get PSI file and extract package name - must be done in read action
         val psiManager = PsiManager.getInstance(project)
-        val psiFile = psiManager.findFile(file) as? KtFile ?: return null
-
-        // Extract package name
-        val packageName = extractPackageName(psiFile)
+        val packageName = com.intellij.openapi.application.ReadAction.compute<String?, Throwable> {
+            val psiFile = psiManager.findFile(file) as? KtFile
+            psiFile?.let { extractPackageName(it) }
+        }
 
         // Construct fully qualified ID
         val fullyQualifiedId = if (packageName != null && packageName.isNotEmpty()) {

@@ -35,56 +35,58 @@ class IdReplacementEngine(
      * Finds all plugin ID references that need to be replaced.
      */
     fun findReplacementCandidates(scope: SearchScope): List<ReplacementCandidate> {
-        val candidates = mutableListOf<ReplacementCandidate>()
+        return com.intellij.openapi.application.ReadAction.compute<List<ReplacementCandidate>, Throwable> {
+            val candidates = mutableListOf<ReplacementCandidate>()
 
-        // Find all Kotlin files in the scope (includes .gradle.kts files)
-        val kotlinFiles = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, scope as GlobalSearchScope)
+            // Find all Kotlin files in the scope (includes .gradle.kts files)
+            val kotlinFiles = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, scope as GlobalSearchScope)
 
-        val psiManager = PsiManager.getInstance(project)
+            val psiManager = PsiManager.getInstance(project)
 
-        for (virtualFile in kotlinFiles) {
-            // Only process .gradle.kts files
-            if (!virtualFile.name.endsWith(".gradle.kts")) continue
+            for (virtualFile in kotlinFiles) {
+                // Only process .gradle.kts files
+                if (!virtualFile.name.endsWith(".gradle.kts")) continue
 
-            val psiFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
+                val psiFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
 
-            // Find all string template expressions in the file
-            val stringExpressions = PsiTreeUtil.findChildrenOfType(psiFile, KtStringTemplateExpression::class.java)
+                // Find all string template expressions in the file
+                val stringExpressions = PsiTreeUtil.findChildrenOfType(psiFile, KtStringTemplateExpression::class.java)
 
-            for (stringExpr in stringExpressions) {
-                // Check if this is a plugin ID reference in a plugins block
-                if (!isPluginIdReference(stringExpr)) continue
-                if (!isInPluginsBlock(stringExpr)) continue
+                for (stringExpr in stringExpressions) {
+                    // Check if this is a plugin ID reference in a plugins block
+                    if (!isPluginIdReference(stringExpr)) continue
+                    if (!isInPluginsBlock(stringExpr)) continue
 
-                // Extract the plugin ID string
-                val pluginId = extractPluginId(stringExpr) ?: continue
+                    // Extract the plugin ID string
+                    val pluginId = extractPluginId(stringExpr) ?: continue
 
-                // Check if this is a local plugin that needs qualification
-                val pluginInfo = pluginIdMapping[pluginId] ?: continue
+                    // Check if this is a local plugin that needs qualification
+                    val pluginInfo = pluginIdMapping[pluginId] ?: continue
 
-                // Skip if the plugin has no package (doesn't need qualification)
-                if (!pluginInfo.hasPackage()) continue
+                    // Skip if the plugin has no package (doesn't need qualification)
+                    if (!pluginInfo.hasPackage()) continue
 
-                // Skip if already using the fully qualified ID
-                if (pluginInfo.isFullyQualified(pluginId)) continue
+                    // Skip if already using the fully qualified ID
+                    if (pluginInfo.isFullyQualified(pluginId)) continue
 
-                // Skip external library plugins (they typically have dots in the ID)
-                if (isExternalPlugin(pluginId)) continue
+                    // Skip external library plugins (they typically have dots in the ID)
+                    if (isExternalPlugin(pluginId)) continue
 
-                // Create a replacement candidate
-                candidates.add(
-                    ReplacementCandidate(
-                        file = psiFile,
-                        element = stringExpr,
-                        currentId = pluginId,
-                        suggestedId = pluginInfo.fullyQualifiedId,
-                        lineNumber = getLineNumber(stringExpr)
+                    // Create a replacement candidate
+                    candidates.add(
+                        ReplacementCandidate(
+                            file = psiFile,
+                            element = stringExpr,
+                            currentId = pluginId,
+                            suggestedId = pluginInfo.fullyQualifiedId,
+                            lineNumber = getLineNumber(stringExpr)
+                        )
                     )
-                )
+                }
             }
-        }
 
-        return candidates
+            candidates
+        }
     }
 
     /**

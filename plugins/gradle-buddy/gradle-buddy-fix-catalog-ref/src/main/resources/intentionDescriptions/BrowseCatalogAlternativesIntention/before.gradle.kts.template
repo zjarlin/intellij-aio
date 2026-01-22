@@ -1,0 +1,4 @@
+dependencies {
+    // 光标在 ksp 上，按 Alt+Enter
+    implementation(libs.gradle.plugin.<spot>ksp</spot>)
+}

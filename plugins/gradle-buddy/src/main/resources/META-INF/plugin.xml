@@ -85,17 +85,17 @@
       <category>Gradle Plugin ID</category>
     </intentionAction>
 
-    <!-- Intention: Fix catalog reference -->
-    <intentionAction order="FIRST">
-      <language>kotlin</language>
-      <className>site.addzero.gradle.catalog.FixCatalogReferenceIntention</className>
-      <category>Gradle Buddy</category>
-    </intentionAction>
-
-    <!-- Intention: Select catalog reference from candidates -->
+    <!-- Intention: Select catalog reference from candidates (context menu) -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.catalog.SelectCatalogReferenceIntentionGroup</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Browse catalog alternatives (even for valid references) -->
+    <intentionAction order="NORMAL">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.catalog.BrowseCatalogAlternativesIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

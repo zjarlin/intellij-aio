@@ -23,13 +23,11 @@ class AliasSimilarityMatcher {
      * 查找最相似的别名
      * @param invalidReference 无效的引用（如 com.google.devtools.ksp.gradle.plugin）
      * @param availableAliases 可用的别名集合
-     * @param topN 返回前 N 个结果
-     * @return 匹配结果列表，按相似度降序排列
+     * @return 匹配结果列表，按相似度降序排列（包含所有有 token 匹配的候选项）
      */
     fun findSimilarAliases(
         invalidReference: String,
-        availableAliases: Set<String>,
-        topN: Int = 10
+        availableAliases: Set<String>
     ): List<MatchResult> {
         // 分词
         val referenceTokens = tokenize(invalidReference)
@@ -43,12 +41,14 @@ class AliasSimilarityMatcher {
             val matchedTokens = findMatchedTokens(referenceTokens, aliasTokens)
 
             MatchResult(alias, score, matchedTokens)
-        }.filter { it.score > 0.0 } // 只保留有匹配的结果
+        }.filter { it.score > 0.0 } // 只保留有匹配的结果（即至少有一个 token 匹配）
             .sorted() // 按分数降序排列
-            .take(topN)
 
-        println("[AliasSimilarityMatcher] Top $topN matches:")
-        results.forEach { println("  - ${it.alias} (score: ${it.score}, matched: ${it.matchedTokens})") }
+        println("[AliasSimilarityMatcher] Found ${results.size} matches with at least one token:")
+        results.take(20).forEach { println("  - ${it.alias} (score: ${it.score}, matched: ${it.matchedTokens})") }
+        if (results.size > 20) {
+            println("  ... and ${results.size - 20} more")
+        }
 
         return results
     }

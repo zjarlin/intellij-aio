@@ -1,0 +1,4 @@
+dependencies {
+    // 正确：使用点分隔
+    implementation(libs.gradle.plugin.ksp)
+}

@@ -13,26 +13,27 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
-import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
 
 /**
- * 选择版本目录引用的意图操作组
- * 显示一个智能弹出菜单，列出所有候选项
+ * 浏览版本目录的其他候选项
+ * 即使当前引用有效，也可以查看其他可能的选项
  */
-class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
+class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
-    private var cachedError: CatalogReferenceError.NotDeclared? = null
+    private var cachedCandidates: List<CandidateItem>? = null
+    private var cachedCatalogName: String? = null
+    private var cachedCurrentReference: String? = null
 
-    override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
+    override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
     override fun getText(): String {
-        val error = cachedError
-        return if (error != null && error.suggestedAliases.isNotEmpty()) {
-            "选择正确的版本目录引用（${error.suggestedAliases.size} 个候选项）"
+        val count = cachedCandidates?.size ?: 0
+        return if (count > 0) {
+            "浏览其他版本目录引用（$count 个候选项）"
         } else {
-            "选择正确的版本目录引用"
+            "浏览其他版本目录引用"
         }
     }
 
@@ -46,16 +47,46 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return false
 
-        // 检测错误
-        val error = detectCatalogReferenceError(project, element) ?: return false
+        // 找到最顶层的 KtDotQualifiedExpression
+        var dotExpression = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
+            ?: return false
 
-        // 只处理 NotDeclared 类型的错误
-        if (error !is CatalogReferenceError.NotDeclared) return false
+        while (dotExpression.parent is KtDotQualifiedExpression) {
+            dotExpression = dotExpression.parent as KtDotQualifiedExpression
+        }
 
-        // 只有当有候选项时才显示
-        if (error.suggestedAliases.isEmpty()) return false
+        if (!isCatalogReference(dotExpression)) {
+            return false
+        }
 
-        cachedError = error
+        val (catalogName, reference) = extractCatalogReference(dotExpression) ?: return false
+
+        val scanner = CatalogReferenceScanner(project)
+        val catalogs = scanner.scanAllCatalogs()
+
+        val availableAliases = catalogs[catalogName] ?: return false
+
+        // 使用相似度匹配查找候选项
+        val matcher = AliasSimilarityMatcher()
+        val suggestedAliases = matcher.findSimilarAliases(reference, availableAliases)
+
+        // 只要有候选项就显示（包括当前引用本身）
+        if (suggestedAliases.isEmpty()) return false
+
+        // 缓存结果
+        cachedCandidates = suggestedAliases.map { result ->
+            CandidateItem(
+                alias = result.alias,
+                score = result.score,
+                matchedTokens = result.matchedTokens,
+                catalogName = catalogName,
+                oldReference = reference,
+                isCurrent = result.alias == reference
+            )
+        }
+        cachedCatalogName = catalogName
+        cachedCurrentReference = reference
+
         return true
     }
 
@@ -63,24 +94,13 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         if (file !is KtFile) return
         if (editor == null) return
 
-        val error = cachedError ?: return
+        val candidates = cachedCandidates ?: return
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return
 
-        // 创建候选项列表
-        val candidates = error.suggestedAliases.map { result ->
-            CandidateItem(
-                alias = result.alias,
-                score = result.score,
-                matchedTokens = result.matchedTokens,
-                catalogName = error.catalogName,
-                oldReference = error.invalidReference
-            )
-        }
-
         // 显示弹出菜单
         val popup = JBPopupFactory.getInstance().createListPopup(
-            object : BaseListPopupStep<CandidateItem>("选择版本目录引用", candidates) {
+            object : BaseListPopupStep<CandidateItem>("浏览版本目录引用", candidates) {
                 override fun getTextFor(value: CandidateItem): String {
                     val percentage = String.format("%.0f", value.score * 100)
                     val tokens = if (value.matchedTokens.isNotEmpty()) {
@@ -88,11 +108,12 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
                     } else {
                         ""
                     }
-                    return "${value.catalogName}.${value.alias} [$percentage%]$tokens"
+                    val current = if (value.isCurrent) " ✓ 当前" else ""
+                    return "${value.catalogName}.${value.alias} [$percentage%]$tokens$current"
                 }
 
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
-                    if (selectedValue != null && finalChoice) {
+                    if (selectedValue != null && finalChoice && !selectedValue.isCurrent) {
                         // 执行替换
                         com.intellij.openapi.application.ApplicationManager.getApplication().runWriteAction {
                             replaceReference(
@@ -110,34 +131,6 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         )
 
         popup.showInBestPositionFor(editor)
-    }
-
-    private fun detectCatalogReferenceError(project: Project, element: PsiElement): CatalogReferenceError? {
-        // 找到最顶层的 KtDotQualifiedExpression
-        var dotExpression = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
-            ?: return null
-
-        // 向上查找，直到找到最顶层的 KtDotQualifiedExpression
-        while (dotExpression.parent is KtDotQualifiedExpression) {
-            dotExpression = dotExpression.parent as KtDotQualifiedExpression
-        }
-
-        if (!isCatalogReference(dotExpression)) {
-            return null
-        }
-
-        val (catalogName, reference) = extractCatalogReference(dotExpression) ?: return null
-
-        val scanner = CatalogReferenceScanner(project)
-        val catalogs = scanner.scanAllCatalogs()
-
-        val availableAliases = catalogs[catalogName] ?: return null
-
-        if (availableAliases.contains(reference)) {
-            return null
-        }
-
-        return detectErrorType(catalogName, reference, availableAliases)
     }
 
     private fun isCatalogReference(expression: KtDotQualifiedExpression): Boolean {
@@ -163,49 +156,6 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         val reference = parts.drop(1).joinToString(".")
 
         return catalogName to reference
-    }
-
-    private fun detectErrorType(
-        catalogName: String,
-        invalidReference: String,
-        availableAliases: Set<String>
-    ): CatalogReferenceError {
-        val correctReference = findCorrectFormat(invalidReference, availableAliases)
-
-        return if (correctReference != null) {
-            CatalogReferenceError.WrongFormat(
-                catalogName = catalogName,
-                invalidReference = invalidReference,
-                correctReference = correctReference,
-                availableAliases = availableAliases
-            )
-        } else {
-            val matcher = AliasSimilarityMatcher()
-            // 移除 topN 限制，返回所有有 token 匹配的候选项
-            val suggestedAliases = matcher.findSimilarAliases(invalidReference, availableAliases)
-
-            CatalogReferenceError.NotDeclared(
-                catalogName = catalogName,
-                invalidReference = invalidReference,
-                availableAliases = availableAliases,
-                suggestedAliases = suggestedAliases
-            )
-        }
-    }
-
-    private fun findCorrectFormat(invalidReference: String, availableAliases: Set<String>): String? {
-        val candidates = mutableSetOf<String>()
-
-        val camelCaseConverted = invalidReference.replace(Regex("([a-z])([A-Z])")) { matchResult ->
-            "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
-        }
-        candidates.add(camelCaseConverted)
-
-        candidates.add(invalidReference.replace('_', '.'))
-        candidates.add(invalidReference.replace('-', '.'))
-        candidates.add(invalidReference.lowercase())
-
-        return candidates.firstOrNull { it in availableAliases }
     }
 
     private fun replaceReference(
@@ -242,6 +192,7 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         val score: Double,
         val matchedTokens: List<String>,
         val catalogName: String,
-        val oldReference: String
+        val oldReference: String,
+        val isCurrent: Boolean
     )
 }

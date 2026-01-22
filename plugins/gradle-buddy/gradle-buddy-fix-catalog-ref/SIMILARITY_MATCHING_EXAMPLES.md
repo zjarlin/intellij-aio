@@ -2,7 +2,7 @@
 
 ## Algorithm Overview
 
-The `AliasSimilarityMatcher` uses a multi-factor scoring system to find the most similar aliases in the TOML file.
+The `AliasSimilarityMatcher` uses a multi-factor scoring system to find **all** similar aliases in the TOML file (no limit on the number of candidates).
 
 ### Scoring Components
 
@@ -17,6 +17,12 @@ The `AliasSimilarityMatcher` uses a multi-factor scoring system to find the most
 3. **Order Similarity (20% weight)**
    - Rewards aliases where matched tokens appear in the same relative order
    - Formula: `(order_matches / (common_tokens - 1)) * 0.2`
+
+### Candidate Selection
+
+- **No Top N limit**: All aliases with at least one token match (score > 0) are included
+- Results are sorted by similarity score in descending order
+- Users can scroll through all candidates in the popup menu
 
 ## Example 1: Perfect Match
 

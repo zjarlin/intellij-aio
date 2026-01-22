@@ -1,0 +1,9 @@
+dependencies {
+    // 显示所有包含 gradle, plugin, ksp 关键词的候选项
+    // 可以选择其他相关的依赖项
+    implementation(libs.gradle.plugin.ksp) // ✓ 当前
+    // 或者选择其他候选项，如：
+    // libs.ksp.gradle.plugin
+    // libs.gradle.ksp
+    // 等等...
+}

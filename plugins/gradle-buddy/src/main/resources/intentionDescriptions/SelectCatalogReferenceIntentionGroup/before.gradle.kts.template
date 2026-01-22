@@ -1,0 +1,4 @@
+dependencies {
+    // 无效的引用，光标在任意位置
+    implementation(libs.com.google.devtools.<spot>ksp</spot>.gradle.plugin)
+}

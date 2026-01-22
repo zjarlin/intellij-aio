@@ -85,6 +85,23 @@
       <category>Gradle Plugin ID</category>
     </intentionAction>
 
+    <!-- Intention: Fix catalog reference -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.catalog.FixCatalogReferenceIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Inspection: Invalid catalog reference -->
+    <localInspection
+            language="kotlin"
+            shortName="InvalidCatalogReference"
+            displayName="无效的版本目录引用"
+            groupName="Gradle"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="site.addzero.gradle.catalog.InvalidCatalogReferenceInspection"/>
+
     <!-- Completion: Gradle Kotlin Script dependencies -->
     <completion.contributor language="kotlin"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>

@@ -1,0 +1,20 @@
+<html>
+
+<body>
+  <p>检查 Gradle 版本目录引用是否有效</p>
+  <p>此检查器可以检测：</p>
+  <ul>
+    <li><b>格式错误</b>：TOML 中有声明，但引用格式不正确（例如：使用驼峰命名而不是点分隔）</li>
+    <li><b>未声明依赖</b>：TOML 中没有对应的声明</li>
+  </ul>
+  <p>示例：</p>
+  <pre><code>
+// 错误：使用驼峰命名
+implementation(libs.gradlePlugin.ksp)
+
+// 正确：使用点分隔
+implementation(libs.gradle.plugin.ksp)
+</code></pre>
+</body>
+
+</html>

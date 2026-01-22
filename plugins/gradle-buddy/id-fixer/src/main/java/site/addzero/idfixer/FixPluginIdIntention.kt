@@ -2,6 +2,7 @@ package site.addzero.idfixer
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.editor.Editor
@@ -10,12 +11,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtLambdaArgument
-import org.jetbrains.kotlin.psi.KtLambdaExpression
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.*
 
 /**
  * Intention action that fixes plugin ID references to use fully qualified names.
@@ -26,6 +22,31 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
     override fun getText(): String = "Fix build-logic qualified name"
     override fun getFamilyName(): String = "Gradle Plugin ID"
+
+    /**
+     * Generates a preview for the intention action without performing write actions.
+     */
+    override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
+        // Find the element at the cursor
+        val offset = editor.caretModel.offset
+        val element = file.findElementAt(offset) ?: return IntentionPreviewInfo.EMPTY
+
+        // Find the string template expression at the cursor
+        val stringExpr = findPluginIdStringExpression(element) ?: return IntentionPreviewInfo.EMPTY
+
+        // Extract the plugin ID
+        val pluginId = extractPluginId(stringExpr) ?: return IntentionPreviewInfo.EMPTY
+
+        // Find the plugin info with fully qualified ID
+        val pluginInfo = findPluginInfo(project, pluginId) ?: return IntentionPreviewInfo.EMPTY
+
+        // Create a preview by replacing just the current element
+        val factory = KtPsiFactory(project)
+        val newString = factory.createStringTemplate(pluginInfo.fullyQualifiedId)
+        stringExpr.replace(newString)
+
+        return IntentionPreviewInfo.DIFF
+    }
 
     /**
      * Checks if this intention action is available at the current cursor position.
@@ -93,8 +114,10 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
             return
         }
 
-        // Apply all replacements
-        val result = engine.applyReplacements(candidates)
+        // Apply all replacements in a write action
+        val result = com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction<ReplacementResult>(project) {
+            engine.applyReplacements(candidates)
+        }
 
         // Show notification with summary
         if (result.isSuccessful()) {

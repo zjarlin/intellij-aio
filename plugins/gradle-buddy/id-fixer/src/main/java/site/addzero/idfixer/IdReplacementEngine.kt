@@ -101,26 +101,24 @@ class IdReplacementEngine(
         var replacementsMade = 0
         val filesModified = mutableSetOf<PsiFile>()
 
-        // Perform all replacements in a single write action
-        WriteCommandAction.runWriteCommandAction(project) {
-            for (candidate in candidates) {
-                try {
-                    // Verify the element is still valid
-                    if (!candidate.element.isValid || !candidate.file.isValid) {
-                        errors.add("${candidate.file.name}:${candidate.lineNumber} - Element is no longer valid")
-                        continue
-                    }
-
-                    // Perform the replacement
-                    replacePluginId(candidate.element, candidate.suggestedId)
-
-                    // Track success
-                    replacementsMade++
-                    filesModified.add(candidate.file)
-
-                } catch (e: Exception) {
-                    errors.add("${candidate.file.name}:${candidate.lineNumber} - ${e.message}")
+        // Perform all replacements - must be called from outside a read action
+        for (candidate in candidates) {
+            try {
+                // Verify the element is still valid
+                if (!candidate.element.isValid || !candidate.file.isValid) {
+                    errors.add("${candidate.file.name}:${candidate.lineNumber} - Element is no longer valid")
+                    continue
                 }
+
+                // Perform the replacement
+                replacePluginId(candidate.element, candidate.suggestedId)
+
+                // Track success
+                replacementsMade++
+                filesModified.add(candidate.file)
+
+            } catch (e: Exception) {
+                errors.add("${candidate.file.name}:${candidate.lineNumber} - ${e.message}")
             }
         }
 

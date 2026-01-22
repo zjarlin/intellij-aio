@@ -15,7 +15,8 @@ class PluginIdScanner(private val project: Project) {
      */
     fun findBuildLogicDirectories(): List<VirtualFile> {
         val buildLogicDirs = mutableListOf<VirtualFile>()
-        val projectBaseDir = project.baseDir ?: return emptyList()
+        val basePath = project.basePath ?: return emptyList()
+        val projectBaseDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
 
         // Search for build-logic directories recursively
         findBuildLogicDirectoriesRecursive(projectBaseDir, buildLogicDirs)

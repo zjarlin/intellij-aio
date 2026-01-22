@@ -29,7 +29,7 @@ class FixIdsAction : AnAction() {
             Messages.showErrorDialog("Cannot get project.", "Error")
             return
         }
-        
+
         val selectedDirectory = e.getData(CommonDataKeys.PSI_ELEMENT) as? PsiDirectory
         if (selectedDirectory == null) {
             Messages.showErrorDialog("Please select a directory.", "Error")
@@ -86,23 +86,21 @@ class FixIdsAction : AnAction() {
         Messages.showInfoMessage("Found convention plugins: $shortIdToFqIdMap", "Gradle ID Fixer")
 
         // Step 3: Find all build.gradle.kts files in the entire project.
-        val buildGradleKtsFiles = FilenameIndex.getFilesByName(
-            project,
+        val buildGradleKtsVirtualFiles = FilenameIndex.getVirtualFilesByName(
             "build.gradle.kts",
-            GlobalSearchScope.projectScope(project),
-            false
+            GlobalSearchScope.projectScope(project)
         )
 
         var replacementsMade = 0
+        val psiManager = com.intellij.psi.PsiManager.getInstance(project)
 
         // Step 4 & 5: Iterate through each build.gradle.kts file and perform replacements
-        for (psiFile in buildGradleKtsFiles) {
-            if (psiFile is KtFile) {
-                // Perform replacements within a WriteCommandAction
-                WriteCommandAction.runWriteCommandAction(project) {
-                    val fileReplacements = replacePluginIdsInFile(psiFile, shortIdToFqIdMap)
-                    replacementsMade += fileReplacements
-                }
+        for (virtualFile in buildGradleKtsVirtualFiles) {
+            val psiFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
+            // Perform replacements within a WriteCommandAction
+            WriteCommandAction.runWriteCommandAction(project) {
+                val fileReplacements = replacePluginIdsInFile(psiFile, shortIdToFqIdMap)
+                replacementsMade += fileReplacements
             }
         }
 

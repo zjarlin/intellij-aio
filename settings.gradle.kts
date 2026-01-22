@@ -6,14 +6,15 @@ plugins {
     id("site.addzero.gradle.plugin.addzero-git-dependency") version "+"
     id("site.addzero.gradle.plugin.modules-buddy") version "+"
 }
-implementationRemoteGit{
-    remoteGits=listOf("lsi")
-}
+//implementationRemoteGit{
+//    remoteGits=listOf("lsi")
+//}
 
 
 
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-21T18:11:22.424443
-// Loaded: 1, Excluded: 0, Total: 1
+// Generated at: 2026-01-21T18:24:51.570029
+// Loaded: 3, Excluded: 0, Total: 3
 include(":plugins:gradle-buddy")
+include(":plugins:gradle-buddy:id-fixer")
 // <<< Gradle Buddy: End Of Block <<<

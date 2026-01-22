@@ -1,98 +1,112 @@
 <idea-plugin>
-    <id>site.addzero.gradle-buddy</id>
-    <name>Gradle Buddy</name>
-    <vendor>AddZero</vendor>
+  <id>site.addzero.gradle-buddy</id>
+  <name>Gradle Buddy</name>
+  <vendor>AddZero</vendor>
 
 
-    <!-- K2 Compatibility Declaration -->
-    <idea-version since-build="242" until-build="262.*"/>
+  <!-- K2 Compatibility Declaration -->
+  <idea-version since-build="242" until-build="262.*"/>
 
-    <description>
-        A plugin that helps you manage Gradle projects.
+  <description>
+    A plugin that helps you manage Gradle projects.
 
-        Features:
-        - Show Gradle tasks for current module in a tool window
-        - Migrate project() dependencies to Maven artifacts
-        - Migrate hardcoded dependencies to version catalog
-        - Intention actions for updating dependencies
-    </description>
+    Features:
+    - Show Gradle tasks for current module in a tool window
+    - Migrate project() dependencies to Maven artifacts
+    - Migrate hardcoded dependencies to version catalog
+    - Intention actions for updating dependencies
+  </description>
 
-    <depends>com.intellij.modules.platform</depends>
-    <depends>org.jetbrains.kotlin</depends>
-    <depends>org.jetbrains.plugins.gradle</depends>
-    <!-- K2 模式兼容性声明 -->
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <supportsKotlinPluginMode supportsK2="true" />
-    </extensions>
+  <depends>com.intellij.modules.platform</depends>
+  <depends>org.jetbrains.kotlin</depends>
+  <depends>org.jetbrains.plugins.gradle</depends>
+  <!-- K2 模式兼容性声明 -->
+  <extensions defaultExtensionNs="org.jetbrains.kotlin">
+    <supportsKotlinPluginMode supportsK2="true"/>
+  </extensions>
 
-    <extensions defaultExtensionNs="com.intellij">
+  <!-- Intention: Update dependency to latest version (Gradle KTS) -->
+  <!-- order="FIRST" 确保在intention列表中优先显示 -->
+  <actions>
+    <action id="site.addzero.idfixer.FixIdsAction"
+            class="site.addzero.idfixer.FixIdsAction"
+            text="Fix Gradle Plugin IDs in Project"
+            description="Scans for convention plugins and updates their usages in the project.">
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+    </action>
+  </actions>
 
-         <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
 
-         <!-- Notification Group -->
-          <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
+  <extensions defaultExtensionNs="com.intellij">
+
+    <postStartupActivity implementation="site.addzero.gradle.buddy.GradleBuddyPlugin"/>
+
+    <!-- Notification Group -->
+    <notificationGroup id="GradleBuddy" displayType="BALLOON" isLogByDefault="true"/>
 
 
-         <!-- Intention: Update dependency to latest version (Gradle KTS) -->
-         <!-- order="FIRST" 确保在intention列表中优先显示 -->
-         <intentionAction order="FIRST">
-             <language>kotlin</language>
-             <className>site.addzero.gradle.buddy.intentions.update.GradleKtsUpdateDependencyIntention</className>
-             <category>Gradle Buddy</category>
-         </intentionAction>
 
-         <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
-         <!-- order="FIRST" 确保在intention列表中优先显示 -->
-         <intentionAction order="FIRST">
-             <language>kotlin</language>
-             <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateDependencyIntention</className>
-             <category>Gradle Buddy</category>
-         </intentionAction>
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.update.GradleKtsUpdateDependencyIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
 
-         <!-- Intention: Convert plugin declaration to TOML format -->
-         <!-- order="FIRST" 确保在intention列表中优先显示 -->
-         <intentionAction order="FIRST">
-             <language>kotlin</language>
-             <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsPluginToTomlIntention</className>
-             <category>Gradle Buddy</category>
-         </intentionAction>
+    <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
+    <!-- order="FIRST" 确保在intention列表中优先显示 -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateDependencyIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
 
-         <!-- Intention: Convert hardcoded dependency to TOML format -->
-         <!-- order="FIRST" 确保在intention列表中优先显示 -->
-         <intentionAction order="FIRST">
-             <language>kotlin</language>
-             <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToTomlIntention</className>
-             <category>Gradle Buddy</category>
-         </intentionAction>
+    <!-- Intention: Convert plugin declaration to TOML format -->
+    <!-- order="FIRST" 确保在intention列表中优先显示 -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsPluginToTomlIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
 
-         <!-- Completion: Gradle Kotlin Script dependencies -->
-         <completion.contributor language="kotlin" implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
+    <!-- Intention: Convert hardcoded dependency to TOML format -->
+    <!-- order="FIRST" 确保在intention列表中优先显示 -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToTomlIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
 
-         <!-- Completion: Version Catalog TOML -->
-          <completion.contributor language="any" implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
+    <!-- Completion: Gradle Kotlin Script dependencies -->
+    <completion.contributor language="kotlin"
+                            implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
 
-         <!-- Notification: Version Catalog sort reminder -->
-         <editorNotificationProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogEditorNotificationProvider"/>
+    <!-- Completion: Version Catalog TOML -->
+    <completion.contributor language="any"
+                            implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
 
-         <!-- Current Module Tasks Tool Window -->
-        <toolWindow id="Module Tasks"
-                    anchor="right"
-                    secondary="true"
-                    icon="/icons/moduleTasksIcon.svg"
-                    factoryClass="site.addzero.gradle.buddy.filter.CurrentModuleGradleTasksToolWindowFactory"/>
+    <!-- Notification: Version Catalog sort reminder -->
+    <editorNotificationProvider
+      implementation="site.addzero.gradle.buddy.notification.VersionCatalogEditorNotificationProvider"/>
 
-        <!-- Settings -->
-        <projectConfigurable
-            parentId="tools"
-            instance="site.addzero.gradle.buddy.settings.GradleBuddySettingsConfigurable"
-            id="site.addzero.gradle.buddy.settings"
-            displayName="Gradle Buddy"/>
+    <!-- Current Module Tasks Tool Window -->
+    <toolWindow id="Module Tasks"
+                anchor="right"
+                secondary="true"
+                icon="/icons/moduleTasksIcon.svg"
+                factoryClass="site.addzero.gradle.buddy.filter.CurrentModuleGradleTasksToolWindowFactory"/>
 
-         <!-- Status Bar Widget -->
-         <statusBarWidgetFactory id="GradleBuddyWidget"
-                                 implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
+    <!-- Settings -->
+    <projectConfigurable
+      parentId="tools"
+      instance="site.addzero.gradle.buddy.settings.GradleBuddySettingsConfigurable"
+      id="site.addzero.gradle.buddy.settings"
+      displayName="Gradle Buddy"/>
 
-    </extensions>
+    <!-- Status Bar Widget -->
+    <statusBarWidgetFactory id="GradleBuddyWidget"
+                            implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
+
+  </extensions>
 
 
 </idea-plugin>

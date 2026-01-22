@@ -27,7 +27,7 @@ object ModuleSleepActionExecutor {
         )
       }
 
-      is LoadResult.NoOpenFiles -> notify(
+      LoadResult.NoOpenFiles -> notify(
         project,
         "No Open Files",
         "Please open some files first to detect required modules.",

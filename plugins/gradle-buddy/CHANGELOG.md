@@ -2,6 +2,56 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [Unreleased] - 2025-01-23
+
+### ✨ 新增功能
+- **版本目录引用修复器**：智能检测和修复无效的版本目录引用
+  - **智能相似度匹配**：使用多因子评分算法（完全匹配 50%、Jaccard 相似度 30%、顺序相似度 20%）查找所有匹配的候选项
+  - **无限制候选项**：显示所有至少有一个 token 匹配的别名，按相似度排序
+  - **浏览替代项**：新增意图操作，即使引用有效也可以浏览其他候选项
+  - **光标位置无关**：无论光标在表达式的哪个位置，都能提取完整的 token 列表
+  - **上下文菜单 UI**：智能弹出菜单显示候选项，包含匹配百分比和匹配的关键词
+  - **当前引用标识**：在替代项列表中用 "✓ 当前" 标记当前使用的引用
+  - **多模块支持**：递归扫描项目中所有模块的 TOML 文件
+
+### 🔧 改进
+- **所有意图操作**：添加 `(Gradle Buddy)` 前缀和英文描述，便于识别插件来源
+  - `(Gradle Buddy) Select correct catalog reference (N candidates)` - 选择正确的版本目录引用
+  - `(Gradle Buddy) Browse catalog alternatives (N candidates)` - 浏览其他版本目录引用
+  - `(Gradle Buddy) Fix build-logic qualified name` - 修复 build-logic 限定名
+  - `(Gradle Buddy) Convert plugin to version catalog format (TOML)` - 将插件转换为版本目录格式
+  - `(Gradle Buddy) Convert dependency to version catalog format (TOML)` - 将依赖转换为版本目录格式
+  - `(Gradle Buddy) Update dependency to latest version` - 更新依赖到最新版本
+
+### 🐛 修复
+- **Token 提取 Bug**：修复光标位置影响 token 提取的问题
+  - 现在无论光标在哪个位置，都能找到最顶层的 `KtDotQualifiedExpression`
+  - 确保提取所有 token 用于相似度匹配（例如：`libs.bcprov.jdk15to18` → `[bcprov, jdk15to18]`）
+- **资源文件位置**：将意图操作描述文件从子模块移动到主模块资源目录
+  - 修复 IDE 中意图操作不显示的问题
+  - 所有 `intentionDescriptions` 现在位于 `plugins/gradle-buddy/src/main/resources/`
+
+### 📝 文档
+- 为新的版本目录引用修复器功能添加了完整文档
+  - `SIMILARITY_MATCHING_EXAMPLES.md`：算法概述和评分示例
+  - `BUG_FIX_SUMMARY.md`：详细的 bug 修复说明
+  - `RESOURCE_FIX.md`：资源文件位置修复指南
+  - `INTENTION_TEXT_UPDATE.md`：意图操作文本更新总结
+  - `CHANGELOG_LATEST.md`：最新改动总结
+
+### 🎯 使用场景
+1. **修复无效引用**：当 `libs.com.google.devtools.ksp.gradle.plugin` 在 TOML 中不存在时
+   - 显示所有包含 `com`、`google`、`devtools`、`ksp`、`gradle`、`plugin` 的候选项
+   - 示例：`gradle.plugin.ksp`（85% 匹配：gradle, plugin, ksp）
+
+2. **浏览替代项**：即使 `libs.gradle.plugin.ksp` 是有效引用
+   - 在引用的任意位置按 `Alt+Enter`
+   - 查看 TOML 中所有相关的依赖项
+   - 当前引用标记为 "✓ 当前"
+   - 轻松切换到其他版本或变体
+
+---
+
 ## [Unreleased] - 2025-01-22
 
 ### ✨ Added

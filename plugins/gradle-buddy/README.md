@@ -13,13 +13,15 @@
 
 本插件提供了一系列意图操作，让你在 `.gradle.kts` 和 `libs.versions.toml` 文件中更高效地管理依赖和插件。
 
+所有意图操作都带有 `(Gradle Buddy)` 前缀，方便识别插件来源。
+
 ---
 
 #### 在 `.gradle.kts` 或 `settings.gradle.kts` 文件中
 
 将光标置于依赖或插件声明上，按下 `Alt+Enter`，即可触发以下操作：
 
-**1. Update to latest version (更新到最新版本)**
+**1. (Gradle Buddy) Update to latest version (更新到最新版本)**
 
 - **痛点**：想升级依赖或插件，但不确定最新版本号，需要手动去 Maven Central 或 Gradle Plugin Portal 查询。
 - **解决**：自动查询并替换为最新稳定版。
@@ -46,7 +48,7 @@ plugins {
 }
 ```
 
-**2. Convert to version catalog (转换为版本目录)**
+**2. (Gradle Buddy) Convert to version catalog (转换为版本目录)**
 
 - **痛点**：项目中存在硬编码的依赖和插件版本，不便于统一管理。
 - **解决**：一键将硬编码的声明转换为 `libs.versions.toml` 中的引用。
@@ -73,13 +75,59 @@ plugins {
 }
 ```
 
+**3. (Gradle Buddy) Select correct catalog reference (选择正确的版本目录引用)** 🆕
+
+- **痛点**：版本目录引用写错了，但不知道 TOML 中正确的引用是什么。
+- **解决**：使用智能相似度匹配，显示所有可能的候选项，按匹配度排序。
+
+*示例*:
+```kotlin
+// 错误的引用
+implementation(libs.com.google.devtools.ksp.gradle.plugin)
+// 光标放在任意位置，按 Alt+Enter
+
+// 显示候选项（按相似度排序）：
+// 1. gradle.plugin.ksp [85%] (匹配: gradle, plugin, ksp)
+// 2. ksp.gradle.plugin [75%] (匹配: ksp, gradle, plugin)
+// 3. google.ksp [45%] (匹配: google, ksp)
+```
+
+**特性**：
+- 🎯 **智能匹配**：使用多因子评分算法（完全匹配 50%、集合相似度 30%、顺序相似度 20%）
+- 📊 **显示所有候选项**：不限制数量，显示所有有关键词匹配的别名
+- 🔍 **光标位置无关**：无论光标在 `gradle`、`plugin` 还是 `ksp` 上，都能提取完整的 token 列表
+- 📈 **匹配度显示**：每个候选项显示匹配百分比和匹配的关键词
+- 🌐 **多模块支持**：递归扫描所有模块的 TOML 文件
+
+**4. (Gradle Buddy) Browse catalog alternatives (浏览其他版本目录引用)** 🆕
+
+- **痛点**：想看看 TOML 中还有哪些相关的依赖可以用，但不想手动翻 TOML 文件。
+- **解决**：即使当前引用有效，也可以浏览所有相关的候选项。
+
+*示例*:
+```kotlin
+// 有效的引用
+implementation(libs.gradle.plugin.ksp)
+// 光标放在任意位置，按 Alt+Enter
+
+// 显示所有相关候选项：
+// 1. gradle.plugin.ksp [100%] ✓ 当前
+// 2. ksp.gradle.plugin [85%] (匹配: ksp, gradle, plugin)
+// 3. gradle.ksp [75%] (匹配: gradle, ksp)
+```
+
+**特性**：
+- ✅ **当前引用标识**：用 "✓ 当前" 标记正在使用的引用
+- 🔄 **快速切换**：轻松切换到其他版本或变体
+- 🔍 **探索相关依赖**：发现 TOML 中所有包含相同关键词的依赖
+
 ---
 
 #### 在 `libs.versions.toml` 文件中
 
 将光标置于 TOML 文件中的任意位置，按下 `Alt+Enter`，即可触发以下操作：
 
-**1. Update to latest version (更新到最新版本)**
+**1. (Gradle Buddy) Update to latest version (更新到最新版本)**
 
 - **痛点**：即使在使用版本目录，依然需要手动检查每个依赖的最新版本。
 - **解决**：将光标放在依赖声明上，即可自动更新到最新版本。

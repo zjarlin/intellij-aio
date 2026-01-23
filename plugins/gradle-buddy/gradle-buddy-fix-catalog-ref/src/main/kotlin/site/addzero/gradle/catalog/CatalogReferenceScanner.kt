@@ -148,7 +148,7 @@ class CatalogReferenceScanner(private val project: Project) {
                                 val key = entry.key.text
                                 // 转换为点分隔格式
                                 val alias = convertTomlKeyToDotNotation(key)
-                                println("[CatalogReferenceScanner]     Library: $key -> $alias")
+//                                println("[CatalogReferenceScanner]     Library: $key -> $alias")
                                 aliases.add(alias)
                             }
                         }

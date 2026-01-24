@@ -152,7 +152,13 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
     }
 
     private fun extractCatalogReference(expression: KtDotQualifiedExpression): Pair<String, String>? {
-        val fullText = expression.text
+        // 找到最顶层的 KtDotQualifiedExpression（包含完整的 catalog 引用）
+        var topExpression = expression
+        while (topExpression.parent is KtDotQualifiedExpression) {
+            topExpression = topExpression.parent as KtDotQualifiedExpression
+        }
+
+        val fullText = topExpression.text
         val parts = fullText.split(".")
 
         if (parts.size < 2) {

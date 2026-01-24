@@ -42,16 +42,37 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
-        if (file.name != "libs.versions.toml") return false
+        // 检查是否为 TOML 文件且在 gradle 目录下（支持任意名称的 version catalog）
+        println("[VersionCatalogUpdate] Checking file: ${file.name}")
+
+        if (!file.name.endsWith(".toml")) {
+            println("[VersionCatalogUpdate] Not a TOML file")
+            return false
+        }
+
+        val virtualFile = file.virtualFile
+        if (virtualFile != null) {
+            val path = virtualFile.path
+            println("[VersionCatalogUpdate] File path: $path")
+            // 检查是否在 gradle/ 目录下（支持 gradle/libs.versions.toml 或其他位置）
+            if (!path.contains("/gradle/")) {
+                println("[VersionCatalogUpdate] Path does not contain /gradle/")
+                return false
+            }
+        }
 
         val offset = editor?.caretModel?.offset ?: 0
-        val element = file.findElementAt(offset)
-        return element != null && detectCatalogDependency(element) != null
+        val element = file.findElementAt(offset) ?: return false
+        println("[VersionCatalogUpdate] Element at cursor: ${element.text}")
+
+        val dependency = detectCatalogDependency(element)
+        println("[VersionCatalogUpdate] Detected dependency: $dependency")
+
+        return dependency != null
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
-        if (file.name != "libs.versions.toml") return
-
+        // 移除硬编码的文件名检查，因为 isAvailable() 已经做了更灵活的检查
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return
 
@@ -119,71 +140,64 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
     }
 
     private fun detectCatalogDependency(element: PsiElement): CatalogDependencyInfo? {
-        val text = getLineText(element)
+        val lineText = getLineText(element)
+        val fullText = element.containingFile?.text ?: lineText
 
         // 格式1: junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
         val groupPattern = Regex("""(\w+(?:-\w+)*)\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}""")
-        val groupMatch = groupPattern.find(text)
-        if (groupMatch != null) {
-            val (_, key, groupId, artifactId, versionRef) = groupMatch.destructured
-            val currentVersion = findVersionRef(text, versionRef)
+        groupPattern.find(lineText)?.let { match ->
+            val (key, groupId, artifactId, versionRef) = match.destructured
+            val currentVersion = findVersionRef(fullText, versionRef)
             if (currentVersion != null) {
-                return CatalogDependencyInfo(
-                    key = key,
-                    groupId = groupId,
-                    artifactId = artifactId,
-                    currentVersion = currentVersion,
-                    versionKey = versionRef,
-                    isVersionRef = true,
-                    originalValue = groupMatch.value,
-                    approximateOffset = element.textOffset - 100
-                )
+                return createDependencyInfo(key, groupId, artifactId, currentVersion, versionRef, true, match.value, element.textOffset)
             }
         }
 
         // 格式2: junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
         val modulePattern = Regex("""(\w+(?:-\w+)*)\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}""")
-        val moduleMatch = modulePattern.find(text)
-        if (moduleMatch != null) {
-            val (_, key, groupId, artifactId, versionRef) = moduleMatch.destructured
-            val currentVersion = findVersionRef(text, versionRef)
+        modulePattern.find(lineText)?.let { match ->
+            val (key, groupId, artifactId, versionRef) = match.destructured
+            val currentVersion = findVersionRef(fullText, versionRef)
             if (currentVersion != null) {
-                return CatalogDependencyInfo(
-                    key = key,
-                    groupId = groupId,
-                    artifactId = artifactId,
-                    currentVersion = currentVersion,
-                    versionKey = versionRef,
-                    isVersionRef = true,
-                    originalValue = moduleMatch.value,
-                    approximateOffset = element.textOffset - 100
-                )
+                return createDependencyInfo(key, groupId, artifactId, currentVersion, versionRef, true, match.value, element.textOffset)
             }
         }
 
         // 格式3: junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version = "5.10.0" }
         val directVersionPattern = Regex("""(\w+(?:-\w+)*)\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\s*=\s*"([^"]+)"\s*\}""")
-        val directVersionMatch = directVersionPattern.find(text)
-        if (directVersionMatch != null) {
-            val (_, key, groupId, artifactId, version) = directVersionMatch.destructured
-            return CatalogDependencyInfo(
-                key = key,
-                groupId = groupId,
-                artifactId = artifactId,
-                currentVersion = version,
-                versionKey = "",
-                isVersionRef = false,
-                originalValue = directVersionMatch.value,
-                approximateOffset = element.textOffset - 100
-            )
+        directVersionPattern.find(lineText)?.let { match ->
+            val (key, groupId, artifactId, version) = match.destructured
+            return createDependencyInfo(key, groupId, artifactId, version, "", false, match.value, element.textOffset)
         }
 
         return null
     }
 
-    private fun findVersionRef(text: String, versionKey: String): String? {
+    private fun createDependencyInfo(
+        key: String,
+        groupId: String,
+        artifactId: String,
+        currentVersion: String,
+        versionKey: String,
+        isVersionRef: Boolean,
+        originalValue: String,
+        textOffset: Int
+    ): CatalogDependencyInfo {
+        return CatalogDependencyInfo(
+            key = key,
+            groupId = groupId,
+            artifactId = artifactId,
+            currentVersion = currentVersion,
+            versionKey = versionKey,
+            isVersionRef = isVersionRef,
+            originalValue = originalValue,
+            approximateOffset = textOffset - 100
+        )
+    }
+
+    private fun findVersionRef(fullText: String, versionKey: String): String? {
         val versionPattern = Regex("""${Regex.escape(versionKey)}\s*=\s*["']([^"']+)["']""")
-        val match = versionPattern.find(text)
+        val match = versionPattern.find(fullText)
         return match?.groupValues?.get(1)
     }
 

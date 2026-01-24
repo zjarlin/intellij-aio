@@ -57,7 +57,7 @@
     <!-- Intention: Update dependency to latest version (Version Catalog TOML) -->
     <!-- order="FIRST" 确保在intention列表中优先显示 -->
     <intentionAction order="FIRST">
-      <language>kotlin</language>
+      <language>TOML</language>
       <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateDependencyIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>

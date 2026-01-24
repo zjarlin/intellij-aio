@@ -7,7 +7,7 @@ intellijPlatform {
     pluginConfiguration {
         id = "site.addzero.$pluginName"
         name = pluginName
-        version = "2026.01.24"
+        version = "2026.01.25"
     }
 }
 

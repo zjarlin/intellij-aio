@@ -62,6 +62,14 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Update version variable to latest (Version Catalog [versions] section) -->
+    <!-- order="FIRST" 确保在intention列表中优先显示 -->
+    <intentionAction order="FIRST">
+      <language>TOML</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogUpdateVersionIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert plugin declaration to TOML format -->
     <!-- order="FIRST" 确保在intention列表中优先显示 -->
     <intentionAction order="FIRST">

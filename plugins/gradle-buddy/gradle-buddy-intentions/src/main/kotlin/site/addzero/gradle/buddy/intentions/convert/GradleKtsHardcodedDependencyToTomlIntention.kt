@@ -148,21 +148,22 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
         // 生成版本目录中的名称
         val libraryKey = generateLibraryKey(info.groupId, info.artifactId)
+        val accessorKey = toCatalogAccessor(libraryKey)
         val versionKey = generateVersionKey(info.groupId, info.artifactId)
 
         // 生成新的依赖声明
         val dependencyRef = when {
             info.classifier != null && info.extension != null -> {
-                "libs.$libraryKey(\"${info.extension}\", \"${info.classifier}\")"
+                "libs.$accessorKey(\"${info.extension}\", \"${info.classifier}\")"
             }
             info.classifier != null -> {
-                "libs.$libraryKey(classifier = \"${info.classifier}\")"
+                "libs.$accessorKey(classifier = \"${info.classifier}\")"
             }
             info.extension != null -> {
-                "libs.$libraryKey(\"${info.extension}\")"
+                "libs.$accessorKey(\"${info.extension}\")"
             }
             else -> {
-                "libs.$libraryKey"
+                "libs.$accessorKey"
             }
         }
 
@@ -306,6 +307,10 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
             .replace(".", "-")
             .replace("_", "-")
             .lowercase()
+    }
+
+    private fun toCatalogAccessor(alias: String): String {
+        return alias.replace('-', '.').replace('_', '.')
     }
 
     // 生成版本键名

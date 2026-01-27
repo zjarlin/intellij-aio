@@ -98,6 +98,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert version catalog reference to hardcoded dependency -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogDependencyToHardcodedIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Fix plugin ID to use fully qualified name -->
     <intentionAction order="FIRST">
       <language>kotlin</language>

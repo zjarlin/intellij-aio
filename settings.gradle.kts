@@ -21,8 +21,9 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-27T13:08:26.676479
-// Loaded: 2, Excluded: 0, Total: 2
+// Generated at: 2026-01-27T18:29:13.251947
+// Loaded: 3, Excluded: 0, Total: 3
+include(":plugins:gradle-buddy")
 include(":plugins:gradle-buddy:gradle-buddy-intentions")
 include(":plugins:maven-buddy-core")
 // <<< Gradle Module Sleep: End Of Block <<<

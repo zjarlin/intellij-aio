@@ -3,6 +3,7 @@ package site.addzero.gradle.buddy.intentions.catalog
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
@@ -34,7 +35,25 @@ object VersionCatalogDependencyHelper {
     }
 
     fun findCatalogDependencyByAccessor(project: Project, accessor: String): Pair<PsiFile, CatalogDependencyInfo>? {
-        val catalogFile = resolveCatalogFile(project) ?: return null
+        val configuredFile = resolveConfiguredCatalogFile(project)
+            ?.let { PsiManager.getInstance(project).findFile(it) }
+        val configuredResult = configuredFile?.let { findInCatalogFile(it, accessor) }
+        if (configuredResult != null) return configuredResult
+
+        val catalogFiles = findVersionCatalogFiles(project)
+            .mapNotNull { PsiManager.getInstance(project).findFile(it) }
+        for (catalogFile in catalogFiles) {
+            val result = findInCatalogFile(catalogFile, accessor)
+            if (result != null) return result
+        }
+
+        return null
+    }
+
+    private fun findInCatalogFile(
+        catalogFile: PsiFile,
+        accessor: String
+    ): Pair<PsiFile, CatalogDependencyInfo>? {
         val document = catalogFile.viewProvider.document ?: return null
         val fullText = document.text
         val lines = fullText.split('\n')
@@ -91,8 +110,9 @@ object VersionCatalogDependencyHelper {
     ): CatalogDependencyInfo? {
         val keyPattern = """([A-Za-z0-9_.-]+)"""
 
+        val lineSuffix = """\s*(#.*)?$"""
         val groupPattern = Regex(
-            """^\s*$keyPattern\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$"""
+            """^\s*$keyPattern\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
         )
         groupPattern.find(lineText)?.let { match ->
             val (key, groupId, artifactId, versionRef) = match.destructured
@@ -110,7 +130,7 @@ object VersionCatalogDependencyHelper {
         }
 
         val groupDirectPattern = Regex(
-            """^\s*$keyPattern\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\s*=\s*"([^"]+)"\s*\}\s*$"""
+            """^\s*$keyPattern\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
         )
         groupDirectPattern.find(lineText)?.let { match ->
             val (key, groupId, artifactId, version) = match.destructured
@@ -127,7 +147,7 @@ object VersionCatalogDependencyHelper {
         }
 
         val modulePattern = Regex(
-            """^\s*$keyPattern\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$"""
+            """^\s*$keyPattern\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
         )
         modulePattern.find(lineText)?.let { match ->
             val (key, groupId, artifactId, versionRef) = match.destructured
@@ -145,7 +165,7 @@ object VersionCatalogDependencyHelper {
         }
 
         val moduleDirectPattern = Regex(
-            """^\s*$keyPattern\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\s*=\s*"([^"]+)"\s*\}\s*$"""
+            """^\s*$keyPattern\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
         )
         moduleDirectPattern.find(lineText)?.let { match ->
             val (key, groupId, artifactId, version) = match.destructured
@@ -162,7 +182,7 @@ object VersionCatalogDependencyHelper {
         }
 
         val shortPattern = Regex(
-            """^\s*$keyPattern\s*=\s*"([^:]+):([^:]+):([^"]+)"\s*$"""
+            """^\s*$keyPattern\s*=\s*"([^:]+):([^:]+):([^"]+)"\s*$lineSuffix"""
         )
         shortPattern.find(lineText)?.let { match ->
             val (key, groupId, artifactId, version) = match.destructured
@@ -182,7 +202,7 @@ object VersionCatalogDependencyHelper {
     }
 
     private fun findVersionRef(fullText: String, versionKey: String): String? {
-        val versionPattern = Regex("""(?m)^\s*${Regex.escape(versionKey)}\s*=\s*["']([^"']+)["']""")
+        val versionPattern = Regex("""(?m)^\s*${Regex.escape(versionKey)}\s*=\s*["']([^"']+)["']\s*(#.*)?$""")
         return versionPattern.find(fullText)?.groupValues?.get(1)
     }
 
@@ -192,11 +212,47 @@ object VersionCatalogDependencyHelper {
         return accessor == normalized
     }
 
-    private fun resolveCatalogFile(project: Project): PsiFile? {
+    private fun resolveConfiguredCatalogFile(project: Project): VirtualFile? {
         val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
         val basePath = project.basePath ?: return null
         val ioFile = java.io.File(basePath, catalogPath)
-        val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(ioFile) ?: return null
-        return PsiManager.getInstance(project).findFile(virtualFile)
+        return LocalFileSystem.getInstance().findFileByIoFile(ioFile)
+    }
+
+    private fun findVersionCatalogFiles(project: Project): List<VirtualFile> {
+        val basePath = project.basePath ?: return emptyList()
+        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
+        val result = mutableListOf<VirtualFile>()
+        scanForCatalogs(baseDir, result, 0, 6)
+        return result
+    }
+
+    private fun scanForCatalogs(
+        dir: VirtualFile,
+        result: MutableList<VirtualFile>,
+        depth: Int,
+        maxDepth: Int
+    ) {
+        if (depth > maxDepth || !dir.isDirectory) return
+
+        val skipDirs = setOf("build", "out", ".gradle", ".idea", "node_modules", "target", ".git")
+        if (dir.name in skipDirs) return
+
+        val gradleDir = dir.findChild("gradle")
+        if (gradleDir != null && gradleDir.isDirectory) {
+            gradleDir.children.forEach { file ->
+                if (!file.isDirectory && file.name.endsWith(".versions.toml")) {
+                    if (!result.contains(file)) {
+                        result.add(file)
+                    }
+                }
+            }
+        }
+
+        dir.children.forEach { child ->
+            if (child.isDirectory) {
+                scanForCatalogs(child, result, depth + 1, maxDepth)
+            }
+        }
     }
 }

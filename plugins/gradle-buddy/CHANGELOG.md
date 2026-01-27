@@ -2,6 +2,34 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.01.26] - 2026-01-26
+
+### ✨ 新增功能
+- **Select other versions（KTS/TOML）**：在 `.gradle.kts` 和 `libs.versions.toml` 中选择任意版本并替换
+  - KTS 支持硬编码依赖和 `libs.xxx.yyy` 引用
+  - TOML 支持 `module` / `group+name` / `version.ref` / 直接 `version` 格式
+- **Catalog -> Hardcoded**：新增意图将 `implementation(libs.xxx.yyy)` 转为硬编码依赖字符串
+
+### 🔧 改进
+- **版本目录解析**：支持扫描多模块下的 `gradle/*.versions.toml`，并优先使用设置中的路径
+- **TOML 解析**：依赖行支持尾部注释
+
+---
+
+## [2026.01.25] - 2026-01-25
+
+### ✨ 新增功能
+- **版本选择对话框**：统一的版本选择 UI，用于 “Select other versions”
+
+---
+
+## [2026.01.24] - 2026-01-24
+
+### 🐛 修复
+- **KTS 引用格式**：将硬编码依赖转换为 TOML 后，KTS 引用使用点号访问（如 `libs.hutool.all`）
+
+---
+
 ## [Unreleased] - 2025-01-23
 
 ### ✨ 新增功能

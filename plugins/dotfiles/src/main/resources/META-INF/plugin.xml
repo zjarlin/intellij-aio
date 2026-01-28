@@ -1,0 +1,19 @@
+<idea-plugin>
+    <id>site.addzero.dotfiles</id>
+    <name>Dotfiles</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="site.addzero.dotfiles.settings.DotfilesSettingsService"/>
+        <projectConfigurable instance="site.addzero.dotfiles.settings.DotfilesConfigurable" displayName="Dotfiles"/>
+        <toolWindow id="Dotfiles"
+                    anchor="right"
+                    factoryClass="site.addzero.dotfiles.ui.DotfilesToolWindowFactory"
+                    icon="AllIcons.Nodes.ConfigFolder"
+                    secondary="false"
+                    order="last"/>
+        <notificationGroup id="Dotfiles Notifications" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+</idea-plugin>

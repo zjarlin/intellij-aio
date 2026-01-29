@@ -21,8 +21,8 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-29T17:18:23.807677
-// Loaded: 9, Excluded: 0, Total: 9
+// Generated at: 2026-01-29T18:50:43.549048
+// Loaded: 10, Excluded: 0, Total: 10
 include(":plugins:dotfiles")
 include(":plugins:gradle-buddy")
 include(":plugins:gradle-buddy:gradle-buddy-core")
@@ -32,6 +32,7 @@ include(":plugins:gradle-module-sleep")
 include(":plugins:maven-buddy-core")
 include(":plugins:package-fixer")
 include(":plugins:problem4ai")
+include(":plugins:split-module")
 // <<< Gradle Module Sleep: End Of Block <<<
 
 include(":plugins:dotfiles")

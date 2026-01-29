@@ -70,18 +70,28 @@ class ModuleSplitter(private val project: Project) {
 
     private fun moveFiles(selectedFiles: List<VirtualFile>, sourceModule: VirtualFile, newModuleDir: File) {
         val sourceModulePath = File(sourceModule.path)
+        val selectedDirs = selectedFiles.filter { it.isDirectory }.map { File(it.path).toPath() }
 
-        selectedFiles.forEach { file ->
+        val effectiveSelection = selectedFiles.filter { file ->
+            val filePath = File(file.path).toPath()
+            selectedDirs.none { dirPath ->
+                dirPath != filePath && filePath.startsWith(dirPath)
+            }
+        }
+
+        effectiveSelection.forEach { file ->
             val filePath = File(file.path)
             val relativePath = filePath.relativeTo(sourceModulePath)
             val targetPath = File(newModuleDir, relativePath.path)
 
-            // 确保目标目录存在
-            targetPath.parentFile.mkdirs()
-
-            // 移动文件
-            filePath.copyTo(targetPath, overwrite = false)
-            filePath.delete()
+            if (file.isDirectory) {
+                filePath.copyRecursively(targetPath, overwrite = false)
+                filePath.deleteRecursively()
+            } else {
+                targetPath.parentFile.mkdirs()
+                filePath.copyTo(targetPath, overwrite = false)
+                filePath.delete()
+            }
         }
     }
 

@@ -55,7 +55,7 @@
                 text="Load Only Open Tab Modules"
                 description="Load only Gradle modules that correspond to currently open editor tabs"
                 icon="/icons/moduleSleepOpenTabs.svg">
-            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="first"/>
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
         </action>
@@ -76,6 +76,13 @@
                 icon="/icons/moduleSleepRestore.svg">
             <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="GradleModuleSleep.RootsField"
+                class="site.addzero.gradle.sleep.actions.ModuleSleepRootsFieldAction"
+                text="Root Folders"
+                description="Enter root folder names to include modules">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="first"/>
         </action>
 
         <action id="GradleModuleSleep.ShowPopup"

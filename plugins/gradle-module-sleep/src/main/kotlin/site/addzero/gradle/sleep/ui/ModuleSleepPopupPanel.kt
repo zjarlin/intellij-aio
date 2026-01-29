@@ -1,8 +1,6 @@
 package site.addzero.gradle.sleep.ui
 
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
@@ -22,7 +20,7 @@ import javax.swing.SwingConstants
 
 object ModuleSleepPopupPanel {
 
-  fun create(project: Project, file: VirtualFile?): JComponent {
+  fun create(project: Project): JComponent {
     val container = JPanel(BorderLayout()).apply {
       border = JBUI.Borders.empty(8)
       background = JBColor.PanelBackground
@@ -46,42 +44,17 @@ object ModuleSleepPopupPanel {
       text = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
     }
 
-    val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(10), 0)).apply {
-      addAction("Sleep other modules") {
-        ModuleSleepActionExecutor.loadOnlyOpenTabs(project, manualFoldersField.text)
-      }
-
-      addAction("Sleep other modules (keep this file only)") {
-        val fileEditorManager = FileEditorManager.getInstance(project)
-        file?.let { current ->
-          fileEditorManager.openFiles
-            .filter { it != current }
-            .forEach { fileEditorManager.closeFile(it) }
-        }
-        ModuleSleepSettingsService.getInstance(project).setManualFolderNames(manualFoldersField.text)
-        if (file != null) {
-          ModuleSleepActionExecutor.loadOnlyCurrentFile(project, file)
-        } else {
-          ModuleSleepActionExecutor.loadOnlyOpenTabs(project, manualFoldersField.text)
-        }
-      }
-
-      addAction("Restore modules") {
-        ModuleSleepActionExecutor.restoreAllModules(project)
-      }
-    }
-
     val manualPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
       add(JBLabel("Root folders:"))
       add(manualFoldersField)
-      addAction("Save roots") {
+      addAction("Save + Sleep") {
         ModuleSleepSettingsService.getInstance(project).setManualFolderNames(manualFoldersField.text)
+        ModuleSleepActionExecutor.loadOnlyOpenTabs(project, manualFoldersField.text)
       }
     }
 
-    val contentPanel = NonOpaquePanel(GridLayout(3, 1, 0, JBUI.scale(6))).apply {
+    val contentPanel = NonOpaquePanel(GridLayout(2, 1, 0, JBUI.scale(6))).apply {
       add(titlePanel)
-      add(actionsPanel)
       add(manualPanel)
     }
 

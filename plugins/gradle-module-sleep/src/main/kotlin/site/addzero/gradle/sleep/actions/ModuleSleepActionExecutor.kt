@@ -228,7 +228,7 @@ object ModuleSleepActionExecutor {
 
     notification.addAction(
       NotificationAction.createSimple("Open Panel") {
-        ModuleSleepPopupLauncher.show(project, null)
+        ModuleSleepPopupLauncher.show(project)
       }
     )
 

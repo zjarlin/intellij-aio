@@ -16,9 +16,8 @@ class ModuleSleepPopupAction : AnAction(
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
     val editor = e.getData(CommonDataKeys.EDITOR) ?: return
-    val file = e.getData(CommonDataKeys.VIRTUAL_FILE)
 
-    ModuleSleepPopupLauncher.show(project, file, editor)
+    ModuleSleepPopupLauncher.show(project, editor)
   }
 
   override fun update(e: AnActionEvent) {

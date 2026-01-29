@@ -3,6 +3,7 @@ package site.addzero.gradle.buddy.intentions.convert
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
@@ -73,11 +74,19 @@ class GradleKtsCatalogDependencyToHardcodedIntention : IntentionAction, Priority
         val resolved = VersionCatalogDependencyHelper.findCatalogDependencyByAccessor(project, accessor)
         if (resolved == null) {
             if (showWarning) {
-            Messages.showWarningDialog(
-                project,
-                "Could not resolve catalog reference: libs.$accessor",
-                "Convert Failed"
-            )
+                val app = ApplicationManager.getApplication()
+                val showDialog = {
+                    Messages.showWarningDialog(
+                        project,
+                        "Could not resolve catalog reference: libs.$accessor",
+                        "Convert Failed"
+                    )
+                }
+                if (app.isDispatchThread) {
+                    showDialog()
+                } else {
+                    app.invokeLater(showDialog)
+                }
             }
             return null
         }

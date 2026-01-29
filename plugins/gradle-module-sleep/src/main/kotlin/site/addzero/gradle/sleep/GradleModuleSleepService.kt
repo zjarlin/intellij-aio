@@ -147,7 +147,9 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
         }
 
         ApplicationManager.getApplication().invokeLater {
-            val activeModules = loadedModules.toSet()
+            val settings = ModuleSleepSettingsService.getInstance(project)
+            val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+            val activeModules = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet() + manualModules)
             if (activeModules.isEmpty()) return@invokeLater
 
             val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
@@ -178,11 +180,14 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
         val now = System.currentTimeMillis()
         val activeModulePaths = openFileModules.values.toSet()
+        val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+        val protectedModules = OnDemandModuleLoader.expandModulesWithDependencies(project, manualModules)
 
         // 找出可以释放的模块
         val modulesToRelease = loadedModules.filter { modulePath ->
             if (modulePath == ":") return@filter false
             if (activeModulePaths.contains(modulePath)) return@filter false
+            if (protectedModules.contains(modulePath)) return@filter false
 
             val lastAccess = moduleLastAccessTime[modulePath] ?: 0L
             val idleTime = now - lastAccess
@@ -198,7 +203,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
             // 重新同步只保留活跃模块
             ApplicationManager.getApplication().invokeLater {
-                val remainingModules = loadedModules.toSet()
+                val remainingModules = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet() + protectedModules)
                 if (remainingModules.isNotEmpty()) {
                     OnDemandModuleLoader.applyOnDemandLoading(project, remainingModules, syncAfter = true)
                     showNotification("Modules Released", "Released: ${modulesToRelease.joinToString(", ")}")

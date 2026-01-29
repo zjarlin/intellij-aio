@@ -1,6 +1,5 @@
 package site.addzero.gradle.sleep
 
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
@@ -13,19 +12,21 @@ import com.intellij.ui.EditorNotifications
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.panels.NonOpaquePanel
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import site.addzero.gradle.sleep.actions.ModuleSleepActionExecutor
 import java.awt.BorderLayout
 import java.awt.FlowLayout
+import java.awt.GridLayout
 import java.util.function.Function
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
 /**
- * Lightweight banner that exposes the Sleep/Restore controls near Gradle settings files.
+ * Lightweight panel that exposes the Sleep/Restore controls for the current editor file.
  */
 class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAware {
 
@@ -33,13 +34,9 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
     project: Project,
     file: VirtualFile
   ): Function<in FileEditor, out JComponent?>? {
-    if (!file.name.equals("settings.gradle", ignoreCase = true) &&
-      !file.name.equals("settings.gradle.kts", ignoreCase = true) &&
-      !file.name.equals("build.gradle", ignoreCase = true) &&
-      !file.name.equals("build.gradle.kts", ignoreCase = true)
-    ) {
-      return null
-    }
+    if (!file.isValid || file.isDirectory) return null
+    val basePath = project.basePath ?: return null
+    if (!file.path.startsWith(basePath)) return null
 
     if (file.getUserData(SUPPRESSED_KEY) == true) return null
 
@@ -50,7 +47,7 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
 
   private fun createPanel(project: Project, file: VirtualFile): JComponent {
     val appearance = EditorNotificationPanel(EditorNotificationPanel.Status.Info)
-    val container = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
+    val container = JPanel(BorderLayout()).apply {
       border = JBUI.Borders.merge(
         JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0),
         JBUI.Borders.empty(2, 8),
@@ -60,11 +57,12 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
       isOpaque = true
     }
 
+    val headerPanel = NonOpaquePanel(BorderLayout(JBUI.scale(10), 0))
     val labelPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
       add(
         JBLabel(
           "Gradle Module Sleep",
-          ModuleSleepIcons.Banner,
+          ModuleSleepIcons.Panel,
           SwingConstants.LEFT
         ).apply {
           font = JBFont.medium()
@@ -80,23 +78,10 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
 
       addAction("Sleep other modules (keep this tab module only)") {
         val fileEditorManager = FileEditorManager.getInstance(project)
-
-        /*
-        * 1 experimental API usage
- gradle-module-sleep 2026.01.21 uses experimental API, which may be changed in future releases leading to binary and source code incompatibilities
-
- Experimental method usage (1)
- FileEditorManager.getCurrentFile() (1)
- Experimental API method FileEditorManager.getCurrentFile() is invoked in ModuleSleepEditorNotificationProvider.createPanel$lambda$2$1(...). This method can be changed in a future release leading to incompatibilities
-        * */
-        val selectedTextEditor = fileEditorManager.selectedTextEditor
-        val currentFile = selectedTextEditor?.document?.let { FileDocumentManager.getInstance().getFile(it) }
-        if (currentFile != null) {
-          fileEditorManager.openFiles
-            .filter { it != currentFile }
-            .forEach { fileEditorManager.closeFile(it) }
-        }
-        ModuleSleepActionExecutor.loadOnlyOpenTabs(project)
+        fileEditorManager.openFiles
+          .filter { it != file }
+          .forEach { fileEditorManager.closeFile(it) }
+        ModuleSleepActionExecutor.loadOnlyCurrentFile(project, file)
       }
 
       addAction("Restore modules") {
@@ -109,8 +94,30 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
       }
     }
 
-    container.add(labelPanel, BorderLayout.CENTER)
-    container.add(actionsPanel, BorderLayout.EAST)
+    headerPanel.add(labelPanel, BorderLayout.WEST)
+    headerPanel.add(actionsPanel, BorderLayout.EAST)
+
+    val rootField = JBTextField().apply {
+      columns = 28
+      emptyText.text = "Root directory (relative or absolute)"
+    }
+
+    val rootPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
+      add(JBLabel("Root dir:").apply {
+        foreground = appearance.foreground
+      })
+      add(rootField)
+      addAction("Include modules under root") {
+        ModuleSleepActionExecutor.loadModulesUnderRoot(project, rootField.text)
+      }
+    }
+
+    val contentPanel = NonOpaquePanel(GridLayout(2, 1, 0, JBUI.scale(6))).apply {
+      add(headerPanel)
+      add(rootPanel)
+    }
+
+    container.add(contentPanel, BorderLayout.CENTER)
     return container
   }
 

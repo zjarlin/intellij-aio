@@ -72,6 +72,18 @@ object OnDemandModuleLoader {
     }
 
     /**
+     * 从当前文件推导模块路径（包含递归依赖）
+     */
+    fun detectModulesFromFile(project: Project, file: VirtualFile): Set<String> {
+        val projectBasePath = project.basePath ?: return emptySet()
+        val modulePath = detectModulePath(file, projectBasePath)
+        if (modulePath == null || modulePath == ":") {
+            return emptySet()
+        }
+        return expandWithDependencies(project, setOf(modulePath))
+    }
+
+    /**
      * 递归展开模块及其依赖
      */
     private fun expandWithDependencies(project: Project, modules: Set<String>): Set<String> {
@@ -282,6 +294,40 @@ object OnDemandModuleLoader {
 
         scanDir(baseDir)
         return modules.sortedBy { it.path }
+    }
+
+    /**
+     * 获取指定根目录下的所有模块
+     */
+    fun discoverModulesUnderRoot(project: Project, rootDir: VirtualFile): Set<String> {
+        val projectBasePath = project.basePath ?: return emptySet()
+        if (!rootDir.path.startsWith(projectBasePath)) return emptySet()
+
+        val modules = mutableSetOf<String>()
+
+        fun scanDir(dir: VirtualFile, depth: Int = 0) {
+            if (depth > 10) return
+            if (PROTECTED_MODULES.contains(dir.name)) return
+
+            val hasBuildFile = dir.findChild("build.gradle.kts") != null ||
+                    dir.findChild("build.gradle") != null
+
+            if (hasBuildFile && dir.path != projectBasePath) {
+                val relativePath = dir.path
+                    .removePrefix(projectBasePath)
+                    .trimStart('/')
+                if (relativePath.isNotEmpty()) {
+                    modules.add(":${relativePath.replace('/', ':')}")
+                }
+            }
+
+            dir.children
+                .filter { it.isDirectory && !it.name.startsWith(".") && it.name != "build" }
+                .forEach { scanDir(it, depth + 1) }
+        }
+
+        scanDir(rootDir)
+        return modules
     }
 
     /**

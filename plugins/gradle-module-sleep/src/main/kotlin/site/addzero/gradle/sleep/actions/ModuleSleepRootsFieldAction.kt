@@ -2,13 +2,16 @@ package site.addzero.gradle.sleep.actions
 
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.ex.CustomComponentAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
+import site.addzero.gradle.sleep.GradleModuleSleepService
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 import java.awt.Dimension
 import java.awt.event.FocusAdapter
@@ -26,6 +29,12 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
 
   override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
     // No-op: this action renders a custom text field component.
+  }
+
+  override fun update(e: AnActionEvent) {
+    val project = e.project
+    e.presentation.isEnabledAndVisible = project != null &&
+      project.service<GradleModuleSleepService>().isFeatureAvailable()
   }
 
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent {

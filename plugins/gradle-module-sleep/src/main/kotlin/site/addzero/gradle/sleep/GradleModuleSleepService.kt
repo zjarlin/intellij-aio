@@ -24,6 +24,8 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
     private val logger = Logger.getInstance(GradleModuleSleepService::class.java)
     private var connection: MessageBusConnection? = null
     private val scheduledExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    @Volatile
+    private var featureAvailable: Boolean? = null
 
     // 跟踪每个模块最后访问时间 (模块路径 -> 时间戳)
     private val moduleLastAccessTime = ConcurrentHashMap<String, Long>()
@@ -43,6 +45,10 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
     private val SYNC_DEBOUNCE = 2_000L // 2秒
 
     fun init() {
+        if (!isFeatureAvailable()) {
+            logger.info("Gradle Module Sleep disabled: module count below threshold")
+            return
+        }
         connection = project.messageBus.connect()
         connection?.subscribe(
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
@@ -224,12 +230,20 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
      * - 用户未设置 (null) 时，根据模块数量自动判断
      */
     fun isAutoSleepActive(): Boolean {
+        if (!isFeatureAvailable()) return false
         val settings = ModuleSleepSettingsService.getInstance(project)
         return when (val userSetting = settings.getAutoSleepEnabled()) {
             true -> true
             false -> false
             null -> getModuleCount() >= ModuleSleepSettingsService.LARGE_PROJECT_THRESHOLD
         }
+    }
+
+    fun isFeatureAvailable(): Boolean {
+        featureAvailable?.let { return it }
+        val available = getModuleCount() >= ModuleSleepSettingsService.LARGE_PROJECT_THRESHOLD
+        featureAvailable = available
+        return available
     }
 
     /**

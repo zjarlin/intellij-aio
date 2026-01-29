@@ -2,9 +2,11 @@ package site.addzero.gradle.sleep.actions
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import site.addzero.gradle.sleep.GradleModuleSleepService
 import site.addzero.gradle.sleep.loader.LoadResult
 import site.addzero.gradle.sleep.loader.OnDemandModuleLoader
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
@@ -15,6 +17,7 @@ import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 object ModuleSleepActionExecutor {
 
   fun loadOnlyOpenTabs(project: Project, manualFolderNamesRaw: String? = null) {
+    if (!isFeatureAvailable(project)) return
     val settings = ModuleSleepSettingsService.getInstance(project)
     if (manualFolderNamesRaw != null) {
       settings.setManualFolderNames(manualFolderNamesRaw)
@@ -65,6 +68,7 @@ object ModuleSleepActionExecutor {
   }
 
   fun restoreAllModules(project: Project) {
+    if (!isFeatureAvailable(project)) return
     val success = OnDemandModuleLoader.restoreAllModules(project, syncAfter = true)
     if (success) {
       notify(
@@ -84,6 +88,7 @@ object ModuleSleepActionExecutor {
   }
 
   fun loadOnlyCurrentFile(project: Project, file: VirtualFile) {
+    if (!isFeatureAvailable(project)) return
     val settings = ModuleSleepSettingsService.getInstance(project)
     val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
     val fileModules = OnDemandModuleLoader.detectModulesFromFile(project, file)
@@ -125,6 +130,7 @@ object ModuleSleepActionExecutor {
   }
 
   fun loadModulesUnderRoot(project: Project, rootPath: String) {
+    if (!isFeatureAvailable(project)) return
     val trimmed = rootPath.trim()
     if (trimmed.isEmpty()) {
       notify(
@@ -225,5 +231,9 @@ object ModuleSleepActionExecutor {
       .createNotification(title, content, type)
 
     notification.notify(project)
+  }
+
+  private fun isFeatureAvailable(project: Project): Boolean {
+    return project.service<GradleModuleSleepService>().isFeatureAvailable()
   }
 }

@@ -1,5 +1,11 @@
 # Gradle Module Sleep: Smart On-Demand Module Loading for Large Projects
 
+Monorepo brings scale, but it also brings pain: endless Gradle syncs, bloated IDE memory, and the daily chore of toggling modules just to stay productive.
+This plugin is the antidote: it loads only the modules you are actively working on, so your IDE stays fast without editing `settings.gradle.kts` by hand.
+
+Monorepo 带来了规模，也带来了痛点：Gradle 同步漫长、IDE 内存暴涨、每天都要手动开关模块才能保持效率。
+该插件就是解法：只加载你正在工作的模块，让 IDE 保持轻快，无需手改 `settings.gradle.kts`。
+
 ## Major Refactor Release
 
 This release is a major refactor with updated toolbar behavior and clearer module-loading semantics.
@@ -65,10 +71,12 @@ A control banner will appear at the top of your `settings.gradle.kts` or `build.
 **Floating toolbar behavior**
 
 The input field defines modules that must always be loaded for this project. The action buttons perform on-demand loading based on open tabs or the current file.
+Use the X button to hide this notification.
 
 **浮动工具条说明**
 
 输入框里填写的模块是“必加载”的项目级模块；其余按钮是基于打开标签或当前文件的按需加载。
+右上角的 X 可隐藏该通知。
 
 ## (Recursive Dependency Detection)
 

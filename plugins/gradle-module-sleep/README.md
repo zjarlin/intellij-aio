@@ -1,5 +1,11 @@
 # Gradle Module Sleep: Smart On-Demand Module Loading for Large Projects
 
+## Major Refactor Release
+
+This release is a major refactor with updated toolbar behavior and clearer module-loading semantics.
+
+本次为大重构版本，更新了工具条行为并明确了模块加载语义。
+
 Gradle Module Sleep supercharges your IDE performance by intelligently loading only the Gradle modules you are actively working on. Say goodbye to long sync times and high memory usage in large multi-module projects.
 
 
@@ -53,8 +59,16 @@ A control banner will appear at the top of your `settings.gradle.kts` or `build.
 
 -   **Sleep other modules**: Unloads all modules except those related to your currently open files.
 -   **Sleep other modules (keep this tab module only)**: Closes all other editor tabs and then unloads all modules except for the one related to your currently active file. This is perfect for focusing on a single task.
--   **Restore modules**: Reloads all modules in the project.
+-   **Clean all modules**: Restores all modules in the project.
 -   **Close**: Hides the banner for the current file until the project is reopened.
+
+**Floating toolbar behavior**
+
+The input field defines modules that must always be loaded for this project. The action buttons perform on-demand loading based on open tabs or the current file.
+
+**浮动工具条说明**
+
+输入框里填写的模块是“必加载”的项目级模块；其余按钮是基于打开标签或当前文件的按需加载。
 
 ## (Recursive Dependency Detection)
 

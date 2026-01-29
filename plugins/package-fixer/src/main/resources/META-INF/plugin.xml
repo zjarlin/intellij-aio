@@ -1,0 +1,32 @@
+<idea-plugin>
+    <id>site.addzero.package-fixer</id>
+    <name>Package Fixer</name>
+    <vendor>AddZero</vendor>
+
+    <idea-version since-build="242" until-build="262.*"/>
+
+    <description>
+        Fix package declarations to match the directory structure for all files under selected folders.
+    </description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Package Fixer" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <action id="site.addzero.packagefixer.FixPackageDeclarationsAction"
+                class="site.addzero.packagefixer.action.FixPackageDeclarationsAction"
+                text="Fix Package Declarations (Recursive)"
+                description="Fix package declarations to match directory structure for all files under selected directories">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

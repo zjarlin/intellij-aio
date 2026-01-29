@@ -32,7 +32,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
 
         manualFoldersField = JBTextField().apply {
-            emptyText.text = "Folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
+            emptyText.text = "Root folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
         }
 
         mainPanel = FormBuilder.createFormBuilder()
@@ -40,7 +40,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             .addVerticalGap(10)
             .addComponent(autoSleepCheckBox!!)
             .addLabeledComponent("Module idle timeout (minutes):", idleTimeoutSlider!!)
-            .addLabeledComponent("Manual module folders:", manualFoldersField!!)
+            .addLabeledComponent("Root module folders:", manualFoldersField!!)
             .addComponentFillVertically(JPanel(), 0)
             .panel
 

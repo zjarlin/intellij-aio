@@ -82,6 +82,8 @@
                 class="site.addzero.gradle.sleep.actions.ModuleSleepPopupAction"
                 text="Gradle Module Sleep"
                 description="Open the Gradle Module Sleep panel"
-                icon="/icons/moduleSleepPanel.svg"/>
+                icon="/icons/moduleSleepPanel.svg">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>

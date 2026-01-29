@@ -4,8 +4,8 @@ import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
 import site.addzero.gradle.sleep.loader.LoadResult
 import site.addzero.gradle.sleep.loader.OnDemandModuleLoader
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService

@@ -42,7 +42,7 @@ object ModuleSleepPopupPanel {
 
     val manualFoldersField = JBTextField().apply {
       columns = 28
-      emptyText.text = "Folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
+      emptyText.text = "Root folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
       text = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
     }
 
@@ -72,31 +72,17 @@ object ModuleSleepPopupPanel {
     }
 
     val manualPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
-      add(JBLabel("Folders:"))
+      add(JBLabel("Root folders:"))
       add(manualFoldersField)
-      addAction("Save") {
+      addAction("Save roots") {
         ModuleSleepSettingsService.getInstance(project).setManualFolderNames(manualFoldersField.text)
       }
     }
 
-    val rootField = JBTextField().apply {
-      columns = 28
-      emptyText.text = "Root directory (relative or absolute)"
-    }
-
-    val rootPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
-      add(JBLabel("Root dir:"))
-      add(rootField)
-      addAction("Include modules under root") {
-        ModuleSleepActionExecutor.loadModulesUnderRoot(project, rootField.text)
-      }
-    }
-
-    val contentPanel = NonOpaquePanel(GridLayout(4, 1, 0, JBUI.scale(6))).apply {
+    val contentPanel = NonOpaquePanel(GridLayout(3, 1, 0, JBUI.scale(6))).apply {
       add(titlePanel)
       add(actionsPanel)
       add(manualPanel)
-      add(rootPanel)
     }
 
     container.add(contentPanel, BorderLayout.CENTER)

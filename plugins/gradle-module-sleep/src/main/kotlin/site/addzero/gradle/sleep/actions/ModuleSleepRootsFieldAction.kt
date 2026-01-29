@@ -6,12 +6,14 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.ex.CustomComponentAction
 import com.intellij.openapi.project.DumbAware
+import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 import java.awt.Dimension
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
+import javax.swing.event.DocumentEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -49,6 +51,14 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
       ModuleSleepActionExecutor.loadOnlyOpenTabs(project, raw)
     }
 
+    field.document.addDocumentListener(object : DocumentAdapter() {
+      override fun textChanged(e: DocumentEvent) {
+        val project = DataManager.getInstance().getDataContext(field)
+          .getData(CommonDataKeys.PROJECT) ?: return
+        ModuleSleepSettingsService.getInstance(project).setManualFolderNames(field.text)
+      }
+    })
+
     field.addFocusListener(object : FocusAdapter() {
       override fun focusLost(e: FocusEvent) {
         val project = DataManager.getInstance().getDataContext(field)
@@ -71,13 +81,13 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
       .getData(CommonDataKeys.PROJECT) ?: return
 
     val lastProject = component.getClientProperty(PROJECT_PROPERTY) as? com.intellij.openapi.project.Project
-    if (lastProject == project) {
-      return
-    }
-
-    component.putClientProperty(PROJECT_PROPERTY, project)
-    if (!field.hasFocus()) {
-      field.text = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
+    val latest = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
+    val shouldUpdate = lastProject != project || (!field.hasFocus() && field.text != latest)
+    if (shouldUpdate) {
+      component.putClientProperty(PROJECT_PROPERTY, project)
+      if (!field.hasFocus()) {
+        field.text = latest
+      }
     }
   }
 }

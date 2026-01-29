@@ -32,7 +32,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getFamilyName(): String = "Gradle Buddy"
 
-    override fun getText(): String = "(Gradle Buddy) Convert dependency to version catalog format (TOML)"
+    override fun getText(): String = "(Gradle Buddy) Convert dependency to version catalog (TOML)"
 
     override fun startInWriteAction(): Boolean = true
 
@@ -224,8 +224,12 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
             )
         }
 
-        // 写入文件
-        writeVersionCatalog(catalogFile, existingContent)
+        // 写入文件（保留现有内容与其他表）
+        if (catalogFile.exists()) {
+            updateVersionCatalogInPlace(catalogFile, info, libraryKey, versionKey, versionRefFromVar)
+        } else {
+            writeVersionCatalog(catalogFile, existingContent)
+        }
 
         // 刷新虚拟文件系统
         LocalFileSystem.getInstance().refreshAndFindFileByPath(catalogFile.absolutePath)
@@ -328,6 +332,127 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         }
 
         file.writeText(tomlBuilder.toString())
+    }
+
+    private fun updateVersionCatalogInPlace(
+        file: File,
+        info: DependencyInfo,
+        libraryKey: String,
+        versionKey: String,
+        versionRefFromVar: String?
+    ) {
+        val original = file.readText()
+        val lines = original.lines().toMutableList()
+        var updatedLines = lines
+
+        if (versionRefFromVar == null) {
+            updatedLines = upsertVersionEntry(updatedLines, versionKey, info.version)
+        }
+        updatedLines = upsertLibraryEntry(
+            updatedLines,
+            libraryKey,
+            info,
+            versionKey,
+            versionRefFromVar
+        )
+
+        val updated = updatedLines.joinToString("\n")
+        if (updated != original) {
+            file.writeText(updated)
+        }
+    }
+
+    private fun upsertVersionEntry(
+        lines: MutableList<String>,
+        versionKey: String,
+        version: String
+    ): MutableList<String> {
+        val section = findSection(lines, "[versions]")
+        val entryRegex = Regex("""^\s*${Regex.escape(versionKey)}\s*=""")
+        if (section != null) {
+            if (lines.subList(section.start + 1, section.end).any { entryRegex.containsMatchIn(it) }) {
+                return lines
+            }
+            val insertAt = section.end
+            lines.add(insertAt, "$versionKey = \"$version\"")
+            return lines
+        }
+
+        if (lines.isNotEmpty() && lines.last().isNotBlank()) {
+            lines.add("")
+        }
+        lines.add("[versions]")
+        lines.add("$versionKey = \"$version\"")
+        return lines
+    }
+
+    private fun upsertLibraryEntry(
+        lines: MutableList<String>,
+        libraryKey: String,
+        info: DependencyInfo,
+        versionKey: String,
+        versionRefFromVar: String?
+    ): MutableList<String> {
+        val section = findSection(lines, "[libraries]")
+        val entryRegex = Regex("""^\s*${Regex.escape(libraryKey)}\s*=""")
+        if (section != null) {
+            if (lines.subList(section.start + 1, section.end).any { entryRegex.containsMatchIn(it) }) {
+                return lines
+            }
+            val insertAt = section.end
+            lines.add(insertAt, buildLibraryLine(libraryKey, info, versionKey, versionRefFromVar))
+            return lines
+        }
+
+        if (lines.isNotEmpty() && lines.last().isNotBlank()) {
+            lines.add("")
+        }
+        lines.add("[libraries]")
+        lines.add(buildLibraryLine(libraryKey, info, versionKey, versionRefFromVar))
+        return lines
+    }
+
+    private fun buildLibraryLine(
+        libraryKey: String,
+        info: DependencyInfo,
+        versionKey: String,
+        versionRefFromVar: String?
+    ): String {
+        val module = "${info.groupId}:${info.artifactId}"
+        val builder = StringBuilder()
+        builder.append("$libraryKey = { module = \"$module\"")
+        if (versionRefFromVar != null) {
+            builder.append(", version.ref = \"$versionKey\"")
+        } else {
+            builder.append(", version = \"${info.version}\"")
+        }
+        if (info.classifier != null) {
+            builder.append(", classifier = \"${info.classifier}\"")
+        }
+        builder.append(" }")
+        return builder.toString()
+    }
+
+    private data class SectionRange(val start: Int, val end: Int)
+
+    private fun findSection(lines: List<String>, header: String): SectionRange? {
+        var start = -1
+        for (i in lines.indices) {
+            if (lines[i].trim() == header) {
+                start = i
+                break
+            }
+        }
+        if (start == -1) return null
+        var end = lines.size
+        for (i in start + 1 until lines.size) {
+            val trimmed = lines[i].trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                end = i
+                break
+            }
+        }
+        return SectionRange(start, end)
     }
 
     // 生成库键名

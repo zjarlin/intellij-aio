@@ -36,14 +36,14 @@ class GradleKtsCatalogDependencyToHardcodedIntention : IntentionAction, Priority
         if (!file.name.endsWith(".gradle.kts")) return false
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return false
-        return findCatalogDependency(project, element) != null
+        return findCatalogDependency(project, element, showWarning = false) != null
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
         if (!file.name.endsWith(".gradle.kts")) return
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return
-        val info = findCatalogDependency(project, element) ?: return
+        val info = findCatalogDependency(project, element, showWarning = true) ?: return
 
         val dependencyString = "${info.groupId}:${info.artifactId}:${info.version}"
         val newDeclaration = "${info.configuration}(\"$dependencyString\")"
@@ -57,7 +57,11 @@ class GradleKtsCatalogDependencyToHardcodedIntention : IntentionAction, Priority
         }
     }
 
-    private fun findCatalogDependency(project: Project, element: PsiElement): CatalogDependencyInfo? {
+    private fun findCatalogDependency(
+        project: Project,
+        element: PsiElement,
+        showWarning: Boolean
+    ): CatalogDependencyInfo? {
         val callExpr = element.parentOfType<KtCallExpression>(true) ?: return null
         val configuration = callExpr.calleeExpression?.text ?: return null
         if (!isDependencyConfiguration(configuration)) return null
@@ -68,11 +72,13 @@ class GradleKtsCatalogDependencyToHardcodedIntention : IntentionAction, Priority
 
         val resolved = VersionCatalogDependencyHelper.findCatalogDependencyByAccessor(project, accessor)
         if (resolved == null) {
+            if (showWarning) {
             Messages.showWarningDialog(
                 project,
                 "Could not resolve catalog reference: libs.$accessor",
                 "Convert Failed"
             )
+            }
             return null
         }
 

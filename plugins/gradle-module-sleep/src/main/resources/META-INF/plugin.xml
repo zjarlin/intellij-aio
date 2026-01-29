@@ -55,7 +55,7 @@
                 text="Load Only Open Tab Modules"
                 description="Load only Gradle modules that correspond to currently open editor tabs"
                 icon="/icons/moduleSleepOpenTabs.svg">
-            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="after" relative-to-action="GradleModuleSleep.LoadOnlyCurrentFileModule"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
         </action>
@@ -65,16 +65,16 @@
                 text="Load Only Current File Module"
                 description="Keep only the module of the current file and unload others"
                 icon="/icons/moduleSleepKeepFile.svg">
-            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="first"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
 
         <action id="GradleModuleSleep.RestoreAllModules"
                 class="site.addzero.gradle.sleep.actions.RestoreAllModulesAction"
-                text="Restore All Gradle Modules"
-                description="Restore all modules that were excluded by Gradle Module Sleep"
+                text="Clean All Gradle Modules"
+                description="Clean all modules that were excluded by Gradle Module Sleep"
                 icon="/icons/moduleSleepRestore.svg">
-            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="after" relative-to-action="GradleModuleSleep.LoadOnlyOpenTabModules"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
 

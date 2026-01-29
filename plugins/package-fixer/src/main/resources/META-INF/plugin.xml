@@ -24,7 +24,7 @@
     <actions>
         <action id="site.addzero.packagefixer.FixPackageDeclarationsAction"
                 class="site.addzero.packagefixer.action.FixPackageDeclarationsAction"
-                text="Fix Package Declarations (Recursive)"
+                text="(package-fixer) fix all package declarations "
                 description="Fix package declarations to match directory structure for all files under selected directories">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>

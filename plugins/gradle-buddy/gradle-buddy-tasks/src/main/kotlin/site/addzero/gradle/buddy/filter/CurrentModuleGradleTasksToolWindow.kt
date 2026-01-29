@@ -61,12 +61,6 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
         toolbar.add(moduleLabel, BorderLayout.CENTER)
 
         val buttonPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 2, 0))
-
-        val refreshButton = JButton(AllIcons.Actions.Refresh)
-        refreshButton.toolTipText = "刷新任务"
-        refreshButton.addActionListener { refreshTasks() }
-        buttonPanel.add(refreshButton)
-
         toolbar.add(buttonPanel, BorderLayout.EAST)
         add(toolbar, BorderLayout.NORTH)
 
@@ -150,12 +144,17 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
 
             // 获取所有任务数据
             ExternalSystemApiUtil.findAll(projectStructure, ProjectKeys.TASK)
-                .map { it.data }
-                .filter { taskData ->
-                    // 过滤属于当前模块的任务
-                    taskData.linkedExternalProjectPath == moduleAbsolutePath
-                }
-                .map { taskData ->
+                .mapNotNull { node ->
+                    val taskData = node.data
+                    val taskPath = resolveTaskPath(taskData)
+                    val matchesPath = when {
+                        modulePath == ":" -> taskData.linkedExternalProjectPath == basePath ||
+                            taskPath?.startsWith(":") == true
+                        else -> taskData.linkedExternalProjectPath == moduleAbsolutePath ||
+                            taskPath == modulePath ||
+                            taskPath?.startsWith("$modulePath:") == true
+                    }
+                    if (!matchesPath) return@mapNotNull null
                     GradleTaskItem(
                         name = taskData.name,
                         modulePath = modulePath,
@@ -165,6 +164,17 @@ class CurrentModuleTasksPanel(private val project: Project) : JPanel(BorderLayou
                 }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    private fun resolveTaskPath(taskData: Any): String? {
+        return try {
+            val method = taskData.javaClass.methods.firstOrNull {
+                it.name == "getPath" && it.parameterCount == 0
+            } ?: return null
+            (method.invoke(taskData) as? String)?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
         }
     }
 

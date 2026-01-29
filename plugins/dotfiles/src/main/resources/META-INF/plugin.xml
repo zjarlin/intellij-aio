@@ -14,6 +14,17 @@
                     icon="AllIcons.Nodes.ConfigFolder"
                     secondary="false"
                     order="last"/>
+        <fileIconProvider implementation="site.addzero.dotfiles.ui.DotfilesFileIconProvider"/>
+        <postStartupActivity implementation="site.addzero.dotfiles.sync.DotfilesStartupActivity"/>
         <notificationGroup id="Dotfiles Notifications" displayType="BALLOON" isLogByDefault="true"/>
     </extensions>
+
+    <actions>
+        <action id="Dotfiles.AddToBackup"
+                class="site.addzero.dotfiles.actions.AddToDotfilesBackupAction"
+                text="Add to Dotfiles Backup"
+                description="Add selected file or folder to Dotfiles backup list">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

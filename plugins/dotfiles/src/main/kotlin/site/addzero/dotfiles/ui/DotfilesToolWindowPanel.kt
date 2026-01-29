@@ -1,222 +1,191 @@
 package site.addzero.dotfiles.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
-import androidx.compose.material.TextField
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.awt.ComposePanel
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import site.addzero.dotfiles.model.DotfilesSpec
-import site.addzero.dotfiles.model.TemplateSourceType
-import site.addzero.dotfiles.model.TemplateSpec
-import site.addzero.dotfiles.repo.DotfilesLayout
-import site.addzero.dotfiles.repo.FileDotfilesRepository
-import site.addzero.dotfiles.template.KotlinScriptTemplateEngine
-import site.addzero.dotfiles.template.TemplateContext
-import site.addzero.dotfiles.template.TemplateSourceResolver
+import com.intellij.openapi.vcs.FileStatus
+import com.intellij.openapi.vcs.FileStatusManager
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.ui.JBSplitter
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextArea
+import site.addzero.dotfiles.manifest.EntryMode
+import site.addzero.dotfiles.manifest.EntryScope
+import site.addzero.dotfiles.manifest.ManifestCodec
+import site.addzero.dotfiles.manifest.ManifestEntry
+import site.addzero.dotfiles.manifest.ManifestRepository
+import site.addzero.dotfiles.sync.DotfilesProjectSyncService
+import site.addzero.dotfiles.sync.DotfilesSyncStateService
 import java.awt.BorderLayout
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
+import java.awt.FlowLayout
+import java.nio.file.Path
+import java.nio.file.Paths
+import javax.swing.DefaultCellEditor
+import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JPanel
+import javax.swing.JTable
 
 class DotfilesToolWindowPanel(
     private val project: Project,
 ) : JPanel(BorderLayout()) {
 
-    private val repository = FileDotfilesRepository()
-    private val resolver = TemplateSourceResolver()
-    private val engine = KotlinScriptTemplateEngine()
+    private val manifestRepository = ManifestRepository()
+    private val manifestCodec = ManifestCodec()
+    private val syncService = project.getService(DotfilesProjectSyncService::class.java)
+    private val stateService = DotfilesSyncStateService.getInstance()
+
+    private val tableModel = ManifestTableModel()
+    private val entryTable = JTable(tableModel)
+    private val jsonArea = JBTextArea()
 
     init {
-        val compose = ComposePanel()
-        compose.setContent { DotfilesScreen() }
-        add(compose, BorderLayout.CENTER)
+        configureTable()
+        add(buildToolbar(), BorderLayout.NORTH)
+        add(buildContent(), BorderLayout.CENTER)
+        syncService.start()
+        reloadList()
     }
 
-    @Composable
-    private fun DotfilesScreen() {
-        var spec by remember { mutableStateOf(repository.load(project)) }
-        var selectedId by remember { mutableStateOf(spec.templates.firstOrNull()?.id) }
-        var editorText by remember { mutableStateOf("") }
-        var previewText by remember { mutableStateOf("") }
+    private fun buildToolbar(): JPanel {
+        val addUserButton = JButton("Add User Entry")
+        val addProjectButton = JButton("Add Project Entry")
+        val removeButton = JButton("Remove")
+        val reloadButton = JButton("Reload")
+        val syncButton = JButton("Sync Now")
+        val applyTableButton = JButton("Apply Table")
+        val applyJsonButton = JButton("Apply JSON")
+        val copyJsonButton = JButton("Copy JSON")
 
-        LaunchedEffect(selectedId, spec.templates) {
-            val template = spec.templates.firstOrNull { it.id == selectedId }
-            editorText = template?.let { readTemplateText(it) } ?: ""
-            previewText = ""
-        }
+        addUserButton.addActionListener { addEntry(EntryMode.USER) }
+        addProjectButton.addActionListener { addEntry(EntryMode.PROJECT) }
+        removeButton.addActionListener { removeSelectedEntry() }
+        reloadButton.addActionListener { reloadList() }
+        syncButton.addActionListener { syncService.syncNow() }
+        applyTableButton.addActionListener { applyTable() }
+        applyJsonButton.addActionListener { applyJson() }
+        copyJsonButton.addActionListener { jsonArea.copy() }
 
-        MaterialTheme {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Toolbar(
-                    onNew = {
-                        val created = createTemplate(spec)
-                        if (created != null) {
-                            spec = created.first
-                            selectedId = created.second
-                        }
-                    },
-                    onSave = {
-                        val selected = spec.templates.firstOrNull { it.id == selectedId } ?: return@Toolbar
-                        if (selected.sourceType != TemplateSourceType.LOCAL) {
-                            Messages.showErrorDialog(project, "Remote templates are read-only in the editor.", "Dotfiles")
-                            return@Toolbar
-                        }
-                        writeLocalTemplateFile(selected, editorText)
-                        repository.save(project, spec)
-                    },
-                    onPreview = {
-                        val selected = spec.templates.firstOrNull { it.id == selectedId } ?: return@Toolbar
-                        val context = TemplateContext(
-                            env = spec.env,
-                            constants = spec.constants,
-                            vars = buildTargetVars(spec, selected.id),
-                        )
-                        previewText = runCatching { engine.render(editorText, context) }
-                            .getOrElse { ex -> "Render failed: ${ex.message}" }
-                    },
-                    onReload = {
-                        spec = repository.load(project)
-                        selectedId = spec.templates.firstOrNull()?.id
-                    }
-                )
-
-                Row(modifier = Modifier.fillMaxSize()) {
-                    TemplateList(
-                        templates = spec.templates,
-                        selectedId = selectedId,
-                        onSelect = { selectedId = it },
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Text("Template", fontFamily = FontFamily.Monospace)
-                        TextField(
-                            value = editorText,
-                            onValueChange = { editorText = it },
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            textStyle = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Monospace)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Preview", fontFamily = FontFamily.Monospace)
-                        TextField(
-                            value = previewText,
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            textStyle = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Monospace)
-                        )
-                    }
-                }
-            }
+        return JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+            add(addUserButton)
+            add(addProjectButton)
+            add(removeButton)
+            add(reloadButton)
+            add(syncButton)
+            add(applyTableButton)
+            add(applyJsonButton)
+            add(copyJsonButton)
         }
     }
 
-    @Composable
-    private fun Toolbar(
-        onNew: () -> Unit,
-        onSave: () -> Unit,
-        onPreview: () -> Unit,
-        onReload: () -> Unit,
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onNew) { Text("New") }
-            Button(onClick = onSave) { Text("Save") }
-            Button(onClick = onPreview) { Text("Preview") }
-            Button(onClick = onReload) { Text("Reload") }
+    private fun buildContent(): JBSplitter {
+        jsonArea.tabSize = 2
+        val tableScroll = JBScrollPane(entryTable)
+        val jsonScroll = JBScrollPane(jsonArea)
+        return JBSplitter(true, 0.6f).apply {
+            firstComponent = tableScroll
+            secondComponent = jsonScroll
         }
     }
 
-    @Composable
-    private fun TemplateList(
-        templates: List<TemplateSpec>,
-        selectedId: String?,
-        onSelect: (String) -> Unit,
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxHeight().width(220.dp)
-                .background(MaterialTheme.colors.surface)
-                .padding(4.dp)
-        ) {
-            items(templates) { template ->
-                val isSelected = template.id == selectedId
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .background(if (isSelected) Color(0xFFE8E8E8) else Color.Transparent)
-                        .clickable { onSelect(template.id) }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(template.id)
-                }
-            }
+    private fun configureTable() {
+        entryTable.setShowGrid(true)
+        val scopeEditor = JComboBox(arrayOf("PROJECT_ROOT", "USER_HOME"))
+        val modeEditor = JComboBox(arrayOf("USER", "PROJECT"))
+        entryTable.columnModel.getColumn(2).cellEditor = DefaultCellEditor(scopeEditor)
+        entryTable.columnModel.getColumn(3).cellEditor = DefaultCellEditor(modeEditor)
+    }
+
+    private fun reloadList() {
+        val userEntries = stateService.state.userManifest.entries
+        val projectEntries = stateService.state.projectManifests[project.name]?.entries ?: emptyList()
+        tableModel.setRows(userEntries + projectEntries)
+        val userManifest = manifestRepository.loadUserManifest()
+        jsonArea.text = manifestCodec.encode(userManifest)
+    }
+
+    private fun addEntry(mode: EntryMode) {
+        val scope = EntryScope.PROJECT_ROOT
+        val base = scopeBase(scope) ?: return
+        val root = VfsUtil.findFile(base, true) ?: return
+        val descriptor = FileChooserDescriptor(true, true, false, false, false, false)
+            .withRoots(root)
+        val chosen = FileChooser.chooseFile(descriptor, project, null) ?: return
+        val chosenPath = Paths.get(chosen.path)
+        if (!chosenPath.startsWith(base)) {
+            Messages.showErrorDialog(project, "Please choose a path under the current project.", "Dotfiles")
+            return
         }
-    }
+        val relative = base.relativize(chosenPath).toString().replace('\\', '/')
+        val id = relative.replace('/', '_')
 
-    private fun createTemplate(spec: DotfilesSpec): Pair<DotfilesSpec, String>? {
-        val id = Messages.showInputDialog(
-            project,
-            "Template id",
-            "New Template",
-            null
-        )?.trim().orEmpty()
-        if (id.isEmpty()) return null
-        if (spec.templates.any { it.id == id }) {
-            Messages.showErrorDialog(project, "Template id already exists.", "Dotfiles")
-            return null
-        }
-        val file = "$id.kts"
-        val template = TemplateSpec(id = id, file = file)
-        writeLocalTemplateFile(template, defaultTemplateText(id))
-        val next = spec.copy(templates = spec.templates + template)
-        repository.save(project, next)
-        return next to id
-    }
-
-    private fun buildTargetVars(spec: DotfilesSpec, templateId: String): Map<String, Any?> {
-        val target = spec.targets.firstOrNull { it.templateId == templateId }
-        return if (target == null) emptyMap() else mapOf(
-            "targetId" to target.id,
-            "language" to target.language,
-            "outputPath" to target.outputPath,
-            "packageName" to target.packageName,
-        )
-    }
-
-    private fun readTemplateText(template: TemplateSpec): String {
-        return runCatching { resolver.resolveText(project, template) }
-            .getOrElse { "" }
-    }
-
-    private fun writeLocalTemplateFile(template: TemplateSpec, content: String) {
-        val dir = DotfilesLayout.templatesDir(project) ?: return
-        Files.createDirectories(dir)
-        val path = dir.resolve(template.file)
-        Files.write(path, content.toByteArray(StandardCharsets.UTF_8))
-    }
-
-    private fun defaultTemplateText(id: String): String = """
-        // template: $id
-        val pkg = ctx.vars["packageName"] ?: ""
-        if (pkg.toString().isNotEmpty()) {
-            "package ${'$'}pkg\n\n" +
+        val isIgnored = FileStatusManager.getInstance(project).getStatus(chosen) == FileStatus.IGNORED
+        val includeIgnored = if (isIgnored) {
+            val choice = Messages.showYesNoDialog(
+                project,
+                "This path is ignored by VCS. Back it up anyway?",
+                "Ignored File",
+                null
+            )
+            choice == Messages.YES
         } else {
-            ""
-        } +
-        constants.joinToString("\n") { "const val ${'$'}{it.name} = \"${'$'}{it.value}\"" }
-    """.trimIndent()
+            false
+        }
+
+        val entry = ManifestEntry(
+            id = id,
+            path = relative,
+            scope = scope,
+            mode = mode,
+            includeIgnored = includeIgnored,
+            excludeFromGit = true,
+        )
+        syncService.addEntry(entry, toUserManifest = mode == EntryMode.USER)
+        reloadList()
+    }
+
+    private fun scopeBase(scope: EntryScope): Path? = when (scope) {
+        EntryScope.USER_HOME -> Paths.get(System.getProperty("user.home"))
+        EntryScope.PROJECT_ROOT -> project.basePath?.let { Paths.get(it) }
+    }
+
+    private fun removeSelectedEntry() {
+        val row = entryTable.selectedRow
+        if (row < 0) return
+        val entry = tableModel.getRows()[row]
+        if (entry.id == "dotfiles-manifest") {
+            Messages.showWarningDialog(project, "The manifest entry cannot be removed.", "Dotfiles")
+            return
+        }
+        val choice = Messages.showYesNoDialog(
+            project,
+            "Remove ${entry.id} from dotfiles backup?",
+            "Remove Entry",
+            null
+        )
+        if (choice != Messages.YES) return
+        syncService.removeEntry(entry)
+        reloadList()
+    }
+
+    private fun applyJson() {
+        val parsed = manifestCodec.decodeOrNull(jsonArea.text)
+        if (parsed == null) {
+            Messages.showErrorDialog(project, "Invalid JSON manifest.", "Dotfiles")
+            return
+        }
+        manifestRepository.saveUserManifest(parsed)
+        syncService.reloadFromManifest()
+        reloadList()
+    }
+
+    private fun applyTable() {
+        val rows = tableModel.getRows()
+        val userEntries = rows.filter { it.mode == EntryMode.USER.name }
+        val projectEntries = rows.filter { it.mode == EntryMode.PROJECT.name }
+        syncService.replaceUserEntries(userEntries)
+        syncService.replaceProjectEntries(projectEntries)
+        reloadList()
+    }
 }

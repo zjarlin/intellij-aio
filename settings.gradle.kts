@@ -21,8 +21,8 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-29T10:53:38.738856
-// Loaded: 7, Excluded: 0, Total: 7
+// Generated at: 2026-01-29T12:20:21.230183
+// Loaded: 8, Excluded: 0, Total: 8
 include(":plugins:dotfiles")
 include(":plugins:gradle-buddy")
 include(":plugins:gradle-buddy:gradle-buddy-core")
@@ -30,6 +30,7 @@ include(":plugins:gradle-buddy:gradle-buddy-fix-catalog-ref")
 include(":plugins:gradle-buddy:gradle-buddy-intentions")
 include(":plugins:gradle-buddy:gradle-buddy-tasks")
 include(":plugins:maven-buddy-core")
+include(":plugins:package-fixer")
 // <<< Gradle Module Sleep: End Of Block <<<
 
 include(":plugins:dotfiles")

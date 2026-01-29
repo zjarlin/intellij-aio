@@ -1,0 +1,24 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pkgFixGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8A00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2CB3A3;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#pkgFixGrad)" opacity="0.12"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" stroke="url(#pkgFixGrad)" stroke-width="2" fill="none"/>
+
+  <polygon points="10 16 20 11 30 16 20 21" fill="url(#pkgFixGrad)" opacity="0.45"
+           stroke="url(#pkgFixGrad)" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="10 16 20 21 20 31 10 26" fill="url(#pkgFixGrad)" opacity="0.20"
+           stroke="url(#pkgFixGrad)" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="30 16 20 21 20 31 30 26" fill="url(#pkgFixGrad)" opacity="0.25"
+           stroke="url(#pkgFixGrad)" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <line x1="13" y1="22.5" x2="17" y2="24.5" stroke="url(#pkgFixGrad)" stroke-width="1.5"
+        stroke-linecap="round"/>
+
+  <path d="M24 21 L27 24 L33 18" stroke="url(#pkgFixGrad)" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

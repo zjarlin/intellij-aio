@@ -2,6 +2,7 @@ package site.addzero.gradle.sleep.actions
 
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.ex.CustomComponentAction
 import com.intellij.openapi.project.DumbAware
@@ -15,6 +16,11 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware {
+
+  private companion object {
+    const val FIELD_PROPERTY = "moduleSleep.rootsField"
+    const val PROJECT_PROPERTY = "moduleSleep.project"
+  }
 
   override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
     // No-op: this action renders a custom text field component.
@@ -30,14 +36,14 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
     }
 
     val initialProject = DataManager.getInstance().getDataContext(field)
-      .getData(com.intellij.openapi.actionSystem.CommonDataKeys.PROJECT)
+      .getData(CommonDataKeys.PROJECT)
     if (initialProject != null) {
       field.text = ModuleSleepSettingsService.getInstance(initialProject).getManualFolderNamesRaw()
     }
 
     field.addActionListener {
       val project = DataManager.getInstance().getDataContext(field)
-        .getData(com.intellij.openapi.actionSystem.CommonDataKeys.PROJECT) ?: return@addActionListener
+        .getData(CommonDataKeys.PROJECT) ?: return@addActionListener
       val raw = field.text
       ModuleSleepSettingsService.getInstance(project).setManualFolderNames(raw)
       ModuleSleepActionExecutor.loadOnlyOpenTabs(project, raw)
@@ -46,7 +52,7 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
     field.addFocusListener(object : FocusAdapter() {
       override fun focusLost(e: FocusEvent) {
         val project = DataManager.getInstance().getDataContext(field)
-          .getData(com.intellij.openapi.actionSystem.CommonDataKeys.PROJECT) ?: return
+          .getData(CommonDataKeys.PROJECT) ?: return
         ModuleSleepSettingsService.getInstance(project).setManualFolderNames(field.text)
       }
     })
@@ -54,7 +60,24 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
     return JPanel().apply {
       isOpaque = false
       layout = java.awt.BorderLayout()
+      putClientProperty(FIELD_PROPERTY, field)
       add(field, java.awt.BorderLayout.CENTER)
+    }
+  }
+
+  override fun updateCustomComponent(component: JComponent, presentation: Presentation) {
+    val field = component.getClientProperty(FIELD_PROPERTY) as? JBTextField ?: return
+    val project = DataManager.getInstance().getDataContext(component)
+      .getData(CommonDataKeys.PROJECT) ?: return
+
+    val lastProject = component.getClientProperty(PROJECT_PROPERTY) as? com.intellij.openapi.project.Project
+    if (lastProject == project) {
+      return
+    }
+
+    component.putClientProperty(PROJECT_PROPERTY, project)
+    if (!field.hasFocus()) {
+      field.text = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
     }
   }
 }

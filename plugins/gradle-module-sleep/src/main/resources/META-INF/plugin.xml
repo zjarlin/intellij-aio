@@ -33,8 +33,8 @@
         <!-- Notification Group -->
         <notificationGroup id="GradleModuleSleep" displayType="BALLOON" isLogByDefault="true"/>
 
-        <!-- Editor banner -->
-        <editorNotificationProvider implementation="site.addzero.gradle.sleep.ModuleSleepEditorNotificationProvider"/>
+        <!-- Floating toolbar -->
+        <editorFloatingToolbarProvider implementation="site.addzero.gradle.sleep.ModuleSleepFloatingToolbarProvider"/>
 
         <!-- Settings -->
         <projectConfigurable
@@ -45,20 +45,43 @@
     </extensions>
 
     <actions>
+        <group id="GradleModuleSleep.FloatingToolbarGroup"
+               text="Gradle Module Sleep"
+               popup="false"/>
+
         <!-- On-Demand Module Loading Actions -->
         <action id="GradleModuleSleep.LoadOnlyOpenTabModules"
                 class="site.addzero.gradle.sleep.actions.LoadOnlyOpenTabModulesAction"
                 text="Load Only Open Tab Modules"
-                description="Load only Gradle modules that correspond to currently open editor tabs">
+                description="Load only Gradle modules that correspond to currently open editor tabs"
+                icon="/icons/moduleSleepOpenTabs.svg">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="first"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt shift L"/>
+        </action>
+
+        <action id="GradleModuleSleep.LoadOnlyCurrentFileModule"
+                class="site.addzero.gradle.sleep.actions.LoadOnlyCurrentFileModuleAction"
+                text="Load Only Current File Module"
+                description="Keep only the module of the current file and unload others"
+                icon="/icons/moduleSleepKeepFile.svg">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
 
         <action id="GradleModuleSleep.RestoreAllModules"
                 class="site.addzero.gradle.sleep.actions.RestoreAllModulesAction"
                 text="Restore All Gradle Modules"
-                description="Restore all modules that were excluded by Gradle Module Sleep">
+                description="Restore all modules that were excluded by Gradle Module Sleep"
+                icon="/icons/moduleSleepRestore.svg">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+
+        <action id="GradleModuleSleep.ShowPopup"
+                class="site.addzero.gradle.sleep.actions.ModuleSleepPopupAction"
+                text="Gradle Module Sleep"
+                description="Open the Gradle Module Sleep panel"
+                icon="/icons/moduleSleepPanel.svg"/>
     </actions>
 </idea-plugin>

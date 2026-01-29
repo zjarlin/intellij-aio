@@ -17,6 +17,7 @@ import com.intellij.ui.components.panels.NonOpaquePanel
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import site.addzero.gradle.sleep.actions.ModuleSleepActionExecutor
+import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.GridLayout
@@ -71,9 +72,15 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
       )
     }
 
+    val manualFoldersField = JBTextField().apply {
+      columns = 28
+      emptyText.text = "Folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
+      text = ModuleSleepSettingsService.getInstance(project).getManualFolderNamesRaw()
+    }
+
     val actionsPanel = NonOpaquePanel(FlowLayout(FlowLayout.RIGHT, JBUI.scale(10), 0)).apply {
       addAction("Sleep other modules") {
-        ModuleSleepActionExecutor.loadOnlyOpenTabs(project)
+        ModuleSleepActionExecutor.loadOnlyOpenTabs(project, manualFoldersField.text)
       }
 
       addAction("Sleep other modules (keep this tab module only)") {
@@ -81,6 +88,7 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
         fileEditorManager.openFiles
           .filter { it != file }
           .forEach { fileEditorManager.closeFile(it) }
+        ModuleSleepSettingsService.getInstance(project).setManualFolderNames(manualFoldersField.text)
         ModuleSleepActionExecutor.loadOnlyCurrentFile(project, file)
       }
 
@@ -112,8 +120,19 @@ class ModuleSleepEditorNotificationProvider : EditorNotificationProvider, DumbAw
       }
     }
 
-    val contentPanel = NonOpaquePanel(GridLayout(2, 1, 0, JBUI.scale(6))).apply {
+    val manualPanel = NonOpaquePanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0)).apply {
+      add(JBLabel("Folders:").apply {
+        foreground = appearance.foreground
+      })
+      add(manualFoldersField)
+      addAction("Save") {
+        ModuleSleepSettingsService.getInstance(project).setManualFolderNames(manualFoldersField.text)
+      }
+    }
+
+    val contentPanel = NonOpaquePanel(GridLayout(3, 1, 0, JBUI.scale(6))).apply {
       add(headerPanel)
+      add(manualPanel)
       add(rootPanel)
     }
 

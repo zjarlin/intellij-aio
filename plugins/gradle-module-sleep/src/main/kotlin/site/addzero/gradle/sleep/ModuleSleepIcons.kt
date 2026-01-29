@@ -9,4 +9,13 @@ object ModuleSleepIcons {
 
   @JvmField
   val Panel: Icon = IconLoader.getIcon("/icons/moduleSleepPanel.svg", ModuleSleepIcons::class.java)
+
+  @JvmField
+  val OpenTabs: Icon = IconLoader.getIcon("/icons/moduleSleepOpenTabs.svg", ModuleSleepIcons::class.java)
+
+  @JvmField
+  val KeepFile: Icon = IconLoader.getIcon("/icons/moduleSleepKeepFile.svg", ModuleSleepIcons::class.java)
+
+  @JvmField
+  val Restore: Icon = IconLoader.getIcon("/icons/moduleSleepRestore.svg", ModuleSleepIcons::class.java)
 }

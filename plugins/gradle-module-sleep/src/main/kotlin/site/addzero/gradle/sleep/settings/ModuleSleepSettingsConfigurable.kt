@@ -3,6 +3,7 @@ package site.addzero.gradle.sleep.settings
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.ThreeStateCheckBox
 import javax.swing.JComponent
@@ -13,6 +14,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
 
     private var autoSleepCheckBox: ThreeStateCheckBox? = null
     private var idleTimeoutSlider: JSlider? = null
+    private var manualFoldersField: JBTextField? = null
     private var mainPanel: JPanel? = null
 
     override fun getDisplayName(): String = "Gradle Module Sleep"
@@ -29,11 +31,16 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             paintLabels = true
         }
 
+        manualFoldersField = JBTextField().apply {
+            emptyText.text = "Folder names, comma-separated (e.g. gradle-buddy, maven-buddy)"
+        }
+
         mainPanel = FormBuilder.createFormBuilder()
             .addComponent(JBLabel("Module sleep settings"))
             .addVerticalGap(10)
             .addComponent(autoSleepCheckBox!!)
             .addLabeledComponent("Module idle timeout (minutes):", idleTimeoutSlider!!)
+            .addLabeledComponent("Manual module folders:", manualFoldersField!!)
             .addComponentFillVertically(JPanel(), 0)
             .panel
 
@@ -49,7 +56,8 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             else -> null
         }
         return currentAutoSleep != settings.getAutoSleepEnabled() ||
-               idleTimeoutSlider?.value != settings.getModuleIdleTimeoutMinutes()
+               idleTimeoutSlider?.value != settings.getModuleIdleTimeoutMinutes() ||
+               manualFoldersField?.text != settings.getManualFolderNamesRaw()
     }
 
     override fun apply() {
@@ -61,6 +69,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
         settings.setAutoSleepEnabled(autoSleep)
         settings.setModuleIdleTimeoutMinutes(idleTimeoutSlider?.value ?: 5)
+        settings.setManualFolderNames(manualFoldersField?.text ?: "")
     }
 
     override fun reset() {
@@ -71,11 +80,13 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             null -> ThreeStateCheckBox.State.DONT_CARE
         }
         idleTimeoutSlider?.value = settings.getModuleIdleTimeoutMinutes()
+        manualFoldersField?.text = settings.getManualFolderNamesRaw()
     }
 
     override fun disposeUIResources() {
         autoSleepCheckBox = null
         idleTimeoutSlider = null
+        manualFoldersField = null
         mainPanel = null
     }
 }

@@ -110,6 +110,10 @@ object OnDemandModuleLoader {
         return result
     }
 
+    fun expandModulesWithDependencies(project: Project, modules: Set<String>): Set<String> {
+        return expandWithDependencies(project, modules)
+    }
+
     /**
      * 从模块的 build.gradle.kts 文件中提取项目依赖
      */
@@ -294,6 +298,26 @@ object OnDemandModuleLoader {
 
         scanDir(baseDir)
         return modules.sortedBy { it.path }
+    }
+
+    /**
+     * 根据目录名解析模块路径
+     */
+    fun findModulesByFolderNames(project: Project, folderNames: Set<String>): Set<String> {
+        if (folderNames.isEmpty()) return emptySet()
+        val normalized = folderNames.map { it.trim().trim(':', '/', '\\') }
+            .filter { it.isNotBlank() }
+            .toSet()
+        if (normalized.isEmpty()) return emptySet()
+
+        val modules = discoverAllModules(project)
+        return modules.asSequence()
+            .filter { descriptor ->
+                val segments = descriptor.path.trim(':').split(':')
+                segments.any { it in normalized }
+            }
+            .map { it.path }
+            .toSet()
     }
 
     /**

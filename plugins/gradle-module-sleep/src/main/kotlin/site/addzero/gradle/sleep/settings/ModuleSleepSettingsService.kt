@@ -13,7 +13,8 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
 
     data class State(
         var moduleIdleTimeoutMinutes: Int = 5,
-        var autoSleepEnabled: Boolean? = null // null = auto-detect based on module count
+        var autoSleepEnabled: Boolean? = null, // null = auto-detect based on module count
+        var manualFolderNames: String = ""
     )
 
     private var myState = State()
@@ -42,6 +43,20 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
      */
     fun setAutoSleepEnabled(enabled: Boolean?) {
         myState.autoSleepEnabled = enabled
+    }
+
+    fun getManualFolderNames(): Set<String> {
+        return myState.manualFolderNames
+            .split(',', ';', '\n')
+            .map { it.trim().trim(':', '/', '\\') }
+            .filter { it.isNotBlank() }
+            .toSet()
+    }
+
+    fun getManualFolderNamesRaw(): String = myState.manualFolderNames
+
+    fun setManualFolderNames(raw: String) {
+        myState.manualFolderNames = raw
     }
 
     companion object {

@@ -1,5 +1,6 @@
 package site.addzero.gradle.sleep.actions
 
+import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
@@ -7,14 +8,45 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtil
 import site.addzero.gradle.sleep.loader.LoadResult
 import site.addzero.gradle.sleep.loader.OnDemandModuleLoader
+import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
+import site.addzero.gradle.sleep.ui.ModuleSleepPopupLauncher
 
 /**
  * Shared helpers for module sleep actions so buttons and banners reuse the same behavior.
  */
 object ModuleSleepActionExecutor {
 
-  fun loadOnlyOpenTabs(project: Project) {
-    when (val result = OnDemandModuleLoader.loadOnlyOpenTabModules(project)) {
+  fun loadOnlyOpenTabs(project: Project, manualFolderNamesRaw: String? = null) {
+    val settings = ModuleSleepSettingsService.getInstance(project)
+    if (manualFolderNamesRaw != null) {
+      settings.setManualFolderNames(manualFolderNamesRaw)
+    }
+
+    val openFiles = OnDemandModuleLoader.getOpenEditorFiles(project)
+    val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+    val tabModules = OnDemandModuleLoader.detectModulesFromOpenFiles(project)
+    val activeModules = OnDemandModuleLoader.expandModulesWithDependencies(project, tabModules + manualModules)
+
+    if (activeModules.isEmpty()) {
+      if (openFiles.isEmpty() && manualModules.isEmpty()) {
+        notify(
+          project,
+          "No Open Files",
+          "Please open some files first to detect required modules.",
+          NotificationType.WARNING
+        )
+      } else {
+        notify(
+          project,
+          "No Modules Detected",
+          "Could not detect any Gradle modules from ${openFiles.size} open files.",
+          NotificationType.WARNING
+        )
+      }
+      return
+    }
+
+    when (val result = applyActiveModules(project, activeModules)) {
       is LoadResult.Success -> {
         val excludedInfo = if (result.excludedModules.isNotEmpty()) {
           "\nExcluded: ${result.excludedModules.sorted().joinToString(", ")}"
@@ -29,21 +61,8 @@ object ModuleSleepActionExecutor {
         )
       }
 
-      LoadResult.NoOpenFiles -> notify(
-        project,
-        "No Open Files",
-        "Please open some files first to detect required modules.",
-        NotificationType.WARNING
-      )
-
-      is LoadResult.NoModulesDetected -> notify(
-        project,
-        "No Modules Detected",
-        "Could not detect any Gradle modules from ${result.openFileCount} open files.",
-        NotificationType.WARNING
-      )
-
       is LoadResult.Failed -> notify(project, "Load Failed", result.reason, NotificationType.ERROR)
+      else -> Unit
     }
   }
 
@@ -67,7 +86,10 @@ object ModuleSleepActionExecutor {
   }
 
   fun loadOnlyCurrentFile(project: Project, file: VirtualFile) {
-    val activeModules = OnDemandModuleLoader.detectModulesFromFile(project, file)
+    val settings = ModuleSleepSettingsService.getInstance(project)
+    val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+    val fileModules = OnDemandModuleLoader.detectModulesFromFile(project, file)
+    val activeModules = OnDemandModuleLoader.expandModulesWithDependencies(project, fileModules + manualModules)
     if (activeModules.isEmpty()) {
       notify(
         project,
@@ -78,22 +100,29 @@ object ModuleSleepActionExecutor {
       return
     }
 
-    val (validModules, excludedModules) = OnDemandModuleLoader.partitionModules(activeModules)
-    val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
-    if (success) {
-      val excludedInfo = if (excludedModules.isNotEmpty()) {
-        "\nExcluded: ${excludedModules.sorted().joinToString(", ")}"
-      } else {
-        ""
+    when (val result = applyActiveModules(project, activeModules)) {
+      is LoadResult.Success -> {
+        val excludedInfo = if (result.excludedModules.isNotEmpty()) {
+          "\nExcluded: ${result.excludedModules.sorted().joinToString(", ")}"
+        } else {
+          ""
+        }
+        notify(
+          project,
+          "On-Demand Loading Applied",
+          "Loaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
+          NotificationType.INFORMATION
+        )
       }
-      notify(
+
+      LoadResult.NoOpenFiles -> Unit
+      is LoadResult.NoModulesDetected -> notify(
         project,
-        "On-Demand Loading Applied",
-        "Loaded: ${validModules.size}, Excluded: ${excludedModules.size}, Total: ${validModules.size + excludedModules.size}\n${validModules.sorted().joinToString("\n")}$excludedInfo",
-        NotificationType.INFORMATION
+        "No Modules Detected",
+        "Could not detect any Gradle modules from the current file.",
+        NotificationType.WARNING
       )
-    } else {
-      notify(project, "Load Failed", "Failed to apply settings", NotificationType.ERROR)
+      is LoadResult.Failed -> notify(project, "Load Failed", result.reason, NotificationType.ERROR)
     }
   }
 
@@ -153,29 +182,56 @@ object ModuleSleepActionExecutor {
       return
     }
 
+    when (val result = applyActiveModules(project, activeModules)) {
+      is LoadResult.Success -> {
+        val excludedInfo = if (result.excludedModules.isNotEmpty()) {
+          "\nExcluded: ${result.excludedModules.sorted().joinToString(", ")}"
+        } else {
+          ""
+        }
+        notify(
+          project,
+          "On-Demand Loading Applied",
+          "Loaded: ${result.modules.size}, Excluded: ${result.excludedModules.size}, Total: ${result.totalModules}\n${result.modules.sorted().joinToString("\n")}$excludedInfo",
+          NotificationType.INFORMATION
+        )
+      }
+
+      LoadResult.NoOpenFiles -> Unit
+      is LoadResult.NoModulesDetected -> notify(
+        project,
+        "No Modules Detected",
+        "No modules detected under the specified root directory.",
+        NotificationType.WARNING
+      )
+      is LoadResult.Failed -> notify(project, "Load Failed", result.reason, NotificationType.ERROR)
+    }
+  }
+
+  private fun applyActiveModules(project: Project, activeModules: Set<String>): LoadResult {
+    if (activeModules.isEmpty()) {
+      return LoadResult.NoModulesDetected(0)
+    }
     val (validModules, excludedModules) = OnDemandModuleLoader.partitionModules(activeModules)
     val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
-    if (success) {
-      val excludedInfo = if (excludedModules.isNotEmpty()) {
-        "\nExcluded: ${excludedModules.sorted().joinToString(", ")}"
-      } else {
-        ""
-      }
-      notify(
-        project,
-        "On-Demand Loading Applied",
-        "Loaded: ${validModules.size}, Excluded: ${excludedModules.size}, Total: ${validModules.size + excludedModules.size}\n${validModules.sorted().joinToString("\n")}$excludedInfo",
-        NotificationType.INFORMATION
-      )
+    return if (success) {
+      LoadResult.Success(validModules, excludedModules)
     } else {
-      notify(project, "Load Failed", "Failed to apply settings", NotificationType.ERROR)
+      LoadResult.Failed("Failed to apply settings")
     }
   }
 
   private fun notify(project: Project, title: String, content: String, type: NotificationType) {
-    NotificationGroupManager.getInstance()
+    val notification = NotificationGroupManager.getInstance()
       .getNotificationGroup("GradleModuleSleep")
       .createNotification(title, content, type)
-      .notify(project)
+
+    notification.addAction(
+      NotificationAction.createSimple("Open Panel") {
+        ModuleSleepPopupLauncher.show(project, null)
+      }
+    )
+
+    notification.notify(project)
   }
 }

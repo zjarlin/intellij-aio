@@ -29,6 +29,10 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
             override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
                 super.visitDotQualifiedExpression(expression)
 
+                if (isPartialCatalogReference(expression)) {
+                    return
+                }
+
                 // 检查是否是版本目录引用
                 if (!isCatalogReference(expression)) {
                     return
@@ -108,7 +112,11 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
      * 例如: libs.gradle.plugin.ksp -> ("libs", "gradle.plugin.ksp")
      */
     private fun extractCatalogReference(expression: KtDotQualifiedExpression): Pair<String, String>? {
-        val fullText = expression.text
+        var topExpression = expression
+        while (topExpression.parent is KtDotQualifiedExpression) {
+            topExpression = topExpression.parent as KtDotQualifiedExpression
+        }
+        val fullText = topExpression.text
         val parts = fullText.split(".")
 
         if (parts.size < 2) {
@@ -119,6 +127,11 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
         val reference = parts.drop(1).joinToString(".")
 
         return catalogName to reference
+    }
+
+    private fun isPartialCatalogReference(expression: KtDotQualifiedExpression): Boolean {
+        val parent = expression.parent as? KtDotQualifiedExpression ?: return false
+        return parent.receiverExpression == expression
     }
 
     /**

@@ -146,10 +146,22 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val project = file.project
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
 
-        // 生成版本目录中的名称
-        val libraryKey = generateLibraryKey(info.groupId, info.artifactId)
+        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val basePath = project.basePath ?: return
+        val catalogFile = File(basePath, catalogPath)
+        val existingContent = if (catalogFile.exists()) {
+            parseVersionCatalog(catalogFile.readText())
+        } else {
+            VersionCatalogContent(versions = mutableMapOf(), libraries = mutableMapOf())
+        }
+
+        val existingLibrary = existingContent.libraries.values.firstOrNull { entry ->
+            entry.groupId == info.groupId && entry.artifactId == info.artifactId
+        }
+        val versionRefFromVar = extractVersionRef(info.version)
+        val libraryKey = existingLibrary?.alias ?: generateLibraryKey(info.groupId, info.artifactId)
         val accessorKey = toCatalogAccessor(libraryKey)
-        val versionKey = generateVersionKey(info.groupId, info.artifactId)
+        val versionKey = existingLibrary?.versionRef ?: versionRefFromVar ?: generateVersionKey(info.groupId, info.artifactId)
 
         // 生成新的依赖声明
         val dependencyRef = when {
@@ -178,38 +190,39 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
             document.replaceString(startOffset, endOffset, newDeclaration)
 
             // 合并到 libs.versions.toml
-            mergeToVersionCatalog(project, info, libraryKey, versionKey)
+            mergeToVersionCatalog(catalogFile, existingContent, info, libraryKey, versionKey, versionRefFromVar)
         }
     }
 
     // 合并到版本目录文件
-    private fun mergeToVersionCatalog(project: Project, info: DependencyInfo, libraryKey: String, versionKey: String) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
-
-        // 确保目录存在
+    private fun mergeToVersionCatalog(
+        catalogFile: File,
+        existingContent: VersionCatalogContent,
+        info: DependencyInfo,
+        libraryKey: String,
+        versionKey: String,
+        versionRefFromVar: String?
+    ) {
         val catalogDir = catalogFile.parentFile
         if (!catalogDir.exists()) {
             catalogDir.mkdirs()
         }
 
-        // 解析现有内容
-        val existingContent = if (catalogFile.exists()) {
-            parseVersionCatalog(catalogFile.readText())
-        } else {
-            VersionCatalogContent(versions = mutableMapOf(), libraries = mutableMapOf())
-        }
-
         // 添加新的版本和库
-        existingContent.versions[versionKey] = info.version
-        existingContent.libraries[libraryKey] = LibraryEntry(
-            alias = libraryKey,
-            groupId = info.groupId,
-            artifactId = info.artifactId,
-            versionRef = versionKey,
-            classifier = info.classifier
-        )
+        if (versionRefFromVar == null) {
+            existingContent.versions[versionKey] = info.version
+        }
+        if (!existingContent.libraries.containsKey(libraryKey)) {
+            existingContent.libraries[libraryKey] = LibraryEntry(
+                alias = libraryKey,
+                groupId = info.groupId,
+                artifactId = info.artifactId,
+                module = "${info.groupId}:${info.artifactId}",
+                versionRef = versionKey,
+                version = if (versionRefFromVar == null) info.version else null,
+                classifier = info.classifier
+            )
+        }
 
         // 写入文件
         writeVersionCatalog(catalogFile, existingContent)
@@ -252,18 +265,28 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
                 inLibraries && trimmed.contains("=") -> {
                     val aliasMatch = Regex("""^([\w-]+)\s*=""").find(trimmed)
+                    val moduleMatch = Regex("""module\s*=\s*"([^"]+)"""").find(trimmed)
                     val groupMatch = Regex("""group\s*=\s*"([^"]+)"""").find(trimmed)
                     val nameMatch = Regex("""name\s*=\s*"([^"]+)"""").find(trimmed)
                     val versionRefMatch = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(trimmed)
+                    val versionMatch = Regex("""version\s*=\s*"([^"]+)"""").find(trimmed)
                     val classifierMatch = Regex("""classifier\s*=\s*"([^"]+)"""").find(trimmed)
 
-                    if (aliasMatch != null && groupMatch != null && nameMatch != null) {
+                    if (aliasMatch != null && (moduleMatch != null || (groupMatch != null && nameMatch != null))) {
                         val alias = aliasMatch.groupValues[1]
+                        val module = moduleMatch?.groupValues?.get(1)
+                        val groupId = groupMatch?.groupValues?.get(1)
+                            ?: module?.substringBefore(":")
+                        val artifactId = nameMatch?.groupValues?.get(1)
+                            ?: module?.substringAfter(":")
+                        if (groupId == null || artifactId == null) return@forEach
                         libraries[alias] = LibraryEntry(
                             alias = alias,
-                            groupId = groupMatch.groupValues[1],
-                            artifactId = nameMatch.groupValues[1],
-                            versionRef = versionRefMatch?.groupValues?.get(1) ?: alias,
+                            groupId = groupId,
+                            artifactId = artifactId,
+                            module = module,
+                            versionRef = versionRefMatch?.groupValues?.get(1),
+                            version = versionMatch?.groupValues?.get(1),
                             classifier = classifierMatch?.groupValues?.get(1)
                         )
                     }
@@ -288,7 +311,13 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         tomlBuilder.appendLine()
         tomlBuilder.appendLine("[libraries]")
         content.libraries.toSortedMap().forEach { (alias, entry) ->
-            tomlBuilder.append("$alias = { group = \"${entry.groupId}\", name = \"${entry.artifactId}\", version.ref = \"${entry.versionRef}\"")
+            val module = entry.module ?: "${entry.groupId}:${entry.artifactId}"
+            tomlBuilder.append("$alias = { module = \"$module\"")
+            if (!entry.versionRef.isNullOrBlank()) {
+                tomlBuilder.append(", version.ref = \"${entry.versionRef}\"")
+            } else if (!entry.version.isNullOrBlank()) {
+                tomlBuilder.append(", version = \"${entry.version}\"")
+            }
 
             // 如果有分类器，添加它
             if (entry.classifier != null) {
@@ -319,6 +348,14 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         return "${libraryKey}-version"
     }
 
+    private fun extractVersionRef(version: String): String? {
+        val trimmed = version.trim()
+        val regex = Regex("""\$\{?\s*libs\.versions\.([A-Za-z0-9_.-]+)\.get\(\)\s*}?\s*""")
+        val match = regex.matchEntire(trimmed)
+        if (match != null) return match.groupValues[1]
+        val alt = Regex("""libs\.versions\.([A-Za-z0-9_.-]+)""")
+        return alt.matchEntire(trimmed)?.groupValues?.get(1)
+    }
     // 版本目录内容
     data class VersionCatalogContent(
         val versions: MutableMap<String, String>,
@@ -330,7 +367,9 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val alias: String,
         val groupId: String,
         val artifactId: String,
-        val versionRef: String,
+        val module: String? = null,
+        val versionRef: String? = null,
+        val version: String? = null,
         val classifier: String? = null
     )
 

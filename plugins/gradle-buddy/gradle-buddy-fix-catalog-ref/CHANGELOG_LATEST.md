@@ -1,5 +1,16 @@
 # 最新改动记录
 
+## 2026-01-29
+
+### 🐛 Bug 修复
+
+**避免将部分版本目录链误判为未声明**
+
+- **问题**：`libs.gradlePlugin.kotlin` 会被拆成 `libs.gradlePlugin` 导致误报“未声明”
+- **原因**：检查时只看当前节点而不是完整 dot 链
+- **解决**：跳过部分链节点，并统一从最顶层表达式提取引用
+- **影响文件**：`InvalidCatalogReferenceInspection.kt`
+
 ## 2025-01-22
 
 ### ✨ 新功能

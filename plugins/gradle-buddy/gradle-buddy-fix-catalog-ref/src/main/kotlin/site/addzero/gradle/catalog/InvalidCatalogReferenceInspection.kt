@@ -94,8 +94,10 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
      * 例如: libs.gradle.plugin.ksp
      */
     private fun isCatalogReference(expression: KtDotQualifiedExpression): Boolean {
-        // 获取最左边的标识符
-        var current = expression
+        val topExpression = getTopExpression(expression)
+        if (containsForbiddenSegment(topExpression)) return false
+
+        var current = topExpression
         while (current.receiverExpression is KtDotQualifiedExpression) {
             current = current.receiverExpression as KtDotQualifiedExpression
         }
@@ -112,10 +114,7 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
      * 例如: libs.gradle.plugin.ksp -> ("libs", "gradle.plugin.ksp")
      */
     private fun extractCatalogReference(expression: KtDotQualifiedExpression): Pair<String, String>? {
-        var topExpression = expression
-        while (topExpression.parent is KtDotQualifiedExpression) {
-            topExpression = topExpression.parent as KtDotQualifiedExpression
-        }
+        val topExpression = getTopExpression(expression)
         val fullText = topExpression.text
         val parts = fullText.split(".")
 
@@ -127,6 +126,19 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
         val reference = parts.drop(1).joinToString(".")
 
         return catalogName to reference
+    }
+
+    private fun getTopExpression(expression: KtDotQualifiedExpression): KtDotQualifiedExpression {
+        var topExpression = expression
+        while (topExpression.parent is KtDotQualifiedExpression) {
+            topExpression = topExpression.parent as KtDotQualifiedExpression
+        }
+        return topExpression
+    }
+
+    private fun containsForbiddenSegment(expression: KtDotQualifiedExpression): Boolean {
+        val fullText = expression.text
+        return fullText.contains(".javaClass") || fullText.endsWith(".javaClass")
     }
 
     private fun isPartialCatalogReference(expression: KtDotQualifiedExpression): Boolean {

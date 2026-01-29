@@ -171,7 +171,10 @@ object OnDemandModuleLoader {
         // 匹配任何依赖配置 + project()，如: implementation(project(":xxx"))
         val projectPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*project\(\s*["']([^"']+)["']\s*\)""")
         projectPattern.findAll(effectiveContent).forEach { match ->
-            dependencies.add(match.groupValues[1])
+            val modulePath = match.groupValues[1]
+            if (projectBasePath == null || isModulePathPresent(modulePath, projectBasePath)) {
+                dependencies.add(modulePath)
+            }
         }
 
         // 格式2: projects.path.to.module
@@ -181,7 +184,7 @@ object OnDemandModuleLoader {
         val projectsPattern = Regex("""(?:api|implementation|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp)\s*\(\s*projects\.([a-zA-Z0-9.]+)""")
         projectsPattern.findAll(effectiveContent).forEach { match ->
             val projectAccessor = match.groupValues[1]
-            val modulePath = resolveModulePath(projectAccessor)
+            val modulePath = resolveModulePath(projectAccessor, projectBasePath)
             if (modulePath != null) {
                 dependencies.add(modulePath)
             } else {
@@ -207,32 +210,46 @@ object OnDemandModuleLoader {
             val moduleRelativePath = baseModulePath.removePrefix(":").replace(':', '/')
             val moduleDirPath = java.io.File(basePath, moduleRelativePath)
 
-            if (!moduleDirPath.exists()) {
-                // 目录不存在，尝试模糊匹配
-                val parentDir = moduleDirPath.parentFile
-                val lastSegmentName = moduleDirPath.name
-                val lastSegmentAccessor = segments.last()
+            if (moduleDirPath.exists()) {
+                return baseModulePath
+            }
 
-                if (parentDir.exists()) {
-                    val candidates = parentDir.listFiles()?.filter { it.isDirectory }?.filter { dir ->
-                        dir.name.startsWith(lastSegmentName.split('-')[0])
-                    }
+            // 目录不存在，尝试模糊匹配
+            val parentDir = moduleDirPath.parentFile
+            val lastSegmentName = moduleDirPath.name
 
-                    if (candidates != null && candidates.isNotEmpty()) {
-                        if (candidates.size == 1) {
-                            val matchedPath = parentDir.toPath().relativize(candidates[0].toPath()).toString().replace(java.io.File.separatorChar, ':')
-                            val resolvedPath = ":${baseModulePath.substringBeforeLast(':')}:$matchedPath"
-                            logger.info("Resolved '$projectAccessor' to '$resolvedPath' via fuzzy match")
-                            return resolvedPath
-                        } else {
-                            logger.warn("Multiple candidates for '$projectAccessor': ${candidates.map { it.name }}")
-                        }
+            if (parentDir.exists()) {
+                val candidates = parentDir.listFiles()?.filter { it.isDirectory }?.filter { dir ->
+                    dir.name.startsWith(lastSegmentName.split('-')[0])
+                }
+
+                if (candidates != null && candidates.isNotEmpty()) {
+                    if (candidates.size == 1) {
+                        val matchedPath = parentDir.toPath().relativize(candidates[0].toPath()).toString()
+                            .replace(java.io.File.separatorChar, ':')
+                        val resolvedPath = ":${baseModulePath.substringBeforeLast(':')}:$matchedPath"
+                        logger.info("Resolved '$projectAccessor' to '$resolvedPath' via fuzzy match")
+                        return resolvedPath
+                    } else {
+                        logger.warn("Multiple candidates for '$projectAccessor': ${candidates.map { it.name }}")
                     }
                 }
             }
+
+            return null
         }
 
         return baseModulePath
+    }
+
+    private fun isModulePathPresent(modulePath: String, projectBasePath: String): Boolean {
+        val moduleRelativePath = modulePath.removePrefix(":").replace(':', '/')
+        val moduleDirPath = java.io.File(projectBasePath, moduleRelativePath)
+        if (!moduleDirPath.exists()) return false
+
+        val buildFileKts = java.io.File(moduleDirPath, "build.gradle.kts")
+        val buildFile = java.io.File(moduleDirPath, "build.gradle")
+        return buildFileKts.exists() || buildFile.exists()
     }
 
     /**

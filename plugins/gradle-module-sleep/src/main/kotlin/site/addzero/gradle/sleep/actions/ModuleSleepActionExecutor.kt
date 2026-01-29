@@ -1,6 +1,5 @@
 package site.addzero.gradle.sleep.actions
 
-import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
@@ -9,7 +8,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import site.addzero.gradle.sleep.loader.LoadResult
 import site.addzero.gradle.sleep.loader.OnDemandModuleLoader
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
-import site.addzero.gradle.sleep.ui.ModuleSleepPopupLauncher
 
 /**
  * Shared helpers for module sleep actions so buttons and banners reuse the same behavior.
@@ -225,12 +223,6 @@ object ModuleSleepActionExecutor {
     val notification = NotificationGroupManager.getInstance()
       .getNotificationGroup("GradleModuleSleep")
       .createNotification(title, content, type)
-
-    notification.addAction(
-      NotificationAction.createSimple("Open Panel") {
-        ModuleSleepPopupLauncher.show(project)
-      }
-    )
 
     notification.notify(project)
   }

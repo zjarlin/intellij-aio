@@ -7,3 +7,11 @@ dependencies {
         bundledPlugin("org.jetbrains.plugins.gradle")
     }
 }
+val pluginName = project.name
+intellijPlatform {
+  pluginConfiguration {
+    id = "site.addzero.$pluginName"
+    name = pluginName
+    version = "2026.01.30"
+  }
+}

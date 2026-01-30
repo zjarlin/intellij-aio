@@ -69,9 +69,6 @@ class IdReplacementEngine(
                     // Skip if already using the fully qualified ID
                     if (pluginInfo.isFullyQualified(pluginId)) continue
 
-                    // Skip external library plugins (they typically have dots in the ID)
-                    if (isExternalPlugin(pluginId)) continue
-
                     // Create a replacement candidate
                     candidates.add(
                         ReplacementCandidate(
@@ -204,15 +201,6 @@ class IdReplacementEngine(
         return entries.filterIsInstance<KtLiteralStringTemplateEntry>()
             .joinToString("") { it.text }
             .takeIf { it.isNotEmpty() }
-    }
-
-    /**
-     * Checks if a plugin ID appears to be an external library plugin.
-     */
-    private fun isExternalPlugin(pluginId: String): Boolean {
-        // External plugins typically have dots in their IDs
-        // Local plugins typically use kebab-case without dots
-        return pluginId.contains(".")
     }
 
     /**

@@ -81,6 +81,23 @@ class PluginIdScanner(private val project: Project) {
     }
 
     /**
+     * Scans the entire project for .gradle.kts files and builds PluginIdInfo entries.
+     */
+    fun scanProjectGradleScripts(): List<PluginIdInfo> {
+        val scope = com.intellij.psi.search.GlobalSearchScope.projectScope(project)
+        val files = com.intellij.psi.search.FilenameIndex.getAllFilesByExt(project, "kts", scope)
+
+        val result = mutableListOf<PluginIdInfo>()
+        for (file in files) {
+            if (!file.name.endsWith(".gradle.kts")) continue
+            if (shouldSkipPath(file)) continue
+            val info = extractPluginInfo(file) ?: continue
+            result.add(info)
+        }
+        return result
+    }
+
+    /**
      * Recursively scans a directory for .gradle.kts files.
      */
     private fun scanForGradleKtsFiles(dir: VirtualFile, result: MutableList<PluginIdInfo>) {
@@ -106,7 +123,7 @@ class PluginIdScanner(private val project: Project) {
     /**
      * Extracts plugin information from a .gradle.kts file.
      */
-    private fun extractPluginInfo(file: VirtualFile): PluginIdInfo? {
+    fun extractPluginInfo(file: VirtualFile): PluginIdInfo? {
         // Extract short ID from filename (remove .gradle.kts extension)
         val fileName = file.name
         if (!fileName.endsWith(".gradle.kts")) {
@@ -144,5 +161,15 @@ class PluginIdScanner(private val project: Project) {
         // Use the Kotlin PSI API to get the package directive
         val packageDirective = psiFile.packageDirective
         return packageDirective?.fqName?.asString()
+    }
+
+    private fun shouldSkipPath(file: VirtualFile): Boolean {
+        val path = file.path
+        return path.contains("/build/") ||
+            path.contains("/out/") ||
+            path.contains("/target/") ||
+            path.contains("/node_modules/") ||
+            path.contains("/.gradle/") ||
+            path.contains("/.idea/")
     }
 }

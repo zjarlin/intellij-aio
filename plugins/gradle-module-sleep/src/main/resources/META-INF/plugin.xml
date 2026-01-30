@@ -85,5 +85,12 @@
             <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="first"/>
         </action>
 
+        <action id="GradleModuleSleep.HideFloatingToolbar"
+                class="site.addzero.gradle.sleep.actions.HideFloatingToolbarAction"
+                text="Hide This Notification"
+                description="Hide the floating toolbar for this project">
+            <add-to-group group-id="GradleModuleSleep.FloatingToolbarGroup" anchor="last"/>
+        </action>
+
     </actions>
 </idea-plugin>

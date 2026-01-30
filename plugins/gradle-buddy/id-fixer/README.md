@@ -30,7 +30,7 @@ This module provides automated tools to detect and fix these issues:
 
 When your cursor is on a short plugin ID, press `Alt+Enter` to see the quick fix:
 
-- **"Fix build-logic qualified name"** - Replaces all occurrences of the short ID throughout the entire project
+- **"Fix build script reference"** - Replaces all occurrences of the selected ID throughout the entire project
 
 ### 2. Bulk Action
 

@@ -107,7 +107,6 @@
 
     <!-- Intention: Fix plugin ID to use fully qualified name -->
     <intentionAction order="FIRST">
-      <language>kotlin</language>
       <className>site.addzero.idfixer.FixPluginIdIntention</className>
       <category>Gradle Plugin ID</category>
     </intentionAction>

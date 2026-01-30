@@ -7,6 +7,8 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
@@ -20,7 +22,7 @@ import org.jetbrains.kotlin.psi.*
  */
 class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
-    override fun getText(): String = "(Gradle Buddy) Fix build-logic qualified name"
+    override fun getText(): String = "(Gradle Buddy) Fix build script reference"
     override fun getFamilyName(): String = "Gradle Plugin ID"
 
     /**
@@ -38,7 +40,8 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
         val pluginId = extractPluginId(stringExpr) ?: return IntentionPreviewInfo.EMPTY
 
         // Find the plugin info with fully qualified ID
-        val pluginInfo = findPluginInfo(project, pluginId) ?: return IntentionPreviewInfo.EMPTY
+        val pluginInfo = findBestPluginInfo(project, pluginId) ?: return IntentionPreviewInfo.EMPTY
+        if (pluginInfo.fullyQualifiedId == pluginId) return IntentionPreviewInfo.EMPTY
 
         // Create a preview by replacing just the current element
         val factory = KtPsiFactory(project)
@@ -54,6 +57,7 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
         // Must be in a Kotlin file
         if (element.containingFile !is KtFile) return false
+        if (!element.containingFile.name.endsWith(".gradle.kts")) return false
 
         // Find the string template expression at the cursor
         val stringExpr = findPluginIdStringExpression(element) ?: return false
@@ -67,14 +71,7 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
         // Extract the plugin ID
         val pluginId = extractPluginId(stringExpr) ?: return false
 
-        // Skip external plugins (they have dots in their IDs)
-        if (isExternalPlugin(pluginId)) return false
-
-        // Find the plugin info to check if it needs qualification
-        val pluginInfo = findPluginInfo(project, pluginId) ?: return false
-
-        // Only offer the fix if the plugin has a package and isn't already qualified
-        return pluginInfo.hasPackage() && !pluginInfo.isFullyQualified(pluginId)
+        return pluginId.isNotBlank()
     }
 
     /**
@@ -87,53 +84,42 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
         // Extract the plugin ID
         val pluginId = extractPluginId(stringExpr) ?: return
 
-        // Find the plugin info with fully qualified ID
-        val pluginInfo = findPluginInfo(project, pluginId) ?: return
-
-        // Build the plugin ID mapping for the replacement engine
-        val scanner = PluginIdScanner(project)
-        val buildLogicDirs = scanner.findBuildLogicDirectories()
-        val allPlugins = buildLogicDirs.flatMap { scanner.scanBuildLogic(it) }
-        val pluginIdMapping = allPlugins.associateBy { it.shortId }
-
-        // Create the replacement engine
-        val engine = IdReplacementEngine(project, pluginIdMapping)
-
-        // Find all replacement candidates in the project
-        val allCandidates = engine.findReplacementCandidates(GlobalSearchScope.projectScope(project))
-
-        // Filter to only the specific plugin ID we're fixing
-        val candidates = allCandidates.filter { it.currentId == pluginId }
-
-        if (candidates.isEmpty()) {
-            showNotification(
-                project,
-                "No occurrences of '$pluginId' found to fix",
-                NotificationType.INFORMATION
-            )
+        val pluginInfos = findPluginInfos(project, pluginId)
+        if (pluginInfos.isEmpty()) {
+            showNotification(project, "No matching build script candidates found", NotificationType.INFORMATION)
             return
         }
 
-        // Apply all replacements in a write action
-        val result = com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction<ReplacementResult>(project) {
-            engine.applyReplacements(candidates)
+        val chosen = if (pluginInfos.size == 1) {
+            pluginInfos.first()
+        } else {
+            val editorRef = editor
+            val candidates = pluginInfos.map { info ->
+                val relativePath = project.basePath?.let { base ->
+                    info.file.path.removePrefix(base.trimEnd('/', '\\') + "/")
+                } ?: info.file.path
+                PluginCandidate(info, relativePath)
+            }
+
+            val popup = JBPopupFactory.getInstance()
+                .createPopupChooserBuilder(candidates)
+                .setTitle("Select build script reference")
+                .setRenderer(SimpleListCellRenderer.create("") { candidate ->
+                    "${candidate.info.fullyQualifiedId}  (${candidate.relativePath})"
+                })
+                .setItemChosenCallback { candidate ->
+                    applyFix(project, pluginId, candidate.info)
+                }
+                .createPopup()
+            if (editorRef != null) {
+                popup.showInBestPositionFor(editorRef)
+            } else {
+                popup.showInFocusCenter()
+            }
+            return
         }
 
-        // Show notification with summary
-        if (result.isSuccessful()) {
-            val message = if (result.filesModified == 1) {
-                "Fixed ${result.replacementsMade} occurrence(s) of '$pluginId' in 1 file"
-            } else {
-                "Fixed ${result.replacementsMade} occurrence(s) of '$pluginId' in ${result.filesModified} files"
-            }
-            showNotification(project, message, NotificationType.INFORMATION)
-        } else {
-            showNotification(
-                project,
-                "Failed to fix plugin ID: ${result.errors.firstOrNull() ?: "Unknown error"}",
-                NotificationType.ERROR
-            )
-        }
+        applyFix(project, pluginId, chosen)
     }
 
     /**
@@ -147,6 +133,14 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
         // If the cursor is on the quotes, the element might be the string itself
         if (element.parent is KtStringTemplateExpression) {
             return element.parent as KtStringTemplateExpression
+        }
+
+        val callExpression = PsiTreeUtil.getParentOfType(element, KtCallExpression::class.java)
+        if (callExpression?.calleeExpression?.text == "id") {
+            val argument = callExpression.valueArguments.firstOrNull()?.getArgumentExpression()
+            if (argument is KtStringTemplateExpression) {
+                return argument
+            }
         }
 
         return null
@@ -222,27 +216,153 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
     /**
      * Checks if a plugin ID appears to be an external library plugin.
      */
-    private fun isExternalPlugin(pluginId: String): Boolean {
-        return pluginId.contains(".")
+    private fun findBestPluginInfo(project: Project, pluginId: String): PluginIdInfo? {
+        return findPluginInfos(project, pluginId).firstOrNull()
     }
 
     /**
-     * Finds the PluginIdInfo for a given plugin ID.
+     * Finds candidate PluginIdInfo entries for a given plugin ID by keyword similarity.
      */
-    private fun findPluginInfo(project: Project, pluginId: String): PluginIdInfo? {
+    private fun findPluginInfos(project: Project, pluginId: String): List<PluginIdInfo> {
         val scanner = PluginIdScanner(project)
-        val buildLogicDirs = scanner.findBuildLogicDirectories()
+        val coreId = extractCoreId(pluginId)
+        val keywords = extractKeywords(coreId)
+        val allPlugins = scanner.scanProjectGradleScripts()
 
-        for (buildLogicDir in buildLogicDirs) {
-            val plugins = scanner.scanBuildLogic(buildLogicDir)
-            val pluginInfo = plugins.find { it.matchesShortId(pluginId) }
-            if (pluginInfo != null) {
-                return pluginInfo
+        val scored = allPlugins.mapNotNull { info ->
+            if (info.fullyQualifiedId == pluginId) return@mapNotNull null
+            val score = calculateMatchScore(coreId, keywords, info)
+            if (score <= 0) return@mapNotNull null
+            PluginCandidate(info, "", score)
+        }
+
+        return scored.sortedWith(compareByDescending<PluginCandidate> { it.score }
+            .thenBy { it.info.fullyQualifiedId })
+            .map { it.info }
+    }
+
+    private fun extractCoreId(pluginId: String): String {
+        val trimmed = pluginId.trim()
+        return if (trimmed.contains('.')) trimmed.substringAfterLast('.') else trimmed
+    }
+
+    private fun extractKeywords(coreId: String): List<String> {
+        return coreId.split('-', '_', '.')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    private fun calculateMatchScore(coreId: String, keywords: List<String>, info: PluginIdInfo): Int {
+        val coreLower = coreId.lowercase()
+        val shortLower = info.shortId.lowercase()
+        val fullLower = info.fullyQualifiedId.lowercase()
+        val nameLower = info.file.name.lowercase()
+        val pathLower = info.file.path.lowercase()
+
+        val normalizedKeywords = keywords.map { it.lowercase() }.distinct()
+        val distinctiveKeywords = normalizedKeywords.filterNot { it in WEAK_KEYWORDS }
+
+        var score = 0
+
+        if (shortLower == coreLower) score += 120
+        if (shortLower.contains(coreLower) && coreLower.isNotBlank()) score += 60
+        if (fullLower.contains(coreLower) && coreLower.isNotBlank()) score += 40
+        if (nameLower.contains(coreLower) && coreLower.isNotBlank()) score += 30
+        if (pathLower.contains(coreLower) && coreLower.isNotBlank()) score += 20
+
+        if (normalizedKeywords.isEmpty()) {
+            return score
+        }
+
+        if (distinctiveKeywords.isNotEmpty()) {
+            val hasDistinctiveMatch = distinctiveKeywords.any { kw ->
+                shortLower.contains(kw) || fullLower.contains(kw) || nameLower.contains(kw)
+            }
+            if (!hasDistinctiveMatch) {
+                return 0
             }
         }
 
-        return null
+        var matched = 0
+        for (kw in normalizedKeywords) {
+            val kwScore = when {
+                shortLower.contains(kw) -> 30
+                nameLower.contains(kw) -> 25
+                fullLower.contains(kw) -> 20
+                pathLower.contains(kw) -> 10
+                else -> 0
+            }
+            if (kwScore > 0) {
+                matched++
+                score += kwScore
+            }
+        }
+
+        if (matched > 0) {
+            val coverage = matched.toDouble() / normalizedKeywords.size
+            score += (coverage * 40.0).toInt()
+            if (matched == normalizedKeywords.size) {
+                score += 30
+            }
+        }
+
+        return score
     }
+
+    private companion object {
+        val WEAK_KEYWORDS = setOf(
+            "convention",
+            "conventions",
+            "plugin",
+            "plugins",
+            "gradle",
+            "build",
+            "logic",
+            "module",
+            "modules"
+        )
+    }
+
+    private fun applyFix(project: Project, pluginId: String, pluginInfo: PluginIdInfo) {
+        val engine = IdReplacementEngine(project, mapOf(pluginId to pluginInfo))
+        val allCandidates = engine.findReplacementCandidates(GlobalSearchScope.projectScope(project))
+        val candidates = allCandidates.filter { it.currentId == pluginId }
+
+        if (candidates.isEmpty()) {
+            showNotification(
+                project,
+                "No occurrences of '$pluginId' found to fix",
+                NotificationType.INFORMATION
+            )
+            return
+        }
+
+        val result = com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction<ReplacementResult>(project) {
+            engine.applyReplacements(candidates)
+        }
+
+        if (result.isSuccessful()) {
+            val message = if (result.filesModified == 1) {
+                "Fixed ${result.replacementsMade} occurrence(s) of '$pluginId' in 1 file"
+            } else {
+                "Fixed ${result.replacementsMade} occurrence(s) of '$pluginId' in ${result.filesModified} files"
+            }
+            showNotification(project, message, NotificationType.INFORMATION)
+        } else {
+            showNotification(
+                project,
+                "Failed to fix plugin ID: ${result.errors.firstOrNull() ?: "Unknown error"}",
+                NotificationType.ERROR
+            )
+        }
+    }
+
+    private data class PluginCandidate(
+        val info: PluginIdInfo,
+        val relativePath: String,
+        val score: Int = 0
+    )
 
     /**
      * Shows a notification to the user.

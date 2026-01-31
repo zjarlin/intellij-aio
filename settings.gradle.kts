@@ -21,7 +21,7 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-30T14:16:02.623033
+// Generated at: 2026-01-30T15:03:19.389454
 // Loaded: 13, Excluded: 0, Total: 13
 include(":lib:tool-psi-toml")
 include(":plugins:dotfiles")

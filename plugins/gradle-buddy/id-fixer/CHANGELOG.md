@@ -17,12 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Progress indicators for long-running operations
 - Notification system for operation results
 - Support for nested `build-logic` directory structures
+- Candidate chooser with similarity ranking across project `*.gradle.kts` files
+- Keyword extraction from package-stripped IDs for candidate matching
+- Weak keyword filtering so generic terms (like "convention") do not qualify candidates
 
 ### Features
 - **PluginIdScanner**: Recursively scans project for `build-logic` directories and extracts plugin metadata
 - **IdReplacementEngine**: Finds and replaces short plugin IDs with fully qualified names
 - **FixPluginIdIntention**: Quick fix available via Alt+Enter on plugin ID references
 - **FixAllPluginIdsAction**: Bulk action to fix all plugin IDs across the entire project
+
+### Changed
+- Intention label updated to "Fix build script reference"
+- FixPluginIdIntention now accepts fully qualified IDs and ranks candidates by similarity
 
 ### Technical Details
 - Proper read action wrapping for all PSI operations
@@ -33,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Thread safety issue in `extractPackageName` method
 - PSI access violations when running in background threads
+- Intention availability in Gradle Kotlin scripts and more robust caret handling
 
 ## [1.0.0] - 2025-01-22
 
@@ -47,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Limitations
 - Only supports Kotlin DSL (`.gradle.kts`) files
-- Assumes `build-logic/src/main/kotlin` directory structure
+- Bulk action assumes `build-logic/src/main/kotlin` directory structure
 - Does not handle dynamic plugin ID construction
 
 ### Future Enhancements

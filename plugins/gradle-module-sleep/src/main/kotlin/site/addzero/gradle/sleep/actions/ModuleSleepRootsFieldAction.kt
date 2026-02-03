@@ -41,7 +41,7 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent {
     val field = JBTextField().apply {
       columns = 20
-      emptyText.text = "Root folders (comma-separated)"
+      emptyText.text = "Keywords (e.g. conventions)"
       maximumSize = Dimension(JBUI.scale(220), JBUI.scale(24))
       minimumSize = Dimension(JBUI.scale(160), JBUI.scale(24))
       preferredSize = Dimension(JBUI.scale(200), JBUI.scale(24))

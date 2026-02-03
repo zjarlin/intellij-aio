@@ -318,11 +318,13 @@ object OnDemandModuleLoader {
     }
 
     /**
-     * 根据目录名解析模块路径
+     * 根据关键字模糊匹配模块路径
+     * 输入关键字（如 "conventions"），匹配所有路径中包含该关键字的模块
+     * 例如：输入 "conventions" 会匹配 ":lib:gradle-plugin:conventions:spring-conventions"
      */
-    fun findModulesByFolderNames(project: Project, folderNames: Set<String>): Set<String> {
-        if (folderNames.isEmpty()) return emptySet()
-        val normalized = folderNames.map { it.trim().trim(':', '/', '\\') }
+    fun findModulesByFolderNames(project: Project, keywords: Set<String>): Set<String> {
+        if (keywords.isEmpty()) return emptySet()
+        val normalized = keywords.map { it.trim().trim(':', '/', '\\').lowercase() }
             .filter { it.isNotBlank() }
             .toSet()
         if (normalized.isEmpty()) return emptySet()
@@ -330,8 +332,10 @@ object OnDemandModuleLoader {
         val modules = discoverAllModules(project)
         return modules.asSequence()
             .filter { descriptor ->
-                val segments = descriptor.path.trim(':').split(':')
-                segments.any { it in normalized }
+                // 将模块路径转为小写进行匹配
+                val pathLower = descriptor.path.lowercase()
+                // 检查路径中是否包含任意关键字
+                normalized.any { keyword -> pathLower.contains(keyword) }
             }
             .map { it.path }
             .toSet()

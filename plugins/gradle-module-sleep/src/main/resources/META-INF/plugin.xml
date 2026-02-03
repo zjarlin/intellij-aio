@@ -4,9 +4,6 @@
     <vendor>AddZero</vendor>
 
 
-    <!-- K2 Compatibility Declaration -->
-    <idea-version since-build="242" until-build="262.*"/>
-
     <description>
         Automatically manages Gradle module loading based on open editor tabs.
 

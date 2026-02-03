@@ -2,6 +2,7 @@ package site.addzero.gradle.catalog
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -94,7 +95,7 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
                     if (selectedValue != null && finalChoice) {
                         // 执行替换
-                        com.intellij.openapi.application.ApplicationManager.getApplication().runWriteAction {
+                        com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
                             replaceReference(
                                 project,
                                 element,

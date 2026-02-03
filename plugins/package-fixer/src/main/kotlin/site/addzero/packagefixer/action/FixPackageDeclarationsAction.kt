@@ -80,9 +80,7 @@ class FixPackageDeclarationsAction : AnAction() {
                         val psiFile = psiManager.findFile(file) ?: return@compute null
                         when (psiFile) {
                             is PsiJavaFile -> FileKind.Java(psiFile.packageName)
-                            is KtFile -> {
-                                if (psiFile.isScript()) null else FileKind.Kotlin(psiFile.packageFqName.asString())
-                            }
+                            is KtFile -> FileKind.Kotlin(psiFile.packageFqName.asString())
                             else -> null
                         }
                     }
@@ -137,7 +135,7 @@ class FixPackageDeclarationsAction : AnAction() {
         var updated = false
         WriteCommandAction.runWriteCommandAction(project, "Fix Package Declaration", null, Runnable {
             val psiFile = psiManager.findFile(file) as? KtFile ?: return@Runnable
-            if (!psiFile.isValid || psiFile.isScript()) return@Runnable
+            if (!psiFile.isValid) return@Runnable
             if (expectedPackage.isEmpty()) {
                 psiFile.packageDirective?.delete()
             } else {
@@ -180,7 +178,7 @@ class FixPackageDeclarationsAction : AnAction() {
                 indicator.checkCanceled()
                 if (!file.isDirectory) {
                     val ext = file.extension?.lowercase()
-                    if (ext == "java" || ext == "kt") {
+                    if (ext == "java" || ext == "kt" || ext == "kts") {
                         result.add(file)
                     }
                 }

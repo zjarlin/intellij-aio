@@ -11,11 +11,11 @@ intellijPlatform {
 
 dependencies {
 
-    implementation(project(":checkouts:lsi:lsi-core"))
+//    implementation(project(":checkouts:lsi:lsi-core"))
 
-    implementation(project(":checkouts:lsi:lsi-intellij"))
-    implementation(project(":checkouts:lsi:lsi-psi"))
-    implementation(project(":checkouts:lsi:lsi-kt"))
+//    implementation(project(":checkouts:lsi:lsi-intellij"))
+//    implementation(project(":checkouts:lsi:lsi-psi"))
+//    implementation(project(":checkouts:lsi:lsi-kt"))
     implementation(project(":lib:tool-swing"))
     implementation(project(":lib:tool-awt"))
     implementation(project(":lib:tool-psi-toml"))

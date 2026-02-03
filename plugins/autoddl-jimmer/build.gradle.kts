@@ -5,12 +5,12 @@ plugins {
 
 dependencies {
     // LSI 核心依赖
-    implementation(project(":checkouts:lsi:lsi-core"))
+//    implementation(project(":checkouts:lsi:lsi-core"))
 
-    implementation(project(":checkouts:lsi:lsi-intellij"))
-    implementation(project(":checkouts:lsi:lsi-psi"))
-    implementation(project(":checkouts:lsi:lsi-kt2"))  // K2 Analysis API
-    implementation(project(":checkouts:lsi:lsi-psiandkt"))
+//    implementation(project(":checkouts:lsi:lsi-intellij"))
+//    implementation(project(":checkouts:lsi:lsi-psi"))
+//    implementation(project(":checkouts:lsi:lsi-kt2"))  // K2 Analysis API
+//    implementation(project(":checkouts:lsi:lsi-psiandkt"))
 
 
     // UI 组件

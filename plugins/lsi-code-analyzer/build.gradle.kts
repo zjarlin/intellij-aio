@@ -5,11 +5,11 @@ plugins {
 
 dependencies {
     // LSI 核心依赖
-    implementation(project(":checkouts:lsi:lsi-core"))
+//    implementation(project(":checkouts:lsi:lsi-core"))
 
-    implementation(project(":checkouts:lsi:lsi-intellij"))
-    implementation(project(":checkouts:lsi:lsi-psiandkt"))
-
+//    implementation(project(":checkouts:lsi:lsi-intellij"))
+//    implementation(project(":checkouts:lsi:lsi-psiandkt"))
+//
     // DDL Generator
 
     implementation("site.addzero:tool-database-model:2025.12.04")

@@ -1,0 +1,4 @@
+plugins {
+    id("site.addzero.gradle.plugin.repo-buddy") version "+"
+    id("site.addzero.gradle.plugin.addzero-git-dependency") version "2026.02.02"
+}

@@ -1,0 +1,4 @@
+plugins {
+    alias(libs.plugins.site-addzero-gradle-plugin-repo-buddy)
+    alias(libs.plugins.site-addzero-gradle-plugin-addzero-git-dependency)
+}

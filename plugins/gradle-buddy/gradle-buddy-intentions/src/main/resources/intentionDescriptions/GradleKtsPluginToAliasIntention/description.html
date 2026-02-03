@@ -1,0 +1,54 @@
+<html>
+<body>
+Converts hardcoded Gradle plugin declarations to catalog alias format.
+
+<p>
+    Detects hardcoded plugin declarations with explicit version in <code>plugins { ... }</code> blocks
+    and provides a quick action to convert them to use version catalog aliases. This helps modernize
+    Gradle build scripts by centralizing plugin management in version catalogs.
+</p>
+
+<p>
+    This intention only applies to plugin declarations that include an explicit <code>version</code> statement.
+    Precompiled script plugins (which cannot declare versions) are not supported.
+</p>
+
+<p>
+    Before:
+</p>
+<pre><code>
+plugins {
+    id("site.addzero.gradle.plugin.repo-buddy") version "+"
+    id("site.addzero.gradle.plugin.addzero-git-dependency") version "2026.02.02"
+}
+</code></pre>
+
+<p>
+    After applying the intention:
+</p>
+<pre><code>
+plugins {
+    alias(libs.plugins.site-addzero-gradle-plugin-repo-buddy)
+    alias(libs.plugins.site-addzero-gradle-plugin-addzero-git-dependency)
+}
+</code></pre>
+
+<p>
+    The intention automatically updates <code>libs.versions.toml</code>:
+</p>
+<pre><code>
+[versions]
+site-addzero-gradle-plugin-repo-buddy = "+"
+site-addzero-gradle-plugin-addzero-git-dependency = "2026.02.02"
+
+[plugins]
+site-addzero-gradle-plugin-repo-buddy = { id = "site.addzero.gradle.plugin.repo-buddy", version.ref = "site-addzero-gradle-plugin-repo-buddy" }
+site-addzero-gradle-plugin-addzero-git-dependency = { id = "site.addzero.gradle.plugin.addzero-git-dependency", version.ref = "site-addzero-gradle-plugin-addzero-git-dependency" }
+</code></pre>
+
+<!-- tooltip end -->
+<p>Supports plugin declaration formats: <code>id("plugin.id") version "version"</code> and <code>kotlin("module") version "version"</code>.</p>
+
+<p>Works with Gradle version catalogs and helps migrate from hardcoded plugin declarations to the modern alias-based approach.</p>
+</body>
+</html>

@@ -8,7 +8,10 @@
       "WebSearch",
       "Bash(xargs:*)",
       "Bash(unzip:*)",
-      "Bash(../../gradlew:*)"
+      "Bash(../../gradlew:*)",
+      "Bash(tree:*)",
+      "Bash(kotlinc:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import site.addzero.gradle.sleep.GradleModuleSleepService
+import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 
 /**
  * Action: 恢复所有被 Gradle Module Sleep 排除的模块
@@ -21,6 +22,7 @@ class RestoreAllModulesAction : AnAction(), DumbAware {
     override fun update(e: AnActionEvent) {
         val project = e.project
         e.presentation.isEnabledAndVisible = project != null &&
-            project.service<GradleModuleSleepService>().isFeatureAvailable()
+            project.service<GradleModuleSleepService>().isFeatureAvailable() &&
+            !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed()
     }
 }

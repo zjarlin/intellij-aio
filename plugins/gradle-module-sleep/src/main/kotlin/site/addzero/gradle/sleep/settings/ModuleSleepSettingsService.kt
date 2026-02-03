@@ -15,6 +15,7 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
         var moduleIdleTimeoutMinutes: Int = 5,
         var autoSleepEnabled: Boolean? = null, // null = auto-detect based on module count
         var floatingToolbarEnabled: Boolean = true,
+        var floatingToolbarCollapsed: Boolean = false, // 工具条是否折叠
         var manualFolderNames: String = ""
     )
 
@@ -64,6 +65,12 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
 
     fun setFloatingToolbarEnabled(enabled: Boolean) {
         myState.floatingToolbarEnabled = enabled
+    }
+
+    fun isFloatingToolbarCollapsed(): Boolean = myState.floatingToolbarCollapsed
+
+    fun setFloatingToolbarCollapsed(collapsed: Boolean) {
+        myState.floatingToolbarCollapsed = collapsed
     }
 
     companion object {

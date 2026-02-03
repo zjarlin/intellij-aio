@@ -8,6 +8,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
 import site.addzero.gradle.sleep.GradleModuleSleepService
 import site.addzero.gradle.sleep.ModuleSleepIcons
+import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 
 class LoadOnlyCurrentFileModuleAction : AnAction(
   "Sleep other modules (keep this file only)",
@@ -33,6 +34,7 @@ class LoadOnlyCurrentFileModuleAction : AnAction(
     val project = e.project
     e.presentation.isEnabledAndVisible = project != null &&
         project.service<GradleModuleSleepService>().isFeatureAvailable() &&
+        !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed() &&
         e.getData(CommonDataKeys.VIRTUAL_FILE) != null
   }
 }

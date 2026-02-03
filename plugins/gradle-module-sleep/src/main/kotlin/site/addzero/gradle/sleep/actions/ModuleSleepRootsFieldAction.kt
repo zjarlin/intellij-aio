@@ -34,7 +34,8 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
   override fun update(e: AnActionEvent) {
     val project = e.project
     e.presentation.isEnabledAndVisible = project != null &&
-      project.service<GradleModuleSleepService>().isFeatureAvailable()
+      project.service<GradleModuleSleepService>().isFeatureAvailable() &&
+      !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed()
   }
 
   override fun createCustomComponent(presentation: Presentation, place: String): JComponent {

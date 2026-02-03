@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import site.addzero.gradle.sleep.GradleModuleSleepService
+import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
 
 /**
  * Action: 只加载当前打开标签页对应的模块
@@ -22,6 +23,7 @@ class LoadOnlyOpenTabModulesAction : AnAction(), DumbAware {
     override fun update(e: AnActionEvent) {
         val project = e.project
         e.presentation.isEnabledAndVisible = project != null &&
-            project.service<GradleModuleSleepService>().isFeatureAvailable()
+            project.service<GradleModuleSleepService>().isFeatureAvailable() &&
+            !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed()
     }
 }

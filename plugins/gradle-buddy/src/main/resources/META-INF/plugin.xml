@@ -57,6 +57,14 @@
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.VersionCatalogToolbarLabel"/>
     </action>
 
+    <action id="GradleBuddy.NormalizeVersionCatalog"
+            class="site.addzero.gradle.buddy.notification.NormalizeVersionCatalogAction"
+            text="Normalize"
+            description="Normalize aliases and version.ref to use artifactId in kebab-case"
+            icon="AllIcons.Actions.RefactoringBulb">
+      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.OrganizeVersionCatalog"/>
+    </action>
+
     <action id="GradleBuddy.DismissVersionCatalogToolbar"
             class="site.addzero.gradle.buddy.notification.DismissVersionCatalogToolbarAction"
             text="Don't Remind"

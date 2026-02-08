@@ -36,8 +36,11 @@ class VersionCatalogSorter(private val project: Project) {
         val sb = StringBuilder()
         val duplicates = mutableListOf<String>()
 
+        // Collect all version definitions for resolving version.ref values
+        val versionMap = buildVersionMap(content)
+
         sections.forEach { section ->
-            val processed = processSection(section, duplicates)
+            val processed = processSection(section, duplicates, versionMap)
             if (processed.isNotEmpty()) {
                 sb.append(processed)
             }
@@ -51,6 +54,34 @@ class VersionCatalogSorter(private val project: Project) {
         }
 
         return sb.toString().trimEnd() + "\n"
+    }
+
+    /**
+     * Build a map of version variable name -> version value from [versions] section.
+     */
+    private fun buildVersionMap(content: String): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        val lines = content.lines()
+        var inVersions = false
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.matches(Regex("^\\[versions\\]\\s*(#.*)?$"))) {
+                inVersions = true
+                continue
+            }
+            if (trimmed.matches(Regex("^\\[.+\\]\\s*(#.*)?$"))) {
+                inVersions = false
+                continue
+            }
+            if (inVersions && trimmed.isNotBlank() && !trimmed.startsWith("#")) {
+                val key = trimmed.substringBefore("=").trim()
+                val value = trimmed.substringAfter("=").trim().removeSurrounding("\"")
+                if (key.isNotEmpty()) {
+                    map[key] = value
+                }
+            }
+        }
+        return map
     }
 
     private fun parseSections(content: String): List<Section> {
@@ -82,62 +113,49 @@ class VersionCatalogSorter(private val project: Project) {
         return sections
     }
 
-    private fun processSection(section: Section, duplicates: MutableList<String>): String {
+    private fun processSection(section: Section, duplicates: MutableList<String>, versionMap: Map<String, String>): String {
         if (section.lines.isEmpty()) return ""
 
-        // Handle empty/top-level section or unknown sections without sorting logic
         if (section.name.isEmpty()) {
             return section.lines.joinToString("\n") { it }.trim().let { if (it.isEmpty()) "" else "$it\n" }
         }
 
-        val header = section.lines.first()
-        val rawEntries = mutableListOf<RawEntry>()
-        val comments = mutableListOf<String>()
+        return when (section.name) {
+            "bundles" -> processBundlesSection(section, duplicates)
+            "libraries" -> processLibrariesSection(section, duplicates, versionMap)
+            "versions", "plugins" -> processKeyValueSection(section, duplicates)
+            else -> processKeyValueSection(section, duplicates)
+        }
+    }
 
-        // Simple state machine to group comments with entries
-        for (i in 1 until section.lines.size) {
-            val line = section.lines[i]
-            val trimmed = line.trim()
-            if (trimmed.isBlank()) {
-                // If we have accumulated comments but no entry, attach them to the next entry or flush if end
-                 if (comments.isNotEmpty()) {
-                     // For simplicity, empty lines reset comment blocks unless attached to an entry immediately
-                     // But we want to preserve spacing.
-                     // Strategy: Treat blank lines as part of "comments" block for the next entry
-                 }
-                comments.add(line)
-            } else if (GROUP_HEADER_PATTERN.matches(trimmed)) {
-                comments.clear()
-                continue
-            } else if (trimmed.startsWith("#")) {
-                comments.add(line)
+    // ======================== [bundles] handling ========================
+
+    /**
+     * Parse bundles correctly: each bundle entry can span multiple lines
+     * (multi-line array values). We must keep multi-line entries together as one unit.
+     */
+    private fun processBundlesSection(section: Section, duplicates: MutableList<String>): String {
+        val header = section.lines.first()
+        val entries = parseBundleEntries(section.lines.subList(1, section.lines.size))
+
+        val seen = LinkedHashMap<String, BundleEntry>()
+        entries.forEach { entry ->
+            val key = entry.key
+            if (seen.containsKey(key)) {
+                duplicates.add("# DUPLICATE [bundles]: ${entry.allLines.first().trim()}")
             } else {
-                // It's likely an entry
-                rawEntries.add(RawEntry(line, comments.toList()))
-                comments.clear()
+                seen[key] = entry
             }
         }
 
-        // Remaining comments (trailing)
-        val trailingComments = comments.toList()
-
-        val processedEntries = when (section.name) {
-            "versions" -> sortByKey(rawEntries, section.name, duplicates)
-            "libraries" -> sortLibraries(rawEntries, duplicates, section.name)
-            "plugins" -> sortByKey(rawEntries, section.name, duplicates)
-            "bundles" -> sortByKey(rawEntries, section.name, duplicates)
-            else -> rawEntries // Return as is for unknown sections
-        }
+        val sorted = seen.values.sortedBy { it.key }
 
         val sb = StringBuilder()
         sb.append(header).append("\n")
-
-        processedEntries.forEach { entry ->
-            entry.comments.forEach { sb.append(entryOrCommentLine(it)) }
-            sb.append(entryOrCommentLine(entry.line))
+        sorted.forEach { entry ->
+            entry.comments.forEach { sb.append(it.trimEnd()).append("\n") }
+            entry.allLines.forEach { sb.append(it.trimEnd()).append("\n") }
         }
-
-        trailingComments.forEach { sb.append(entryOrCommentLine(it)) }
 
         val cleaned = sb.lineSequence()
             .map { it.trimEnd() }
@@ -147,23 +165,80 @@ class VersionCatalogSorter(private val project: Project) {
         return if (cleaned.isEmpty()) "" else "$cleaned\n"
     }
 
-    private fun entryOrCommentLine(text: String) = "${text.trimEnd()}\n"
+    private fun parseBundleEntries(lines: List<String>): List<BundleEntry> {
+        val entries = mutableListOf<BundleEntry>()
+        val comments = mutableListOf<String>()
+        var i = 0
 
-    private fun sortLibraries(entries: List<RawEntry>, duplicates: MutableList<String>, sectionName: String): List<RawEntry> {
-        val parsed = entries.map { entry ->
+        while (i < lines.size) {
+            val line = lines[i]
+            val trimmed = line.trim()
+
+            when {
+                trimmed.isBlank() -> {
+                    comments.add(line)
+                    i++
+                }
+                GROUP_HEADER_PATTERN.matches(trimmed) -> {
+                    comments.clear()
+                    i++
+                }
+                trimmed.startsWith("#") -> {
+                    comments.add(line)
+                    i++
+                }
+                else -> {
+                    // Start of an entry. Collect all lines until the entry is complete.
+                    val entryLines = mutableListOf<String>()
+                    entryLines.add(line)
+
+                    // Check if this line contains an opening '[' for array value
+                    // and doesn't have a closing ']' on the same line
+                    val valueAfterEquals = line.substringAfter("=", "")
+                    val openBrackets = valueAfterEquals.count { it == '[' }
+                    val closeBrackets = valueAfterEquals.count { it == ']' }
+                    var bracketDepth = openBrackets - closeBrackets
+
+                    i++
+                    // Continue collecting lines if we're inside an unclosed bracket
+                    while (i < lines.size && bracketDepth > 0) {
+                        val contLine = lines[i]
+                        entryLines.add(contLine)
+                        bracketDepth += contLine.count { it == '[' }
+                        bracketDepth -= contLine.count { it == ']' }
+                        i++
+                    }
+
+                    val key = extractKey(entryLines.first())
+                    entries.add(BundleEntry(key, entryLines, comments.toList()))
+                    comments.clear()
+                }
+            }
+        }
+        return entries
+    }
+
+    // ======================== [libraries] handling ========================
+
+    private fun processLibrariesSection(section: Section, duplicates: MutableList<String>, versionMap: Map<String, String>): String {
+        val header = section.lines.first()
+        val rawEntries = parseSimpleEntries(section.lines.subList(1, section.lines.size))
+
+        val parsed = rawEntries.map { entry ->
             val key = extractKey(entry.line)
             val group = extractGroup(entry.line)
             val name = extractName(entry.line)
             val module = extractModule(entry.line)
 
-            // Prioritize module if available (group:name), otherwise try individual group and name
             val fullGroup = group ?: module?.substringBefore(":") ?: ""
             val fullName = name ?: module?.substringAfter(":") ?: ""
+            val resolvedVersion = resolveVersion(entry.line, versionMap)
 
-            ParsedLibrary(entry, key, fullGroup, fullName)
+            ParsedLibrary(entry, key, fullGroup, fullName, resolvedVersion)
         }
 
         val grouped = parsed.groupBy { it.group.ifEmpty { "~" } }
+        // For duplicate detection: group:name:resolvedVersion -> first occurrence
         val seen = mutableSetOf<String>()
         val result = mutableListOf<RawEntry>()
         val singleGroupEntries = mutableListOf<RawEntry>()
@@ -173,12 +248,13 @@ class VersionCatalogSorter(private val project: Project) {
             val sortedEntries = groupEntries.sortedWith(compareBy({ it.name }, { it.key }))
 
             sortedEntries.forEachIndexed { index, item ->
+                // Only consider as duplicate if group + artifact + resolved version are ALL the same
                 val identifier = if (item.group.isNotEmpty() && item.name.isNotEmpty()) {
-                    "${item.group}:${item.name}"
+                    "${item.group}:${item.name}:${item.resolvedVersion}"
                 } else null
 
                 if (identifier != null && !seen.add(identifier)) {
-                    duplicates.add("# DUPLICATE [$sectionName]: ${item.entry.line.trim()}")
+                    duplicates.add("# DUPLICATE [libraries]: ${item.entry.line.trim()}")
                     return@forEachIndexed
                 }
 
@@ -199,39 +275,116 @@ class VersionCatalogSorter(private val project: Project) {
             result.addAll(singleGroupEntries.sortedBy { extractKey(it.line) })
         }
 
-        return result
+        val sb = StringBuilder()
+        sb.append(header).append("\n")
+        result.forEach { entry ->
+            entry.comments.forEach { sb.append(it.trimEnd()).append("\n") }
+            sb.append(entry.line.trimEnd()).append("\n")
+        }
+
+        val cleaned = sb.lineSequence()
+            .map { it.trimEnd() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+
+        return if (cleaned.isEmpty()) "" else "$cleaned\n"
     }
 
-    private fun sortByKey(entries: List<RawEntry>, sectionName: String, duplicates: MutableList<String>): List<RawEntry> {
+    /**
+     * Resolve the actual version value for a library line.
+     * Handles: version.ref = "key", version = "1.0.0", and short format "group:name:version"
+     */
+    private fun resolveVersion(line: String, versionMap: Map<String, String>): String {
+        // version.ref = "someKey"
+        val versionRefMatch = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(line)
+        if (versionRefMatch != null) {
+            val refKey = versionRefMatch.groupValues[1]
+            return versionMap[refKey] ?: refKey // fallback to ref key if not found
+        }
+        // version = "1.0.0" (direct version, but not version.ref)
+        val directVersionMatch = Regex("""(?<!\.)\bversion\s*=\s*"([^"]+)"""").find(line)
+        if (directVersionMatch != null) {
+            return directVersionMatch.groupValues[1]
+        }
+        // Short format: key = "group:name:version"
+        val shortMatch = Regex("""=\s*"([^":]+):([^":]+):([^"]+)"""").find(line)
+        if (shortMatch != null) {
+            return shortMatch.groupValues[3]
+        }
+        return ""
+    }
+
+    // ======================== [versions] / [plugins] handling ========================
+
+    private fun processKeyValueSection(section: Section, duplicates: MutableList<String>): String {
+        val header = section.lines.first()
+        val rawEntries = parseSimpleEntries(section.lines.subList(1, section.lines.size))
+
         val seen = LinkedHashMap<String, RawEntry>()
-        entries.forEach { entry ->
+        rawEntries.forEach { entry ->
             val key = extractKey(entry.line)
             if (seen.containsKey(key)) {
-                duplicates.add("# DUPLICATE [$sectionName]: ${entry.line.trim()}")
+                duplicates.add("# DUPLICATE [${section.name}]: ${entry.line.trim()}")
             } else {
                 seen[key] = entry
             }
         }
-        return seen.values.sortedBy { extractKey(it.line) }
+        val sorted = seen.values.sortedBy { extractKey(it.line) }
+
+        val sb = StringBuilder()
+        sb.append(header).append("\n")
+        sorted.forEach { entry ->
+            entry.comments.forEach { sb.append(it.trimEnd()).append("\n") }
+            sb.append(entry.line.trimEnd()).append("\n")
+        }
+
+        val cleaned = sb.lineSequence()
+            .map { it.trimEnd() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+
+        return if (cleaned.isEmpty()) "" else "$cleaned\n"
     }
 
-    private fun extractKey(line: String): String {
-        return line.substringBefore("=").trim()
+    // ======================== Common parsing ========================
+
+    /**
+     * Parse single-line entries (for [versions], [libraries], [plugins]).
+     * Each entry is one line with optional preceding comment lines.
+     */
+    private fun parseSimpleEntries(lines: List<String>): List<RawEntry> {
+        val entries = mutableListOf<RawEntry>()
+        val comments = mutableListOf<String>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            when {
+                trimmed.isBlank() -> comments.add(line)
+                GROUP_HEADER_PATTERN.matches(trimmed) -> comments.clear()
+                trimmed.startsWith("#") -> comments.add(line)
+                else -> {
+                    entries.add(RawEntry(line, comments.toList()))
+                    comments.clear()
+                }
+            }
+        }
+        return entries
     }
 
-    // group = "..."
+    // ======================== Field extractors ========================
+
+    private fun extractKey(line: String): String = line.substringBefore("=").trim()
+
     private fun extractGroup(line: String): String? {
         val match = Regex("group\\s*=\\s*\"([^\"]+)\"").find(line)
         return match?.groupValues?.get(1)
     }
 
-    // name = "..."
     private fun extractName(line: String): String? {
         val match = Regex("name\\s*=\\s*\"([^\"]+)\"").find(line)
         return match?.groupValues?.get(1)
     }
 
-    // module = "group:name"
     private fun extractModule(line: String): String? {
         val match = Regex("module\\s*=\\s*\"([^\"]+)\"").find(line)
         return match?.groupValues?.get(1)
@@ -252,5 +405,6 @@ class VersionCatalogSorter(private val project: Project) {
 
     data class Section(val name: String, val lines: List<String>)
     data class RawEntry(val line: String, val comments: List<String>)
-    data class ParsedLibrary(val entry: RawEntry, val key: String, val group: String, val name: String)
+    data class BundleEntry(val key: String, val allLines: List<String>, val comments: List<String>)
+    data class ParsedLibrary(val entry: RawEntry, val key: String, val group: String, val name: String, val resolvedVersion: String)
 }

@@ -34,6 +34,22 @@ object VersionCatalogDependencyHelper {
         return parseCatalogDependencyLine(lineText, fullText, lineStart)
     }
 
+    /**
+     * 宽松检测：即使 version.ref 引用的版本变量不存在也能返回结果。
+     * currentVersion 在变量未定义时为空字符串。
+     */
+    fun detectCatalogDependencyLenientAt(element: PsiElement): CatalogDependencyInfo? {
+        val file = element.containingFile ?: return null
+        val document = file.viewProvider.document ?: return null
+        val offset = element.textOffset
+        val lineNumber = document.getLineNumber(offset)
+        val lineStart = document.getLineStartOffset(lineNumber)
+        val lineEnd = document.getLineEndOffset(lineNumber)
+        val lineText = document.getText(TextRange(lineStart, lineEnd))
+        val fullText = file.text
+        return parseCatalogDependencyLineLenient(lineText, fullText, lineStart)
+    }
+
     fun findCatalogDependencyByAccessor(project: Project, accessor: String): Pair<PsiFile, CatalogDependencyInfo>? {
         val configuredFile = resolveConfiguredCatalogFile(project)
             ?.let { PsiManager.getInstance(project).findFile(it) }
@@ -199,6 +215,39 @@ object VersionCatalogDependencyHelper {
         }
 
         return null
+    }
+
+    /**
+     * 宽松版解析：version.ref 引用的变量不存在时 currentVersion 为空字符串，不返回 null
+     */
+    private fun parseCatalogDependencyLineLenient(
+        lineText: String,
+        fullText: String,
+        lineStartOffset: Int
+    ): CatalogDependencyInfo? {
+        val keyPattern = """([A-Za-z0-9_.-]+)"""
+        val lineSuffix = """\s*(#.*)?$"""
+
+        val groupPattern = Regex(
+            """^\s*$keyPattern\s*=\s*\{\s*group\s*=\s*"([^"]+)"\s*,\s*name\s*=\s*"([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
+        )
+        groupPattern.find(lineText)?.let { match ->
+            val (key, groupId, artifactId, versionRef) = match.destructured
+            val currentVersion = findVersionRef(fullText, versionRef) ?: ""
+            return CatalogDependencyInfo(key, groupId, artifactId, currentVersion, versionRef, true, lineText, lineStartOffset)
+        }
+
+        val modulePattern = Regex(
+            """^\s*$keyPattern\s*=\s*\{\s*module\s*=\s*"([^:]+):([^"]+)"\s*,\s*version\.ref\s*=\s*"([^"]+)"\s*\}\s*$lineSuffix"""
+        )
+        modulePattern.find(lineText)?.let { match ->
+            val (key, groupId, artifactId, versionRef) = match.destructured
+            val currentVersion = findVersionRef(fullText, versionRef) ?: ""
+            return CatalogDependencyInfo(key, groupId, artifactId, currentVersion, versionRef, true, lineText, lineStartOffset)
+        }
+
+        // 对于 direct version 和 short 格式，直接委托给严格版本（它们不涉及 version.ref 缺失问题）
+        return parseCatalogDependencyLine(lineText, fullText, lineStartOffset)
     }
 
     private fun findVersionRef(fullText: String, versionKey: String): String? {

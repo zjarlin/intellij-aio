@@ -1,0 +1,15 @@
+<html>
+
+<body>
+  Creates a dedicated version variable for the current artifact and updates the <code>version.ref</code> to point to it.
+  <p>
+    When a dependency references a shared or incorrect version variable (e.g., a global LTS version),
+    this intention creates a new version entry named after the artifactId with the latest version from Maven Central,
+    and updates the dependency to use it.
+  </p>
+  <p>
+    If the version variable already exists, it simply updates the reference (idempotent).
+  </p>
+</body>
+
+</html>

@@ -1,0 +1,6 @@
+[versions]
+addzeroLTSVersion = "1.0.0"
+jimmer-ext-lowquery = "2.0.0"
+
+[libraries]
+addzero-jimmer-ext-lowquery = { module = "site.addzero:jimmer-ext-lowquery", version.ref = "<spot>jimmer-ext-lowquery</spot>" }

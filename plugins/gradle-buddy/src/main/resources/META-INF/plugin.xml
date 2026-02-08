@@ -82,6 +82,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Fix version - create dedicated version ref for artifact -->
+    <intentionAction order="FIRST">
+      <language>TOML</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogFixVersionIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert plugin declaration to TOML format -->
     <!-- order="FIRST" 确保在intention列表中优先显示 -->
     <intentionAction order="FIRST">

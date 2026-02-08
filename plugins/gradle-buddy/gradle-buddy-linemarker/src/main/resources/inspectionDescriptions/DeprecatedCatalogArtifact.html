@@ -1,0 +1,14 @@
+<html>
+
+<body>
+  检查 <code>.gradle.kts</code> 文件中引用的版本目录依赖是否已被标记为弃用。
+  <p>
+    当你在 <code>libs.versions.toml</code> 中通过 gutter 图标将某个工件标记为弃用后，
+    所有 <code>.gradle.kts</code> 文件中对该工件的 <code>libs.xxx.yyy</code> 引用都会显示弃用警告。
+  </p>
+  <p>
+    弃用信息存储在 <code>~/.config/gradle-buddy/cache/deprecated-artifacts.json</code>，跨项目共享。
+  </p>
+</body>
+
+</html>

@@ -1,0 +1,16 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradleGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#69a83d"/>
+      <stop offset="100%" stop-color="#3d6b2b"/>
+    </linearGradient>
+  </defs>
+  <!-- Package box body -->
+  <rect x="2" y="5" width="12" height="9" rx="1.5" fill="url(#gradleGreen)" opacity="0.9"/>
+  <!-- Package lid -->
+  <path d="M1.5 3.5C1.5 2.95 1.95 2.5 2.5 2.5h11c.55 0 1 .45 1 1v2H1.5v-2Z" fill="url(#gradleGreen)"/>
+  <!-- Center stripe -->
+  <rect x="6.5" y="2.5" width="3" height="11.5" fill="#ffffff" opacity="0.35"/>
+  <!-- Ribbon bow -->
+  <rect x="6.5" y="4.5" width="3" height="1.5" rx="0.5" fill="#ffffff" opacity="0.6"/>
+</svg>

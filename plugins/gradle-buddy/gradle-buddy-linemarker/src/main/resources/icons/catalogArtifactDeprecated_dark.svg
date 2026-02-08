@@ -1,0 +1,16 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="deprecatedGray" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#aaaaaa"/>
+      <stop offset="100%" stop-color="#777777"/>
+    </linearGradient>
+  </defs>
+  <!-- Package box body (grayed out) -->
+  <rect x="2" y="5" width="12" height="9" rx="1.5" fill="url(#deprecatedGray)" opacity="0.7"/>
+  <!-- Package lid (grayed out) -->
+  <path d="M1.5 3.5C1.5 2.95 1.95 2.5 2.5 2.5h11c.55 0 1 .45 1 1v2H1.5v-2Z" fill="url(#deprecatedGray)" opacity="0.7"/>
+  <!-- Center stripe -->
+  <rect x="6.5" y="2.5" width="3" height="11.5" fill="#ffffff" opacity="0.3"/>
+  <!-- Strikethrough line -->
+  <line x1="1" y1="14" x2="15" y2="2" stroke="#e05555" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
+</svg>

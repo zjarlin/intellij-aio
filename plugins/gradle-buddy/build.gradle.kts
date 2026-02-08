@@ -18,4 +18,5 @@ dependencies {
     implementation(project(":plugins:gradle-buddy:gradle-buddy-tasks"))
     implementation(project(":plugins:gradle-buddy:id-fixer"))
     implementation(project(":plugins:gradle-buddy:gradle-buddy-fix-catalog-ref"))
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-linemarker"))
 }

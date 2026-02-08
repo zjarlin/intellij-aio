@@ -20,6 +20,7 @@
   <depends>com.intellij.modules.platform</depends>
   <depends>org.jetbrains.kotlin</depends>
   <depends>org.jetbrains.plugins.gradle</depends>
+  <depends>org.toml.lang</depends>
   <!-- K2 模式兼容性声明 -->
   <extensions defaultExtensionNs="org.jetbrains.kotlin">
     <supportsKotlinPluginMode supportsK2="true"/>
@@ -180,6 +181,16 @@
             level="WARNING"
             implementationClass="site.addzero.gradle.catalog.InvalidCatalogReferenceInspection"/>
 
+    <!-- Inspection: Deprecated catalog artifact usage in .gradle.kts -->
+    <localInspection
+            language="kotlin"
+            shortName="DeprecatedCatalogArtifact"
+            displayName="已弃用的版本目录依赖"
+            groupName="Gradle"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactInspection"/>
+
     <!-- Completion: Gradle Kotlin Script dependencies -->
     <completion.contributor language="kotlin"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
@@ -187,6 +198,13 @@
     <!-- Completion: Version Catalog TOML -->
     <completion.contributor language="any"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
+
+    <!-- Line Marker: gutter icons for version catalog libraries -->
+    <codeInsight.lineMarkerProvider language="TOML"
+                                    implementationClass="site.addzero.gradle.buddy.linemarker.VersionCatalogLineMarkerProvider"/>
+
+    <!-- Deprecated Artifact Cache (application-level, cross-project) -->
+    <applicationService serviceImplementation="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactService"/>
 
     <!-- Floating toolbar for Version Catalog -->
     <editorFloatingToolbarProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogFloatingToolbarProvider"/>

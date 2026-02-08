@@ -1,0 +1,76 @@
+package site.addzero.gradle.buddy.linemarker
+
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.ui.Messages
+import com.intellij.psi.PsiManager
+
+/**
+ * Action shown in the line marker popup menu.
+ * Allows marking/unmarking an artifact as deprecated with a custom message.
+ * After toggling, triggers a daemon restart to refresh gutter icons.
+ */
+class DeprecateArtifactAction(
+    private val group: String,
+    private val artifact: String
+) : AnAction() {
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+        val service = DeprecatedArtifactService.getInstance()
+
+        if (service.isDeprecated(group, artifact)) {
+            val result = Messages.showYesNoDialog(
+                project,
+                "「$group:$artifact」已标记为弃用。\n\n弃用信息: ${service.getEntry(group, artifact)?.message ?: "(无)"}\n\n是否取消弃用标记？",
+                "取消弃用",
+                Messages.getQuestionIcon()
+            )
+            if (result == Messages.YES) {
+                service.undeprecate(group, artifact)
+                refreshGutterIcons(e)
+            }
+        } else {
+            val message = Messages.showInputDialog(
+                project,
+                "请输入弃用原因 (可选):",
+                "标记弃用: $group:$artifact",
+                Messages.getWarningIcon(),
+                "",
+                null
+            )
+            if (message != null) {
+                service.deprecate(group, artifact, message)
+                refreshGutterIcons(e)
+            }
+        }
+    }
+
+    private fun refreshGutterIcons(e: AnActionEvent) {
+        val project = e.project ?: return
+        // Try to get the virtual file from the action event
+        val vFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
+            // Fallback: try to get from the editor
+            ?: e.getData(CommonDataKeys.EDITOR)?.virtualFile
+        if (vFile != null) {
+            val psiFile = PsiManager.getInstance(project).findFile(vFile)
+            if (psiFile != null) {
+                DaemonCodeAnalyzer.getInstance(project).restart(psiFile)
+                return
+            }
+        }
+        // Last resort: restart the entire daemon for the project
+        DaemonCodeAnalyzer.getInstance(project).restart()
+    }
+
+    override fun update(e: AnActionEvent) {
+        val service = DeprecatedArtifactService.getInstance()
+        val deprecated = service.isDeprecated(group, artifact)
+        e.presentation.text = if (deprecated) "取消弃用 $group:$artifact" else "标记为弃用"
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+}

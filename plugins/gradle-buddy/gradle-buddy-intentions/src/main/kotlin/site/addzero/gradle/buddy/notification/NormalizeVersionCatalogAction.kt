@@ -8,8 +8,10 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
+import java.io.File
 
 /**
  * Normalize version catalog naming conventions.
@@ -41,10 +43,16 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         val documentManager = FileDocumentManager.getInstance()
         val document = documentManager.getDocument(file)
         val content = document?.text ?: String(file.contentsToByteArray())
-        val newContent = normalizeContent(content)
 
-        if (content != newContent) {
-            WriteCommandAction.runWriteCommandAction(project, "Normalize Version Catalog", null, {
+        val aliasRenames = mutableMapOf<String, String>()
+        val newContent = normalizeContent(content, aliasRenames)
+
+        // Collect effective alias renames (filter out no-ops)
+        val effectiveAliasRenames = aliasRenames.filter { (old, new) -> old != new }
+
+        WriteCommandAction.runWriteCommandAction(project, "Normalize Version Catalog", null, {
+            // Step 1: Update the TOML file
+            if (content != newContent) {
                 if (document != null) {
                     document.replaceString(0, document.textLength, newContent)
                     PsiDocumentManager.getInstance(project).commitDocument(document)
@@ -52,11 +60,77 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
                 } else {
                     file.setBinaryContent(newContent.toByteArray())
                 }
-            })
+            }
+
+            // Step 2: Update all .gradle.kts references for renamed aliases
+            if (effectiveAliasRenames.isNotEmpty()) {
+                updateGradleKtsReferences(project, effectiveAliasRenames)
+            }
+        })
+    }
+
+    /**
+     * Find all .gradle.kts files in the project and update `libs.xxx.yyy` accessors
+     * for every renamed alias.
+     *
+     * TOML alias `my-lib` maps to kts accessor `libs.my.lib` (hyphens become dots).
+     */
+    private fun updateGradleKtsReferences(project: Project, aliasRenames: Map<String, String>) {
+        val basePath = project.basePath ?: return
+        val baseDir = VfsUtil.findFile(File(basePath).toPath(), true) ?: return
+        val ktsFiles = mutableListOf<VirtualFile>()
+        VfsUtil.processFileRecursivelyWithoutIgnored(baseDir) { vf ->
+            if (!vf.isDirectory && vf.name.endsWith(".gradle.kts")) {
+                ktsFiles.add(vf)
+            }
+            true
+        }
+
+        val docManager = FileDocumentManager.getInstance()
+        val psiDocManager = PsiDocumentManager.getInstance(project)
+
+        // Build accessor rename map: "old.accessor" -> "new.accessor"
+        // Sort by longest first to avoid partial replacements
+        val accessorRenames = aliasRenames.map { (oldAlias, newAlias) ->
+            aliasToAccessor(oldAlias) to aliasToAccessor(newAlias)
+        }.sortedByDescending { it.first.length }
+
+        for (ktsFile in ktsFiles) {
+            val doc = docManager.getDocument(ktsFile) ?: continue
+            var text = doc.text
+            var changed = false
+
+            for ((oldAccessor, newAccessor) in accessorRenames) {
+                if (oldAccessor == newAccessor) continue
+
+                // Match libs.old.accessor followed by a non-identifier char (or end of string)
+                // This handles: libs.old.name, libs.old.name.get(), libs.old.name)
+                val pattern = Regex("""libs\.${Regex.escape(oldAccessor)}(?=[^a-zA-Z0-9_]|$)""")
+                val replaced = pattern.replace(text, "libs.$newAccessor")
+                if (replaced != text) {
+                    text = replaced
+                    changed = true
+                }
+            }
+
+            if (changed) {
+                doc.replaceString(0, doc.textLength, text)
+                psiDocManager.commitDocument(doc)
+                docManager.saveDocument(doc)
+            }
         }
     }
 
-    private fun normalizeContent(content: String): String {
+    /**
+     * Convert a TOML alias to its Gradle kts accessor path.
+     * e.g. "my-cool-lib" -> "my.cool.lib"
+     */
+    private fun aliasToAccessor(alias: String): String = alias.replace('-', '.').replace('_', '.')
+
+    /**
+     * Normalize the TOML content and populate [aliasRenames] with old->new alias mappings.
+     */
+    private fun normalizeContent(content: String, aliasRenames: MutableMap<String, String>): String {
         val lines = content.lines()
 
         // Step 1: Parse all libraries
@@ -72,7 +146,6 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
         // Step 3: Determine renames — only for libraries whose version.ref is used by exactly 1 library
         val versionKeyRenames = mutableMapOf<String, String>()
-        val aliasRenames = mutableMapOf<String, String>()
 
         for (lib in allLibraries) {
             val normalizedArtifact = toKebabCase(lib.artifactId)

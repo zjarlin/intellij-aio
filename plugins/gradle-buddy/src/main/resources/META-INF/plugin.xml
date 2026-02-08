@@ -41,20 +41,12 @@
            text="Version Catalog"
            popup="false"/>
 
-    <action id="GradleBuddy.VersionCatalogToolbarLabel"
-            class="site.addzero.gradle.buddy.notification.VersionCatalogToolbarLabelAction"
-            text="Version Catalog"
-            description="Gradle Buddy Version Catalog helpers"
-            icon="/icons/gradleBannerIcon.svg">
-      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="first"/>
-    </action>
-
     <action id="GradleBuddy.OrganizeVersionCatalog"
             class="site.addzero.gradle.buddy.notification.OrganizeVersionCatalogAction"
             text="Organize"
             description="Sort and de-duplicate the version catalog"
             icon="/icons/gradleBannerIcon.svg">
-      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.VersionCatalogToolbarLabel"/>
+      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="first"/>
     </action>
 
     <action id="GradleBuddy.NormalizeVersionCatalog"

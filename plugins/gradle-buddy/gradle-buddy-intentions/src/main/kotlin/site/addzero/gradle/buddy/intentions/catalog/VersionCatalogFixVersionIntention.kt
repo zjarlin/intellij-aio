@@ -54,16 +54,16 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
         val offset = editor?.caretModel?.offset ?: return false
         val element = file.findElementAt(offset) ?: return false
 
-        val dep = VersionCatalogDependencyHelper.detectCatalogDependencyAt(element) ?: return false
+        val dep = VersionCatalogDependencyHelper.detectCatalogDependencyLenientAt(element) ?: return false
         // 仅对使用 version.ref 的依赖生效
         if (!dep.isVersionRef) return false
 
         val targetVersionKey = dep.artifactId
         val fullText = file.text
+        val versionExists = findVersionValue(fullText, targetVersionKey) != null
 
         if (dep.versionKey == targetVersionKey) {
-            // version.ref 已经和 artifactId 一致，但如果变量未定义，仍需创建
-            val versionExists = findVersionValue(fullText, targetVersionKey) != null
+            // version.ref 已经和 artifactId 一致，只有变量未定义时才需要创建
             return !versionExists
         }
 
@@ -74,7 +74,7 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
         val offset = editor?.caretModel?.offset ?: return
         val element = file.findElementAt(offset) ?: return
-        val dep = VersionCatalogDependencyHelper.detectCatalogDependencyAt(element) ?: return
+        val dep = VersionCatalogDependencyHelper.detectCatalogDependencyLenientAt(element) ?: return
         if (!dep.isVersionRef) return
 
         val targetVersionKey = dep.artifactId

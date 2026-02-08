@@ -16,6 +16,7 @@ import com.intellij.ui.components.panels.NonOpaquePanel
 import com.intellij.util.ui.JBFont
 import com.intellij.util.ui.JBUI
 import site.addzero.gradle.buddy.GradleBuddyIcons
+import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.util.function.Function
@@ -33,7 +34,11 @@ class VersionCatalogEditorNotificationProvider : EditorNotificationProvider, Dum
     project: Project,
     file: VirtualFile
   ): Function<in FileEditor, out JComponent?>? {
-    if (file.name != "libs.versions.toml") return null
+    // Use configurable catalog path instead of hardcoding libs.versions.toml
+    val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+    val projectBase = project.basePath ?: return null
+    val expectedPath = "$projectBase/$catalogPath"
+    if (file.path != expectedPath) return null
 
     val properties = PropertiesComponent.getInstance(project)
     if (properties.getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)) return null

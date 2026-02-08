@@ -2,7 +2,8 @@
 ---
 ## 功能特性
 
-### 🆕 近期更新 (2026.01.24 - 2026.01.26)
+### 🆕 近期更新 (2026.01.24 - 2026.02.08)
+- **工件弃用管理**：TOML 中每个 library 旁边显示 gutter 图标，右键可标记弃用，`.gradle.kts` 中引用处显示删除线警告
 - **Select other versions**：在 KTS/TOML 中自由选择版本并替换
 - **Catalog -> Hardcoded**：将 `libs.xxx.yyy` 一键转为硬编码依赖
 - **版本目录解析增强**：支持多模块下的 `gradle/*.versions.toml`
@@ -200,6 +201,32 @@ junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", v
 
 - **痛点**：需要从历史版本中选一个特定版本。
 - **解决**：列出可用版本并替换 `version` 或 `version.ref`。
+
+---
+
+## 🏷️ 工件弃用管理
+
+### 问题背景
+
+项目中有些依赖已经不推荐使用（比如旧版 starter 被新版替代），但 TOML 里还留着，团队成员可能不知道哪些该避免使用。
+
+### 解决方案
+
+在 `libs.versions.toml` 的 `[libraries]` 区块中，每个工件旁边显示一个 Gradle 风格的绿色 gutter 图标。
+
+**标记弃用**：
+1. 右键点击工件旁边的图标
+2. 选择「标记为弃用」
+3. 输入弃用原因（可选）
+
+标记后：
+- TOML 中该工件的图标变为灰色 + 红色斜线
+- 所有 `.gradle.kts` 文件中引用该工件的 `libs.xxx.yyy` 表达式显示删除线警告
+- 悬停可查看弃用原因
+
+**跨项目共享**：弃用元数据存储在 `~/.config/gradle-buddy/cache/deprecated-artifacts.json`，在 A 项目标记弃用后，B 项目也能看到警告。
+
+**取消弃用**：右键已弃用工件的图标，选择「取消弃用」即可。
 
 ---
 

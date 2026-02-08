@@ -2,6 +2,29 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.08] - 2026-02-08
+
+### ✨ 新增功能
+- **工件弃用管理 (Line Marker)**：`libs.versions.toml` 的 `[libraries]` 区块中，每个工件旁边显示 Gradle 风格的 gutter 图标
+  - 右键图标可将工件标记为弃用，输入弃用原因
+  - 已弃用工件图标变为灰色 + 红色斜线，一目了然
+  - 弃用元数据存储在 `~/.config/gradle-buddy/cache/deprecated-artifacts.json`，跨项目共享
+- **弃用工件 Inspection**：`.gradle.kts` 文件中引用已弃用工件的 `libs.xxx.yyy` 表达式显示删除线警告
+  - 高亮类型为 `LIKE_DEPRECATED`（删除线 + 弱警告）
+  - 悬停显示弃用原因
+- **自定义 Gradle 风格图标**：绿色渐变包裹图标（正常）/ 灰色 + 红线（弃用），支持暗色主题
+
+### 🔧 改进
+- **plugin.xml**：新增 `<depends>org.toml.lang</depends>`，确保 TOML PSI 在运行时可用
+- **inline table 过滤**：gutter 图标只显示在顶层 library 条目上，不会在 `{ group = "...", name = "..." }` 内部重复显示
+
+### 🏗️ 新模块
+- **gradle-buddy-linemarker**：独立的行标记模块
+  - `VersionCatalogLineMarkerProvider`：TOML gutter 图标
+  - `DeprecateArtifactAction`：弃用/取消弃用操作
+  - `DeprecatedArtifactService`：application-level 弃用缓存服务
+  - `DeprecatedArtifactInspection`：`.gradle.kts` 弃用警告 inspection
+
 ## [2026.01.26] - 2026-01-26
 
 ### ✨ 新增功能

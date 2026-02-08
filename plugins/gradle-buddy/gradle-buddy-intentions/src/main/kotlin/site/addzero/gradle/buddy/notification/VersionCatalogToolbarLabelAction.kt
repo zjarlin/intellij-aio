@@ -27,6 +27,4 @@ class VersionCatalogToolbarLabelAction : AnAction(
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.project != null
     }
-
-    override fun displayTextInToolbar(): Boolean = true
 }

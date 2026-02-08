@@ -315,19 +315,15 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         tomlBuilder.appendLine()
         tomlBuilder.appendLine("[libraries]")
         content.libraries.toSortedMap().forEach { (alias, entry) ->
-            val module = entry.module ?: "${entry.groupId}:${entry.artifactId}"
-            tomlBuilder.append("$alias = { module = \"$module\"")
+            tomlBuilder.append("$alias = { group = \"${entry.groupId}\", name = \"${entry.artifactId}\"")
             if (!entry.versionRef.isNullOrBlank()) {
                 tomlBuilder.append(", version.ref = \"${entry.versionRef}\"")
             } else if (!entry.version.isNullOrBlank()) {
                 tomlBuilder.append(", version = \"${entry.version}\"")
             }
-
-            // 如果有分类器，添加它
             if (entry.classifier != null) {
-                tomlBuilder.appendLine(", classifier = \"${entry.classifier}\"")
+                tomlBuilder.append(", classifier = \"${entry.classifier}\"")
             }
-
             tomlBuilder.appendLine(" }")
         }
 
@@ -418,9 +414,8 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         versionKey: String,
         versionRefFromVar: String?
     ): String {
-        val module = "${info.groupId}:${info.artifactId}"
         val builder = StringBuilder()
-        builder.append("$libraryKey = { module = \"$module\"")
+        builder.append("$libraryKey = { group = \"${info.groupId}\", name = \"${info.artifactId}\"")
         if (versionRefFromVar != null) {
             builder.append(", version.ref = \"$versionKey\"")
         } else {

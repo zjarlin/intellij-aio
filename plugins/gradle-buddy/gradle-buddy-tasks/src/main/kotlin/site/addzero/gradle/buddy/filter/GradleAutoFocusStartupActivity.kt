@@ -207,6 +207,8 @@ class GradleAutoFocusStartupActivity : ProjectActivity {
                 .onSuccess { selectedPath ->
                     if (selectedPath != null) {
                         LOG.info("[GradleAutoFocus] Tasks/build selected: ${pathToString(selectedPath)}")
+                        // Expand the "build" node so its children (assemble, build, clean, etc.) are visible
+                        tree.expandPath(selectedPath)
                     } else {
                         // "build" task group not found, try just selecting "Tasks"
                         LOG.info("[GradleAutoFocus] 'build' not found under Tasks, selecting module node instead")

@@ -2,6 +2,26 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.09] - 2026-02-09
+
+### ✨ 新增功能
+- **Build-Logic 插件工件解析**：新增 `gradle-buddy-buildlogic` 模块
+  - **Alt+Enter 意图操作**：在 `.gradle.kts` 的 `plugins {}` 块中，对 `id("xxx")` 按 Alt+Enter 可解析插件的真实实现工件坐标
+  - **支持无版本声明**：convention plugin 中 `id("xxx")` 不带 version 时，自动查询最新版本（通过 maven-metadata.xml）
+  - **手动输入 fallback**：自动解析失败时弹出输入框，支持 `group:artifact:version` 格式直接写入，也支持纯版本号走 marker 解析
+  - **Plugin Marker Artifact 机制**：通过 `{pluginId}.gradle.plugin` POM 反查真实实现工件（优先 Gradle Plugin Portal，其次 Maven Central）
+  - **批量操作**：Tools 菜单新增「Resolve All Plugin Artifacts for Build-Logic」，一键扫描所有插件并写入 TOML
+  - 解析结果自动写入 `libs.versions.toml` 的 `[versions]` 和 `[libraries]` 节
+
+### 🐛 修复
+- **Normalize 重复 alias**：修复同一 `groupId:artifactId` 不同版本时 alias 冲突的问题
+  - 三级去重策略：artifactId → groupId-artifactId → groupId-artifactId-vVersion
+  - 版本号 sanitize：`4.1.0-M1` → `4-1-0-m1`（符合 TOML alias 命名规范）
+- **编译错误修复**：`gradle-buddy-buildlogic` 模块添加对 `gradle-buddy-core` 的依赖，解决 `GradleBuddySettingsService` 未解析问题
+
+### 🔧 改进
+- **Normalize 版本解析**：新增 `parseVersionValues()` 从 `[versions]` 节读取实际版本值，用于 level 3 去重
+
 ## [2026.02.08] - 2026-02-08
 
 ### ✨ 新增功能

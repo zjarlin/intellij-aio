@@ -2,7 +2,9 @@
 ---
 ## 功能特性
 
-### 🆕 近期更新 (2026.01.24 - 2026.02.08)
+### 🆕 近期更新 (2026.01.24 - 2026.02.09)
+- **Build-Logic 插件工件解析**：在 `plugins {}` 块中 Alt+Enter 解析插件的真实实现工件，写入 TOML 供 build-logic 使用
+- **Normalize 三级去重**：同 group:artifact 不同版本时，alias 追加版本后缀（如 `-v4-1-0-m1`）
 - **工件弃用管理**：TOML 中每个 library 旁边显示 gutter 图标，右键可标记弃用，`.gradle.kts` 中引用处显示删除线警告
 - **Select other versions**：在 KTS/TOML 中自由选择版本并替换
 - **Catalog -> Hardcoded**：将 `libs.xxx.yyy` 一键转为硬编码依赖
@@ -32,6 +34,7 @@
 | Select correct catalog reference | 智能修复无效引用 | 版本目录引用 |
 | Browse catalog alternatives | 浏览并切换候选项 | 版本目录引用 |
 | Select other versions | 选择指定版本并替换 | 硬编码依赖、版本目录引用 |
+| Resolve plugin artifact for build-logic | 解析插件实现工件写入 TOML | plugins 块中的 `id("xxx")` |
 
 **libs.versions.toml**
 
@@ -227,6 +230,45 @@ junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", v
 **跨项目共享**：弃用元数据存储在 `~/.config/gradle-buddy/cache/deprecated-artifacts.json`，在 A 项目标记弃用后，B 项目也能看到警告。
 
 **取消弃用**：右键已弃用工件的图标，选择「取消弃用」即可。
+
+---
+
+## 🔌 Build-Logic 插件工件解析
+
+### 问题背景
+
+在 `build-logic`（预编译脚本插件）中使用 Gradle 插件时，不能直接用 `id("xxx") version "yyy"`，而是需要在 `build-logic/build.gradle.kts` 中通过 `implementation(libs.xxx)` 引入插件的真实实现工件。但从 plugin id 找到对应的 `group:artifact` 并不直观。
+
+### 解决方案
+
+#### 1. Alt+Enter 意图操作
+
+在任意 `.gradle.kts` 的 `plugins {}` 块中，将光标放在 `id("xxx")` 上按 Alt+Enter：
+
+```kotlin
+plugins {
+    // 带版本 — 直接解析
+    id("org.jetbrains.kotlin.jvm") version "2.0.0"
+
+    // 不带版本（convention plugin 场景）— 自动查最新版本
+    id("org.graalvm.buildtools.native")
+}
+```
+
+插件会：
+1. 通过 Plugin Marker Artifact 机制反查真实实现工件（优先 Gradle Plugin Portal，其次 Maven Central）
+2. 无版本时自动查询 `maven-metadata.xml` 获取最新版本
+3. 将工件写入 `libs.versions.toml` 的 `[versions]` 和 `[libraries]` 节
+
+#### 2. 手动输入 fallback
+
+自动解析失败时（私有仓库、网络问题等），弹出输入框支持两种格式：
+- `group:artifact:version`（如 `org.graalvm.buildtools:native-gradle-plugin:0.10.4`）— 直接写入 TOML
+- 纯版本号 — 继续走 marker 解析
+
+#### 3. 批量操作
+
+菜单 **Tools → Resolve All Plugin Artifacts for Build-Logic**：一键扫描所有 `.gradle.kts` 中带版本的插件声明，批量解析并写入 TOML。
 
 ---
 

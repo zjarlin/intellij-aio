@@ -1,12 +1,13 @@
 package site.addzero.gradle.buddy.linemarker
 
-import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiManager
+import com.intellij.util.FileContentUtil
 
 /**
  * Action shown in the line marker popup menu.
@@ -51,19 +52,19 @@ class DeprecateArtifactAction(
 
     private fun refreshGutterIcons(e: AnActionEvent) {
         val project = e.project ?: return
-        // Try to get the virtual file from the action event
         val vFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
-            // Fallback: try to get from the editor
             ?: e.getData(CommonDataKeys.EDITOR)?.virtualFile
+
         if (vFile != null) {
-            val psiFile = PsiManager.getInstance(project).findFile(vFile)
-            if (psiFile != null) {
-                DaemonCodeAnalyzer.getInstance(project).restart(psiFile)
-                return
+            // Reparse the file to trigger re-analysis (including gutter icon refresh)
+            FileContentUtil.reparseFiles(project, listOf(vFile), true)
+        } else {
+            // Fallback: reparse all open files
+            val openFiles = FileEditorManager.getInstance(project).openFiles.toList()
+            if (openFiles.isNotEmpty()) {
+                FileContentUtil.reparseFiles(project, openFiles, true)
             }
         }
-        // Last resort: restart the entire daemon for the project
-        DaemonCodeAnalyzer.getInstance(project).restart()
     }
 
     override fun update(e: AnActionEvent) {

@@ -8,8 +8,6 @@ import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 class VersionCatalogFloatingToolbarProvider :
     AbstractFloatingToolbarProvider("GradleBuddy.VersionCatalogFloatingToolbarGroup") {
 
-    override val priority: Int = 100
-
     override fun isApplicable(dataContext: DataContext): Boolean {
         val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return false
         val editor = CommonDataKeys.EDITOR.getData(dataContext) ?: return false

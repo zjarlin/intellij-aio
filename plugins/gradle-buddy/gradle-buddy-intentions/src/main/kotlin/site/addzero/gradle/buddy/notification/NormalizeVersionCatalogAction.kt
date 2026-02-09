@@ -16,14 +16,14 @@ import java.io.File
 /**
  * Normalize version catalog naming conventions.
  *
- * Only renames when ALL of these conditions are met:
- * 1. The version.ref variable is referenced by exactly ONE library (shared variables like ktor, spring are skipped)
- * 2. The current alias or version.ref doesn't match the artifactId kebab-case convention
+ * Rules:
+ * 1. Library alias = artifactId in kebab-case
+ * 2. If multiple libraries produce the same alias (e.g. different groupId but same artifactId),
+ *    use full-qualified `groupId-artifactId` in kebab-case to disambiguate
+ * 3. version.ref rename: only when the ref is used by exactly ONE library (shared refs are never touched)
+ * 4. [versions] key = same as the library alias (when ref is not shared)
  *
- * Convention:
- * - Library alias = artifactId in kebab-case
- * - version.ref = artifactId in kebab-case
- * - [versions] key = artifactId in kebab-case
+ * After renaming, all `libs.xxx.yyy` accessors in .gradle.kts files are updated accordingly.
  */
 class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
@@ -144,46 +144,55 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             versionRefUsageCount[ref] = (versionRefUsageCount[ref] ?: 0) + 1
         }
 
-        // Step 3: Determine renames — only for libraries whose version.ref is used by exactly 1 library
+        // Step 3: Compute desired alias for each library based on artifactId
+        // Then detect conflicts (same alias target from different libraries)
+        val desiredAliasMap = mutableMapOf<String, String>() // old alias -> desired alias
+        for (lib in allLibraries) {
+            desiredAliasMap[lib.alias] = toKebabCase(lib.artifactId)
+        }
+
+        // Step 4: Detect alias conflicts — multiple libraries mapping to the same desired alias
+        // Group by desired alias to find collisions
+        val desiredToSources = mutableMapOf<String, MutableList<LibraryInfo>>()
+        for (lib in allLibraries) {
+            val desired = desiredAliasMap[lib.alias]!!
+            desiredToSources.getOrPut(desired) { mutableListOf() }.add(lib)
+        }
+
+        // Resolve conflicts: if multiple libraries want the same alias, use full-qualified group-artifact
+        for ((desired, libs) in desiredToSources) {
+            if (libs.size > 1) {
+                // Conflict! Different artifacts (possibly different groupIds) produce the same alias
+                for (lib in libs) {
+                    val fqAlias = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
+                    desiredAliasMap[lib.alias] = fqAlias
+                }
+            }
+        }
+
+        // Populate aliasRenames — only for aliases that actually change
+        for ((oldAlias, newAlias) in desiredAliasMap) {
+            if (oldAlias != newAlias) {
+                aliasRenames[oldAlias] = newAlias
+            }
+        }
+
+        // Step 5: Determine version key renames — only for version.ref used by exactly 1 library
         val versionKeyRenames = mutableMapOf<String, String>()
 
         for (lib in allLibraries) {
-            val normalizedArtifact = toKebabCase(lib.artifactId)
+            val ref = lib.versionRef ?: continue
+            val usageCount = versionRefUsageCount[ref] ?: 0
+            // If multiple libraries share this version.ref, don't touch it
+            if (usageCount > 1) continue
 
-            // Alias rename: only if current alias doesn't match convention
-            if (lib.alias != normalizedArtifact) {
-                aliasRenames[lib.alias] = normalizedArtifact
-            }
-
-            // Version ref rename: only if this ref is used by exactly 1 library (not shared)
-            val ref = lib.versionRef
-            if (ref != null && ref != normalizedArtifact) {
-                val usageCount = versionRefUsageCount[ref] ?: 0
-                if (usageCount == 1) {
-                    versionKeyRenames[ref] = normalizedArtifact
-                }
-                // If usageCount > 1, this is a shared variable (ktor, spring, etc.) — skip
+            val newAlias = desiredAliasMap[lib.alias] ?: continue
+            if (ref != newAlias) {
+                versionKeyRenames[ref] = newAlias
             }
         }
 
-        // Step 4: Handle alias conflicts — if multiple libraries would get the same normalized alias
-        val aliasTargetGroups = mutableMapOf<String, MutableList<String>>()
-        for (lib in allLibraries) {
-            val target = aliasRenames[lib.alias] ?: lib.alias
-            aliasTargetGroups.getOrPut(target) { mutableListOf() }.add(lib.alias)
-        }
-        for ((_, sources) in aliasTargetGroups) {
-            if (sources.size > 1) {
-                // Conflict: disambiguate with groupId suffix
-                for (oldAlias in sources) {
-                    val lib = allLibraries.find { it.alias == oldAlias } ?: continue
-                    val disambiguated = toKebabCase(lib.groupId.substringAfterLast(".")) + "-" + toKebabCase(lib.artifactId)
-                    aliasRenames[oldAlias] = disambiguated
-                }
-            }
-        }
-
-        // Step 5: Handle version key conflicts
+        // Step 6: Handle version key conflicts
         val versionTargetGroups = mutableMapOf<String, MutableList<String>>()
         for ((old, target) in versionKeyRenames) {
             versionTargetGroups.getOrPut(target) { mutableListOf() }.add(old)
@@ -197,8 +206,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             }
         }
 
-        // Also check: don't rename a version key if the target name already exists
-        // as a different version key in [versions]
+        // Don't rename a version key if the target name already exists as a different version key
         val existingVersionKeys = parseExistingVersionKeys(lines)
         val toRemove = mutableListOf<String>()
         for ((oldKey, newKey) in versionKeyRenames) {
@@ -208,26 +216,30 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         }
         toRemove.forEach { versionKeyRenames.remove(it) }
 
-        // Also check alias conflicts with existing aliases that aren't being renamed
+        // Check alias conflicts with existing aliases that aren't being renamed
         val existingAliases = allLibraries.map { it.alias }.toSet()
         val aliasToRemove = mutableListOf<String>()
         for ((oldAlias, newAlias) in aliasRenames) {
-            if (newAlias in existingAliases && newAlias != oldAlias && newAlias !in aliasRenames.values) {
-                // Target alias already exists and isn't itself being renamed away
+            if (newAlias in existingAliases && newAlias != oldAlias && !aliasRenames.containsKey(newAlias)) {
+                // Target alias already exists and isn't itself being renamed away — skip
                 aliasToRemove.add(oldAlias)
             }
         }
         aliasToRemove.forEach { aliasRenames.remove(it) }
 
-        // Step 6: Apply renames
+        // Step 7: Apply renames
+        // IMPORTANT: Sort renames by old alias length descending to avoid prefix collisions
+        // e.g. "lazy-people-http" must not match "lazy-people-http-lib"
         var result = content
 
         // Rename version keys in [versions] section and all version.ref references
         for ((oldKey, newKey) in versionKeyRenames) {
             if (oldKey == newKey) continue
+            // Match version key at line start, followed by whitespace and =
+            // Use word boundary after the key to avoid prefix matching
             result = result.replace(
-                Regex("""(?m)^(\s*)${Regex.escape(oldKey)}(\s*=)"""),
-                "$1$newKey$2"
+                Regex("""(?m)^(\s*)${Regex.escape(oldKey)}(?=\s*=)"""),
+                "$1$newKey"
             )
             result = result.replace(
                 """version.ref = "$oldKey"""",
@@ -235,24 +247,49 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             )
         }
 
-        // Rename library aliases
-        for ((oldAlias, newAlias) in aliasRenames) {
-            if (oldAlias == newAlias) continue
-            result = result.replace(
-                Regex("""(?m)^(\s*)${Regex.escape(oldAlias)}(\s*=\s*\{)"""),
-                "$1$newAlias$2"
-            )
-            result = result.replace(
-                Regex("""(?m)^(\s*)${Regex.escape(oldAlias)}(\s*=\s*")"""),
-                "$1$newAlias$2"
-            )
+        // Rename library aliases — sort by longest first to prevent prefix collisions
+        val sortedAliasRenames = aliasRenames.entries
+            .filter { it.key != it.value }
+            .sortedByDescending { it.key.length }
+
+        // To avoid chain renames (A→B then B→C), do all replacements in one pass per line
+        // Strategy: replace line by line in [libraries] section
+        val resultLines = result.lines().toMutableList()
+        var inLibrariesSection = false
+        var inBundlesSection = false
+        for (i in resultLines.indices) {
+            val trimmed = resultLines[i].trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inLibrariesSection = trimmed.matches(LIBRARIES_HEADER_REGEX)
+                inBundlesSection = trimmed.matches(BUNDLES_HEADER_REGEX)
+                continue
+            }
+
+            if (inLibrariesSection && trimmed.isNotBlank() && !trimmed.startsWith("#")) {
+                // Extract the alias at the start of the line (before first =)
+                val lineAlias = trimmed.substringBefore("=").trim()
+                val rename = aliasRenames[lineAlias]
+                if (rename != null && rename != lineAlias) {
+                    // Replace only the exact alias at the beginning of the line
+                    resultLines[i] = resultLines[i].replaceFirst(lineAlias, rename)
+                }
+            }
+
+            if (inBundlesSection && trimmed.isNotBlank() && !trimmed.startsWith("#")) {
+                // In bundles, aliases appear as quoted strings in arrays: ["alias1", "alias2"]
+                var line = resultLines[i]
+                for ((oldAlias, newAlias) in sortedAliasRenames) {
+                    // Match exact alias in quotes within bundle arrays
+                    line = line.replace(
+                        Regex(""""${Regex.escape(oldAlias)}""""),
+                        "\"$newAlias\""
+                    )
+                }
+                resultLines[i] = line
+            }
         }
 
-        // Update bundle references
-        for ((oldAlias, newAlias) in aliasRenames) {
-            if (oldAlias == newAlias) continue
-            result = result.replace("\"$oldAlias\"", "\"$newAlias\"")
-        }
+        result = resultLines.joinToString("\n")
 
         return result
     }
@@ -341,6 +378,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         private val SECTION_HEADER_REGEX = Regex("^\\[.+]\\s*(#.*)?$")
         private val LIBRARIES_HEADER_REGEX = Regex("^\\[libraries]\\s*(#.*)?$")
         private val VERSIONS_HEADER_REGEX = Regex("^\\[versions]\\s*(#.*)?$")
+        private val BUNDLES_HEADER_REGEX = Regex("^\\[bundles]\\s*(#.*)?$")
         private val MODULE_PATTERN = Regex("""module\s*=\s*"([^":]+):([^"]+)"""")
         private val GROUP_PATTERN = Regex("""group\s*=\s*"([^"]+)"""")
         private val NAME_PATTERN = Regex("""\bname\s*=\s*"([^"]+)"""")

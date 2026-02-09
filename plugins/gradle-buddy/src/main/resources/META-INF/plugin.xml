@@ -66,6 +66,33 @@
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="last"/>
     </action>
 
+    <!-- Migration: Replace project() dependencies with Maven artifacts -->
+    <action id="GradleBuddy.MigrateProjectDependencies"
+            class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
+            text="Migrate project() Dependencies to Maven"
+            description="Scan project() dependencies and replace them with Maven artifacts">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+    </action>
+
+    <!-- Migration: Migrate hardcoded dependencies to Version Catalog -->
+    <action id="GradleBuddy.MigrateToVersionCatalog"
+            class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
+            text="Migrate Dependencies to Version Catalog"
+            description="Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+    </action>
+
+    <!-- Build-Logic: Resolve all plugin implementation artifacts -->
+    <action id="GradleBuddy.ResolveAllPluginArtifacts"
+            class="site.addzero.gradle.buddy.buildlogic.ResolveAllPluginArtifactsAction"
+            text="Resolve All Plugin Artifacts for Build-Logic"
+            description="Scan all plugins in .gradle.kts files and resolve their implementation artifacts to version catalog">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+    </action>
+
   </actions>
 
 
@@ -168,6 +195,13 @@
     <intentionAction order="NORMAL">
       <language>kotlin</language>
       <className>site.addzero.gradle.catalog.BrowseCatalogAlternativesIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Resolve plugin implementation artifact for build-logic -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.buildlogic.ResolvePluginArtifactIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

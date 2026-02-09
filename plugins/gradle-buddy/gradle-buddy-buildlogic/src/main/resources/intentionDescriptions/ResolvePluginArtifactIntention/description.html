@@ -1,0 +1,17 @@
+<html>
+
+<body>
+  Resolves the real implementation artifact of a Gradle plugin via the Plugin Marker Artifact mechanism.
+  <p>
+    When you declare <code>id("org.jetbrains.kotlin.jvm") version "2.0.0"</code> in a <code>plugins { }</code> block,
+    this intention queries the Gradle Plugin Portal (and Maven Central as fallback) to find the actual implementation
+    artifact (e.g. <code>org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.0</code>).
+  </p>
+  <p>
+    The resolved artifact is written to <code>libs.versions.toml</code> under <code>[libraries]</code>,
+    so you can use <code>implementation(libs.xxx)</code> in your <code>buildSrc</code> or <code>build-logic</code>
+    module to make the plugin available for precompiled script plugins.
+  </p>
+</body>
+
+</html>

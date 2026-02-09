@@ -154,14 +154,35 @@ class CatalogReferenceScanner(private val project: Project) {
                         }
                     }
                     "plugins" -> {
-                        // 提取 plugins 中的所有键，添加 plugin 前缀
+                        // 提取 plugins 中的所有键，添加 plugins. 前缀
+                        // 在 KTS 中，插件通过 libs.plugins.xxx 访问
                         element.entries.forEach { entry ->
                             if (entry is TomlKeyValue) {
                                 val key = entry.key.text
-                                // 对于 plugins，需要特殊处理
-                                // gradle-plugin-ksp -> gradle.plugin.ksp
-                                val alias = convertPluginKeyToDotNotation(key)
+                                val alias = "plugins." + convertTomlKeyToDotNotation(key)
                                 println("[CatalogReferenceScanner]     Plugin: $key -> $alias")
+                                aliases.add(alias)
+                            }
+                        }
+                    }
+                    "versions" -> {
+                        // 提取 versions 中的所有键，添加 versions. 前缀
+                        // 在 KTS 中，版本通过 libs.versions.xxx 访问
+                        element.entries.forEach { entry ->
+                            if (entry is TomlKeyValue) {
+                                val key = entry.key.text
+                                val alias = "versions." + convertTomlKeyToDotNotation(key)
+                                aliases.add(alias)
+                            }
+                        }
+                    }
+                    "bundles" -> {
+                        // 提取 bundles 中的所有键，添加 bundles. 前缀
+                        // 在 KTS 中，bundle 通过 libs.bundles.xxx 访问
+                        element.entries.forEach { entry ->
+                            if (entry is TomlKeyValue) {
+                                val key = entry.key.text
+                                val alias = "bundles." + convertTomlKeyToDotNotation(key)
                                 aliases.add(alias)
                             }
                         }
@@ -183,20 +204,6 @@ class CatalogReferenceScanner(private val project: Project) {
         // 移除引号
         val cleanKey = key.trim('"', '\'')
         // 将连字符和下划线转换为点
-        return cleanKey.replace('-', '.').replace('_', '.')
-    }
-
-    /**
-     * 将插件键转换为点分隔格式
-     * 例如: gradle-plugin-ksp -> gradle.plugin.ksp
-     */
-    private fun convertPluginKeyToDotNotation(key: String): String {
-        val cleanKey = key.trim('"', '\'')
-        // 特殊处理 gradle-plugin- 前缀
-        if (cleanKey.startsWith("gradle-plugin-")) {
-            val pluginName = cleanKey.removePrefix("gradle-plugin-")
-            return "gradle.plugin." + pluginName.replace('-', '.').replace('_', '.')
-        }
         return cleanKey.replace('-', '.').replace('_', '.')
     }
 }

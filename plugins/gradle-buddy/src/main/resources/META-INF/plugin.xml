@@ -243,12 +243,8 @@
     <!-- Floating toolbar for Version Catalog -->
     <editorFloatingToolbarProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogFloatingToolbarProvider"/>
 
-    <!-- Current Module Tasks Tool Window -->
-    <toolWindow id="Module Tasks"
-                anchor="right"
-                secondary="true"
-                icon="/icons/moduleTasksIcon.svg"
-                factoryClass="site.addzero.gradle.buddy.filter.CurrentModuleGradleTasksToolWindowFactory"/>
+    <!-- Auto-focus official Gradle tool window to current module on editor tab switch -->
+    <postStartupActivity implementation="site.addzero.gradle.buddy.filter.GradleAutoFocusStartupActivity"/>
 
     <!-- Settings -->
     <projectConfigurable

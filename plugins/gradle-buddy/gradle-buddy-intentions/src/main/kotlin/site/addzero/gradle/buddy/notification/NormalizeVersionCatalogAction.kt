@@ -17,11 +17,13 @@ import java.io.File
  * Normalize version catalog naming conventions.
  *
  * Rules:
- * 1. Library alias = artifactId in kebab-case
- * 2. If multiple libraries produce the same alias (e.g. different groupId but same artifactId),
- *    use full-qualified `groupId-artifactId` in kebab-case to disambiguate
+ * 1. Library alias = groupId-artifactId in kebab-case (preserves semantic context)
+ * 2. If multiple libraries produce the same alias (same group:artifact, different versions),
+ *    append -vVersion to disambiguate
  * 3. version.ref rename: only when the ref is used by exactly ONE library (shared refs are never touched)
  * 4. [versions] key = same as the library alias (when ref is not shared)
+ * 5. Accessor name clashes (e.g. navigation-compose vs navigationCompose) are merged,
+ *    keeping the higher version
  *
  * After renaming, all `libs.xxx.yyy` accessors in .gradle.kts files are updated accordingly.
  */
@@ -131,11 +133,16 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
      * Normalize the TOML content and populate [aliasRenames] with old->new alias mappings.
      */
     private fun normalizeContent(content: String, aliasRenames: MutableMap<String, String>): String {
-        val lines = content.lines()
+        // Step 0: Merge Gradle-equivalent version keys that clash on accessor name
+        // e.g. navigation-compose = "2.9.7" and navigationCompose = "2.9.1"
+        // both map to getNavigationComposeVersion() — keep the higher version
+        val mergedContent = mergeClashingVersionKeys(content)
+
+        val lines = mergedContent.lines()
 
         // Step 1: Parse all libraries
         val allLibraries = parseAllLibraries(lines)
-        if (allLibraries.isEmpty()) return content
+        if (allLibraries.isEmpty()) return mergedContent
 
         // Parse [versions] section to resolve version.ref → actual version value
         val versionValues = parseVersionValues(lines)
@@ -213,7 +220,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         // Step 7: Apply renames
         // IMPORTANT: Sort renames by old alias length descending to avoid prefix collisions
         // e.g. "lazy-people-http" must not match "lazy-people-http-lib"
-        var result = content
+        var result = mergedContent
 
         // Rename version keys in [versions] section and all version.ref references
         for ((oldKey, newKey) in versionKeyRenames) {
@@ -278,10 +285,15 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
     }
 
     /**
-     * Three-level alias deduplication:
-     * 1. artifactId in kebab-case
-     * 2. groupId-artifactId if artifactId collides across different group:artifact pairs
-     * 3. groupId-artifactId-vVersion if same group:artifact has different versions
+     * Two-level alias deduplication:
+     * 1. Default: groupId-artifactId in kebab-case (preserves semantic context, e.g. "com-android-tools-build-gradle")
+     * 2. If still clashing (same group:artifact, different versions): append -vVersion
+     *
+     * Using groupId-artifactId as default avoids losing context — e.g. a bare "gradle" alias
+     * doesn't convey that it's the Android build tools plugin.
+     *
+     * Clash detection uses Gradle accessor normalization (not just string equality) to catch
+     * cases like "foo-bar" vs "fooBar" mapping to the same accessor.
      */
     private fun computeDesiredAliases(
         allLibraries: List<LibraryInfo>,
@@ -289,42 +301,30 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
     ): Map<String, String> {
         val desiredAliasMap = mutableMapOf<String, String>()
 
-        // Level 1: assign artifactId
+        // Level 1: groupId-artifactId
         for (lib in allLibraries) {
-            desiredAliasMap[lib.alias] = toKebabCase(lib.artifactId)
+            desiredAliasMap[lib.alias] = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
         }
 
-        // Level 1 conflict detection: group by desired alias
-        val level1Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
+        // Level 1 conflict detection via Gradle accessor name
+        // Same accessor means Gradle would generate duplicate accessors — must disambiguate
+        val level1Groups = allLibraries.groupBy { toGradleAccessorName(desiredAliasMap[it.alias]!!) }
         for ((_, libs) in level1Groups) {
             if (libs.size <= 1) continue
-            // Conflict — upgrade all to level 2: groupId-artifactId
+            // Conflict — upgrade to Level 2: append -vVersion
             for (lib in libs) {
-                desiredAliasMap[lib.alias] = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
-            }
-        }
-
-        // Level 2 conflict detection: group by desired alias again
-        val level2Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
-        for ((_, libs) in level2Groups) {
-            if (libs.size <= 1) continue
-            // Still conflict — same group:artifact but different versions
-            // Upgrade to level 3: groupId-artifactId-vVersion
-            for (lib in libs) {
+                val base = desiredAliasMap[lib.alias]!!
                 val version = resolveVersion(lib, versionValues)
-                val base = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
                 if (version != null) {
                     desiredAliasMap[lib.alias] = base + "-v" + sanitizeVersionForAlias(version)
                 }
-                // If no version at all, leave as-is (can't disambiguate further)
             }
         }
 
-        // Level 3 conflict check — if still colliding (extremely unlikely), keep original alias
-        val level3Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
-        for ((_, libs) in level3Groups) {
+        // Level 2 conflict check via accessor name — if still colliding, keep original alias
+        val level2Groups = allLibraries.groupBy { toGradleAccessorName(desiredAliasMap[it.alias]!!) }
+        for ((_, libs) in level2Groups) {
             if (libs.size <= 1) continue
-            // Give up renaming for these — revert to original alias
             for (lib in libs) {
                 desiredAliasMap[lib.alias] = lib.alias
             }
@@ -463,11 +463,187 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             .lowercase()
     }
 
+    /**
+     * Compute the Gradle accessor name for a TOML key.
+     *
+     * Gradle normalizes catalog keys by treating `-`, `_`, `.` and camelCase boundaries
+     * as equivalent separators. All of these map to the same accessor method.
+     * e.g. "navigation-compose", "navigationCompose", "navigation_compose", "navigation.compose"
+     * all produce `getNavigationCompose...()`.
+     *
+     * Algorithm: split on `-`, `_`, `.` and camelCase boundaries, then join lowercase.
+     */
+    private fun toGradleAccessorName(key: String): String {
+        return key
+            // Insert separator before uppercase letters in camelCase: "navigationCompose" → "navigation-Compose"
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1-$2")
+            // Split on any separator
+            .split(Regex("[\\-_.]"))
+            .joinToString("") { it.lowercase() }
+    }
+
+    /**
+     * Merge version keys in [versions] that clash on Gradle accessor name.
+     *
+     * For example, `navigation-compose = "2.9.7"` and `navigationCompose = "2.9.1"`
+     * both generate `getNavigationComposeVersion()` — Gradle rejects this.
+     *
+     * Strategy:
+     * - Group version keys by their normalized accessor name
+     * - For clashing groups, keep the entry with the higher version (semver comparison)
+     * - Use kebab-case as the canonical key form
+     * - Rewrite all version.ref references in [libraries] and [plugins] to point to the surviving key
+     *
+     * Also applies the same logic to [libraries] and [plugins] keys.
+     */
+    private fun mergeClashingVersionKeys(content: String): String {
+        val lines = content.lines().toMutableList()
+
+        // --- Phase 1: Merge clashing [versions] entries ---
+        val versionEntries = parseSectionEntries(lines, VERSIONS_HEADER_REGEX)
+        val versionClashGroups = versionEntries
+            .groupBy { toGradleAccessorName(it.key) }
+            .filter { it.value.size > 1 }
+
+        if (versionClashGroups.isEmpty()) return content
+
+        // For each clash group: pick the winner (highest version), record losers
+        // loserKey → winnerKey
+        val versionKeyRedirects = mutableMapOf<String, String>()
+        val linesToRemove = mutableSetOf<Int>()
+
+        for ((_, clashEntries) in versionClashGroups) {
+            // Sort by parsed version descending; on tie, prefer kebab-case form
+            val sorted = clashEntries.sortedWith(
+                compareByDescending<SectionEntry> { parseComparableVersion(it.value) }
+                    .thenBy { it.key.contains(Regex("[A-Z]")).not() } // prefer kebab-case
+            )
+            val winner = sorted.first()
+            // Normalize winner key to kebab-case
+            val canonicalKey = toKebabCase(winner.key)
+
+            for (entry in sorted) {
+                if (entry !== winner) {
+                    versionKeyRedirects[entry.key] = canonicalKey
+                    linesToRemove.add(entry.lineIndex)
+                }
+            }
+            // If winner key itself isn't canonical, rename it
+            if (winner.key != canonicalKey) {
+                versionKeyRedirects[winner.key] = canonicalKey
+            }
+        }
+
+        // Remove loser lines (iterate in reverse to preserve indices)
+        for (idx in linesToRemove.sortedDescending()) {
+            lines.removeAt(idx)
+        }
+
+        // Rename winner keys that aren't canonical yet
+        var inVersions = false
+        for (i in lines.indices) {
+            val trimmed = lines[i].trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inVersions = trimmed.matches(VERSIONS_HEADER_REGEX)
+                continue
+            }
+            if (!inVersions || trimmed.isBlank() || trimmed.startsWith("#")) continue
+            val lineKey = trimmed.substringBefore("=").trim()
+            val redirect = versionKeyRedirects[lineKey]
+            if (redirect != null && redirect != lineKey) {
+                lines[i] = lines[i].replaceFirst(lineKey, redirect)
+            }
+        }
+
+        // Rewrite version.ref references throughout the file
+        var result = lines.joinToString("\n")
+        for ((oldKey, newKey) in versionKeyRedirects) {
+            if (oldKey == newKey) continue
+            result = result.replace(
+                """version.ref = "$oldKey"""",
+                """version.ref = "$newKey""""
+            )
+        }
+
+        // --- Phase 2: Merge clashing [libraries] keys ---
+        result = mergeSectionClashes(result, LIBRARIES_HEADER_REGEX)
+
+        // --- Phase 3: Merge clashing [plugins] keys ---
+        result = mergeSectionClashes(result, PLUGINS_HEADER_REGEX)
+
+        return result
+    }
+
+    /**
+     * For a given section, detect keys that clash on Gradle accessor name and
+     * remove duplicates (keep the first occurrence).
+     */
+    private fun mergeSectionClashes(content: String, sectionRegex: Regex): String {
+        val lines = content.lines().toMutableList()
+        val entries = parseSectionEntries(lines, sectionRegex)
+        val clashGroups = entries
+            .groupBy { toGradleAccessorName(it.key) }
+            .filter { it.value.size > 1 }
+
+        if (clashGroups.isEmpty()) return content
+
+        val linesToRemove = mutableSetOf<Int>()
+        for ((_, clashEntries) in clashGroups) {
+            // Keep first, remove rest
+            for (entry in clashEntries.drop(1)) {
+                linesToRemove.add(entry.lineIndex)
+            }
+        }
+
+        for (idx in linesToRemove.sortedDescending()) {
+            lines.removeAt(idx)
+        }
+        return lines.joinToString("\n")
+    }
+
+    private data class SectionEntry(val key: String, val value: String, val lineIndex: Int)
+
+    /**
+     * Parse key-value entries from a specific TOML section.
+     */
+    private fun parseSectionEntries(lines: List<String>, sectionRegex: Regex): List<SectionEntry> {
+        val entries = mutableListOf<SectionEntry>()
+        var inSection = false
+        for ((i, line) in lines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inSection = trimmed.matches(sectionRegex)
+                continue
+            }
+            if (!inSection || trimmed.isBlank() || trimmed.startsWith("#")) continue
+            val key = trimmed.substringBefore("=").trim()
+            val rawValue = trimmed.substringAfter("=").trim()
+            val value = rawValue.removeSurrounding("\"")
+            if (key.isNotEmpty()) {
+                entries.add(SectionEntry(key, value, i))
+            }
+        }
+        return entries
+    }
+
+    /**
+     * Parse a version string into a comparable list for semver-like comparison.
+     * Handles: "2.9.7", "1.0.0-alpha", "2.9.1", etc.
+     * Returns a comparable string where numeric segments are zero-padded for proper ordering.
+     */
+    private fun parseComparableVersion(version: String): String {
+        return version.split(Regex("[.\\-_]")).joinToString(".") { segment ->
+            val num = segment.toIntOrNull()
+            if (num != null) "%010d".format(num) else segment.lowercase()
+        }
+    }
+
     companion object {
         private val SECTION_HEADER_REGEX = Regex("^\\[.+]\\s*(#.*)?$")
         private val LIBRARIES_HEADER_REGEX = Regex("^\\[libraries]\\s*(#.*)?$")
         private val VERSIONS_HEADER_REGEX = Regex("^\\[versions]\\s*(#.*)?$")
         private val BUNDLES_HEADER_REGEX = Regex("^\\[bundles]\\s*(#.*)?$")
+        private val PLUGINS_HEADER_REGEX = Regex("^\\[plugins]\\s*(#.*)?$")
         private val MODULE_PATTERN = Regex("""module\s*=\s*"([^":]+):([^"]+)"""")
         private val GROUP_PATTERN = Regex("""group\s*=\s*"([^"]+)"""")
         private val NAME_PATTERN = Regex("""\bname\s*=\s*"([^"]+)"""")

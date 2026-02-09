@@ -321,12 +321,21 @@ class VersionCatalogSorter(private val project: Project) {
         val rawEntries = parseSimpleEntries(section.lines.subList(1, section.lines.size))
 
         val seen = LinkedHashMap<String, RawEntry>()
+        // Also track Gradle-normalized accessor names to detect clashes like
+        // navigation-compose vs navigationCompose (both → "navigationcompose")
+        val seenAccessors = mutableMapOf<String, String>() // normalizedName → first key
         rawEntries.forEach { entry ->
             val key = extractKey(entry.line)
+            val accessor = toGradleAccessorName(key)
+            val existingKey = seenAccessors[accessor]
             if (seen.containsKey(key)) {
                 duplicates.add("# DUPLICATE [${section.name}]: ${entry.line.trim()}")
+            } else if (existingKey != null && existingKey != key) {
+                // Gradle accessor name clash — treat as duplicate
+                duplicates.add("# DUPLICATE (accessor clash with '$existingKey') [${section.name}]: ${entry.line.trim()}")
             } else {
                 seen[key] = entry
+                seenAccessors[accessor] = key
             }
         }
         val sorted = seen.values.sortedBy { extractKey(it.line) }
@@ -401,6 +410,17 @@ class VersionCatalogSorter(private val project: Project) {
 
     companion object {
         private val GROUP_HEADER_PATTERN = Regex("^#-+\\s.+\\s-+$")
+    }
+
+    /**
+     * Compute the Gradle accessor name for a TOML key.
+     * Gradle treats `-`, `_`, `.` and camelCase boundaries as equivalent separators.
+     */
+    private fun toGradleAccessorName(key: String): String {
+        return key
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1-$2")
+            .split(Regex("[\\-_.]"))
+            .joinToString("") { it.lowercase() }
     }
 
     data class Section(val name: String, val lines: List<String>)

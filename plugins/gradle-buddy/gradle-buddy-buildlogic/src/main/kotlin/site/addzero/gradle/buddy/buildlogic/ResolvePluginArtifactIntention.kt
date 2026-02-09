@@ -73,16 +73,20 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
                     indicator.text = "Querying latest version for '${pluginInfo.id}'..."
                     val latestVersion = PluginMarkerResolver.resolveLatestVersion(pluginInfo.id)
                     if (latestVersion == null) {
-                        // 查不到最新版本，让用户手动输入
+                        // 查不到最新版本，让用户手动输入工件坐标或版本号
                         ApplicationManager.getApplication().invokeLater {
                             val input = Messages.showInputDialog(
                                 project,
-                                "无法自动获取插件 '${pluginInfo.id}' 的最新版本。\n请手动输入版本号：",
-                                "Input Plugin Version",
+                                "无法自动获取插件 '${pluginInfo.id}' 的最新版本。\n\n" +
+                                "请手动输入预编译工件坐标（build-logic script plugin artifact）：\n" +
+                                "格式: group:artifact:version\n" +
+                                "示例: org.graalvm.buildtools:native-gradle-plugin:0.10.4\n\n" +
+                                "也可以只输入版本号，将通过 Plugin Marker 自动解析。",
+                                "Input Plugin Artifact",
                                 null
                             )
                             if (!input.isNullOrBlank()) {
-                                resolveAndWrite(project, PluginInfo(pluginInfo.id, input.trim()))
+                                handleManualInput(project, pluginInfo, input.trim())
                             }
                         }
                         return
@@ -95,15 +99,23 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
 
                 ApplicationManager.getApplication().invokeLater {
                     if (resolved == null) {
-                        Messages.showWarningDialog(
+                        // Marker 解析失败，也让用户手动输入
+                        val input = Messages.showInputDialog(
                             project,
-                            "无法解析插件 '${pluginInfo.id}:$version' 的实现工件。\n\n" +
+                            "无法通过 Plugin Marker 解析插件 '${pluginInfo.id}:$version' 的实现工件。\n\n" +
                             "可能原因：\n" +
                             "• 该插件未发布 Plugin Marker Artifact\n" +
-                            "• 该插件托管在私有仓库（非 Gradle Plugin Portal / Maven Central）\n" +
-                            "• 网络连接问题",
-                            "Plugin Artifact Not Found"
+                            "• 该插件托管在私有仓库\n" +
+                            "• 网络连接问题\n\n" +
+                            "请手动输入预编译工件坐标：\n" +
+                            "格式: group:artifact:version\n" +
+                            "示例: org.graalvm.buildtools:native-gradle-plugin:0.10.4",
+                            "Input Plugin Artifact",
+                            null
                         )
+                        if (!input.isNullOrBlank()) {
+                            handleManualInput(project, pluginInfo, input.trim())
+                        }
                         return@invokeLater
                     }
 
@@ -115,34 +127,50 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
     }
 
     /**
-     * 从用户手动输入版本后的解析流程（在后台线程执行）
+     * 处理用户手动输入：支持两种格式
+     * 1. group:artifact:version — 直接写入 TOML，跳过 marker 解析
+     * 2. 纯版本号 — 走 marker 解析流程
      */
-    private fun resolveAndWrite(project: Project, pluginInfo: PluginInfo) {
-        val version = pluginInfo.version ?: return
-        ProgressManager.getInstance().run(object : Task.Backgroundable(
-            project,
-            "Resolving plugin artifact for '${pluginInfo.id}:$version'...",
-            true
-        ) {
-            override fun run(indicator: ProgressIndicator) {
-                indicator.isIndeterminate = true
-                indicator.text = "Querying Plugin Marker POM..."
-
-                val resolved = PluginMarkerResolver.resolve(pluginInfo.id, version)
-
-                ApplicationManager.getApplication().invokeLater {
-                    if (resolved == null) {
-                        Messages.showWarningDialog(
-                            project,
-                            "无法解析插件 '${pluginInfo.id}:$version' 的实现工件。",
-                            "Plugin Artifact Not Found"
-                        )
-                        return@invokeLater
-                    }
-                    writeToVersionCatalog(project, pluginInfo, resolved)
-                }
+    private fun handleManualInput(project: Project, pluginInfo: PluginInfo, input: String) {
+        val parts = input.split(":")
+        if (parts.size == 3 && parts.all { it.isNotBlank() }) {
+            // group:artifact:version 格式，直接写入
+            val artifact = PluginMarkerResolver.ResolvedArtifact(
+                groupId = parts[0].trim(),
+                artifactId = parts[1].trim(),
+                version = parts[2].trim()
+            )
+            ApplicationManager.getApplication().invokeLater {
+                writeToVersionCatalog(project, PluginInfo(pluginInfo.id, artifact.version), artifact)
             }
-        })
+        } else {
+            // 当作版本号，走 marker 解析
+            val version = input.trim()
+            ProgressManager.getInstance().run(object : Task.Backgroundable(
+                project,
+                "Resolving plugin artifact for '${pluginInfo.id}:$version'...",
+                true
+            ) {
+                override fun run(indicator: ProgressIndicator) {
+                    indicator.isIndeterminate = true
+                    indicator.text = "Querying Plugin Marker POM..."
+
+                    val resolved = PluginMarkerResolver.resolve(pluginInfo.id, version)
+
+                    ApplicationManager.getApplication().invokeLater {
+                        if (resolved == null) {
+                            Messages.showWarningDialog(
+                                project,
+                                "无法解析插件 '${pluginInfo.id}:$version' 的实现工件。",
+                                "Plugin Artifact Not Found"
+                            )
+                            return@invokeLater
+                        }
+                        writeToVersionCatalog(project, PluginInfo(pluginInfo.id, version), resolved)
+                    }
+                }
+            })
+        }
     }
 
     // ========== 插件声明解析 ==========

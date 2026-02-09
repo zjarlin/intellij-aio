@@ -168,7 +168,18 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
                 // Already valid — skip
                 if (refAccessor in accessorToAlias) continue
 
-                val correctAccessor = findBestMatch(refAccessor, normalizedToAccessors, accessorTokensMap)
+                // Strategy 0: Duplicate catalog prefix — e.g. libs.libs.xxx → strip leading "libs."
+                val dupPrefix = catalogName + "."
+                val effectiveRef = if (refAccessor.startsWith(dupPrefix)) {
+                    stripTrailingMethods(refAccessor.removePrefix(dupPrefix))
+                } else refAccessor
+
+                val correctAccessor = if (effectiveRef != refAccessor && effectiveRef in accessorToAlias) {
+                    effectiveRef  // exact match after stripping duplicate prefix
+                } else {
+                    findBestMatch(effectiveRef, normalizedToAccessors, accessorTokensMap)
+                }
+
                 if (correctAccessor != null && correctAccessor != refAccessor) {
                     val fullOld = "$catalogName.$refAccessor"
                     val fullNew = "$catalogName.$correctAccessor"

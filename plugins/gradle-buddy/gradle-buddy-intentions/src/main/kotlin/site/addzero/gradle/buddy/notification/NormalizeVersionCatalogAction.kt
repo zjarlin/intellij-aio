@@ -137,6 +137,9 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         val allLibraries = parseAllLibraries(lines)
         if (allLibraries.isEmpty()) return content
 
+        // Parse [versions] section to resolve version.ref → actual version value
+        val versionValues = parseVersionValues(lines)
+
         // Step 2: Count how many libraries reference each version.ref variable
         val versionRefUsageCount = mutableMapOf<String, Int>()
         for (lib in allLibraries) {
@@ -144,31 +147,11 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             versionRefUsageCount[ref] = (versionRefUsageCount[ref] ?: 0) + 1
         }
 
-        // Step 3: Compute desired alias for each library based on artifactId
-        // Then detect conflicts (same alias target from different libraries)
-        val desiredAliasMap = mutableMapOf<String, String>() // old alias -> desired alias
-        for (lib in allLibraries) {
-            desiredAliasMap[lib.alias] = toKebabCase(lib.artifactId)
-        }
-
-        // Step 4: Detect alias conflicts — multiple libraries mapping to the same desired alias
-        // Group by desired alias to find collisions
-        val desiredToSources = mutableMapOf<String, MutableList<LibraryInfo>>()
-        for (lib in allLibraries) {
-            val desired = desiredAliasMap[lib.alias]!!
-            desiredToSources.getOrPut(desired) { mutableListOf() }.add(lib)
-        }
-
-        // Resolve conflicts: if multiple libraries want the same alias, use full-qualified group-artifact
-        for ((desired, libs) in desiredToSources) {
-            if (libs.size > 1) {
-                // Conflict! Different artifacts (possibly different groupIds) produce the same alias
-                for (lib in libs) {
-                    val fqAlias = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
-                    desiredAliasMap[lib.alias] = fqAlias
-                }
-            }
-        }
+        // Step 3-4: Three-level alias deduplication
+        // Level 1: artifactId
+        // Level 2: groupId-artifactId (if artifactId collides)
+        // Level 3: groupId-artifactId-vVersion (if group:artifact also collides due to different versions)
+        val desiredAliasMap = computeDesiredAliases(allLibraries, versionValues)
 
         // Populate aliasRenames — only for aliases that actually change
         for ((oldAlias, newAlias) in desiredAliasMap) {
@@ -292,6 +275,112 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         result = resultLines.joinToString("\n")
 
         return result
+    }
+
+    /**
+     * Three-level alias deduplication:
+     * 1. artifactId in kebab-case
+     * 2. groupId-artifactId if artifactId collides across different group:artifact pairs
+     * 3. groupId-artifactId-vVersion if same group:artifact has different versions
+     */
+    private fun computeDesiredAliases(
+        allLibraries: List<LibraryInfo>,
+        versionValues: Map<String, String>
+    ): Map<String, String> {
+        val desiredAliasMap = mutableMapOf<String, String>()
+
+        // Level 1: assign artifactId
+        for (lib in allLibraries) {
+            desiredAliasMap[lib.alias] = toKebabCase(lib.artifactId)
+        }
+
+        // Level 1 conflict detection: group by desired alias
+        val level1Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
+        for ((_, libs) in level1Groups) {
+            if (libs.size <= 1) continue
+            // Conflict — upgrade all to level 2: groupId-artifactId
+            for (lib in libs) {
+                desiredAliasMap[lib.alias] = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
+            }
+        }
+
+        // Level 2 conflict detection: group by desired alias again
+        val level2Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
+        for ((_, libs) in level2Groups) {
+            if (libs.size <= 1) continue
+            // Still conflict — same group:artifact but different versions
+            // Upgrade to level 3: groupId-artifactId-vVersion
+            for (lib in libs) {
+                val version = resolveVersion(lib, versionValues)
+                val base = toKebabCase(lib.groupId) + "-" + toKebabCase(lib.artifactId)
+                if (version != null) {
+                    desiredAliasMap[lib.alias] = base + "-v" + sanitizeVersionForAlias(version)
+                }
+                // If no version at all, leave as-is (can't disambiguate further)
+            }
+        }
+
+        // Level 3 conflict check — if still colliding (extremely unlikely), keep original alias
+        val level3Groups = allLibraries.groupBy { desiredAliasMap[it.alias]!! }
+        for ((_, libs) in level3Groups) {
+            if (libs.size <= 1) continue
+            // Give up renaming for these — revert to original alias
+            for (lib in libs) {
+                desiredAliasMap[lib.alias] = lib.alias
+            }
+        }
+
+        return desiredAliasMap
+    }
+
+    /**
+     * Resolve the actual version string for a library.
+     * Checks version.ref → [versions] lookup, then directVersion.
+     */
+    private fun resolveVersion(lib: LibraryInfo, versionValues: Map<String, String>): String? {
+        if (lib.versionRef != null) {
+            return versionValues[lib.versionRef] ?: lib.versionRef
+        }
+        return lib.directVersion
+    }
+
+    /**
+     * Parse [versions] section to get key → value mapping.
+     * e.g. springBoot = "3.2.0" → {"springBoot": "3.2.0"}
+     */
+    private fun parseVersionValues(lines: List<String>): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        var inVersions = false
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inVersions = trimmed.matches(VERSIONS_HEADER_REGEX)
+                continue
+            }
+            if (!inVersions || trimmed.isBlank() || trimmed.startsWith("#")) continue
+            val key = trimmed.substringBefore("=").trim()
+            // Value can be: "3.2.0" or { strictly = "...", prefer = "..." }
+            val valueMatch = Regex("""=\s*"([^"]+)"""").find(trimmed)
+            if (key.isNotEmpty() && valueMatch != null) {
+                map[key] = valueMatch.groupValues[1]
+            }
+        }
+        return map
+    }
+
+    /**
+     * Sanitize a version string for use in a TOML alias.
+     * TOML alias allows: [a-zA-Z0-9], '-', '_'
+     * e.g. "4.1.0-M1" → "4-1-0-m1"
+     *      "3.2.0" → "3-2-0"
+     */
+    private fun sanitizeVersionForAlias(version: String): String {
+        return version
+            .replace('.', '-')
+            .replace(Regex("[^a-zA-Z0-9\\-]"), "-") // replace any non-alphanumeric/non-hyphen
+            .replace(Regex("-{2,}"), "-")             // collapse consecutive hyphens
+            .trim('-')
+            .lowercase()
     }
 
     private fun parseAllLibraries(lines: List<String>): List<LibraryInfo> {

@@ -66,6 +66,15 @@
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="last"/>
     </action>
 
+    <!-- Copy Module Dependency to clipboard (context menu) -->
+    <action id="GradleBuddy.CopyModuleDependency"
+            class="site.addzero.gradle.buddy.intentions.projectdep.CopyModuleDependencyAction"
+            text="Copy Module Dependency"
+            description="Copy implementation(project(&quot;...&quot;)) for current module to clipboard">
+      <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+      <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
+    </action>
+
     <!-- Migration: Replace project() dependencies with Maven artifacts -->
     <action id="GradleBuddy.MigrateProjectDependencies"
             class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
@@ -241,6 +250,13 @@
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogDependencyToHardcodedIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Insert project dependency (select nearby module) -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.InsertProjectDependencyIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

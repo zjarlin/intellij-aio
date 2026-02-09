@@ -58,6 +58,15 @@
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.OrganizeVersionCatalog"/>
     </action>
 
+    <action id="GradleBuddy.FixBrokenCatalogReferences"
+            class="site.addzero.gradle.buddy.notification.FixBrokenCatalogReferencesAction"
+            text="Fix Broken References"
+            description="Scan all .gradle.kts files and fix broken version catalog references"
+            icon="AllIcons.Actions.QuickfixBulb">
+      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.NormalizeVersionCatalog"/>
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+
     <action id="GradleBuddy.DismissVersionCatalogToolbar"
             class="site.addzero.gradle.buddy.notification.DismissVersionCatalogToolbarAction"
             text="Don't Remind"

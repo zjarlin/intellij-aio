@@ -68,7 +68,182 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
             if (effectiveAliasRenames.isNotEmpty()) {
                 updateGradleKtsReferences(project, effectiveAliasRenames)
             }
+
+            // Step 3: Second-pass verification — find and fix any remaining broken references
+            // Re-read the (possibly updated) TOML to get the ground-truth alias set,
+            // then scan all .gradle.kts files for libs.* accessors that don't match any alias.
+            val updatedToml = if (document != null) document.text else String(file.contentsToByteArray())
+            verifyAndFixBrokenReferences(project, updatedToml, file)
         })
+    }
+
+    /**
+     * Second-pass verification: scan all .gradle.kts files for `libs.*` references
+     * that don't correspond to any alias in the TOML, and fix them by matching
+     * via multiple strategies:
+     *
+     * 1. Exact normalized accessor match (handles camelCase vs kebab-case)
+     * 2. Token suffix match — if the broken ref's tokens are a suffix of exactly one
+     *    TOML alias's tokens, that's the match. This handles the common case where
+     *    a short alias like `ksp-gradle-plugin` was renamed to the full
+     *    `com-google-devtools-ksp-com-google-devtools-ksp-gradle-plugin`.
+     * 3. Token subset + order match — if all tokens of the broken ref appear in exactly
+     *    one TOML alias in the same order, that's the match.
+     *
+     * Only unambiguous (single-candidate) matches are applied automatically.
+     */
+    private fun verifyAndFixBrokenReferences(project: Project, tomlContent: String, tomlFile: VirtualFile) {
+        // Parse all valid aliases from the current TOML (libraries + plugins)
+        val tomlLines = tomlContent.lines()
+        val libraryAliases = parseAllLibraries(tomlLines).map { it.alias }
+        val pluginAliases = parsePluginAliases(tomlLines)
+
+        // Build accessor -> toml-alias map for libraries
+        val accessorToAlias = mutableMapOf<String, String>()
+        for (alias in libraryAliases) {
+            val accessor = aliasToAccessor(alias)
+            accessorToAlias[accessor] = alias
+        }
+        // Plugins: in kts they appear as libs.plugins.xxx.yyy
+        for (alias in pluginAliases) {
+            val accessor = "plugins." + aliasToAccessor(alias)
+            accessorToAlias[accessor] = alias
+        }
+
+        // Build normalized-accessor -> accessor map for exact normalized matching
+        val normalizedToAccessors = mutableMapOf<String, MutableList<String>>()
+        for (accessor in accessorToAlias.keys) {
+            val normalized = toGradleAccessorName(accessor)
+            normalizedToAccessors.getOrPut(normalized) { mutableListOf() }.add(accessor)
+        }
+
+        // Pre-tokenize all valid accessors for suffix/subset matching
+        val accessorTokensMap = accessorToAlias.keys.associateWith { acc ->
+            acc.split('.').map { it.lowercase() }
+        }
+
+        // Determine the catalog name from the TOML file name
+        val catalogName = tomlFile.nameWithoutExtension.removeSuffix(".versions")
+
+        // Scan all .gradle.kts files
+        val basePath = project.basePath ?: return
+        val baseDir = VfsUtil.findFile(File(basePath).toPath(), true) ?: return
+        val ktsFiles = mutableListOf<VirtualFile>()
+        VfsUtil.processFileRecursivelyWithoutIgnored(baseDir) { vf ->
+            if (!vf.isDirectory && vf.name.endsWith(".gradle.kts")) {
+                ktsFiles.add(vf)
+            }
+            true
+        }
+
+        val docManager = FileDocumentManager.getInstance()
+        val psiDocManager = PsiDocumentManager.getInstance(project)
+
+        val catalogRefPattern = Regex("""(?<!\w)${Regex.escape(catalogName)}\.([a-zA-Z0-9_.]+)""")
+
+        for (ktsFile in ktsFiles) {
+            val doc = docManager.getDocument(ktsFile) ?: continue
+            var text = doc.text
+            var changed = false
+
+            val matches = catalogRefPattern.findAll(text).toList().sortedByDescending { it.range.first }
+            for (match in matches) {
+                val refAccessor = match.groupValues[1]
+                // Already valid — skip
+                if (refAccessor in accessorToAlias) continue
+
+                val correctAccessor = findBestMatch(refAccessor, normalizedToAccessors, accessorTokensMap)
+                if (correctAccessor != null && correctAccessor != refAccessor) {
+                    val fullOld = "$catalogName.$refAccessor"
+                    val fullNew = "$catalogName.$correctAccessor"
+                    text = text.substring(0, match.range.first) + fullNew + text.substring(match.range.last + 1)
+                    changed = true
+                }
+            }
+
+            if (changed) {
+                doc.replaceString(0, doc.textLength, text)
+                psiDocManager.commitDocument(doc)
+                docManager.saveDocument(doc)
+            }
+        }
+    }
+
+    /**
+     * Find the best matching accessor for a broken reference using multiple strategies.
+     * Returns null if no unambiguous match is found.
+     */
+    private fun findBestMatch(
+        brokenRef: String,
+        normalizedToAccessors: Map<String, MutableList<String>>,
+        accessorTokensMap: Map<String, List<String>>
+    ): String? {
+        // Strategy 1: Exact normalized accessor match
+        val normalizedRef = toGradleAccessorName(brokenRef)
+        val exactCandidates = normalizedToAccessors[normalizedRef]
+        if (exactCandidates != null && exactCandidates.size == 1) {
+            return exactCandidates[0]
+        }
+
+        // Strategy 2: Token suffix match
+        // e.g. broken "ksp.gradle.plugin" tokens = [ksp, gradle, plugin]
+        //      valid  "com.google.devtools.ksp.com.google.devtools.ksp.gradle.plugin" ends with [ksp, gradle, plugin]
+        val refTokens = brokenRef.split('.').map { it.lowercase() }
+        if (refTokens.isEmpty()) return null
+
+        val suffixCandidates = accessorTokensMap.entries.filter { (_, tokens) ->
+            tokens.size > refTokens.size && tokens.takeLast(refTokens.size) == refTokens
+        }.map { it.key }
+
+        if (suffixCandidates.size == 1) {
+            return suffixCandidates[0]
+        }
+
+        // Strategy 3: Token ordered-subset match
+        // All tokens of the broken ref appear in the candidate in the same relative order
+        val subsetCandidates = accessorTokensMap.entries.filter { (_, tokens) ->
+            tokens.size > refTokens.size && isOrderedSubset(refTokens, tokens)
+        }.map { it.key }
+
+        if (subsetCandidates.size == 1) {
+            return subsetCandidates[0]
+        }
+
+        // Ambiguous or no match
+        return null
+    }
+
+    /**
+     * Check if [sub] is an ordered subset of [full].
+     * Every element of [sub] must appear in [full] in the same relative order.
+     */
+    private fun isOrderedSubset(sub: List<String>, full: List<String>): Boolean {
+        var fi = 0
+        for (token in sub) {
+            val idx = full.subList(fi, full.size).indexOf(token)
+            if (idx < 0) return false
+            fi += idx + 1
+        }
+        return true
+    }
+
+    /**
+     * Parse plugin aliases from [plugins] section.
+     */
+    private fun parsePluginAliases(lines: List<String>): List<String> {
+        val result = mutableListOf<String>()
+        var inPlugins = false
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inPlugins = trimmed.matches(PLUGINS_HEADER_REGEX)
+                continue
+            }
+            if (!inPlugins || trimmed.isBlank() || trimmed.startsWith("#")) continue
+            val alias = trimmed.substringBefore("=").trim()
+            if (alias.isNotEmpty()) result.add(alias)
+        }
+        return result
     }
 
     /**

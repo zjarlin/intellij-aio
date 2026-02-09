@@ -5,37 +5,28 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
 ## [2026.02.09] - 2026-02-09
 
 ### ✨ 新增功能
-- **常用任务悬浮工具条**：在 `.gradle.kts` / `.gradle` 文件中显示悬浮工具条，一键运行常用 Gradle 任务
+- **常用任务悬浮工具条**：在 `.gradle.kts` / `.gradle` 文件中，鼠标悬停编辑器顶部显示悬浮工具条，一键运行常用 Gradle 任务
   - 任务自动限定到当前编辑器文件所属模块（如 `:plugins:gradle-buddy:gradle-buddy-tasks:build`）
-  - 默认收藏列表来自设置中的 `defaultTasks`（clean、compileKotlin、build、test、jar 等）
-  - 每个任务有对应图标，方便快速识别
-  - 使用 `ExternalSystemUtil.runTask()` + `DefaultRunExecutor` 正确执行 Gradle 任务
-- **Build-Logic 插件工件解析**：新增 `gradle-buddy-buildlogic` 模块
-  - **Alt+Enter 意图操作**：在 `.gradle.kts` 的 `plugins {}` 块中，对 `id("xxx")` 按 Alt+Enter 可解析插件的真实实现工件坐标
-  - **支持无版本声明**：convention plugin 中 `id("xxx")` 不带 version 时，自动查询最新版本（通过 maven-metadata.xml）
-  - **手动输入 fallback**：自动解析失败时弹出输入框，支持 `group:artifact:version` 格式直接写入，也支持纯版本号走 marker 解析
-  - **Plugin Marker Artifact 机制**：通过 `{pluginId}.gradle.plugin` POM 反查真实实现工件（优先 Gradle Plugin Portal，其次 Maven Central）
-  - **批量操作**：Tools 菜单新增「Resolve All Plugin Artifacts for Build-Logic」，一键扫描所有插件并写入 TOML
-  - 解析结果自动写入 `libs.versions.toml` 的 `[versions]` 和 `[libraries]` 节
+  - 内置 12 个常用任务：clean、compileKotlin、build、test、jar、publishToMavenLocal、publishToMavenCentral、kspKotlin、kspCommonMainMetadata、signPlugin、publishPlugin、runIde
+  - **智能显隐**：`kspCommonMainMetadata` 仅在 KMP 模块显示，`signPlugin` / `publishPlugin` / `runIde` 仅在 IntelliJ 插件开发模块显示
+  - 通过检测 build script 中的插件标志自动判断模块类型（如 `intellijPlatform`、`buildlogic.intellij.`、`kotlin("multiplatform")`）
+  - 每个任务有独立图标，方便快速识别
+- **Build-Logic 插件工件解析**：
+  - **Alt+Enter 意图操作**：在 `plugins {}` 块中对 `id("xxx")` 按 Alt+Enter，解析插件的真实实现工件坐标并写入 TOML
+  - **支持无版本声明**：convention plugin 中 `id("xxx")` 不带 version 时，自动查询最新版本
+  - **手动输入 fallback**：自动解析失败时弹出输入框，支持 `group:artifact:version` 格式直接写入
+  - **批量操作**：Tools 菜单新增「Resolve All Plugin Artifacts for Build-Logic」
 - **Gradle 面板自动聚焦**：切换编辑器标签页时，右侧官方 Gradle 面板自动展开并聚焦到当前文件所属模块的 `Tasks > build` 节点
-  - 使用 `TreeVisitor` + `TreeUtil.promiseSelect` 正确处理异步懒加载树模型
-  - 支持深层嵌套模块路径（如 `lib > gradle-plugin > conventions > spring-convention`）
+  - 支持深层嵌套模块路径
   - 仅在 Gradle 面板可见时触发，不影响性能
 
 ### 🐛 修复
 - **Normalize 重复 alias**：修复同一 `groupId:artifactId` 不同版本时 alias 冲突的问题
   - 三级去重策略：artifactId → groupId-artifactId → groupId-artifactId-vVersion
-  - 版本号 sanitize：`4.1.0-M1` → `4-1-0-m1`（符合 TOML alias 命名规范）
-- **编译错误修复**：`gradle-buddy-buildlogic` 模块添加对 `gradle-buddy-core` 的依赖，解决 `GradleBuddySettingsService` 未解析问题
 
 ### 🗑️ 清理
-- 删除 5 个死代码文件：`FixIdsAction.kt`、`VersionCatalogToolbarLabelAction.kt`、`GradleModuleManager.kt`、`GradleTaskFilterAction.kt`、`GradleTaskFilterService.kt`
-- 删除废弃的 `VersionCatalogEditorNotificationProvider.kt`
+- 删除 6 个废弃文件
 - 移除旧的 "Module Tasks" 自定义工具窗口，改为直接操控官方 Gradle 面板
-
-### 🔧 改进
-- **Normalize 版本解析**：新增 `parseVersionValues()` 从 `[versions]` 节读取实际版本值，用于 level 3 去重
-- **提取公共工具**：`GradleModulePathUtil` 抽取为共享工具类，消除 `GradleAutoFocusStartupActivity` 和 `RunFavoriteTaskAction` 之间的重复代码
 
 ## [2026.02.08] - 2026-02-08
 

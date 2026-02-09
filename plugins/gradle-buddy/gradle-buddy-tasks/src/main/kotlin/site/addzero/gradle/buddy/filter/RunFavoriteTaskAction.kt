@@ -70,14 +70,31 @@ class RunFavoriteTaskAction : AnAction {
     }
 
     override fun update(e: AnActionEvent) {
+        val project = e.project
         val resolved = resolveTaskNameFromId(e.actionManager.getId(this))
-        e.presentation.isEnabledAndVisible = e.project != null && resolved.isNotEmpty()
-        if (resolved.isNotEmpty()) {
-            e.presentation.text = resolved
-            e.presentation.description = "Run '$resolved' for current module"
-            if (e.presentation.icon == null) {
-                e.presentation.icon = getDefaultIcon(resolved)
-            }
+
+        if (project == null || resolved.isEmpty()) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
+
+        // Hide KMP-only tasks (e.g. kspCommonMainMetadata) when not in a KMP module
+        if (resolved in GradleModulePathUtil.KMP_ONLY_TASKS && !GradleModulePathUtil.isKmpModule(project)) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
+
+        // Hide IntelliJ plugin tasks (signPlugin, publishPlugin, runIde) when not in an IJ plugin module
+        if (resolved in GradleModulePathUtil.INTELLIJ_PLUGIN_ONLY_TASKS && !GradleModulePathUtil.isIntellijPluginModule(project)) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
+
+        e.presentation.isEnabledAndVisible = true
+        e.presentation.text = resolved
+        e.presentation.description = "Run '$resolved' for current module"
+        if (e.presentation.icon == null) {
+            e.presentation.icon = getDefaultIcon(resolved)
         }
     }
 
@@ -85,11 +102,11 @@ class RunFavoriteTaskAction : AnAction {
         fun getDefaultIcon(taskName: String): Icon = when (taskName.lowercase()) {
             "build" -> AllIcons.Actions.Compile
             "clean" -> AllIcons.Actions.GC
-            "test" -> AllIcons.RunConfigurations.TestState.Run
+            "test" -> AllIcons.RunConfigurations.TestPassed
             "jar" -> AllIcons.FileTypes.Archive
             "publishtomavenlocal" -> AllIcons.Actions.Upload
-            "publishtomavencentral" -> AllIcons.Actions.Upload
-            "compilekotlin" -> AllIcons.Actions.Compile
+            "publishtomavencentral" -> AllIcons.Nodes.Deploy
+            "compilekotlin" -> AllIcons.Nodes.Module
             "kspkotlin", "kspcommonmainmetadata" -> AllIcons.Actions.RealIntentionBulb
             "runide" -> AllIcons.Actions.Execute
             "signplugin" -> AllIcons.Nodes.PpLib

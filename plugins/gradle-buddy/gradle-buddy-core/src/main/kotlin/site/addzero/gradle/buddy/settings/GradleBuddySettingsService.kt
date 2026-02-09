@@ -69,9 +69,9 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
             "publishToMavenCentral",
             "kspKotlin",
             "kspCommonMainMetadata",
-//            "signPlugin",
-//            "publishPlugin",
-//            "runIde"
+            "signPlugin",
+            "publishPlugin",
+            "runIde"
         )
 
         const val DEFAULT_VERSION_CATALOG_PATH = "gradle/libs.versions.toml"

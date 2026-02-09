@@ -1,0 +1,4 @@
+# SPI registration for KeyGenerator implementations.
+# Add your custom translation-based KeyGenerator class here, one per line.
+# Example:
+# com.example.i18n.TranslationKeyGenerator

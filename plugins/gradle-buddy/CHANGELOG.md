@@ -2,6 +2,20 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.09-3] - 2026-02-09
+
+### ✨ 新增功能
+- **id("...") 截断引用修复 (ConvertPluginIdToAliasIntention)**：类似 `SelectCatalogReferenceIntentionGroup` 对 `libs.xxx` 断裂引用的修复，但作用于 `plugins {}` 块中的 `id("...")` 声明
+  - 在 `id("koin.compiler")` 上 Alt+Enter，通过 TOML `[plugins]` 的 `id` 字段匹配找到正确条目
+  - 替换为 `alias(libs.plugins.xxx)`
+  - 支持精确匹配、标准化匹配（`.` 与 `-` 互换）、后缀匹配、token 交集模糊匹配
+  - 单候选直接替换，多候选弹出选择菜单
+  - 仅处理无 `version` 后缀的 `id("...")`（有 version 的由 `GradleKtsPluginToAliasIntention` 处理）
+- **CatalogReferenceScanner.scanPluginIdToAlias()**：新增方法，从 TOML `[plugins]` 提取 plugin ID → accessor 映射
+
+### 🔧 改进
+- **CatalogReferenceScanner**：清理未使用的 `FileTypeIndex`、`GlobalSearchScope`、`TomlLiteralKind` 导入
+
 ## [2026.02.09-2] - 2026-02-09
 
 ### ✨ 新增功能

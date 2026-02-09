@@ -3,13 +3,9 @@ package site.addzero.gradle.catalog
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
-import com.intellij.psi.search.FileTypeIndex
-import com.intellij.psi.search.GlobalSearchScope
 import org.toml.lang.psi.TomlFile
 import org.toml.lang.psi.TomlKeyValue
 import org.toml.lang.psi.TomlTable
-import org.toml.lang.psi.ext.TomlLiteralKind
-import org.toml.lang.psi.ext.kind
 
 /**
  * 扫描 TOML 版本目录文件，提取所有声明的依赖别名
@@ -194,6 +190,93 @@ class CatalogReferenceScanner(private val project: Project) {
         println("[CatalogReferenceScanner] Total aliases extracted: ${aliases.size}")
 
         return aliases
+    }
+
+    /**
+     * 扫描所有版本目录文件，提取 [plugins] 中的 plugin ID → accessor 映射
+     * @return Map<目录名称, Map<pluginId, aliasAccessor>>
+     *
+     * 例如 TOML 中:
+     *   koin-compiler = { id = "io.insert-koin.koin-compiler", version.ref = "..." }
+     * 返回:
+     *   "libs" -> { "io.insert-koin.koin-compiler" -> "plugins.koin.compiler" }
+     */
+    fun scanPluginIdToAlias(): Map<String, Map<String, String>> {
+        val result = mutableMapOf<String, MutableMap<String, String>>()
+
+        val tomlFiles = findVersionCatalogFiles()
+        for (virtualFile in tomlFiles) {
+            val catalogName = getCatalogName(virtualFile)
+            val pluginIdMap = extractPluginIdMapping(virtualFile)
+            if (pluginIdMap.isNotEmpty()) {
+                result.getOrPut(catalogName) { mutableMapOf() }.putAll(pluginIdMap)
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * 从 TOML 文件中提取 [plugins] 的 pluginId → accessor 映射
+     */
+    private fun extractPluginIdMapping(file: VirtualFile): Map<String, String> {
+        val mapping = mutableMapOf<String, String>()
+
+        val psiFile = PsiManager.getInstance(project).findFile(file) as? TomlFile ?: return emptyMap()
+
+        psiFile.children.forEach { element ->
+            if (element is TomlTable) {
+                val header = element.header.key?.text
+                if (header == "plugins") {
+                    element.entries.forEach { entry ->
+                        if (entry is TomlKeyValue) {
+                            val alias = entry.key.text.trim('"', '\'')
+                            val accessor = "plugins." + convertTomlKeyToDotNotation(alias)
+
+                            // 提取 id 字段
+                            val pluginId = extractPluginId(entry)
+                            if (pluginId != null) {
+                                mapping[pluginId] = accessor
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return mapping
+    }
+
+    /**
+     * 从 TOML plugin entry 中提取 id 字段值
+     * 支持格式:
+     *   koin-compiler = { id = "io.insert-koin.koin-compiler", version.ref = "..." }
+     *   koin-compiler = "io.insert-koin.koin-compiler:1.0.0"
+     */
+    private fun extractPluginId(entry: TomlKeyValue): String? {
+        val value = entry.value ?: return null
+
+        // 内联表格: { id = "...", ... }
+        if (value is org.toml.lang.psi.TomlInlineTable) {
+            for (kv in value.entries) {
+                if (kv.key.text == "id") {
+                    val literal = kv.value ?: continue
+                    val text = literal.text.trim('"', '\'')
+                    if (text.isNotEmpty()) return text
+                }
+            }
+        }
+
+        // 简写字符串格式: "plugin.id:version"
+        if (value is org.toml.lang.psi.TomlLiteral) {
+            val str = value.text.trim('"', '\'')
+            if (str.isNotEmpty()) {
+                // 可能是 "plugin.id:version" 或 "plugin.id"
+                return str.substringBefore(":")
+            }
+        }
+
+        return null
     }
 
     /**

@@ -2,7 +2,6 @@ package site.addzero.gradle.catalog
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -14,7 +13,6 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
-import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
 
 /**
  * 选择版本目录引用的意图操作组

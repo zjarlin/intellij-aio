@@ -289,6 +289,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert id("...") to alias(libs.plugins.xxx) in plugins {} block -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.catalog.ConvertPluginIdToAliasIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Resolve plugin implementation artifact for build-logic -->
     <intentionAction order="FIRST">
       <language>kotlin</language>

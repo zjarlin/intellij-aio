@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":lib:tool-psi-toml"))
     intellijPlatform {
         bundledPlugin("org.jetbrains.plugins.gradle")
+        bundledPlugin("org.jetbrains.kotlin")
         bundledPlugin("org.toml.lang")
     }
 }

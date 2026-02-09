@@ -93,10 +93,12 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
      * Only unambiguous (single-candidate) matches are applied automatically.
      */
     private fun verifyAndFixBrokenReferences(project: Project, tomlContent: String, tomlFile: VirtualFile) {
-        // Parse all valid aliases from the current TOML (libraries + plugins)
+        // Parse all valid aliases from the current TOML (libraries + plugins + versions + bundles)
         val tomlLines = tomlContent.lines()
         val libraryAliases = parseAllLibraries(tomlLines).map { it.alias }
         val pluginAliases = parsePluginAliases(tomlLines)
+        val versionKeys = parseVersionValues(tomlLines).keys.toList()
+        val bundleAliases = parseBundleAliases(tomlLines)
 
         // Build accessor -> toml-alias map for libraries
         val accessorToAlias = mutableMapOf<String, String>()
@@ -107,6 +109,16 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         // Plugins: in kts they appear as libs.plugins.xxx.yyy
         for (alias in pluginAliases) {
             val accessor = "plugins." + aliasToAccessor(alias)
+            accessorToAlias[accessor] = alias
+        }
+        // Versions: in kts they appear as libs.versions.xxx.yyy
+        for (key in versionKeys) {
+            val accessor = "versions." + aliasToAccessor(key)
+            accessorToAlias[accessor] = key
+        }
+        // Bundles: in kts they appear as libs.bundles.xxx.yyy
+        for (alias in bundleAliases) {
+            val accessor = "bundles." + aliasToAccessor(alias)
             accessorToAlias[accessor] = alias
         }
 
@@ -148,7 +160,11 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
             val matches = catalogRefPattern.findAll(text).toList().sortedByDescending { it.range.first }
             for (match in matches) {
-                val refAccessor = match.groupValues[1]
+                val rawAccessor = match.groupValues[1]
+                // Skip false positives (reflection chains, dynamic API calls, catalog declarations)
+                if (shouldSkipReference(rawAccessor, text, match, ktsFile)) continue
+                // Strip trailing Gradle Provider API method calls captured by the regex
+                val refAccessor = stripTrailingMethods(rawAccessor)
                 // Already valid — skip
                 if (refAccessor in accessorToAlias) continue
 
@@ -167,6 +183,48 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
                 docManager.saveDocument(doc)
             }
         }
+    }
+
+    /**
+     * Determine whether a catalog reference match should be skipped (false positive).
+     *
+     * Filters out:
+     * 1. Java/Kotlin reflection chains: `libs.javaClass.superclass.protectionDomain...`
+     * 2. Dynamic catalog API calls: `libs.findLibrary(...)`, `libs.findBundle(...)`, etc.
+     * 3. Catalog declaration blocks in settings: `create("libs") { from(...) }` inside `versionCatalogs`
+     * 4. String literal context: match inside a quoted string
+     */
+    private fun shouldSkipReference(
+        refAccessor: String,
+        fileText: String,
+        match: MatchResult,
+        file: VirtualFile
+    ): Boolean {
+        val firstSegment = refAccessor.substringBefore('.')
+        if (firstSegment in REFLECTION_TOKENS) return true
+        if (firstSegment in DYNAMIC_API_METHODS) return true
+
+        if (file.name == "settings.gradle.kts") {
+            val matchStart = match.range.first
+            val textBefore = fileText.substring(0, matchStart)
+            val catalogBlockStart = textBefore.lastIndexOf("versionCatalogs")
+            if (catalogBlockStart >= 0) {
+                val between = textBefore.substring(catalogBlockStart)
+                val openBraces = between.count { it == '{' }
+                val closeBraces = between.count { it == '}' }
+                if (openBraces > closeBraces) return true
+            }
+        }
+
+        val matchStart = match.range.first
+        val lineStart = fileText.lastIndexOf('\n', matchStart - 1) + 1
+        val lineEnd = fileText.indexOf('\n', matchStart).let { if (it < 0) fileText.length else it }
+        val line = fileText.substring(lineStart, lineEnd)
+        val posInLine = matchStart - lineStart
+        val quotesBeforeMatch = line.substring(0, posInLine).count { it == '"' }
+        if (quotesBeforeMatch % 2 == 1) return true
+
+        return false
     }
 
     /**
@@ -247,6 +305,25 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
     }
 
     /**
+     * Parse bundle aliases from [bundles] section.
+     */
+    private fun parseBundleAliases(lines: List<String>): List<String> {
+        val result = mutableListOf<String>()
+        var inBundles = false
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.matches(SECTION_HEADER_REGEX)) {
+                inBundles = trimmed.matches(BUNDLES_HEADER_REGEX)
+                continue
+            }
+            if (!inBundles || trimmed.isBlank() || trimmed.startsWith("#")) continue
+            val alias = trimmed.substringBefore("=").trim()
+            if (alias.isNotEmpty()) result.add(alias)
+        }
+        return result
+    }
+
+    /**
      * Find all .gradle.kts files in the project and update `libs.xxx.yyy` accessors
      * for every renamed alias.
      *
@@ -303,6 +380,25 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
      * e.g. "my-cool-lib" -> "my.cool.lib"
      */
     private fun aliasToAccessor(alias: String): String = alias.replace('-', '.').replace('_', '.')
+
+    /**
+     * Strip trailing Gradle Provider API method names that get captured by the regex.
+     * e.g. "versions.jdk.get" → "versions.jdk"
+     */
+    private fun stripTrailingMethods(accessor: String): String {
+        var result = accessor
+        while (true) {
+            val lastDot = result.lastIndexOf('.')
+            if (lastDot < 0) break
+            val lastSegment = result.substring(lastDot + 1)
+            if (lastSegment in PROVIDER_API_METHODS) {
+                result = result.substring(0, lastDot)
+            } else {
+                break
+            }
+        }
+        return result
+    }
 
     /**
      * Normalize the TOML content and populate [aliasRenames] with old->new alias mappings.
@@ -825,5 +921,22 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         private val SHORT_FORMAT_PATTERN = Regex("""=\s*"([^":]+):([^":]+):([^"]+)"""")
         private val VERSION_REF_PATTERN = Regex("""version\.ref\s*=\s*"([^"]+)"""")
         private val DIRECT_VERSION_PATTERN = Regex("""(?<!\.)\bversion\s*=\s*"([^"]+)"""")
+
+        /** JVM reflection / meta tokens that are never catalog accessors */
+        private val REFLECTION_TOKENS = setOf(
+            "javaClass", "class", "superclass", "protectionDomain",
+            "codeSource", "classLoader", "kotlin"
+        )
+
+        /** Dynamic catalog API methods — `libs.findLibrary(...)`, etc. */
+        private val DYNAMIC_API_METHODS = setOf(
+            "findLibrary", "findBundle", "findPlugin", "findVersion"
+        )
+
+        /** Gradle Provider API methods that get captured as trailing accessor segments */
+        private val PROVIDER_API_METHODS = setOf(
+            "get", "getOrNull", "orNull", "asProvider", "map", "flatMap",
+            "orElse", "forUseAtConfigurationTime", "toString"
+        )
     }
 }

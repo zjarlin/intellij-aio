@@ -93,11 +93,56 @@
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
     </action>
 
-    <!-- Favorite Tasks Floating Toolbar (shown on .gradle.kts files) -->
+    <!-- Favorite Tasks Floating Toolbar (shown on .gradle.kts / .gradle files) -->
     <group id="GradleBuddy.FavoriteTasksToolbarGroup"
-           class="site.addzero.gradle.buddy.filter.FavoriteTasksActionGroup"
            text="Favorite Tasks"
            popup="false"/>
+
+    <action id="GradleBuddy.FavoriteTask.clean"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="clean" icon="AllIcons.Actions.GC">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.compileKotlin"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="compileKotlin" icon="AllIcons.Actions.Compile">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.build"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="build" icon="AllIcons.Actions.Compile">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.test"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="test" icon="AllIcons.RunConfigurations.TestState.Run">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.jar"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="jar" icon="AllIcons.FileTypes.Archive">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.publishToMavenLocal"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="publishToMavenLocal" icon="AllIcons.Actions.Upload">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.publishToMavenCentral"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="publishToMavenCentral" icon="AllIcons.Actions.Upload">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.kspKotlin"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="kspKotlin" icon="AllIcons.Actions.RealIntentionBulb">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
+    <action id="GradleBuddy.FavoriteTask.kspCommonMainMetadata"
+            class="site.addzero.gradle.buddy.filter.RunFavoriteTaskAction"
+            text="kspCommonMainMetadata" icon="AllIcons.Actions.RealIntentionBulb">
+      <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
+    </action>
 
   </actions>
 

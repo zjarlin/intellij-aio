@@ -2,6 +2,28 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.09-2] - 2026-02-09
+
+### ✨ 新增功能
+- **断裂引用修复 (FixBrokenCatalogReferencesAction)**：独立操作，扫描所有 `.gradle.kts` 文件并修复断裂的版本目录引用
+  - 单候选自动修复，多候选弹出表格对话框（ComboBox 下拉选择）
+  - 零候选标记为无法修复，汇总展示
+  - 注册在版本目录悬浮工具条和 Tools 菜单中
+- **Normalize 二次校验**：`NormalizeVersionCatalogAction` 在重命名后增加第三步——重新扫描所有 `.gradle.kts`，自动修复因重命名产生的断裂引用
+  - 三级匹配策略：精确归一化匹配 → token 后缀匹配 → token 有序子集匹配
+
+### 🐛 修复
+- **误报过滤**：排除以下不应被识别为版本目录引用的 case
+  - JVM 反射链：`libs.javaClass.superclass.protectionDomain.codeSource.location`
+  - 动态 API 调用：`libs.findLibrary("xxx").get()`、`libs.findBundle()`、`libs.findPlugin()`、`libs.findVersion()`
+  - `settings.gradle.kts` 中的 `versionCatalogs { create("libs") { ... } }` 声明块
+  - 字符串字面量内的匹配（如 `from(files("../gradle/libs.versions.toml"))`）
+- **`[versions]` / `[bundles]` 引用识别**：之前只注册了 `[libraries]` 和 `[plugins]` 的 accessor，导致 `libs.versions.android.compileSdk.get()` 等合法引用被误判为断裂。现在四个 section 全部注册
+- **Provider API 方法剥离**：regex 会捕获尾部的 `.get`、`.getOrNull`、`.asProvider` 等 Gradle Provider API 方法名，现在自动剥离后再匹配
+- **双 catalog 前缀修复**：`libs.libs.com.google.devtools.ksp...` 这种重复 catalog 名的引用，自动剥离多余前缀后精确匹配
+- **全部无候选时静默**：当所有断裂引用都无候选项时，不再弹出空表格对话框，直接显示摘要
+- **`List.indexOf` 编译错误**：`isOrderedSubset` 中 `List<String>.indexOf()` 不支持 `startIndex` 参数，改用 `subList` 实现
+
 ## [2026.02.09] - 2026-02-09
 
 ### ✨ 新增功能

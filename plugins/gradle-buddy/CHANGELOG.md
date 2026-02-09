@@ -5,6 +5,11 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
 ## [2026.02.09] - 2026-02-09
 
 ### ✨ 新增功能
+- **Copy Module Dependency**：编辑器右键菜单 / 标签页右键菜单新增「Copy Module Dependency」，一键复制当前文件所属模块的 `implementation(project(":path"))` 到剪贴板
+- **Insert Project Dependency**：在 `.gradle.kts` 的 `dependencies {}` 块内 Alt+Enter，弹出项目所有模块列表
+  - 按目录树距离排序（基于 LCA 算法），距离越近排越前
+  - 每个候选项显示短名称和距离指标，如 `gradle-buddy-core [↕2]`
+  - 选择后自动插入 `implementation(project(":path"))` 到当前行下方，保持缩进
 - **常用任务悬浮工具条**：在 `.gradle.kts` / `.gradle` 文件中，鼠标悬停编辑器顶部显示悬浮工具条，一键运行常用 Gradle 任务
   - 任务自动限定到当前编辑器文件所属模块（如 `:plugins:gradle-buddy:gradle-buddy-tasks:build`）
   - 内置 12 个常用任务：clean、compileKotlin、build、test、jar、publishToMavenLocal、publishToMavenCentral、kspKotlin、kspCommonMainMetadata、signPlugin、publishPlugin、runIde
@@ -25,7 +30,6 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
   - 三级去重策略：artifactId → groupId-artifactId → groupId-artifactId-vVersion
 
 ### 🗑️ 清理
-- 删除 6 个废弃文件
 - 移除旧的 "Module Tasks" 自定义工具窗口，改为直接操控官方 Gradle 面板
 
 ## [2026.02.08] - 2026-02-08

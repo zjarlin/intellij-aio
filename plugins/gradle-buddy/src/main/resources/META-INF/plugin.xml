@@ -93,6 +93,12 @@
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
     </action>
 
+    <!-- Favorite Tasks Floating Toolbar (shown on .gradle.kts files) -->
+    <group id="GradleBuddy.FavoriteTasksToolbarGroup"
+           class="site.addzero.gradle.buddy.filter.FavoriteTasksActionGroup"
+           text="Favorite Tasks"
+           popup="false"/>
+
   </actions>
 
 
@@ -242,6 +248,9 @@
 
     <!-- Floating toolbar for Version Catalog -->
     <editorFloatingToolbarProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogFloatingToolbarProvider"/>
+
+    <!-- Floating toolbar for Favorite Gradle Tasks -->
+    <editorFloatingToolbarProvider implementation="site.addzero.gradle.buddy.filter.FavoriteTasksFloatingToolbarProvider"/>
 
     <!-- Auto-focus official Gradle tool window to current module on editor tab switch -->
     <postStartupActivity implementation="site.addzero.gradle.buddy.filter.GradleAutoFocusStartupActivity"/>

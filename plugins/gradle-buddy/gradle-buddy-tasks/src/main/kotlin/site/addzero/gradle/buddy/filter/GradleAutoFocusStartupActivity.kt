@@ -2,7 +2,6 @@ package site.addzero.gradle.buddy.filter
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
@@ -42,7 +41,7 @@ class GradleAutoFocusStartupActivity : ProjectActivity {
         private var lastModulePath: String? = null
 
         fun focusGradleTree(project: Project) {
-            val modulePath = detectCurrentModulePath(project) ?: return
+            val modulePath = GradleModulePathUtil.detectCurrentModulePath(project) ?: return
             if (modulePath == lastModulePath) return
             lastModulePath = modulePath
 
@@ -226,29 +225,6 @@ class GradleAutoFocusStartupActivity : ProjectActivity {
 
         private fun pathToString(path: TreePath): String {
             return (0 until path.pathCount).joinToString(" > ") { path.getPathComponent(it).toString() }
-        }
-
-        /**
-         * Detect the Gradle module path for the currently active editor file.
-         * Walks up from the file's directory looking for build.gradle.kts or build.gradle.
-         *
-         * Returns e.g. ":plugins:gradle-buddy:gradle-buddy-tasks" or ":" for root.
-         */
-        private fun detectCurrentModulePath(project: Project): String? {
-            val editor = FileEditorManager.getInstance(project).selectedEditor ?: return null
-            val file = editor.file ?: return null
-            val basePath = project.basePath ?: return null
-            if (!file.path.startsWith(basePath)) return null
-
-            var dir = file.parent
-            while (dir != null && dir.path.startsWith(basePath)) {
-                if (dir.findChild("build.gradle.kts") != null || dir.findChild("build.gradle") != null) {
-                    val rel = dir.path.removePrefix(basePath).trimStart('/')
-                    return if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
-                }
-                dir = dir.parent
-            }
-            return null
         }
 
         /**

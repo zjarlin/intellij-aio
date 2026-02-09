@@ -5,6 +5,11 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
 ## [2026.02.09] - 2026-02-09
 
 ### ✨ 新增功能
+- **常用任务悬浮工具条**：在 `.gradle.kts` / `.gradle` 文件中显示悬浮工具条，一键运行常用 Gradle 任务
+  - 任务自动限定到当前编辑器文件所属模块（如 `:plugins:gradle-buddy:gradle-buddy-tasks:build`）
+  - 默认收藏列表来自设置中的 `defaultTasks`（clean、compileKotlin、build、test、jar 等）
+  - 每个任务有对应图标，方便快速识别
+  - 使用 `ExternalSystemUtil.runTask()` + `DefaultRunExecutor` 正确执行 Gradle 任务
 - **Build-Logic 插件工件解析**：新增 `gradle-buddy-buildlogic` 模块
   - **Alt+Enter 意图操作**：在 `.gradle.kts` 的 `plugins {}` 块中，对 `id("xxx")` 按 Alt+Enter 可解析插件的真实实现工件坐标
   - **支持无版本声明**：convention plugin 中 `id("xxx")` 不带 version 时，自动查询最新版本（通过 maven-metadata.xml）
@@ -30,6 +35,7 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
 
 ### 🔧 改进
 - **Normalize 版本解析**：新增 `parseVersionValues()` 从 `[versions]` 节读取实际版本值，用于 level 3 去重
+- **提取公共工具**：`GradleModulePathUtil` 抽取为共享工具类，消除 `GradleAutoFocusStartupActivity` 和 `RunFavoriteTaskAction` 之间的重复代码
 
 ## [2026.02.08] - 2026-02-08
 

@@ -11,10 +11,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.util.ProcessingContext
-import site.addzero.maven.search.cache.SearchResultCacheService
-import site.addzero.maven.search.history.ArtifactHistoryEntry
-import site.addzero.maven.search.history.SearchHistoryService
-import site.addzero.maven.search.settings.MavenSearchSettings
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import site.addzero.network.call.maven.util.MavenArtifact
 import site.addzero.network.call.maven.util.MavenCentralPaginatedSearchUtil
@@ -46,10 +42,6 @@ class GradleKtsCompletionContributor : CompletionContributor() {
 }
 
 private class GradleDependencyCompletionProvider : CompletionProvider<CompletionParameters>() {
-
-    private val historyService by lazy { SearchHistoryService.getInstance() }
-    private val cacheService by lazy { SearchResultCacheService.getInstance() }
-    private val settings by lazy { MavenSearchSettings.getInstance() }
 
     companion object {
         private val STANDARD_CONFIGS = setOf(
@@ -100,11 +92,11 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
             GradleBuddySettingsService.getInstance(it).isSilentUpsertToml()
         } ?: false
 
-        // 历史记录（最高优先级）
-        if (historyService.enableHistory) {
+        // 历史记录（最高优先级）— 通过 Bridge 安全访问
+        if (MavenBuddyBridge.historyEnabled) {
             val historyArtifacts = when {
-                query.length < 2 -> historyService.recentArtifacts(10)
-                else -> historyService.matchArtifacts(query, 5)
+                query.length < 2 -> MavenBuddyBridge.recentArtifacts(10)
+                else -> MavenBuddyBridge.matchArtifacts(query, 5)
             }
             historyArtifacts.forEachIndexed { index, entry ->
                 prefixMatcher.addElement(
@@ -118,8 +110,9 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
             return
         }
 
-        // 缓存
-        val cached = cacheService.match(query, limit = 20)
+        // 缓存 — 通过 Bridge 安全访问
+        @Suppress("UNCHECKED_CAST")
+        val cached = MavenBuddyBridge.cacheMatch(query, limit = 20) as? List<MavenArtifact> ?: emptyList()
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -137,10 +130,10 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
         runCatching {
             val session = MavenCentralPaginatedSearchUtil.searchByKeywordPaginated(
                 keyword = query,
-                pageSize = settings.pageSize.coerceIn(5, 30)
+                pageSize = MavenBuddyBridge.pageSize.coerceIn(5, 30)
             )
             val artifacts = session.loadNextPage().artifacts
-            if (artifacts.isNotEmpty()) cacheService.addAll(artifacts)
+            if (artifacts.isNotEmpty()) MavenBuddyBridge.cacheAddAll(artifacts)
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -243,21 +236,23 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
     }
 
     private fun createHistoryElement(
-        entry: ArtifactHistoryEntry,
+        entry: Any,
         ctx: KtsDependencyContext,
         project: Project?,
         silentUpsert: Boolean,
         priority: Double
     ): LookupElement {
-        val lookupStr = entry.artifactId
+        val entryArtifactId = MavenBuddyBridge.entryArtifactId(entry)
+        val entryGroupId = MavenBuddyBridge.entryGroupId(entry)
+        val entryVersion = MavenBuddyBridge.entryVersion(entry)
         return PrioritizedLookupElement.withPriority(
-            LookupElementBuilder.create(lookupStr)
-                .withPresentableText(entry.artifactId)
-                .withTailText("  ${entry.groupId}:${entry.version}", true)
+            LookupElementBuilder.create(entryArtifactId)
+                .withPresentableText(entryArtifactId)
+                .withTailText("  $entryGroupId:$entryVersion", true)
                 .withTypeText(if (silentUpsert) "→ toml [recent]" else "[recent]", true)
                 .withIcon(AllIcons.Nodes.Favorite)
                 .withBoldness(true)
-                .withInsertHandler(createInsertHandler(ctx, entry.groupId, entry.artifactId, entry.version, project, silentUpsert)),
+                .withInsertHandler(createInsertHandler(ctx, entryGroupId, entryArtifactId, entryVersion, project, silentUpsert)),
             priority
         )
     }
@@ -377,7 +372,7 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
                         upsertToVersionCatalog(project, groupId, artifactId, version, alias)
                     }
                 }
-                SearchHistoryService.getInstance().record(groupId, artifactId, version)
+                MavenBuddyBridge.recordHistory(groupId, artifactId, version)
             }
         } else {
             // === 普通模式：版本已在补全阶段解析为最新，直接插入 ===
@@ -407,7 +402,7 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
 
             // 记录历史
             ApplicationManager.getApplication().executeOnPooledThread {
-                SearchHistoryService.getInstance().record(groupId, artifactId, version)
+                MavenBuddyBridge.recordHistory(groupId, artifactId, version)
             }
         }
     }

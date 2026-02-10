@@ -241,9 +241,49 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
     fun isFeatureAvailable(): Boolean {
         featureAvailable?.let { return it }
+        if (isModulesBuddyPluginEnabled()) {
+            featureAvailable = false
+            logger.info("Gradle Module Sleep disabled: modules-buddy plugin detected in settings.gradle.kts")
+            return false
+        }
         val available = getModuleCount() >= ModuleSleepSettingsService.LARGE_PROJECT_THRESHOLD
         featureAvailable = available
         return available
+    }
+
+    /**
+     * 检测项目的 settings.gradle.kts 中是否启用了 modules-buddy 插件。
+     * 如果启用了，则 gradle-module-sleep 应自动禁用，避免功能冲突。
+     *
+     * 通过 GradleSettings 获取所有 linked Gradle project 的真实根路径，
+     * 而非依赖 project.basePath（后者在子目录打开项目时不可靠）。
+     */
+    private fun isModulesBuddyPluginEnabled(): Boolean {
+        return try {
+            val gradleSettings = org.jetbrains.plugins.gradle.settings.GradleSettings.getInstance(project)
+            val rootPaths = gradleSettings.linkedProjectsSettings.map { it.externalProjectPath }
+            // 如果没有 linked Gradle project，fallback 到 basePath
+            val candidates = rootPaths.ifEmpty { listOfNotNull(project.basePath) }
+            candidates.any { rootPath ->
+                containsModulesBuddyPlugin(java.io.File(rootPath, "settings.gradle.kts"))
+                    || containsModulesBuddyPlugin(java.io.File(rootPath, "settings.gradle"))
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to detect modules-buddy plugin", e)
+            false
+        }
+    }
+
+    private fun containsModulesBuddyPlugin(settingsFile: java.io.File): Boolean {
+        if (!settingsFile.exists()) return false
+        return try {
+            settingsFile.readText().lines().any { line ->
+                val trimmed = line.trim()
+                !trimmed.startsWith("//") && trimmed.contains("site.addzero.gradle.plugin.modules-buddy")
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**

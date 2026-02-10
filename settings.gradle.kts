@@ -21,4 +21,4 @@ include(":plugins:gradle-buddy:id-fixer")
 
 
 
-include(":plugins:dotfiles")
+//include(":plugins:dotfiles") // excluded by Gradle Buddy

@@ -1,0 +1,55 @@
+<idea-plugin>
+    <id>site.addzero.problem2prompt</id>
+    <name>Problem2Prompt</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin/autoddl-idea-plugin.git">zjarlin</vendor>
+
+    <description><![CDATA[
+        Exposes IDE diagnostics (compilation errors, warnings, inspections) as MCP (Model Context Protocol) Tools
+        via an embedded SSE server. External editors such as Cursor, VS Code, and Claude Desktop can connect
+        to the running IDE instance and query real-time diagnostic information through the standard MCP protocol.
+
+        <h3>MCP Tools provided:</h3>
+        <ul>
+            <li><b>get_file_diagnostics</b> — Query diagnostics for a specific file</li>
+            <li><b>get_project_diagnostics</b> — Query all diagnostics across the project</li>
+            <li><b>get_diagnostic_statistics</b> — Get summary statistics of project diagnostics</li>
+            <li><b>get_files_with_errors</b> — List all files with compilation errors</li>
+            <li><b>get_compilation_status</b> — Check whether the project compiles cleanly</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Notification Group -->
+        <notificationGroup id="Problem2Prompt Notifications"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
+
+        <!-- Application-level Settings Service -->
+        <applicationService
+            serviceImplementation="site.addzero.problem2prompt.settings.Problem2PromptSettingsService"/>
+
+        <!-- Project-level Services -->
+        <projectService
+            serviceImplementation="site.addzero.problem2prompt.diagnostic.DiagnosticCollectorService"/>
+
+        <projectService
+            serviceImplementation="site.addzero.problem2prompt.diagnostic.DiagnosticCacheService"/>
+
+        <projectService
+            serviceImplementation="site.addzero.problem2prompt.mcp.McpServerLifecycleService"/>
+
+        <!-- Settings UI under Tools -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="site.addzero.problem2prompt.settings.Problem2PromptConfigurable"
+            id="site.addzero.problem2prompt.settings"
+            displayName="Problem2Prompt Settings"/>
+
+        <!-- Startup Activity: auto-start MCP Server on project open -->
+        <postStartupActivity
+            implementation="site.addzero.problem2prompt.mcp.McpServerStartupActivity"/>
+    </extensions>
+</idea-plugin>

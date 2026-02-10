@@ -5,6 +5,16 @@ All notable changes to Gradle Buddy plugin will be documented in this file.
 ## [2026.02.10] - 2026-02-10
 
 ### ✨ 新增功能
+- **Gradle Sync 依赖解析错误自动捕获**：Gradle Sync（项目导入/刷新）时遇到 "Could not find/resolve" 依赖错误，自动弹出通知提供一键修复
+  - 新增 `onStatusChange` 捕获通道：Gradle Sync 的依赖解析错误通过 `ExternalSystemTaskNotificationEvent.description` 传递，格式为 `Could not resolve group:artifact:version for :module:sourceSet`
+  - 新增 `forModulePattern` 正则：从 `for :module:path:sourceSet` 后缀中提取报错模块路径
+  - 修复 `onSuccess` 过早清除 buffer 的问题：Gradle Sync 即使有 dependency resolution warnings 也会触发 `onSuccess`，之前它把 `outputBuffers` 清掉了导致 `onEnd` 拿不到数据
+  - 增强 `onFailure` exception chain 遍历：加入 `visited` 集合防循环，遍历 `suppressed` exceptions（Gradle 有时把多个错误放在 suppressed 里）
+  - `outputBuffers` 从 `mutableMapOf` 改为 `ConcurrentHashMap`，防止并发问题
+  - 新增 `processedTasks` 集合防止 `onFailure` 和 `onEnd` 重复处理同一个 task
+  - `taskPrefixPattern` 正则修复：`^> ?` → `^>?\s*:?`，支持无 `>` 前缀的错误行格式
+  - `depPattern` 版本号匹配修复：`([^\s.]+(?:\.[^\s.]+)*)` → `([^\s.,;)]+)`，修复 `1.7` 等短版本号的边界匹配问题
+  - Required by 扫描范围从 10 行扩大到 15 行，空行后继续检查下一行是否为 Required by
 - **智能依赖补全 (KTS)**：在 `.gradle.kts` 的 `dependencies {}` 块中输入关键字，自动搜索 Maven Central 并补全
   - 三种输入模式：`implementation("xxx`（引号内）、`implementation(xxx`（无引号）、裸输入（直接输入关键字自动包裹 `implementation("...")`）
   - KMP 项目支持：`commonMainImplementation`、`iosMainApi` 等 sourceSet 配置

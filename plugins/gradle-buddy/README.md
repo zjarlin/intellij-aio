@@ -3,6 +3,13 @@
 ## 功能特性
 
 ### 🆕 近期更新 (2026.02.10)
+- **Gradle Sync 依赖解析错误自动捕获与修复**：Gradle Sync 时遇到 "Could not find/resolve" 依赖错误，自动弹出通知提供一键修复
+  - 支持 Gradle Sync（`RESOLVE_PROJECT`）和普通 Build 两种场景
+  - 三通道捕获：`onTaskOutput`（build 输出）、`onFailure`（exception chain）、`onStatusChange`（sync 状态事件）
+  - 自动解析报错模块路径，支持 `for :module:sourceSet`、`Required by: project`、task 前缀等多种格式
+  - 通知提供 Fix / Fix All / Navigate to Module / Open TOML 等操作按钮
+  - 智能修复策略：TOML 优先 → 报错模块 KTS → 全局扫描 KTS
+  - 私有依赖（Maven Central 查不到）提示 `publishToMavenLocal`
 - **智能依赖补全 (KTS + TOML)**：在 `.gradle.kts` 和 `libs.versions.toml` 中输入关键字，自动搜索 Maven Central 并补全依赖
   - KTS：支持 `implementation("xxx`、裸输入、KMP sourceSet 配置
   - TOML：支持值补全和裸 alias 输入，同 group 自动复用 `version.ref`

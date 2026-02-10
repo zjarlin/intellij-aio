@@ -365,6 +365,10 @@
     <statusBarWidgetFactory id="GradleBuddyWidget"
                             implementation="site.addzero.gradle.buddy.GradleBuddyWidgetFactory"/>
 
+    <!-- Gradle Build Error Listener: registered programmatically via GradleBuildErrorListenerRegistrar -->
+
+    <postStartupActivity implementation="site.addzero.gradle.buddy.notification.GradleBuildErrorListenerRegistrar"/>
+
   </extensions>
 
 

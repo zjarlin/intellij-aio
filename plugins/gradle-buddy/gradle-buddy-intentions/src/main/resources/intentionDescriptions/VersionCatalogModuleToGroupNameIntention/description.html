@@ -1,0 +1,14 @@
+<html>
+
+<body>
+  Converts all <code>module = "group:artifact"</code> declarations in the version catalog
+  to the expanded <code>group = "...", name = "..."</code> format.
+  <br><br>
+  <b>Before:</b><br>
+  <code>my-lib = { module = "com.example:my-lib", version.ref = "myLib" }</code>
+  <br><br>
+  <b>After:</b><br>
+  <code>my-lib = { group = "com.example", name = "my-lib", version.ref = "myLib" }</code>
+</body>
+
+</html>

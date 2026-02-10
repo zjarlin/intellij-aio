@@ -231,6 +231,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert all module= to group= name= in version catalog -->
+    <intentionAction order="FIRST">
+      <language>TOML</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.VersionCatalogModuleToGroupNameIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert plugin declaration to TOML format -->
     <!-- order="FIRST" 确保在intention列表中优先显示 -->
     <intentionAction order="FIRST">

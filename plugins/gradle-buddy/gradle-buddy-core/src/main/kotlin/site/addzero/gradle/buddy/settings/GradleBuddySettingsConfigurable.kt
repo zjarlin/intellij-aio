@@ -4,12 +4,15 @@ import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import site.addzero.gradle.buddy.notification.VersionCatalogNotificationSettings
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -21,6 +24,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
     private var mainPanel: JPanel? = null
     private var catalogBannerCheckbox: JBCheckBox? = null
     private var silentUpsertTomlCheckbox: JBCheckBox? = null
+    private var dedupStrategyCombo: JComboBox<String>? = null
 
     override fun getDisplayName(): String = "Gradle Buddy"
 
@@ -46,6 +50,32 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         }
         silentUpsertTomlCheckbox = silentUpsertCheckBox
 
+        val dedupCombo = JComboBox(DefaultComboBoxModel(arrayOf("MAJOR_VERSION", "ALT_SUFFIX"))).apply {
+            selectedItem = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
+            toolTipText = """
+                <html>
+                Normalize 同 group:artifact 不同版本冲突时的去重策略：<br><br>
+                <b>MAJOR_VERSION</b>（默认）— 提取版本号第一个数字作为后缀<br>
+                &nbsp;&nbsp;例: spring-boot-starter 有 2.7.18 和 3.2.0 两个版本<br>
+                &nbsp;&nbsp;→ xxx-spring-boot-starter-v2<br>
+                &nbsp;&nbsp;→ xxx-spring-boot-starter-v3<br>
+                &nbsp;&nbsp;accessor: libs.xxx.spring.boot.starter.v2<br><br>
+                <b>ALT_SUFFIX</b> — 使用 -alt, -alt2 后缀（版本高的排前面）<br>
+                &nbsp;&nbsp;→ xxx-spring-boot-starter-alt<br>
+                &nbsp;&nbsp;→ xxx-spring-boot-starter-alt2<br>
+                &nbsp;&nbsp;accessor: libs.xxx.spring.boot.starter.alt
+                </html>
+            """.trimIndent()
+        }
+        dedupStrategyCombo = dedupCombo
+
+        val dedupDescLabel = JBLabel(
+            "<html><font color='gray' size='-2'>" +
+            "MAJOR_VERSION: 2.7.18 → -v2, 3.2.0 → -v3 &nbsp;|&nbsp; " +
+            "ALT_SUFFIX: -alt, -alt2, -alt3" +
+            "</font></html>"
+        )
+
         val resetButton = JButton("重置为默认").apply {
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
@@ -59,6 +89,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .addLabeledComponent("Version catalog path (relative to project root):", it)
             .addComponent(bannerCheckBox as JComponent)
             .addComponent(silentUpsertCheckBox as JComponent)
+            .addLabeledComponent("Normalize dedup strategy (同 artifact 多版本冲突):", dedupCombo)
+            .addComponent(dedupDescLabel)
         }
           ?.addComponent(resetButton)
           ?.addComponentFillVertically(JPanel(), 0)
@@ -78,7 +110,9 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
         val savedSilentUpsert = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
-        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert
+        val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
+        val savedDedupStrategy = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
+        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert || dedupStrategy != savedDedupStrategy
     }
 
     override fun apply() {
@@ -98,6 +132,9 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
 
         val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
         GradleBuddySettingsService.getInstance(project).setSilentUpsertToml(silentUpsert)
+
+        val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
+        GradleBuddySettingsService.getInstance(project).setNormalizeDedupStrategy(dedupStrategy)
     }
 
     override fun reset() {
@@ -108,6 +145,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         catalogBannerCheckbox?.isSelected = showBanner
         silentUpsertTomlCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
+        dedupStrategyCombo?.selectedItem = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
     }
 
     override fun disposeUIResources() {
@@ -116,5 +154,6 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         mainPanel = null
         catalogBannerCheckbox = null
         silentUpsertTomlCheckbox = null
+        dedupStrategyCombo = null
     }
 }

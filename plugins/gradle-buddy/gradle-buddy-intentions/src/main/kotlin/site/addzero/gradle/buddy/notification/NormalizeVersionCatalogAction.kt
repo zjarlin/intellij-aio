@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
+import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
 /**
@@ -47,7 +48,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         val content = document?.text ?: String(file.contentsToByteArray())
 
         val aliasRenames = mutableMapOf<String, String>()
-        val newContent = normalizeContent(content, aliasRenames)
+        val newContent = normalizeContent(content, aliasRenames, project)
 
         // Collect effective alias renames (filter out no-ops)
         val effectiveAliasRenames = aliasRenames.filter { (old, new) -> old != new }
@@ -462,7 +463,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
     /**
      * Normalize the TOML content and populate [aliasRenames] with old->new alias mappings.
      */
-    private fun normalizeContent(content: String, aliasRenames: MutableMap<String, String>): String {
+    private fun normalizeContent(content: String, aliasRenames: MutableMap<String, String>, project: Project): String {
         // Step 0: Merge Gradle-equivalent version keys that clash on accessor name
         // e.g. navigation-compose = "2.9.7" and navigationCompose = "2.9.1"
         // both map to getNavigationComposeVersion() — keep the higher version
@@ -488,7 +489,7 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         // Level 1: artifactId
         // Level 2: groupId-artifactId (if artifactId collides)
         // Level 3: groupId-artifactId-vVersion (if group:artifact also collides due to different versions)
-        val desiredAliasMap = computeDesiredAliases(allLibraries, versionValues)
+        val desiredAliasMap = computeDesiredAliases(allLibraries, versionValues, project)
 
         // Populate aliasRenames — only for aliases that actually change
         for ((oldAlias, newAlias) in desiredAliasMap) {
@@ -616,20 +617,21 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
     /**
      * Two-level alias deduplication:
-     * 1. Default: groupId-artifactId in kebab-case (preserves semantic context, e.g. "com-android-tools-build-gradle")
-     * 2. If still clashing (same group:artifact, different versions): append -vVersion
-     *
-     * Using groupId-artifactId as default avoids losing context — e.g. a bare "gradle" alias
-     * doesn't convey that it's the Android build tools plugin.
+     * 1. Default: groupId-artifactId in kebab-case
+     * 2. If still clashing (same group:artifact, different versions): disambiguate based on user setting
+     *    - MAJOR_VERSION (default): extract first number from version → -v2, -v3
+     *    - ALT_SUFFIX: append -alt, -alt2, -alt3
      *
      * Clash detection uses Gradle accessor normalization (not just string equality) to catch
      * cases like "foo-bar" vs "fooBar" mapping to the same accessor.
      */
     private fun computeDesiredAliases(
         allLibraries: List<LibraryInfo>,
-        versionValues: Map<String, String>
+        versionValues: Map<String, String>,
+        project: Project
     ): Map<String, String> {
         val desiredAliasMap = mutableMapOf<String, String>()
+        val strategy = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
 
         // Level 1: groupId-artifactId
         for (lib in allLibraries) {
@@ -637,16 +639,47 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         }
 
         // Level 1 conflict detection via Gradle accessor name
-        // Same accessor means Gradle would generate duplicate accessors — must disambiguate
         val level1Groups = allLibraries.groupBy { toGradleAccessorName(desiredAliasMap[it.alias]!!) }
         for ((_, libs) in level1Groups) {
             if (libs.size <= 1) continue
-            // Conflict — upgrade to Level 2: append -vVersion
-            for (lib in libs) {
-                val base = desiredAliasMap[lib.alias]!!
-                val version = resolveVersion(lib, versionValues)
-                if (version != null) {
-                    desiredAliasMap[lib.alias] = base + "-v" + sanitizeVersionForAlias(version)
+
+            // Sort by version descending so the highest version gets the "best" suffix
+            val sorted = libs.sortedByDescending { resolveVersion(it, versionValues) ?: "" }
+
+            when (strategy) {
+                "MAJOR_VERSION" -> {
+                    // Extract major version number from each lib's version
+                    // e.g. 2.7.18 → "2", 3.2.0 → "3"
+                    // If major versions differ → -v2, -v3 (unique, no further dedup needed)
+                    // If major versions collide → -v2, -v2alt2 (append alt counter)
+                    val majorVersionMap = mutableMapOf<String, MutableList<LibraryInfo>>()
+                    for (lib in sorted) {
+                        val version = resolveVersion(lib, versionValues) ?: ""
+                        val major = extractMajorVersion(version)
+                        majorVersionMap.getOrPut(major) { mutableListOf() }.add(lib)
+                    }
+                    for ((major, groupLibs) in majorVersionMap) {
+                        if (groupLibs.size == 1) {
+                            val lib = groupLibs[0]
+                            val base = desiredAliasMap[lib.alias]!!
+                            desiredAliasMap[lib.alias] = "$base-v$major"
+                        } else {
+                            // Same major version — append -v{major}, -v{major}alt2, -v{major}alt3, ...
+                            for ((idx, lib) in groupLibs.withIndex()) {
+                                val base = desiredAliasMap[lib.alias]!!
+                                val suffix = if (idx == 0) "-v$major" else "-v${major}alt${idx + 1}"
+                                desiredAliasMap[lib.alias] = base + suffix
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    // ALT_SUFFIX strategy: -alt, -alt2, -alt3, ...
+                    for ((idx, lib) in sorted.withIndex()) {
+                        val base = desiredAliasMap[lib.alias]!!
+                        val suffix = if (idx == 0) "-alt" else "-alt${idx + 1}"
+                        desiredAliasMap[lib.alias] = base + suffix
+                    }
                 }
             }
         }
@@ -661,6 +694,15 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         }
 
         return desiredAliasMap
+    }
+
+    /**
+     * Extract the major version number (first numeric segment) from a version string.
+     * e.g. "2.7.18" → "2", "4.1.0-M1" → "4", "v3.0" → "3", "" → "0"
+     */
+    private fun extractMajorVersion(version: String): String {
+        val match = Regex("""(\d+)""").find(version)
+        return match?.groupValues?.get(1) ?: "0"
     }
 
     /**

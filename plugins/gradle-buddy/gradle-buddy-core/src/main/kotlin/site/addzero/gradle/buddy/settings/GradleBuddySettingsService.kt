@@ -15,7 +15,13 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
         var versionCatalogPath: String = DEFAULT_VERSION_CATALOG_PATH,
         /** 智能补全时静默 upsert toml：选中后自动写入 toml 并回显 libs.xxx.xxx */
-        var silentUpsertToml: Boolean = false
+        var silentUpsertToml: Boolean = false,
+        /**
+         * Normalize 去重策略（同 group:artifact 不同版本冲突时）
+         * "MAJOR_VERSION" = 提取主版本号后缀，如 2.7.18 → -v2（默认）
+         * "ALT_SUFFIX"    = 使用 -alt, -alt2, -alt3 后缀
+         */
+        var normalizeDedupStrategy: String = "MAJOR_VERSION"
     )
 
     private var myState = State()
@@ -60,6 +66,14 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     // 设置是否静默 upsert toml
     fun setSilentUpsertToml(enabled: Boolean) {
         myState.silentUpsertToml = enabled
+    }
+
+    // 获取 Normalize 去重策略
+    fun getNormalizeDedupStrategy(): String = myState.normalizeDedupStrategy
+
+    // 设置 Normalize 去重策略
+    fun setNormalizeDedupStrategy(strategy: String) {
+        myState.normalizeDedupStrategy = strategy
     }
 
     // 重置为默认值

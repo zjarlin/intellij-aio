@@ -21,11 +21,11 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-01-30T15:03:19.389454
+// Generated at: 2026-02-10T13:28:35.286624
 // Loaded: 13, Excluded: 0, Total: 13
 include(":lib:tool-psi-toml")
-include(":plugins:dotfiles")
 include(":plugins:gradle-buddy")
+include(":plugins:gradle-buddy:gradle-buddy-buildlogic")
 include(":plugins:gradle-buddy:gradle-buddy-core")
 include(":plugins:gradle-buddy:gradle-buddy-fix-catalog-ref")
 include(":plugins:gradle-buddy:gradle-buddy-intentions")
@@ -34,9 +34,8 @@ include(":plugins:gradle-buddy:gradle-buddy-migration")
 include(":plugins:gradle-buddy:gradle-buddy-tasks")
 include(":plugins:gradle-buddy:id-fixer")
 include(":plugins:gradle-module-sleep")
+include(":plugins:i18n-buddy")
 include(":plugins:maven-buddy-core")
-include(":plugins:package-fixer")
-include(":plugins:split-module")
 // <<< Gradle Module Sleep: End Of Block <<<
 
 include(":plugins:dotfiles")

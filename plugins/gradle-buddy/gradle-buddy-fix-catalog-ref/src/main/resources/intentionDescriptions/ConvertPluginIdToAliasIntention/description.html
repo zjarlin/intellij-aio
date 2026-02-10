@@ -1,17 +1,8 @@
 <html>
 
 <body>
-  修复 <code>plugins {}</code> 块中截断或错误的 <code>id("...")</code> 插件引用。
-  <p>
-    当用户写了一个截断的 plugin ID（如 <code>id("koin.compiler")</code>），
-    而 TOML 版本目录中实际的 plugin ID 是 <code>io.insert-koin.koin-compiler</code> 时，
-    本意图操作通过 plugin ID 匹配找到正确的 TOML 条目，
-    替换为 <code>alias(libs.plugins.xxx)</code>。
-  </p>
-  <p>
-    类似于 Select correct catalog reference 对 <code>libs.xxx</code> 断裂引用的修复，
-    但作用于 <code>id("...")</code> 形式的插件声明。
-  </p>
+  Convert a hardcoded <code>id("plugin.id")</code> declaration in the <code>plugins { }</code> block
+  to a version catalog alias reference: <code>alias(libs.plugins.xxx)</code>.
 </body>
 
 </html>

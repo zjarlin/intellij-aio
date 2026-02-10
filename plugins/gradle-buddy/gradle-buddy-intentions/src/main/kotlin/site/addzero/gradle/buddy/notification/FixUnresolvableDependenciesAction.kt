@@ -138,7 +138,9 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
     override fun onStatusChange(event: ExternalSystemTaskNotificationEvent) {
         // 部分 IDE 版本通过 status event 传递错误描述
         val desc = event.description ?: return
-        if (desc.contains("Could not find") || desc.contains("Could not resolve")) {
+        if (desc.contains("Could not find") || desc.contains("Could not resolve")
+            || desc.contains("was not found in any of the following sources")
+            || desc.contains("Plugin [id:")) {
             LOG.info("onStatusChange captured error: ${desc.take(300)}")
             outputBuffers.getOrPut(event.id) { StringBuilder() }.append("\n").append(desc)
         }
@@ -153,14 +155,26 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
 
     private fun processOutput(id: ExternalSystemTaskId, output: String) {
         val project = id.findProject() ?: return
+
+        // 处理依赖解析错误
         val unresolved = parseUnresolvedDependencies(output)
-        if (unresolved.isEmpty()) {
-            LOG.info("No unresolved dependencies found in output (${output.length} chars, type=${id.type})")
-            return
+        if (unresolved.isNotEmpty()) {
+            LOG.info("Found ${unresolved.size} unresolved dependencies (type=${id.type})")
+            val unique = unresolved.distinctBy { "${it.groupId}:${it.artifactId}:${it.version}" }
+            ApplicationManager.getApplication().invokeLater { showFixNotification(project, unique) }
         }
-        LOG.info("Found ${unresolved.size} unresolved dependencies (type=${id.type})")
-        val unique = unresolved.distinctBy { "${it.groupId}:${it.artifactId}:${it.version}" }
-        ApplicationManager.getApplication().invokeLater { showFixNotification(project, unique) }
+
+        // 处理插件未找到错误
+        val unresolvedPlugins = parseUnresolvedPlugins(output)
+        if (unresolvedPlugins.isNotEmpty()) {
+            LOG.info("Found ${unresolvedPlugins.size} unresolved plugins (type=${id.type})")
+            val uniquePlugins = unresolvedPlugins.distinctBy { it.pluginId }
+            ApplicationManager.getApplication().invokeLater { showPluginFixNotification(project, uniquePlugins) }
+        }
+
+        if (unresolved.isEmpty() && unresolvedPlugins.isEmpty()) {
+            LOG.info("No unresolved dependencies or plugins found in output (${output.length} chars, type=${id.type})")
+        }
     }
 
     /**
@@ -287,6 +301,303 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         return result
     }
 
+    // ── Plugin Not Found 解析 ───────────────────────────────────────────
+
+    /**
+     * 未解析的插件信息。
+     * @param pluginId 插件 ID，如 "site.addzero.gradle.plugin.java-convention"
+     * @param buildFilePath 报错的 build 文件路径（从错误输出中提取）
+     */
+    data class UnresolvedPlugin(
+        val pluginId: String,
+        val buildFilePath: String? = null
+    )
+
+    /**
+     * 解析 Gradle 输出中的 "Plugin was not found" 错误。
+     *
+     * 支持的格式：
+     * - "Plugin [id: 'xxx'] was not found in any of the following sources"
+     * - "Plugin [id: 'xxx', version: 'yyy'] was not found"
+     * - "Build file '/.../build.gradle.kts' line: N"
+     */
+    private fun parseUnresolvedPlugins(output: String): List<UnresolvedPlugin> {
+        val result = mutableListOf<UnresolvedPlugin>()
+        val lines = output.lines()
+
+        // 匹配 "Plugin [id: 'xxx'] was not found" 或 "Plugin [id: 'xxx', version: 'yyy'] was not found"
+        val pluginPattern = Regex("""Plugin \[id:\s*'([^']+)'(?:,\s*version:\s*'[^']*')?\]\s*was not found""")
+        // 匹配 "Build file '/path/to/build.gradle.kts' line: N"
+        val buildFilePattern = Regex("""Build file '([^']+)'""")
+
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            val pluginMatch = pluginPattern.find(line)
+            if (pluginMatch != null) {
+                val pluginId = pluginMatch.groupValues[1]
+
+                // 向前扫描查找 Build file 路径（通常在前几行）
+                var buildFilePath: String? = null
+                for (j in maxOf(0, i - 5)..i) {
+                    val buildFileMatch = buildFilePattern.find(lines[j])
+                    if (buildFileMatch != null) {
+                        buildFilePath = buildFileMatch.groupValues[1]
+                        break
+                    }
+                }
+
+                // 也向后扫描（有些格式 build file 在后面）
+                if (buildFilePath == null) {
+                    for (j in i until minOf(lines.size, i + 5)) {
+                        val buildFileMatch = buildFilePattern.find(lines[j])
+                        if (buildFileMatch != null) {
+                            buildFilePath = buildFileMatch.groupValues[1]
+                            break
+                        }
+                    }
+                }
+
+                result.add(UnresolvedPlugin(pluginId, buildFilePath))
+            }
+            i++
+        }
+        return result
+    }
+
+    // ── Plugin Fix Notification ─────────────────────────────────────────
+
+    private fun showPluginFixNotification(project: Project, plugins: List<UnresolvedPlugin>) {
+        val summary = plugins.joinToString("\n") { plugin ->
+            val file = plugin.buildFilePath?.let { path ->
+                val relativePath = project.basePath?.let { base ->
+                    path.removePrefix(base.trimEnd('/', '\\') + "/")
+                } ?: path
+                " (in $relativePath)"
+            } ?: ""
+            "  • ${plugin.pluginId}$file"
+        }
+        val notification = NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(
+                "Gradle: ${plugins.size} plugin(s) not found",
+                "Plugin not found:\n$summary",
+                NotificationType.WARNING
+            )
+
+        for (plugin in plugins.take(5)) {
+            notification.addAction(object : AnAction("Fix ${plugin.pluginId.substringAfterLast('.')}") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    fixPluginReference(project, plugin)
+                }
+            })
+        }
+
+        // 添加导航到报错文件的按钮
+        val pluginsWithFile = plugins.filter { it.buildFilePath != null }
+        if (pluginsWithFile.isNotEmpty()) {
+            notification.addAction(object : AnAction("Open Build File") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    navigateToPluginDeclaration(project, pluginsWithFile.first())
+                }
+            })
+        }
+
+        notification.notify(project)
+    }
+
+    /**
+     * 修复插件引用：使用 PluginIdScanner 查找正确的全限定 ID 并替换。
+     */
+    private fun fixPluginReference(project: Project, plugin: UnresolvedPlugin) {
+        val scanner = site.addzero.idfixer.PluginIdScanner(project)
+        val allPluginInfos = scanner.scanProjectGradleScripts()
+
+        // 提取核心 ID 和关键词用于匹配
+        val pluginId = plugin.pluginId
+        val coreId = if (pluginId.contains('.')) pluginId.substringAfterLast('.') else pluginId
+        val keywords = coreId.split('-', '_', '.').map { it.trim() }.filter { it.isNotBlank() }.distinct()
+
+        // 计算匹配分数
+        val candidates = allPluginInfos.mapNotNull { info ->
+            if (info.fullyQualifiedId == pluginId) return@mapNotNull null
+            val score = calculatePluginMatchScore(coreId, keywords, info)
+            if (score <= 0) return@mapNotNull null
+            info to score
+        }.sortedByDescending { it.second }
+
+        if (candidates.isEmpty()) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification(
+                    "No matching build-logic plugin found for '${plugin.pluginId}'",
+                    "Try checking your build-logic directory or plugin repositories.",
+                    NotificationType.WARNING
+                )
+                .notify(project)
+            return
+        }
+
+        if (candidates.size == 1) {
+            applyPluginFix(project, plugin, candidates.first().first)
+        } else {
+            // 多个候选项，显示选择弹窗
+            val items = candidates.map { it.first }
+            val popup = com.intellij.openapi.ui.popup.JBPopupFactory.getInstance()
+                .createPopupChooserBuilder(items)
+                .setTitle("Select correct plugin ID for '${plugin.pluginId}'")
+                .setRenderer(com.intellij.ui.SimpleListCellRenderer.create("") { info ->
+                    val relativePath = project.basePath?.let { base ->
+                        info.file.path.removePrefix(base.trimEnd('/', '\\') + "/")
+                    } ?: info.file.path
+                    "${info.fullyQualifiedId}  ($relativePath)"
+                })
+                .setItemChosenCallback { chosen ->
+                    applyPluginFix(project, plugin, chosen)
+                }
+                .createPopup()
+            popup.showInFocusCenter()
+        }
+    }
+
+    /**
+     * 计算插件匹配分数（与 FixPluginIdIntention 中的逻辑一致）
+     */
+    private fun calculatePluginMatchScore(
+        coreId: String,
+        keywords: List<String>,
+        info: site.addzero.idfixer.PluginIdInfo
+    ): Int {
+        val coreLower = coreId.lowercase()
+        val shortLower = info.shortId.lowercase()
+        val fullLower = info.fullyQualifiedId.lowercase()
+        val nameLower = info.file.name.lowercase()
+
+        val normalizedKeywords = keywords.map { it.lowercase() }.distinct()
+        val weakKeywords = setOf("convention", "conventions", "plugin", "plugins", "gradle", "build", "logic", "module", "modules")
+        val distinctiveKeywords = normalizedKeywords.filterNot { it in weakKeywords }
+
+        var score = 0
+
+        if (shortLower == coreLower) score += 120
+        if (shortLower.contains(coreLower) && coreLower.isNotBlank()) score += 60
+        if (fullLower.contains(coreLower) && coreLower.isNotBlank()) score += 40
+        if (nameLower.contains(coreLower) && coreLower.isNotBlank()) score += 30
+
+        if (normalizedKeywords.isEmpty()) return score
+
+        if (distinctiveKeywords.isNotEmpty()) {
+            val hasDistinctiveMatch = distinctiveKeywords.any { kw ->
+                shortLower.contains(kw) || fullLower.contains(kw) || nameLower.contains(kw)
+            }
+            if (!hasDistinctiveMatch) return 0
+        }
+
+        var matched = 0
+        for (kw in normalizedKeywords) {
+            val kwScore = when {
+                shortLower.contains(kw) -> 30
+                nameLower.contains(kw) -> 25
+                fullLower.contains(kw) -> 20
+                else -> 0
+            }
+            if (kwScore > 0) { matched++; score += kwScore }
+        }
+
+        if (matched > 0) {
+            val coverage = matched.toDouble() / normalizedKeywords.size
+            score += (coverage * 40.0).toInt()
+            if (matched == normalizedKeywords.size) score += 30
+        }
+
+        return score
+    }
+
+    /**
+     * 应用插件 ID 修复：在报错的 build 文件中替换插件 ID。
+     */
+    private fun applyPluginFix(
+        project: Project,
+        plugin: UnresolvedPlugin,
+        pluginInfo: site.addzero.idfixer.PluginIdInfo
+    ) {
+        val engine = site.addzero.idfixer.IdReplacementEngine(
+            project,
+            mapOf(plugin.pluginId to pluginInfo)
+        )
+
+        // 如果有报错文件路径，优先在该文件中修复
+        val scope = if (plugin.buildFilePath != null) {
+            val vf = LocalFileSystem.getInstance().findFileByPath(plugin.buildFilePath)
+            if (vf != null) {
+                com.intellij.psi.search.GlobalSearchScope.fileScope(
+                    PsiManager.getInstance(project).findFile(vf) ?: return
+                )
+            } else {
+                com.intellij.psi.search.GlobalSearchScope.projectScope(project)
+            }
+        } else {
+            com.intellij.psi.search.GlobalSearchScope.projectScope(project)
+        }
+
+        val candidates = engine.findReplacementCandidates(scope)
+        if (candidates.isEmpty()) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification(
+                    "No occurrences of '${plugin.pluginId}' found to fix",
+                    NotificationType.INFORMATION
+                )
+                .notify(project)
+            return
+        }
+
+        val result = WriteCommandAction.runWriteCommandAction<site.addzero.idfixer.ReplacementResult>(project) {
+            engine.applyReplacements(candidates)
+        }
+
+        if (result.isSuccessful()) {
+            val message = "Fixed ${result.replacementsMade} occurrence(s) of '${plugin.pluginId}' → '${pluginInfo.fullyQualifiedId}'"
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification(message, NotificationType.INFORMATION)
+                .notify(project)
+        } else {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification(
+                    "Failed to fix plugin ID: ${result.errors.firstOrNull() ?: "Unknown error"}",
+                    NotificationType.ERROR
+                )
+                .notify(project)
+        }
+    }
+
+    /**
+     * 导航到报错的 build 文件中的插件声明位置。
+     */
+    private fun navigateToPluginDeclaration(project: Project, plugin: UnresolvedPlugin) {
+        val buildFilePath = plugin.buildFilePath ?: return
+        val vf = LocalFileSystem.getInstance().findFileByPath(buildFilePath) ?: run {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification("Cannot locate build file: $buildFilePath", NotificationType.WARNING)
+                .notify(project)
+            return
+        }
+        val editors = FileEditorManager.getInstance(project).openFile(vf, true)
+        // 尝试定位到插件声明行
+        val doc = FileDocumentManager.getInstance().getDocument(vf) ?: return
+        val text = doc.text
+        val idx = text.indexOf("\"${plugin.pluginId}\"").takeIf { it >= 0 }
+            ?: text.indexOf("'${plugin.pluginId}'").takeIf { it >= 0 }
+            ?: text.indexOf(plugin.pluginId).takeIf { it >= 0 }
+        if (idx != null && idx >= 0) {
+            val textEditor = editors.filterIsInstance<TextEditor>().firstOrNull() ?: return
+            textEditor.editor.caretModel.moveToOffset(idx)
+            textEditor.editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+        }
+    }
 
     // ── Notification ────────────────────────────────────────────────────
 

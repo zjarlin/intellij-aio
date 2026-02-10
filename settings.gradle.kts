@@ -21,8 +21,8 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-02-10T19:21:07.013115
-// Loaded: 17, Excluded: 0, Total: 17
+// Generated at: 2026-02-10T19:26:54.114840
+// Loaded: 16, Excluded: 0, Total: 16
 include(":lib:ide-component-dynamicform")
 include(":lib:ide-component-settings-old")
 include(":lib:tool-psi-toml")
@@ -38,7 +38,6 @@ include(":plugins:gradle-buddy:gradle-buddy-tasks")
 include(":plugins:gradle-buddy:id-fixer")
 include(":plugins:gradle-module-sleep")
 include(":plugins:i18n-buddy")
-include(":plugins:maven-buddy")
 include(":plugins:maven-buddy-core")
 // <<< Gradle Module Sleep: End Of Block <<<
 

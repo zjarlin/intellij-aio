@@ -55,6 +55,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
     // ── Data model ──────────────────────────────────────────────────────
 
+    /** 单个文件中的一处断裂引用 */
     private data class BrokenRef(
         val ktsFile: VirtualFile,
         val fullMatch: String,
@@ -62,6 +63,19 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         val matchRange: IntRange,
         val candidates: List<String>
     )
+
+    /**
+     * 按 refAccessor 归并后的断裂引用组。
+     * 同一个断裂表达式在多个文件中出现时，只在表格中显示一行。
+     */
+    private data class MergedBrokenRef(
+        val refAccessor: String,
+        val candidates: List<String>,
+        val occurrences: List<BrokenRef>
+    ) {
+        val fileNames: String
+            get() = occurrences.map { it.ktsFile.name }.distinct().joinToString(", ")
+    }
 
     // ── Core logic ──────────────────────────────────────────────────────
 
@@ -113,13 +127,17 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                 // Strategy 0: Duplicate catalog prefix — e.g. libs.libs.xxx → accessor is "libs.xxx",
                 // the real accessor is "xxx" (strip the leading catalogName + ".")
                 val dupPrefix = catalogName + "."
-                val candidates = if (refAccessor.startsWith(dupPrefix)) {
+                val rawCandidates = if (refAccessor.startsWith(dupPrefix)) {
                     val stripped = stripTrailingMethods(refAccessor.removePrefix(dupPrefix))
                     if (stripped in accessorToAlias) listOf(stripped)
                     else findAllCandidates(stripped, normalizedToAccessors, accessorTokensMap)
                 } else {
                     findAllCandidates(refAccessor, normalizedToAccessors, accessorTokensMap)
                 }
+
+                // 如果断裂引用是 library（不以 versions./plugins./bundles. 开头），
+                // 则过滤掉 versions.xxx 候选项，避免出现 libs.versions.xxx 的错误替换
+                val candidates = filterCandidatesForLibraryRef(refAccessor, rawCandidates)
 
                 allBroken.add(BrokenRef(ktsFile, match.value, refAccessor, match.range, candidates))
             }
@@ -130,13 +148,20 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             return
         }
 
-        val autoFixable = allBroken.filter { it.candidates.size == 1 }
-        val ambiguous   = allBroken.filter { it.candidates.size > 1 }
-        val unfixable   = allBroken.filter { it.candidates.isEmpty() }
+        // 按 refAccessor 归并：同一个断裂表达式只显示一行
+        val merged = allBroken.groupBy { it.refAccessor }.map { (accessor, refs) ->
+            // 所有出现处的候选项取并集（通常一样，但保险起见）
+            val allCandidates = refs.flatMap { it.candidates }.distinct()
+            MergedBrokenRef(accessor, allCandidates, refs)
+        }
 
-        // Phase 2: Auto-fix unique matches
-        val autoFixed = applyFixes(project, catalogName,
-            autoFixable.map { it to it.candidates[0] })
+        val autoFixable = merged.filter { it.candidates.size == 1 }
+        val ambiguous   = merged.filter { it.candidates.size > 1 }
+        val unfixable   = merged.filter { it.candidates.isEmpty() }
+
+        // Phase 2: Auto-fix unique matches — 展开回所有 BrokenRef
+        val autoFixes = autoFixable.flatMap { m -> m.occurrences.map { it to m.candidates[0] } }
+        val autoFixed = applyFixes(project, catalogName, autoFixes)
 
         // Phase 3: Show table dialog only when there are ambiguous items to resolve
         if (ambiguous.isNotEmpty()) {
@@ -144,13 +169,12 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             if (dialog.showAndGet()) {
                 val manualFixes = dialog.getSelectedFixes()
                 val manualFixed = applyFixes(project, catalogName, manualFixes)
-                showSummary(project, autoFixed, manualFixed, unfixable)
+                showSummary(project, autoFixed, manualFixed, unfixable.flatMap { it.occurrences })
             } else {
-                showSummary(project, autoFixed, 0, unfixable)
+                showSummary(project, autoFixed, 0, unfixable.flatMap { it.occurrences })
             }
         } else {
-            // All unfixable or only auto-fixed — just show summary silently
-            showSummary(project, autoFixed, 0, unfixable)
+            showSummary(project, autoFixed, 0, unfixable.flatMap { it.occurrences })
         }
     }
 
@@ -171,7 +195,13 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                 val doc = docManager.getDocument(ktsFile) ?: continue
                 var text = doc.text
                 for ((broken, chosenAccessor) in fileFixes.sortedByDescending { it.first.matchRange.first }) {
-                    val fullNew = "$catalogName.$chosenAccessor"
+                    // 防止双重 catalogName（如 libs.libs.xxx）
+                    val cleanAccessor = if (chosenAccessor.startsWith("$catalogName.")) {
+                        chosenAccessor.removePrefix("$catalogName.")
+                    } else {
+                        chosenAccessor
+                    }
+                    val fullNew = "$catalogName.$cleanAccessor"
                     if (broken.matchRange.last < text.length) {
                         text = text.substring(0, broken.matchRange.first) + fullNew +
                                 text.substring(broken.matchRange.last + 1)
@@ -204,26 +234,24 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
     // ── Table Dialog ────────────────────────────────────────────────────
 
     /**
-     * Dialog with a JBTable showing all broken references.
+     * Dialog with a JBTable showing merged broken references.
      *
      * Columns:
-     *  0 - File        (read-only)
+     *  0 - Files       (read-only, comma-separated file names)
      *  1 - Broken Ref  (read-only)
      *  2 - Replace With (ComboBox for ambiguous, "—" for unfixable)
      *
-     * The combo-box for each ambiguous row contains all candidates;
-     * the first candidate is pre-selected.
+     * Each row represents a unique broken accessor, merged across all files.
      */
     private class BrokenRefTableDialog(
         private val project: Project,
         private val catalogName: String,
-        private val ambiguous: List<BrokenRef>,
-        private val unfixable: List<BrokenRef>,
+        private val ambiguous: List<MergedBrokenRef>,
+        private val unfixable: List<MergedBrokenRef>,
         private val autoFixedCount: Int
     ) : DialogWrapper(project, true) {
 
-        // Merge ambiguous + unfixable into one list for display
-        private val rows: List<BrokenRef> = ambiguous + unfixable
+        private val rows: List<MergedBrokenRef> = ambiguous + unfixable
 
         // Selected replacement per row index (null = skip / unfixable)
         private val selections = Array<String?>(rows.size) { i ->
@@ -241,56 +269,49 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         override fun createCenterPanel(): JComponent {
             val panel = JPanel(BorderLayout(0, 8))
 
-            // Info label
             val info = buildString {
                 if (autoFixedCount > 0) append("已自动修复 $autoFixedCount 处唯一匹配。")
                 if (ambiguous.isNotEmpty()) {
                     if (isNotEmpty()) append(" ")
-                    append("以下 ${ambiguous.size} 处有多个候选，请选择正确的替换。")
+                    append("以下 ${ambiguous.size} 种断裂引用有多个候选，请选择正确的替换。")
                 }
                 if (unfixable.isNotEmpty()) {
                     if (isNotEmpty()) append(" ")
-                    append("另有 ${unfixable.size} 处无候选项（标记为 —）。")
+                    append("另有 ${unfixable.size} 种无候选项（标记为 —）。")
                 }
             }
             panel.add(JLabel(info), BorderLayout.NORTH)
 
-            // Table
             val model = RefTableModel()
             val table = JBTable(model)
             table.setShowGrid(true)
             table.rowHeight = 28
 
-            // Column 0: File
-            table.columnModel.getColumn(0).preferredWidth = 180
-
-            // Column 1: Broken Ref
+            table.columnModel.getColumn(0).preferredWidth = 220
             table.columnModel.getColumn(1).preferredWidth = 280
 
-            // Column 2: Replace With — use combo-box editor & renderer
             val replaceCol = table.columnModel.getColumn(2)
             replaceCol.preferredWidth = 380
             replaceCol.cellRenderer = ComboCellRenderer()
             replaceCol.cellEditor = ComboCellEditor()
 
             val scrollPane = JBScrollPane(table)
-            scrollPane.preferredSize = Dimension(860, 400.coerceAtMost(rows.size * 28 + 40))
+            scrollPane.preferredSize = Dimension(900, 400.coerceAtMost(rows.size * 28 + 40))
             panel.add(scrollPane, BorderLayout.CENTER)
 
             return panel
         }
 
+        /** 返回展开后的所有 BrokenRef → chosenAccessor 对 */
         fun getSelectedFixes(): List<Pair<BrokenRef, String>> {
-            return rows.indices.mapNotNull { i ->
-                val sel = selections[i]
-                if (sel != null) rows[i] to sel else null
+            return rows.indices.flatMap { i ->
+                val sel = selections[i] ?: return@flatMap emptyList()
+                rows[i].occurrences.map { it to sel }
             }
         }
 
-        // ── Table model ─────────────────────────────────────────────
-
         private inner class RefTableModel : AbstractTableModel() {
-            private val colNames = arrayOf("文件", "断裂引用", "替换为")
+            private val colNames = arrayOf("涉及文件", "断裂引用", "替换为")
             override fun getRowCount() = rows.size
             override fun getColumnCount() = 3
             override fun getColumnName(col: Int) = colNames[col]
@@ -298,7 +319,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             override fun getValueAt(row: Int, col: Int): Any {
                 val ref = rows[row]
                 return when (col) {
-                    0 -> ref.ktsFile.name
+                    0 -> ref.fileNames
                     1 -> "$catalogName.${ref.refAccessor}"
                     2 -> selections[row] ?: "—"
                     else -> ""
@@ -317,8 +338,6 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             }
         }
 
-        // ── Combo renderer ──────────────────────────────────────────
-
         private inner class ComboCellRenderer : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(
                 table: JTable, value: Any?, isSelected: Boolean,
@@ -329,13 +348,13 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                     "— (无候选)"
                 } else {
                     val sel = selections[row] ?: ref.candidates[0]
-                    "$catalogName.$sel"
+                    // 预览时也防止双 catalogName
+                    val clean = if (sel.startsWith("$catalogName.")) sel else "$catalogName.$sel"
+                    clean
                 }
                 return super.getTableCellRendererComponent(table, display, isSelected, hasFocus, row, col)
             }
         }
-
-        // ── Combo editor ────────────────────────────────────────────
 
         private inner class ComboCellEditor : AbstractCellEditor(), TableCellEditor {
             private var combo: JComboBox<String>? = null
@@ -350,16 +369,24 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             ): Component {
                 currentRow = row
                 val ref = rows[row]
-                val items = ref.candidates.map { "$catalogName.$it" }.toTypedArray()
+                // 下拉菜单显示完整引用，但内部存储不带 catalogName 前缀的 accessor
+                val items = ref.candidates.map { candidate ->
+                    val clean = if (candidate.startsWith("$catalogName.")) candidate else "$catalogName.$candidate"
+                    clean
+                }.toTypedArray()
                 combo = JComboBox(items).apply {
                     val current = selections[row]
-                    if (current != null) selectedItem = "$catalogName.$current"
+                    if (current != null) {
+                        val display = if (current.startsWith("$catalogName.")) current else "$catalogName.$current"
+                        selectedItem = display
+                    }
                 }
                 return combo!!
             }
 
             override fun stopCellEditing(): Boolean {
                 val selected = (combo?.selectedItem as? String) ?: return super.stopCellEditing()
+                // 存储时去掉 catalogName 前缀，确保 applyFixes 不会双拼
                 selections[currentRow] = selected.removePrefix("$catalogName.")
                 return super.stopCellEditing()
             }
@@ -421,6 +448,19 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         if (quotesBeforeMatch % 2 == 1) return true  // inside a string literal
 
         return false
+    }
+
+    // ── Candidate filtering ─────────────────────────────────────────────
+
+    /**
+     * 如果断裂引用是 library（不以 versions./plugins./bundles. 开头），
+     * 则过滤掉 versions.xxx 候选项
+     */
+    private fun filterCandidatesForLibraryRef(refAccessor: String, candidates: List<String>): List<String> {
+        val typePrefixes = listOf("versions.", "plugins.", "bundles.")
+        val isLibraryRef = typePrefixes.none { refAccessor.startsWith(it) }
+        if (!isLibraryRef) return candidates
+        return candidates.filter { !it.startsWith("versions.") }
     }
 
     // ── Matching strategies ─────────────────────────────────────────────

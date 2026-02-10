@@ -68,9 +68,14 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
         // 使用相似度匹配查找候选项
         val matcher = AliasSimilarityMatcher()
-        val suggestedAliases = matcher.findSimilarAliases(reference, availableAliases)
+        var suggestedAliases = matcher.findSimilarAliases(reference, availableAliases)
 
-        // 只要有候选项就显示（包括当前引用本身）
+        // 如果是 library 引用，过滤掉 versions.xxx 候选项
+        val prefixes = listOf("versions.", "plugins.", "bundles.")
+        if (prefixes.none { reference.startsWith(it) }) {
+            suggestedAliases = suggestedAliases.filter { !it.alias.startsWith("versions.") }
+        }
+
         if (suggestedAliases.isEmpty()) return false
 
         // 缓存结果
@@ -95,8 +100,13 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         if (editor == null) return
 
         val candidates = cachedCandidates ?: return
+        val catalogName = cachedCatalogName ?: return
+        val currentReference = cachedCurrentReference ?: return
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return
+
+        // 找到目标 dotExpression 并严格校验
+        val dotExpression = findTargetDotExpression(element, catalogName, currentReference) ?: return
 
         // 显示弹出菜单
         val popup = JBPopupFactory.getInstance().createListPopup(
@@ -114,13 +124,11 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
                     if (selectedValue != null && finalChoice && !selectedValue.isCurrent) {
-                        // 执行替换
-                        com.intellij.openapi.application.ApplicationManager.getApplication().runWriteAction {
-                            replaceReference(
+                        com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
+                            replaceDotExpression(
                                 project,
-                                element,
+                                dotExpression,
                                 selectedValue.catalogName,
-                                selectedValue.oldReference,
                                 selectedValue.alias
                             )
                         }
@@ -131,6 +139,51 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         )
 
         popup.showInBestPositionFor(editor)
+    }
+
+    /**
+     * 从 element 向上找到目标 KtDotQualifiedExpression，
+     * 并严格校验其文本与预期的 catalogName.oldReference 完全匹配
+     */
+    private fun findTargetDotExpression(
+        element: PsiElement,
+        catalogName: String,
+        oldReference: String
+    ): KtDotQualifiedExpression? {
+        var dotExpression = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
+            ?: return null
+
+        while (dotExpression.parent is KtDotQualifiedExpression) {
+            dotExpression = dotExpression.parent as KtDotQualifiedExpression
+        }
+
+        val expectedText = "$catalogName.$oldReference"
+        if (dotExpression.text != expectedText) {
+            return null
+        }
+
+        return dotExpression
+    }
+
+    /**
+     * 直接替换已定位的 dotExpression
+     */
+    private fun replaceDotExpression(
+        project: Project,
+        dotExpression: KtDotQualifiedExpression,
+        catalogName: String,
+        newReference: String
+    ) {
+        val cleanRef = if (newReference.startsWith("$catalogName.")) {
+            newReference.removePrefix("$catalogName.")
+        } else {
+            newReference
+        }
+
+        val newFullReference = "$catalogName.$cleanRef"
+        val factory = KtPsiFactory(project)
+        val newExpression = factory.createExpression(newFullReference)
+        dotExpression.replace(newExpression)
     }
 
     private fun isCatalogReference(expression: KtDotQualifiedExpression): Boolean {
@@ -172,35 +225,6 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
     private fun containsForbiddenSegment(expression: KtDotQualifiedExpression): Boolean {
         val fullText = expression.text
         return fullText.contains(".javaClass") || fullText.endsWith(".javaClass")
-    }
-
-    private fun replaceReference(
-        project: Project,
-        element: PsiElement,
-        catalogName: String,
-        oldReference: String,
-        newReference: String
-    ) {
-        var current = element.parent
-        while (current != null && current !is KtDotQualifiedExpression) {
-            current = current.parent
-        }
-
-        var dotExpression = current as? KtDotQualifiedExpression ?: return
-
-        while (dotExpression.parent is KtDotQualifiedExpression) {
-            dotExpression = dotExpression.parent as KtDotQualifiedExpression
-        }
-
-        val fullText = dotExpression.text
-        if (!fullText.startsWith("$catalogName.")) {
-            return
-        }
-
-        val newFullReference = "$catalogName.$newReference"
-        val factory = KtPsiFactory(project)
-        val newExpression = factory.createExpression(newFullReference)
-        dotExpression.replace(newExpression)
     }
 
     private data class CandidateItem(

@@ -269,6 +269,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Create bundle from selected catalog dependencies -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.CreateBundleFromDependenciesIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Insert project dependency (select nearby module) -->
     <intentionAction order="FIRST">
       <language>kotlin</language>

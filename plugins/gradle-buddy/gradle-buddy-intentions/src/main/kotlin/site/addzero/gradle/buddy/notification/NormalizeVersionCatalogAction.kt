@@ -52,6 +52,54 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         // Collect effective alias renames (filter out no-ops)
         val effectiveAliasRenames = aliasRenames.filter { (old, new) -> old != new }
 
+        // 二次确认弹窗：Normalize 会修改整个项目的 .gradle.kts 引用，属于危险操作
+        val tomlChanged = content != newContent
+        val ktsAffected = effectiveAliasRenames.isNotEmpty()
+
+        if (!tomlChanged && !ktsAffected) {
+            com.intellij.openapi.ui.Messages.showInfoMessage(
+                project,
+                "Version catalog is already normalized. No changes needed.",
+                "Normalize Version Catalog"
+            )
+            return
+        }
+
+        val warningMessage = buildString {
+            append("⚠️ Normalize will perform the following changes:\n\n")
+            if (tomlChanged) {
+                append("• Rename aliases and version keys in ${file.name}\n")
+            }
+            if (ktsAffected) {
+                append("• Update libs.xxx.yyy references in ALL .gradle.kts files across the project\n")
+                append("• ${effectiveAliasRenames.size} alias(es) will be renamed\n")
+                if (effectiveAliasRenames.size <= 10) {
+                    append("\nRenames:\n")
+                    for ((old, new) in effectiveAliasRenames) {
+                        append("  $old → $new\n")
+                    }
+                } else {
+                    append("\nFirst 10 renames:\n")
+                    for ((old, new) in effectiveAliasRenames.entries.take(10)) {
+                        append("  $old → $new\n")
+                    }
+                    append("  ... and ${effectiveAliasRenames.size - 10} more\n")
+                }
+            }
+            append("\n⚠️ This is a project-wide destructive operation. Please commit your code before proceeding.")
+            append("\n\nContinue?")
+        }
+
+        val result = com.intellij.openapi.ui.Messages.showYesNoDialog(
+            project,
+            warningMessage,
+            "Normalize Version Catalog — Confirm",
+            "Normalize",
+            "Cancel",
+            com.intellij.openapi.ui.Messages.getWarningIcon()
+        )
+        if (result != com.intellij.openapi.ui.Messages.YES) return
+
         WriteCommandAction.runWriteCommandAction(project, "Normalize Version Catalog", null, {
             // Step 1: Update the TOML file
             if (content != newContent) {

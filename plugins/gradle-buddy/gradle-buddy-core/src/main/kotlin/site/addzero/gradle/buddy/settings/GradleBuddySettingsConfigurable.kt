@@ -20,6 +20,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
     private var catalogPathField: JBTextField? = null
     private var mainPanel: JPanel? = null
     private var catalogBannerCheckbox: JBCheckBox? = null
+    private var silentUpsertTomlCheckbox: JBCheckBox? = null
 
     override fun getDisplayName(): String = "Gradle Buddy"
 
@@ -39,6 +40,12 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         }
         catalogBannerCheckbox = bannerCheckBox
 
+        val silentUpsertCheckBox = JBCheckBox("Smart completion: silent upsert to TOML (回显 libs.xxx.xxx)").apply {
+            toolTipText = "启用后，在 .gradle.kts 中补全依赖时自动写入 libs.versions.toml 并回显 implementation(libs.xxx.xxx)"
+            isSelected = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
+        }
+        silentUpsertTomlCheckbox = silentUpsertCheckBox
+
         val resetButton = JButton("重置为默认").apply {
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
@@ -51,6 +58,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .addLabeledComponent("Default fallback tasks (one per line):", JBScrollPane(tasksTextArea))
             .addLabeledComponent("Version catalog path (relative to project root):", it)
             .addComponent(bannerCheckBox as JComponent)
+            .addComponent(silentUpsertCheckBox as JComponent)
         }
           ?.addComponent(resetButton)
           ?.addComponentFillVertically(JPanel(), 0)
@@ -68,7 +76,9 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         val savedShowBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
-        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner
+        val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
+        val savedSilentUpsert = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
+        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert
     }
 
     override fun apply() {
@@ -85,6 +95,9 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             VersionCatalogNotificationSettings.BANNER_DISABLED_KEY,
             !showBanner
         )
+
+        val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
+        GradleBuddySettingsService.getInstance(project).setSilentUpsertToml(silentUpsert)
     }
 
     override fun reset() {
@@ -94,6 +107,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val showBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         catalogBannerCheckbox?.isSelected = showBanner
+        silentUpsertTomlCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
     }
 
     override fun disposeUIResources() {
@@ -101,5 +115,6 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         catalogPathField = null
         mainPanel = null
         catalogBannerCheckbox = null
+        silentUpsertTomlCheckbox = null
     }
 }

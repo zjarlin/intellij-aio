@@ -13,7 +13,9 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
 
     data class State(
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
-        var versionCatalogPath: String = DEFAULT_VERSION_CATALOG_PATH
+        var versionCatalogPath: String = DEFAULT_VERSION_CATALOG_PATH,
+        /** 智能补全时静默 upsert toml：选中后自动写入 toml 并回显 libs.xxx.xxx */
+        var silentUpsertToml: Boolean = false
     )
 
     private var myState = State()
@@ -50,6 +52,14 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     // 移除默认任务
     fun removeDefaultTask(task: String) {
         myState.defaultTasks.remove(task)
+    }
+
+    // 获取是否静默 upsert toml
+    fun isSilentUpsertToml(): Boolean = myState.silentUpsertToml
+
+    // 设置是否静默 upsert toml
+    fun setSilentUpsertToml(enabled: Boolean) {
+        myState.silentUpsertToml = enabled
     }
 
     // 重置为默认值

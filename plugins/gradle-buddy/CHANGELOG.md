@@ -2,6 +2,32 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.10] - 2026-02-10
+
+### ✨ 新增功能
+- **智能依赖补全 (KTS)**：在 `.gradle.kts` 的 `dependencies {}` 块中输入关键字，自动搜索 Maven Central 并补全
+  - 三种输入模式：`implementation("xxx`（引号内）、`implementation(xxx`（无引号）、裸输入（直接输入关键字自动包裹 `implementation("...")`）
+  - KMP 项目支持：`commonMainImplementation`、`iosMainApi` 等 sourceSet 配置
+  - 静默 upsert TOML 模式：开启后自动写入 `libs.versions.toml` 并回显 `implementation(libs.xxx.xxx)`
+  - 补全优先级置顶（`order="FIRST"` + 高优先级值），Gradle Buddy 建议始终排在最前
+  - 历史记录 / 缓存 / Maven Central 三级搜索
+- **智能依赖补全 (TOML)**：在 `libs.versions.toml` 的 `[libraries]` 部分输入关键字，自动搜索并补全
+  - 值补全：在引号内输入 `groupId:artifactId` 自动搜索
+  - 裸 alias 输入：在 `[libraries]` 下直接输入 alias 关键字（如 `jimmer-ksp`），自动生成完整声明行
+  - 同 group 智能复用：已有 `jimmer-sql-kotlin` 时输入 `jimmer-ksp`，自动复用 `version.ref = "jimmer"`
+  - alias 命名规则：`artifactId` kebab-case，冲突时加 `groupId-` 前缀（不拼 version 后缀）
+  - 自动在 `[versions]` 中插入版本条目
+- **最新版本保证**：补全选中后，后台调用 `MavenCentralSearchUtil.getLatestVersion()` 获取真正最新版本
+  - 版本比较保护：resolved 版本必须 >= 搜索版本，绝不降级
+  - 异步替换：先用搜索版本即时插入（无延迟），后台获取最新版本后自动替换
+- **Settings 新增选项**：`Tools → Gradle Buddy` 新增「Smart completion: silent upsert to TOML」复选框
+
+### 🔧 改进
+- **Normalize 二次确认弹窗**：点击 Normalize 不再直接执行，而是弹出确认对话框
+  - 显示将要执行的操作摘要（TOML 重命名 + KTS 引用更新）
+  - 列出前 10 个 alias 重命名详情
+  - 警告用户这是项目级破坏性操作，建议先提交代码
+
 ## [2026.02.09-3] - 2026-02-09
 
 ### ✨ 新增功能

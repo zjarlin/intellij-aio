@@ -323,12 +323,12 @@
             level="WARNING"
             implementationClass="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactInspection"/>
 
-    <!-- Completion: Gradle Kotlin Script dependencies -->
-    <completion.contributor language="kotlin"
+    <!-- Completion: Gradle Kotlin Script dependencies (order=FIRST 确保置顶) -->
+    <completion.contributor language="kotlin" order="FIRST"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
 
-    <!-- Completion: Version Catalog TOML -->
-    <completion.contributor language="any"
+    <!-- Completion: Version Catalog TOML (order=FIRST 确保置顶) -->
+    <completion.contributor language="any" order="FIRST"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>
 
     <!-- Line Marker: gutter icons for version catalog libraries -->

@@ -6,6 +6,7 @@ import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -34,7 +35,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getText(): String = "(Gradle Buddy) Convert dependency to version catalog (TOML)"
 
-    override fun startInWriteAction(): Boolean = true
+    override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
         return IntentionPreviewInfo.Html("将硬编码依赖转换为使用版本目录引用并合并到 libs.versions.toml。")
@@ -55,8 +56,64 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val element = file.findElementAt(offset) ?: return
 
         val dependencyInfo = findHardcodedDependency(element) ?: return
-        WriteCommandAction.runWriteCommandAction(project) {
-            convertToVersionCatalog(file, dependencyInfo)
+        val versionRefFromVar = extractVersionRef(dependencyInfo.version)
+
+        // 如果版本已经是变量引用，直接转换
+        if (versionRefFromVar != null) {
+            WriteCommandAction.runWriteCommandAction(project) {
+                convertToVersionCatalog(file, dependencyInfo, versionRefFromVar, null)
+            }
+            return
+        }
+
+        // 解析现有的版本目录，查找版本号匹配的候选项
+        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val basePath = project.basePath ?: return
+        val catalogFile = File(basePath, catalogPath)
+        val existingContent = if (catalogFile.exists()) {
+            parseVersionCatalog(catalogFile.readText())
+        } else {
+            VersionCatalogContent(versions = mutableMapOf(), libraries = mutableMapOf())
+        }
+
+        // 查找版本号完全匹配的已有 version 条目
+        val matchingVersionEntries = existingContent.versions.filter { (_, v) -> v == dependencyInfo.version }
+
+        if (matchingVersionEntries.isEmpty()) {
+            // 没有匹配的版本条目，直接创建新的
+            WriteCommandAction.runWriteCommandAction(project) {
+                convertToVersionCatalog(file, dependencyInfo, null, null)
+            }
+        } else {
+            // 有匹配的版本条目，弹出选择对话框
+            val newVersionKey = generateVersionKey(dependencyInfo.groupId, dependencyInfo.artifactId)
+            val createNewLabel = "✚ 创建新版本变量: $newVersionKey = \"${dependencyInfo.version}\""
+            val items = matchingVersionEntries.map { (key, ver) -> "$key = \"$ver\"" } + createNewLabel
+
+            if (editor == null) {
+                // 无编辑器时回退到直接创建
+                WriteCommandAction.runWriteCommandAction(project) {
+                    convertToVersionCatalog(file, dependencyInfo, null, null)
+                }
+                return
+            }
+
+            JBPopupFactory.getInstance()
+                .createPopupChooserBuilder(items)
+                .setTitle("选择版本引用 (version.ref)")
+                .setAdText("检测到 ${matchingVersionEntries.size} 个已有版本定义匹配 \"${dependencyInfo.version}\"")
+                .setItemChosenCallback { chosen ->
+                    val selectedVersionKey = if (chosen == createNewLabel) {
+                        null // 创建新的
+                    } else {
+                        chosen.substringBefore(" =").trim()
+                    }
+                    WriteCommandAction.runWriteCommandAction(project) {
+                        convertToVersionCatalog(file, dependencyInfo, null, selectedVersionKey)
+                    }
+                }
+                .createPopup()
+                .showInBestPositionFor(editor)
         }
     }
 
@@ -141,8 +198,18 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         )
     }
 
-    // 转换为版本目录格式并合并到 libs.versions.toml
-    private fun convertToVersionCatalog(file: PsiFile, info: DependencyInfo) {
+    /**
+     * 转换为版本目录格式并合并到 libs.versions.toml
+     *
+     * @param versionRefFromVar 如果版本字符串本身就是 libs.versions.xxx 变量引用，则为提取出的 ref 名称
+     * @param selectedVersionKey 用户从弹窗中选择的已有版本 key；为 null 表示需要创建新的版本条目
+     */
+    private fun convertToVersionCatalog(
+        file: PsiFile,
+        info: DependencyInfo,
+        versionRefFromVar: String?,
+        selectedVersionKey: String?
+    ) {
         val project = file.project
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
 
@@ -158,10 +225,19 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val existingLibrary = existingContent.libraries.values.firstOrNull { entry ->
             entry.groupId == info.groupId && entry.artifactId == info.artifactId
         }
-        val versionRefFromVar = extractVersionRef(info.version)
         val libraryKey = existingLibrary?.alias ?: generateLibraryKey(info.groupId, info.artifactId)
         val accessorKey = toCatalogAccessor(libraryKey)
-        val versionKey = existingLibrary?.versionRef ?: versionRefFromVar ?: generateVersionKey(info.groupId, info.artifactId)
+
+        // 确定最终使用的 versionKey：
+        // 优先级：已有库的 versionRef > 变量引用 > 用户选择的已有 key > 自动生成新 key
+        val versionKey = existingLibrary?.versionRef
+            ?: versionRefFromVar
+            ?: selectedVersionKey
+            ?: generateVersionKey(info.groupId, info.artifactId)
+
+        // 是否需要在 [versions] 中创建新条目
+        // 只有当不是变量引用、且不是复用已有 key 时才需要创建
+        val needCreateVersion = versionRefFromVar == null && selectedVersionKey == null && existingLibrary?.versionRef == null
 
         // 生成新的依赖声明
         val dependencyRef = when {
@@ -186,12 +262,10 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val startOffset = info.element.textOffset
         val endOffset = startOffset + info.element.text.length
 
-        WriteCommandAction.runWriteCommandAction(project) {
-            document.replaceString(startOffset, endOffset, newDeclaration)
+        document.replaceString(startOffset, endOffset, newDeclaration)
 
-            // 合并到 libs.versions.toml
-            mergeToVersionCatalog(catalogFile, existingContent, info, libraryKey, versionKey, versionRefFromVar)
-        }
+        // 合并到 libs.versions.toml
+        mergeToVersionCatalog(catalogFile, existingContent, info, libraryKey, versionKey, needCreateVersion)
     }
 
     // 合并到版本目录文件
@@ -201,7 +275,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         info: DependencyInfo,
         libraryKey: String,
         versionKey: String,
-        versionRefFromVar: String?
+        needCreateVersion: Boolean
     ) {
         val catalogDir = catalogFile.parentFile
         if (!catalogDir.exists()) {
@@ -209,7 +283,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         }
 
         // 添加新的版本和库
-        if (versionRefFromVar == null) {
+        if (needCreateVersion) {
             existingContent.versions[versionKey] = info.version
         }
         if (!existingContent.libraries.containsKey(libraryKey)) {
@@ -219,14 +293,14 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
                 artifactId = info.artifactId,
                 module = "${info.groupId}:${info.artifactId}",
                 versionRef = versionKey,
-                version = if (versionRefFromVar == null) info.version else null,
+                version = null,
                 classifier = info.classifier
             )
         }
 
         // 写入文件（保留现有内容与其他表）
         if (catalogFile.exists()) {
-            updateVersionCatalogInPlace(catalogFile, info, libraryKey, versionKey, versionRefFromVar)
+            updateVersionCatalogInPlace(catalogFile, info, libraryKey, versionKey, needCreateVersion)
         } else {
             writeVersionCatalog(catalogFile, existingContent)
         }
@@ -335,21 +409,20 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         info: DependencyInfo,
         libraryKey: String,
         versionKey: String,
-        versionRefFromVar: String?
+        needCreateVersion: Boolean
     ) {
         val original = file.readText()
         val lines = original.lines().toMutableList()
         var updatedLines = lines
 
-        if (versionRefFromVar == null) {
+        if (needCreateVersion) {
             updatedLines = upsertVersionEntry(updatedLines, versionKey, info.version)
         }
         updatedLines = upsertLibraryEntry(
             updatedLines,
             libraryKey,
             info,
-            versionKey,
-            versionRefFromVar
+            versionKey
         )
 
         val updated = updatedLines.joinToString("\n")
@@ -386,8 +459,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         lines: MutableList<String>,
         libraryKey: String,
         info: DependencyInfo,
-        versionKey: String,
-        versionRefFromVar: String?
+        versionKey: String
     ): MutableList<String> {
         val section = findSection(lines, "[libraries]")
         val entryRegex = Regex("""^\s*${Regex.escape(libraryKey)}\s*=""")
@@ -396,7 +468,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
                 return lines
             }
             val insertAt = section.end
-            lines.add(insertAt, buildLibraryLine(libraryKey, info, versionKey, versionRefFromVar))
+            lines.add(insertAt, buildLibraryLine(libraryKey, info, versionKey))
             return lines
         }
 
@@ -404,23 +476,19 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
             lines.add("")
         }
         lines.add("[libraries]")
-        lines.add(buildLibraryLine(libraryKey, info, versionKey, versionRefFromVar))
+        lines.add(buildLibraryLine(libraryKey, info, versionKey))
         return lines
     }
 
+    /** 始终使用 version.ref 引用 */
     private fun buildLibraryLine(
         libraryKey: String,
         info: DependencyInfo,
-        versionKey: String,
-        versionRefFromVar: String?
+        versionKey: String
     ): String {
         val builder = StringBuilder()
         builder.append("$libraryKey = { group = \"${info.groupId}\", name = \"${info.artifactId}\"")
-        if (versionRefFromVar != null) {
-            builder.append(", version.ref = \"$versionKey\"")
-        } else {
-            builder.append(", version = \"${info.version}\"")
-        }
+        builder.append(", version.ref = \"$versionKey\"")
         if (info.classifier != null) {
             builder.append(", classifier = \"${info.classifier}\"")
         }

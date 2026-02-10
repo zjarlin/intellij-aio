@@ -86,8 +86,10 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         val cached = cacheService.match(query, limit = 20)
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
+                ProgressManager.checkCanceled()
+                val resolvedVersion = resolveLatestVersion(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 prefixMatcher.addElement(
-                    createArtifactElement(artifact, ctx, priority = 5000.0 - index, fromCache = true)
+                    createArtifactElement(artifact, resolvedVersion, ctx, priority = 5000.0 - index, fromCache = true)
                 )
             }
             result.restartCompletionOnAnyPrefixChange()
@@ -105,8 +107,9 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
+                val resolvedVersion = resolveLatestVersion(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 prefixMatcher.addElement(
-                    createArtifactElement(artifact, ctx, priority = 1000.0 - index, fromCache = false)
+                    createArtifactElement(artifact, resolvedVersion, ctx, priority = 1000.0 - index, fromCache = false)
                 )
             }
         }
@@ -164,7 +167,8 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         val cached = cacheService.match(query, limit = 15)
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
-                val version = artifact.latestVersion.ifBlank { artifact.version }
+                ProgressManager.checkCanceled()
+                val version = resolveLatestVersion(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 val suggestion = buildAliasSuggestion(artifact.groupId, artifact.artifactId, version, existingLibs)
                 prefixMatcher.addElement(
                     PrioritizedLookupElement.withPriority(
@@ -194,7 +198,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
-                val version = artifact.latestVersion.ifBlank { artifact.version }
+                val version = resolveLatestVersion(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 val suggestion = buildAliasSuggestion(artifact.groupId, artifact.artifactId, version, existingLibs)
                 prefixMatcher.addElement(
                     PrioritizedLookupElement.withPriority(
@@ -370,17 +374,16 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         )
     }
 
-    private fun createArtifactElement(artifact: MavenArtifact, ctx: TomlContext, priority: Double, fromCache: Boolean): LookupElement {
-        val version = artifact.latestVersion.ifBlank { artifact.version }
-        val insertText = formatInsertText(artifact.groupId, artifact.artifactId, version, ctx)
+    private fun createArtifactElement(artifact: MavenArtifact, resolvedVersion: String, ctx: TomlContext, priority: Double, fromCache: Boolean): LookupElement {
+        val insertText = formatInsertText(artifact.groupId, artifact.artifactId, resolvedVersion, ctx)
         val cacheIndicator = if (fromCache) "💾 " else ""
         return PrioritizedLookupElement.withPriority(
             LookupElementBuilder.create(insertText)
                 .withPresentableText(artifact.artifactId)
-                .withTailText(" $version", true)
+                .withTailText(" $resolvedVersion", true)
                 .withTypeText("$cacheIndicator${artifact.groupId}", true)
                 .withIcon(AllIcons.Nodes.PpLib)
-                .withInsertHandler(createValueInsertHandler(ctx, insertText, artifact.groupId, artifact.artifactId, version)),
+                .withInsertHandler(createValueInsertHandler(ctx, insertText, artifact.groupId, artifact.artifactId, resolvedVersion)),
             priority
         )
     }
@@ -423,14 +426,13 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         return 0
     }
 
-    /** 值补全的 InsertHandler（引号内替换） — 后台获取最新版本 */
+    /** 值补全的 InsertHandler（引号内替换） — 版本已在补全阶段解析为最新 */
     private fun createValueInsertHandler(
         ctx: TomlContext, insertText: String,
-        groupId: String, artifactId: String, searchVersion: String
+        groupId: String, artifactId: String, version: String
     ): InsertHandler<LookupElement> = InsertHandler { insertCtx, _ ->
         val document = insertCtx.document
         val editor = insertCtx.editor
-        val project = editor.project
         val startOffset = ctx.queryStartOffset
         val endOffset = insertCtx.tailOffset
         val afterText = document.text.substring(endOffset, minOf(endOffset + 5, document.textLength))
@@ -440,32 +442,16 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         editor.caretModel.moveToOffset(startOffset + finalText.length)
         insertCtx.commitDocument()
 
-        // 后台获取最新版本，如果不同则替换文档中的版本号
-        if (ctx.format == TomlFormat.SHORT || ctx.format == TomlFormat.VERSION) {
-            ApplicationManager.getApplication().executeOnPooledThread {
-                val latestVersion = resolveLatestVersion(groupId, artifactId, searchVersion)
-                if (latestVersion != searchVersion) {
-                    ApplicationManager.getApplication().invokeLater {
-                        WriteCommandAction.runWriteCommandAction(project) {
-                            val currentText = document.text
-                            val idx = currentText.indexOf(searchVersion)
-                            if (idx >= 0) {
-                                document.replaceString(idx, idx + searchVersion.length, latestVersion)
-                            }
-                        }
-                    }
-                }
-                SearchHistoryService.getInstance().record(groupId, artifactId, latestVersion)
-            }
-        } else {
-            SearchHistoryService.getInstance().record(groupId, artifactId, searchVersion)
+        // 记录历史
+        ApplicationManager.getApplication().executeOnPooledThread {
+            SearchHistoryService.getInstance().record(groupId, artifactId, version)
         }
     }
 
-    /** 裸 alias 补全的 InsertHandler（替换整行） — 后台获取最新版本 */
+    /** 裸 alias 补全的 InsertHandler（替换整行） — 版本已在补全阶段解析为最新 */
     private fun createBareAliasInsertHandler(
         ctx: TomlContext, suggestion: AliasSuggestion,
-        groupId: String, artifactId: String, searchVersion: String
+        groupId: String, artifactId: String, version: String
     ): InsertHandler<LookupElement> = InsertHandler { insertCtx, _ ->
         val document = insertCtx.document
         val editor = insertCtx.editor
@@ -476,19 +462,13 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         editor.caretModel.moveToOffset(startOffset + suggestion.fullLine.length)
         insertCtx.commitDocument()
 
-        // 后台获取最新版本，然后处理 [versions] 写入
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val latestVersion = resolveLatestVersion(groupId, artifactId, searchVersion)
-
-            ApplicationManager.getApplication().invokeLater {
-                WriteCommandAction.runWriteCommandAction(project) {
-                    // 如果版本不同，替换 library 行中的版本引用对应的值
-                    // （library 行本身不含版本号，版本在 [versions] 里）
-
-                    // 如果没有复用已有 version.ref，需要在 [versions] 中添加
-                    if (!suggestion.reusedVersionRef) {
+        // 如果没有复用已有 version.ref，需要在 [versions] 中添加
+        if (!suggestion.reusedVersionRef) {
+            ApplicationManager.getApplication().executeOnPooledThread {
+                ApplicationManager.getApplication().invokeLater {
+                    WriteCommandAction.runWriteCommandAction(project) {
                         val text = document.text
-                        val versionEntry = "${suggestion.versionRef} = \"$latestVersion\""
+                        val versionEntry = "${suggestion.versionRef} = \"$version\""
                         val versionsIdx = text.indexOf("[versions]")
                         if (versionsIdx >= 0) {
                             val versionKeyRegex = Regex("""^\s*${Regex.escape(suggestion.versionRef)}\s*=""", RegexOption.MULTILINE)
@@ -505,8 +485,12 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
                         }
                     }
                 }
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
             }
-            SearchHistoryService.getInstance().record(groupId, artifactId, latestVersion)
+        } else {
+            ApplicationManager.getApplication().executeOnPooledThread {
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
+            }
         }
     }
 }

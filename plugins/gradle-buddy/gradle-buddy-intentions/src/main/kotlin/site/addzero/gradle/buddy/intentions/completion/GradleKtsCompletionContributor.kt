@@ -122,8 +122,10 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
         val cached = cacheService.match(query, limit = 20)
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
+                ProgressManager.checkCanceled()
+                val resolvedVersion = resolveLatestVersionForDisplay(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 prefixMatcher.addElement(
-                    createArtifactElement(artifact, ctx, project, silentUpsert, priority = 5000.0 - index, fromCache = true)
+                    createArtifactElement(artifact, resolvedVersion, ctx, project, silentUpsert, priority = 5000.0 - index, fromCache = true)
                 )
             }
             result.restartCompletionOnAnyPrefixChange()
@@ -142,8 +144,9 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
+                val resolvedVersion = resolveLatestVersionForDisplay(artifact.groupId, artifact.artifactId, artifact.latestVersion.ifBlank { artifact.version })
                 prefixMatcher.addElement(
-                    createArtifactElement(artifact, ctx, project, silentUpsert, priority = 1000.0 - index, fromCache = false)
+                    createArtifactElement(artifact, resolvedVersion, ctx, project, silentUpsert, priority = 1000.0 - index, fromCache = false)
                 )
             }
         }
@@ -261,25 +264,33 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
 
     private fun createArtifactElement(
         artifact: MavenArtifact,
+        resolvedVersion: String,
         ctx: KtsDependencyContext,
         project: Project?,
         silentUpsert: Boolean,
         priority: Double,
         fromCache: Boolean
     ): LookupElement {
-        val version = artifact.latestVersion.ifBlank { artifact.version }
         val lookupStr = artifact.artifactId
         val cacheIndicator = if (fromCache) "💾 " else ""
 
         return PrioritizedLookupElement.withPriority(
             LookupElementBuilder.create(lookupStr)
                 .withPresentableText(artifact.artifactId)
-                .withTailText("  ${artifact.groupId}:$version", true)
+                .withTailText("  ${artifact.groupId}:$resolvedVersion", true)
                 .withTypeText("$cacheIndicator${if (silentUpsert) "→ toml" else "Maven"}", true)
                 .withIcon(AllIcons.Nodes.PpLib)
-                .withInsertHandler(createInsertHandler(ctx, artifact.groupId, artifact.artifactId, version, project, silentUpsert)),
+                .withInsertHandler(createInsertHandler(ctx, artifact.groupId, artifact.artifactId, resolvedVersion, project, silentUpsert)),
             priority
         )
+    }
+
+    /**
+     * 在补全列表构建阶段同步获取最新版本，用于显示。
+     * addCompletions 本身在后台线程执行，所以同步网络调用可以接受。
+     */
+    private fun resolveLatestVersionForDisplay(groupId: String, artifactId: String, searchVersion: String): String {
+        return resolveLatestVersion(groupId, artifactId, searchVersion)
     }
 
     /**
@@ -313,7 +324,7 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
         ctx: KtsDependencyContext,
         groupId: String,
         artifactId: String,
-        searchVersion: String,
+        version: String,
         project: Project?,
         silentUpsert: Boolean
     ): InsertHandler<LookupElement> = InsertHandler { insertCtx, _ ->
@@ -359,19 +370,18 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
             }
             insertCtx.commitDocument()
 
-            // 后台获取最新版本后写入 toml
+            // 后台写入 toml（版本已经是最新的了）
             ApplicationManager.getApplication().executeOnPooledThread {
-                val latestVersion = resolveLatestVersion(groupId, artifactId, searchVersion)
                 ApplicationManager.getApplication().invokeLater {
                     WriteCommandAction.runWriteCommandAction(project) {
-                        upsertToVersionCatalog(project, groupId, artifactId, latestVersion, alias)
+                        upsertToVersionCatalog(project, groupId, artifactId, version, alias)
                     }
                 }
-                SearchHistoryService.getInstance().record(groupId, artifactId, latestVersion)
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
             }
         } else {
-            // === 普通模式：先用搜索版本快速插入，再后台解析最新版本替换 ===
-            val coordinate = "$groupId:$artifactId:$searchVersion"
+            // === 普通模式：版本已在补全阶段解析为最新，直接插入 ===
+            val coordinate = "$groupId:$artifactId:$version"
 
             val insertText = when (ctx.mode) {
                 KtsInputMode.BARE -> "implementation(\"$coordinate\")"
@@ -395,23 +405,9 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
             editor.caretModel.moveToOffset(startOffset + insertText.length)
             insertCtx.commitDocument()
 
-            // 后台获取最新版本，如果不同则替换
+            // 记录历史
             ApplicationManager.getApplication().executeOnPooledThread {
-                val latestVersion = resolveLatestVersion(groupId, artifactId, searchVersion)
-                if (latestVersion != searchVersion) {
-                    ApplicationManager.getApplication().invokeLater {
-                        WriteCommandAction.runWriteCommandAction(project) {
-                            val currentText = document.text
-                            val oldCoordinate = "$groupId:$artifactId:$searchVersion"
-                            val newCoordinate = "$groupId:$artifactId:$latestVersion"
-                            val idx = currentText.indexOf(oldCoordinate)
-                            if (idx >= 0) {
-                                document.replaceString(idx, idx + oldCoordinate.length, newCoordinate)
-                            }
-                        }
-                    }
-                }
-                SearchHistoryService.getInstance().record(groupId, artifactId, latestVersion)
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
             }
         }
     }

@@ -10,7 +10,7 @@ dependencies {
     implementation("io.ktor:ktor-server-cio:${libs.versions.ktor.get()}")
 
     // kotlinx-serialization for JSON serialization of MCP responses
-    implementation(libs.kotlinx.serialization)
+    implementation(libs.org.jetbrains.kotlinx.kotlinx.serialization.json)
 }
 
 // 禁用 buildSearchableOptions 任务（开发阶段不需要）

@@ -22,12 +22,12 @@ dependencies {
     implementation(project(":lib:ide-component-settings-old"))
 
 
-    implementation(libs.tool.ai)
-    implementation(libs.tool.toml)
-    implementation(libs.tool.io.codegen)
-    implementation(libs.tool.str)
-    implementation(libs.tool.jvmstr)
-    implementation(libs.tool.coll)
-    implementation(libs.tool.reflection)
+    implementation(libs.site.addzero.tool.ai)
+    implementation(libs.site.addzero.tool.toml)
+    implementation(libs.site.addzero.tool.io.codegen)
+    implementation(libs.site.addzero.tool.str)
+    implementation(libs.site.addzero.tool.jvmstr)
+    implementation(libs.site.addzero.tool.coll)
+    implementation(libs.site.addzero.tool.reflection)
 
 }

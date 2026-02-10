@@ -10,8 +10,8 @@ intellijPlatform {
 }
 
 dependencies {
-    implementation(libs.tool.toml)
-    implementation(libs.gson)
+    implementation(libs.site.addzero.tool.toml)
+    implementation(libs.com.google.code.gson.gson)
     implementation("org.jetbrains.kotlin:kotlin-scripting-jsr223:${libs.versions.kotlin.get()}")
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:${libs.versions.kotlin.get()}")
     implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:${libs.versions.kotlin.get()}")

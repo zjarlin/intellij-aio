@@ -6,5 +6,5 @@ dependencies {
     intellijPlatform {
         bundledPlugin("org.jetbrains.plugins.gradle")
     }
-    implementation(libs.tool.api.maven)
+    implementation(libs.site.addzero.tool.api.maven)
 }

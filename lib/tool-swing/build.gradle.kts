@@ -4,11 +4,11 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.tool.jvmstr)
-    implementation(libs.hutool.core)
+    implementation(libs.site.addzero.tool.jvmstr)
+    implementation(libs.cn.hutool.hutool.core)
 
 //    implementation(tool-str)
 
-    implementation(libs.tool.str)
+    implementation(libs.site.addzero.tool.str)
 
 }

@@ -23,9 +23,9 @@ dependencies {
     implementation("site.addzero:tool-sql-executor:2025.11.26")
 
     // 工具类
-    implementation(libs.tool.str)
-    implementation(libs.tool.coll)
-    implementation(libs.tool.io.codegen)
+    implementation(libs.site.addzero.tool.str)
+    implementation(libs.site.addzero.tool.coll)
+    implementation(libs.site.addzero.tool.io.codegen)
 
     // YAML 解析（用于读取 Spring 配置）
     implementation("org.yaml:snakeyaml:2.2")

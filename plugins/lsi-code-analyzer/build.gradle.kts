@@ -15,11 +15,11 @@ dependencies {
     implementation("site.addzero:tool-database-model:2025.12.04")
     implementation("site.addzero:tool-sql-executor:2025.11.26")
     implementation("site.addzero:tool-jdbc:2025.10.07")
-    implementation(libs.gson)
-    implementation(libs.tool.jvmstr)
+    implementation(libs.com.google.code.gson.gson)
+    implementation(libs.site.addzero.tool.jvmstr)
 
     // JSON to Kotlin Data Class
-    implementation(libs.json2kotlin.dataclass)
+    implementation(libs.site.addzero.json2kotlin.dataclass)
 
 
 

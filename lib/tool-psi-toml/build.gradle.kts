@@ -3,9 +3,9 @@ plugins {
 }
 
 dependencies {
-       implementation(libs.tool.jvmstr)
+       implementation(libs.site.addzero.tool.jvmstr)
 
-   
+
 
 
 }

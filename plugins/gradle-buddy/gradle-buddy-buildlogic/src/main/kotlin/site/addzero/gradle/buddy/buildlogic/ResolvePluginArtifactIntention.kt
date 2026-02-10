@@ -46,9 +46,20 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
         if (!file.name.endsWith(".gradle.kts")) return false
+        // 只在复合构建模块（build-logic / buildSrc）中显示
+        if (!isInBuildLogicModule(file)) return false
         val offset = editor?.caretModel?.offset ?: return false
         val element = file.findElementAt(offset) ?: return false
         return extractPluginInfo(element) != null
+    }
+
+    /**
+     * 判断文件是否属于复合构建模块（build-logic / buildSrc）。
+     * 通过文件路径判断：路径中包含 build-logic 或 buildSrc 目录。
+     */
+    private fun isInBuildLogicModule(file: PsiFile): Boolean {
+        val path = file.virtualFile?.path ?: return false
+        return path.contains("/build-logic/") || path.contains("/buildSrc/")
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {

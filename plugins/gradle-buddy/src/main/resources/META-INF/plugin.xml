@@ -111,6 +111,14 @@
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
     </action>
 
+    <!-- Gradle Wrapper: Update all wrapper properties to latest version -->
+    <action id="GradleBuddy.UpdateGradleWrapper"
+            class="site.addzero.gradle.buddy.wrapper.UpdateGradleWrapperAction"
+            text="Update Gradle Wrapper (Mirror)"
+            description="Update all gradle-wrapper.properties to latest Gradle version using mirror">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+
     <!-- Favorite Tasks Floating Toolbar (shown on .gradle.kts / .gradle files) -->
     <group id="GradleBuddy.FavoriteTasksToolbarGroup"
            text="Favorite Tasks"
@@ -382,6 +390,16 @@
     <!-- Gradle Build Error Listener: registered programmatically via GradleBuildErrorListenerRegistrar -->
 
     <postStartupActivity implementation="site.addzero.gradle.buddy.notification.GradleBuildErrorListenerRegistrar"/>
+
+    <!-- Gradle Wrapper version check on project open -->
+    <postStartupActivity implementation="site.addzero.gradle.buddy.wrapper.WrapperVersionCheckStartup"/>
+
+    <!-- Intention: Update Gradle wrapper distributionUrl (in gradle-wrapper.properties) -->
+    <!-- 不限制 language，由 isAvailable() 中的 file.name 检查控制 -->
+    <intentionAction order="FIRST">
+      <className>site.addzero.gradle.buddy.wrapper.UpdateWrapperIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
 
   </extensions>
 

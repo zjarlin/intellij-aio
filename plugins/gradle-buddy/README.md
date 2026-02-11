@@ -2,7 +2,17 @@
 ---
 ## 功能特性
 
+### 🆕 近期更新 (2026.02.16)
+- **Wrapper 自动更新**：Settings → Tools → Gradle Buddy 新增「Auto-update Gradle Wrapper on project open」复选框，启用后每次打开项目自动静默更新所有 wrapper 到最新版本（使用首选镜像）
+- **修复 wrapper 模块未打包**：修复 `ClassNotFoundException: WrapperVersionCheckStartup`
+
 ### 🆕 近期更新 (2026.02.11)
+- **Gradle Wrapper 一键更新 (gradle-buddy-wrapper)**：
+  - Tools 菜单 → "Update Gradle Wrapper (Mirror)"：扫描所有 `gradle-wrapper.properties`，一键更新到最新版本
+  - Alt+Enter 意图操作：在 `gradle-wrapper.properties` 的 `distributionUrl=` 行上按 Alt+Enter，弹出镜像选择器
+  - 启动检查：项目打开时自动检测 wrapper 版本，过期则通知提醒
+  - 内置 3 个镜像：腾讯云（默认）、阿里云、Gradle 官方
+  - Settings → Tools → Gradle Buddy 中可设置首选镜像
 - **Create Bundle / Unbundle 意图操作**：
   - 选中多行 `implementation(libs.xxx)` → Alt+Enter → 创建 `[bundles]` 条目，同名 bundle 自动合并
   - 光标在 `libs.bundles.xxx` 上 → Alt+Enter → 展开为独立依赖行
@@ -90,6 +100,12 @@
 | Update dependency to latest version | 查询最新版本并替换 | [libraries] 依赖声明 |
 | Update version variable to latest | 更新 [versions] 变量 | [versions] |
 | Select other versions | 选择指定版本并替换 | [libraries] 依赖声明 |
+
+**gradle-wrapper.properties**
+
+| 意图 | 说明 | 支持范围 |
+| --- | --- | --- |
+| Update Gradle wrapper to latest | 更新 distributionUrl 为最新版本镜像 | distributionUrl 行 |
 
 ---
 
@@ -524,6 +540,58 @@ plugins {
 |-------|------|
 | `Alt+Enter` | 在依赖上触发意图操作（更新版本等） |
 | `Alt+Enter` | 在插件 ID 上触发快速修复（修复为完全限定名） |
+
+---
+
+## 🔄 Gradle Wrapper 镜像更新
+
+### 问题背景
+
+国内开发者下载 Gradle 分发包速度慢，每个项目的 `gradle-wrapper.properties` 都需要手动改镜像地址，多项目时更新版本也很麻烦。
+
+### 解决方案
+
+#### 1. 启动自动检查
+
+项目打开时自动检测所有 `gradle-wrapper.properties` 的 Gradle 版本，如果不是最新版则弹出通知：
+- 一键更新按钮（使用设置中的首选镜像）
+- "Choose Mirror..." 按钮打开完整镜像选择
+
+#### 2. Tools 菜单操作
+
+**Tools → Update Gradle Wrapper (Mirror)**：
+- 扫描项目中所有 `gradle-wrapper.properties`（支持多模块）
+- 显示每个文件的当前版本和最新版本
+- 提供腾讯云 / 阿里云 / 官方三个镜像按钮，一键批量更新
+
+#### 3. Alt+Enter 意图操作
+
+在 `gradle-wrapper.properties` 文件中，光标在 `distributionUrl=` 行上按 Alt+Enter：
+- 弹出镜像选择菜单
+- 选择后就地替换 URL
+- 保持原有的分发类型（bin/all）
+
+#### 4. 首选镜像设置
+
+**Settings → Tools → Gradle Buddy → Gradle Wrapper preferred mirror**：
+- 设置默认镜像，启动检查和一键更新都会使用此镜像
+- 可选：Tencent Cloud（腾讯云）、Aliyun（阿里云）、Gradle Official
+
+#### 5. 自动更新模式
+
+**Settings → Tools → Gradle Buddy → Auto-update Gradle Wrapper on project open**：
+- 勾选后，每次打开项目自动检查并静默更新所有 `gradle-wrapper.properties` 到最新版本
+- 使用上方设置的首选镜像
+- 更新完成后显示简短通知，无需任何手动操作
+- 未勾选时保持原有行为（弹出交互通知，手动点击更新）
+
+### 支持的镜像
+
+| 镜像 | URL 模板 |
+|------|----------|
+| 腾讯云 | `https://mirrors.cloud.tencent.com/gradle/gradle-{version}-{type}.zip` |
+| 阿里云 | `https://mirrors.aliyun.com/macports/distfiles/gradle/gradle-{version}-{type}.zip` |
+| 官方 | `https://services.gradle.org/distributions/gradle-{version}-{type}.zip` |
 
 ---
 

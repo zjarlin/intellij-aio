@@ -23,7 +23,17 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
          * "MAJOR_VERSION" = 提取主版本号后缀，如 2.7.18 → -v2（默认）
          * "ALT_SUFFIX"    = 使用 -alt, -alt2, -alt3 后缀
          */
-        var normalizeDedupStrategy: String = "MAJOR_VERSION"
+        var normalizeDedupStrategy: String = "MAJOR_VERSION",
+        /**
+         * Gradle Wrapper 更新时的首选镜像索引。
+         * 0 = Tencent Cloud（默认），1 = Aliyun，2 = Official
+         */
+        var preferredMirrorIndex: Int = 0,
+        /**
+         * 是否在项目打开时自动更新 Gradle Wrapper 到最新版本。
+         * 启用后使用首选镜像静默更新，无需手动操作。
+         */
+        var autoUpdateWrapper: Boolean = false
     )
 
     private var myState = State()
@@ -76,6 +86,22 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     // 设置 Normalize 去重策略
     fun setNormalizeDedupStrategy(strategy: String) {
         myState.normalizeDedupStrategy = strategy
+    }
+
+    // 获取首选镜像索引
+    fun getPreferredMirrorIndex(): Int = myState.preferredMirrorIndex.coerceIn(0, 2)
+
+    // 设置首选镜像索引
+    fun setPreferredMirrorIndex(index: Int) {
+        myState.preferredMirrorIndex = index.coerceIn(0, 2)
+    }
+
+    // 获取是否自动更新 Wrapper
+    fun isAutoUpdateWrapper(): Boolean = myState.autoUpdateWrapper
+
+    // 设置是否自动更新 Wrapper
+    fun setAutoUpdateWrapper(enabled: Boolean) {
+        myState.autoUpdateWrapper = enabled
     }
 
     // 重置为默认值

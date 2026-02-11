@@ -19,6 +19,7 @@ dependencies {
   implementation(project(":plugins:gradle-buddy:id-fixer"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-fix-catalog-ref"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-linemarker"))
+  implementation(project(":plugins:gradle-buddy:gradle-buddy-wrapper"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-buildlogic"))
 }

@@ -2,9 +2,28 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.16] - 2026-02-16
+
+### ✨ 新增功能
+- **Wrapper 自动更新**：Settings → Tools → Gradle Buddy 新增「Auto-update Gradle Wrapper on project open (自动更新 Wrapper)」复选框
+  - 启用后，每次打开项目时自动检查并静默更新所有 `gradle-wrapper.properties` 到最新版本
+  - 使用首选镜像（腾讯云/阿里云/官方），无需手动操作
+  - 更新完成后显示简短通知（如 "Auto-updated 2 wrapper(s) to Gradle 9.3.1, Mirror: Tencent Cloud"）
+  - 未启用时保持原有行为（弹出交互通知，手动点击更新）
+
+### 🐛 修复
+- **gradle-buddy-wrapper 模块未打包**：修复 `ClassNotFoundException: WrapperVersionCheckStartup`，在主模块 `build.gradle.kts` 中补充 `implementation(project(":plugins:gradle-buddy:gradle-buddy-wrapper"))` 依赖
+
 ## [2026.02.11] - 2026-02-11
 
 ### ✨ 新增功能
+- **Gradle Wrapper 镜像更新 (gradle-buddy-wrapper)**：新子模块，一站式管理 Gradle Wrapper 版本和镜像
+  - `UpdateGradleWrapperAction`：Tools 菜单操作，扫描所有 `gradle-wrapper.properties`，显示版本对比，提供腾讯云/阿里云/官方三个镜像按钮一键批量更新
+  - `UpdateWrapperIntention`：Alt+Enter 意图操作，在 `gradle-wrapper.properties` 的 `distributionUrl=` 行上触发，弹出镜像选择器就地替换
+  - `WrapperVersionCheckStartup`：项目启动时自动检测 wrapper 版本，过期则通知提醒，一键更新使用首选镜像
+  - `GradleWrapperUpdater`：核心工具类，通过 Gradle Services API 获取最新版本，支持 3 个镜像模板，递归查找 wrapper 文件
+  - Settings → Tools → Gradle Buddy 新增「Gradle Wrapper preferred mirror」下拉框，设置默认镜像
+  - 意图操作移除 `<language>Properties</language>` 限制，改为 `isAvailable()` 中检查文件名，兼容性更好
 - **Create Bundle 意图操作**：选中多行 `implementation(libs.xxx)` 依赖，Alt+Enter 一键创建 `[bundles]` 条目
   - 自动提取选中行中的 `libs.xxx.yyy` 别名
   - 弹出输入框命名 bundle，默认基于公共前缀推断

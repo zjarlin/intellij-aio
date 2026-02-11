@@ -25,6 +25,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
     private var catalogBannerCheckbox: JBCheckBox? = null
     private var silentUpsertTomlCheckbox: JBCheckBox? = null
     private var dedupStrategyCombo: JComboBox<String>? = null
+    private var mirrorCombo: JComboBox<String>? = null
+    private var autoUpdateWrapperCheckbox: JBCheckBox? = null
 
     override fun getDisplayName(): String = "Gradle Buddy"
 
@@ -76,6 +78,19 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             "</font></html>"
         )
 
+        val mirrorNames = arrayOf("Tencent Cloud (腾讯云)", "Aliyun (阿里云)", "Gradle Official")
+        val mirrorCb = JComboBox(DefaultComboBoxModel(mirrorNames)).apply {
+            selectedIndex = GradleBuddySettingsService.getInstance(project).getPreferredMirrorIndex()
+            toolTipText = "Gradle Wrapper 更新时的默认镜像。启动检查和一键更新都会使用此镜像。"
+        }
+        mirrorCombo = mirrorCb
+
+        val autoUpdateCb = JBCheckBox("Auto-update Gradle Wrapper on project open (自动更新 Wrapper)").apply {
+            toolTipText = "启用后，每次打开项目时自动检查并静默更新所有 gradle-wrapper.properties 到最新版本（使用上方镜像）"
+            isSelected = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
+        }
+        autoUpdateWrapperCheckbox = autoUpdateCb
+
         val resetButton = JButton("重置为默认").apply {
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
@@ -91,6 +106,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .addComponent(silentUpsertCheckBox as JComponent)
             .addLabeledComponent("Normalize dedup strategy (同 artifact 多版本冲突):", dedupCombo)
             .addComponent(dedupDescLabel)
+            .addLabeledComponent("Gradle Wrapper preferred mirror:", mirrorCb)
+            .addComponent(autoUpdateCb as JComponent)
         }
           ?.addComponent(resetButton)
           ?.addComponentFillVertically(JPanel(), 0)
@@ -112,7 +129,11 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val savedSilentUpsert = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
         val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
         val savedDedupStrategy = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
-        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert || dedupStrategy != savedDedupStrategy
+        val mirrorIndex = mirrorCombo?.selectedIndex ?: 0
+        val savedMirrorIndex = GradleBuddySettingsService.getInstance(project).getPreferredMirrorIndex()
+        val autoUpdate = autoUpdateWrapperCheckbox?.isSelected ?: false
+        val savedAutoUpdate = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
+        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert || dedupStrategy != savedDedupStrategy || mirrorIndex != savedMirrorIndex || autoUpdate != savedAutoUpdate
     }
 
     override fun apply() {
@@ -135,6 +156,12 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
 
         val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
         GradleBuddySettingsService.getInstance(project).setNormalizeDedupStrategy(dedupStrategy)
+
+        val mirrorIndex = mirrorCombo?.selectedIndex ?: 0
+        GradleBuddySettingsService.getInstance(project).setPreferredMirrorIndex(mirrorIndex)
+
+        val autoUpdate = autoUpdateWrapperCheckbox?.isSelected ?: false
+        GradleBuddySettingsService.getInstance(project).setAutoUpdateWrapper(autoUpdate)
     }
 
     override fun reset() {
@@ -146,6 +173,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         catalogBannerCheckbox?.isSelected = showBanner
         silentUpsertTomlCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
         dedupStrategyCombo?.selectedItem = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
+        mirrorCombo?.selectedIndex = GradleBuddySettingsService.getInstance(project).getPreferredMirrorIndex()
+        autoUpdateWrapperCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
     }
 
     override fun disposeUIResources() {
@@ -155,5 +184,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         catalogBannerCheckbox = null
         silentUpsertTomlCheckbox = null
         dedupStrategyCombo = null
+        mirrorCombo = null
+        autoUpdateWrapperCheckbox = null
     }
 }

@@ -2,6 +2,17 @@
 ---
 ## 功能特性
 
+### 🆕 近期更新 (2026.02.11)
+- **Create Bundle / Unbundle 意图操作**：
+  - 选中多行 `implementation(libs.xxx)` → Alt+Enter → 创建 `[bundles]` 条目，同名 bundle 自动合并
+  - 光标在 `libs.bundles.xxx` 上 → Alt+Enter → 展开为独立依赖行
+- **仓库探测与自动添加**：Maven Central 找不到的依赖，自动探测 Google Maven / JitPack / Gradle Plugin Portal / JetBrains Compose 等 8 个仓库，通知中一键添加仓库声明
+- **硬编码依赖转 TOML**：`.gradle.kts` 中对 `"group:artifact:version"` Alt+Enter 转为版本目录引用，自动复用已有版本条目
+- **引用修复过滤优化**：library 引用修复时过滤掉 `libs.versions.xxx` 候选，单候选静默替换
+- **Gradle 错误格式兼容**：支持 `Could not find xxx.Required by:project ':yyy'` 无换行拼接格式
+- **统一 TOML 路径解析**：全部使用 `GradleBuddySettingsService.resolveVersionCatalogFile()` 替代硬编码路径
+- **maven-buddy 独立性**：通过 `compileOnly` + `MavenBuddyBridge` 桥接，消除 ClassLoader 冲突
+
 ### 🆕 近期更新 (2026.02.10)
 - **Gradle Sync 依赖解析错误自动捕获与修复**：Gradle Sync 时遇到 "Could not find/resolve" 依赖错误，自动弹出通知提供一键修复
   - 支持 Gradle Sync（`RESOLVE_PROJECT`）和普通 Build 两种场景

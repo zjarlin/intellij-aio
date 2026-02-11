@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
     implementation(project(":lib:tool-psi-toml"))
     intellijPlatform {
         bundledPlugin("org.jetbrains.plugins.gradle")

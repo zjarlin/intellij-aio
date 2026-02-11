@@ -6,6 +6,7 @@ import com.intellij.psi.PsiManager
 import org.toml.lang.psi.TomlFile
 import org.toml.lang.psi.TomlKeyValue
 import org.toml.lang.psi.TomlTable
+import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 
 /**
  * 扫描 TOML 版本目录文件，提取所有声明的依赖别名
@@ -32,42 +33,71 @@ class CatalogReferenceScanner(private val project: Project) {
     }
 
     /**
-     * 查找项目中的版本目录文件
+     * 查找项目中的版本目录文件。
+     *
+     * 优先通过 GradleBuddySettingsService.resolveVersionCatalogFile() 获取配置的 TOML，
+     * 再通过 GradleSettings.linkedProjectsSettings 获取所有 Gradle root 下的 TOML，
+     * 最后 fallback 到 basePath 递归扫描。
      */
     private fun findVersionCatalogFiles(): List<VirtualFile> {
         val result = mutableListOf<VirtualFile>()
+        val lfs = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+        val seen = mutableSetOf<String>()
 
-        // 查找 gradle/libs.versions.toml 等标准位置
-        val basePath = project.basePath ?: run {
-            println("[CatalogReferenceScanner] No base path")
-            return emptyList()
-        }
-        println("[CatalogReferenceScanner] Base path: $basePath")
-
-        val baseDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(basePath) ?: run {
-            println("[CatalogReferenceScanner] Base dir not found")
-            return emptyList()
-        }
-
-        // 1. 查找当前项目根目录的 gradle 目录
-        val gradleDir = baseDir.findChild("gradle")
-        if (gradleDir != null && gradleDir.isDirectory) {
-            println("[CatalogReferenceScanner] Found gradle dir: ${gradleDir.path}")
-            gradleDir.children.forEach { file ->
-                if (file.extension == "toml" && file.name.endsWith(".versions.toml")) {
-                    println("[CatalogReferenceScanner] Found TOML: ${file.path}")
-                    result.add(file)
+        // 1. 通过 GradleBuddySettingsService 获取配置的 TOML 文件
+        try {
+            val settingsService = GradleBuddySettingsService.getInstance(project)
+            val configuredFile = settingsService.resolveVersionCatalogFile(project)
+            if (configuredFile.exists()) {
+                val vf = lfs.findFileByIoFile(configuredFile)
+                if (vf != null && seen.add(vf.path)) {
+                    result.add(vf)
                 }
             }
-        } else {
-            println("[CatalogReferenceScanner] No gradle dir in root")
+        } catch (_: Throwable) {
+            // GradleBuddySettingsService 不可用时跳过
         }
 
-        // 2. 递归查找所有子项目的 gradle 目录（支持多模块项目）
-        findGradleDirectoriesRecursively(baseDir, result, 0, 5)
+        // 2. 通过 GradleSettings 获取所有 linked Gradle project root 下的 TOML
+        try {
+            val gradleSettings = org.jetbrains.plugins.gradle.settings.GradleSettings.getInstance(project)
+            for (linkedProject in gradleSettings.linkedProjectsSettings) {
+                val rootPath = linkedProject.externalProjectPath
+                val rootDir = lfs.findFileByPath(rootPath) ?: continue
+                val gradleDir = rootDir.findChild("gradle") ?: continue
+                if (!gradleDir.isDirectory) continue
+                gradleDir.children.forEach { file ->
+                    if (file.extension == "toml" && file.name.endsWith(".versions.toml")) {
+                        if (seen.add(file.path)) {
+                            result.add(file)
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            // GradleSettings 不可用时跳过
+        }
 
-        println("[CatalogReferenceScanner] Total TOML files found: ${result.size}")
-        result.forEach { println("[CatalogReferenceScanner]   - ${it.path}") }
+        // 3. fallback: basePath 递归扫描
+        val basePath = project.basePath
+        if (basePath != null) {
+            val baseDir = lfs.findFileByPath(basePath)
+            if (baseDir != null) {
+                // 先检查根目录的 gradle 目录
+                val gradleDir = baseDir.findChild("gradle")
+                if (gradleDir != null && gradleDir.isDirectory) {
+                    gradleDir.children.forEach { file ->
+                        if (file.extension == "toml" && file.name.endsWith(".versions.toml")) {
+                            if (seen.add(file.path)) {
+                                result.add(file)
+                            }
+                        }
+                    }
+                }
+                // 递归查找子项目
+                findGradleDirectoriesRecursively(baseDir, result, 0, 5, seen)
+            }
+        }
 
         return result
     }
@@ -79,7 +109,8 @@ class CatalogReferenceScanner(private val project: Project) {
         dir: VirtualFile,
         result: MutableList<VirtualFile>,
         depth: Int,
-        maxDepth: Int
+        maxDepth: Int,
+        seen: MutableSet<String> = mutableSetOf()
     ) {
         if (depth > maxDepth) return
         if (!dir.isDirectory) return
@@ -93,7 +124,7 @@ class CatalogReferenceScanner(private val project: Project) {
         if (gradleDir != null && gradleDir.isDirectory) {
             gradleDir.children.forEach { file ->
                 if (file.extension == "toml" && file.name.endsWith(".versions.toml")) {
-                    if (!result.contains(file)) {
+                    if (seen.add(file.path)) {
                         result.add(file)
                     }
                 }
@@ -103,7 +134,7 @@ class CatalogReferenceScanner(private val project: Project) {
         // 递归扫描子目录
         dir.children.forEach { child ->
             if (child.isDirectory) {
-                findGradleDirectoriesRecursively(child, result, depth + 1, maxDepth)
+                findGradleDirectoriesRecursively(child, result, depth + 1, maxDepth, seen)
             }
         }
     }
@@ -124,46 +155,32 @@ class CatalogReferenceScanner(private val project: Project) {
     private fun extractDependencyAliases(file: VirtualFile): Set<String> {
         val aliases = mutableSetOf<String>()
 
-        val psiFile = PsiManager.getInstance(project).findFile(file) as? TomlFile ?: run {
-            println("[CatalogReferenceScanner] Failed to parse TOML: ${file.path}")
-            return emptySet()
-        }
+        val psiFile = PsiManager.getInstance(project).findFile(file) as? TomlFile ?: return emptySet()
 
-        println("[CatalogReferenceScanner] Parsing TOML: ${file.path}")
-
-        // 查找 [libraries] 和 [plugins] 表
+        // 查找 [libraries]、[plugins]、[versions]、[bundles] 表
         psiFile.children.forEach { element ->
             if (element is TomlTable) {
                 val header = element.header.key?.text
-                println("[CatalogReferenceScanner]   Found table: [$header]")
                 when (header) {
                     "libraries" -> {
-                        // 提取 libraries 中的所有键
                         element.entries.forEach { entry ->
                             if (entry is TomlKeyValue) {
                                 val key = entry.key.text
-                                // 转换为点分隔格式
                                 val alias = convertTomlKeyToDotNotation(key)
-//                                println("[CatalogReferenceScanner]     Library: $key -> $alias")
                                 aliases.add(alias)
                             }
                         }
                     }
                     "plugins" -> {
-                        // 提取 plugins 中的所有键，添加 plugins. 前缀
-                        // 在 KTS 中，插件通过 libs.plugins.xxx 访问
                         element.entries.forEach { entry ->
                             if (entry is TomlKeyValue) {
                                 val key = entry.key.text
                                 val alias = "plugins." + convertTomlKeyToDotNotation(key)
-                                println("[CatalogReferenceScanner]     Plugin: $key -> $alias")
                                 aliases.add(alias)
                             }
                         }
                     }
                     "versions" -> {
-                        // 提取 versions 中的所有键，添加 versions. 前缀
-                        // 在 KTS 中，版本通过 libs.versions.xxx 访问
                         element.entries.forEach { entry ->
                             if (entry is TomlKeyValue) {
                                 val key = entry.key.text
@@ -173,8 +190,6 @@ class CatalogReferenceScanner(private val project: Project) {
                         }
                     }
                     "bundles" -> {
-                        // 提取 bundles 中的所有键，添加 bundles. 前缀
-                        // 在 KTS 中，bundle 通过 libs.bundles.xxx 访问
                         element.entries.forEach { entry ->
                             if (entry is TomlKeyValue) {
                                 val key = entry.key.text
@@ -186,8 +201,6 @@ class CatalogReferenceScanner(private val project: Project) {
                 }
             }
         }
-
-        println("[CatalogReferenceScanner] Total aliases extracted: ${aliases.size}")
 
         return aliases
     }

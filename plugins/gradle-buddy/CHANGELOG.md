@@ -2,6 +2,49 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.11] - 2026-02-11
+
+### ✨ 新增功能
+- **Create Bundle 意图操作**：选中多行 `implementation(libs.xxx)` 依赖，Alt+Enter 一键创建 `[bundles]` 条目
+  - 自动提取选中行中的 `libs.xxx.yyy` 别名
+  - 弹出输入框命名 bundle，默认基于公共前缀推断
+  - 同名 bundle 已存在时自动合并（追加新别名，去重）
+  - 写入 TOML 后自动将选中行替换为 `implementation(libs.bundles.xxx)`
+- **Unbundle 意图操作**：光标在 `implementation(libs.bundles.xxx)` 上 Alt+Enter，一键展开为独立依赖行
+  - 从 TOML `[bundles]` 中读取 bundle 成员列表
+  - 替换当前行为多行 `implementation(libs.xxx)` 声明，保持缩进
+- **仓库探测与自动添加 (RepositoryProber)**：Maven Central 找不到的依赖，自动探测 8 个常见仓库
+  - Google Maven、JitPack、Gradle Plugin Portal、JetBrains Compose、Sonatype Snapshots/s01、JetBrains Maven、Kotlin Wasm Experimental
+  - 通过 HTTP HEAD 请求检查 POM 是否存在
+  - 通知中显示 "Add {RepoName}" 按钮，一键添加仓库声明
+  - 智能插入位置：settings.gradle.kts `dependencyResolutionManagement` → 根 build.gradle.kts `repositories` → 模块 build.gradle.kts
+  - 自动检测已有仓库声明，避免重复添加
+  - Fix All 批量修复也支持仓库探测
+- **硬编码依赖转 TOML 意图操作 (GradleKtsHardcodedDependencyToTomlIntention)**：在 `.gradle.kts` 中对硬编码依赖 Alt+Enter 转为版本目录引用
+  - 支持 `group:artifact:version`、`group:artifact:version@classifier`、`group:artifact:version:extension@classifier` 格式
+  - 自动检测 TOML 中已有相同版本号的 `[versions]` 条目，弹出选择复用或新建
+  - 已有同坐标 library 时复用其 alias 和 version.ref
+  - alias 冲突时自动追加 groupId 后缀消歧
+  - 就地更新 TOML（upsert [versions] 和 [libraries]），不覆盖已有内容
+
+### 🔧 改进
+- **版本目录引用过滤**：library 引用修复时过滤掉 `libs.versions.xxx` 候选项（仅保留 library 类型候选）
+  - 过滤后仅剩 1 个候选时静默替换，无需弹窗
+  - 同时应用于 `SelectCatalogReferenceIntentionGroup` 和 `BrowseCatalogAlternativesIntention`
+- **替换逻辑防双 libs**：修复替换时可能产生 `libs.libs.xxx` 的问题，使用安全的文本替换方法
+- **maven-buddy 独立性**：`gradle-buddy-intentions` 对 `maven-buddy-core` 和 `tool-api-maven` 使用 `compileOnly`，通过 `MavenBuddyBridge` 运行时桥接，彻底消除 ClassLoader 冲突
+- **settings.gradle.kts 检测**：`GradleModuleSleepService` 使用 `GradleSettings.linkedProjectsSettings` 获取真实 Gradle 根路径，不再依赖不可靠的 `project.basePath`
+- **统一 TOML 文件解析**：所有文件统一使用 `GradleBuddySettingsService.resolveVersionCatalogFile(project)` 解析版本目录文件路径
+  - 涉及 12+ 个文件：GradleKtsPluginToAliasIntention、GradleKtsPluginToTomlIntention、FixUnresolvableDependenciesAction、VersionCatalogFloatingToolbarProvider、DeprecatedArtifactInspection、ResolvePluginArtifactIntention、ResolveAllPluginArtifactsAction、MigrateToVersionCatalogAction、VersionCatalogDependencyHelper 等
+- **Gradle 错误格式兼容**：`parseUnresolvedDependencies` 预处理 `.Required by:` 和 `xxxRequired by:` 拼接格式，自动拆行后再解析
+- **FixBrokenCatalogReferencesAction**：新增 `filterCandidatesForLibraryRef()` 过滤 versions 候选、`MergedBrokenRef` 分组、ComboBox 渲染器修复双 libs
+
+### 🐛 修复
+- 修复 `Could not find xxx.Required by:project ':yyy'` 无换行导致解析失败的问题
+- 修复 `ResolvePluginArtifactIntention` 中 `$catalogPath` 悬空变量引用
+- 修复 `MigrateToVersionCatalogAction` 中未使用的 `basePath`/`catalogPath` 变量
+- 修复 `VersionCatalogDependencyHelper` 中冗余的 `catalogPath` 和 `ioFile` 别名
+
 ## [2026.02.10] - 2026-02-10
 
 ### ✨ 新增功能

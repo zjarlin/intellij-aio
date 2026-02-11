@@ -5,7 +5,7 @@ LSI_LAZY_REFACTORING_SUMMARY.md
 .autoddl
 .xcodemap
 .DS_Store
-build/
+build
 .claude
 .idea
 gradle/wrapper/gradle-8.10.2-all.zip
@@ -50,6 +50,8 @@ out/
 .vscode/
 ### Kotlin ###
 .kotlin.intellijPlatform/
+
+
 .aider*
 .intellijPlatform
 /.kotlin

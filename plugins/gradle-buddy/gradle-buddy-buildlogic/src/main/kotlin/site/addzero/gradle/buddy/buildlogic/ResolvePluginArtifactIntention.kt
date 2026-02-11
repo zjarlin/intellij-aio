@@ -247,9 +247,7 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
         pluginInfo: PluginInfo,
         resolved: PluginMarkerResolver.ResolvedArtifact
     ) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
 
         // 生成 alias 和 version ref
         val alias = generateAlias(resolved)
@@ -276,7 +274,7 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
             "插件 ID: ${pluginInfo.id}\n" +
             "版本: ${pluginInfo.version}\n" +
             "实现工件: ${resolved.coordinate}\n\n" +
-            "已添加到 $catalogPath:\n" +
+            "已添加到 ${catalogFile.path}:\n" +
             "  [versions] $versionRef = \"${resolved.version}\"\n" +
             "  [libraries] $alias = { group = \"${resolved.groupId}\", name = \"${resolved.artifactId}\", version.ref = \"$versionRef\" }\n\n" +
             "在 buildSrc / build-logic 中使用：\n" +

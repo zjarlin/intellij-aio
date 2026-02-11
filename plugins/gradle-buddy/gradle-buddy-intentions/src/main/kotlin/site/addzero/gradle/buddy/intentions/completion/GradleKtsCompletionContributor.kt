@@ -415,9 +415,7 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
         version: String,
         alias: String
     ) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
 
         val versionKey = generateVersionKey(groupId, artifactId)
         val libraryLine = "$alias = { module = \"$groupId:$artifactId\", version.ref = \"$versionKey\" }"

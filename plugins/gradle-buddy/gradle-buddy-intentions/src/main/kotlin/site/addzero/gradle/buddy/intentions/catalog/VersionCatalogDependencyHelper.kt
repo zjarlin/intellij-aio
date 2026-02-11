@@ -262,10 +262,8 @@ object VersionCatalogDependencyHelper {
     }
 
     private fun resolveConfiguredCatalogFile(project: Project): VirtualFile? {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return null
-        val ioFile = java.io.File(basePath, catalogPath)
-        return LocalFileSystem.getInstance().findFileByIoFile(ioFile)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
+        return LocalFileSystem.getInstance().findFileByIoFile(catalogFile)
     }
 
     private fun findVersionCatalogFiles(project: Project): List<VirtualFile> {

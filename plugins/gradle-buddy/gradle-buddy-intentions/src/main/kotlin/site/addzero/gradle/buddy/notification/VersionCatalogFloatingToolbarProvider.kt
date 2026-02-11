@@ -16,9 +16,8 @@ class VersionCatalogFloatingToolbarProvider :
         val basePath = project.basePath ?: return false
         if (!file.path.startsWith(basePath)) return false
         // Only show on the configured version catalog file
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val expectedPath = "$basePath/$catalogPath"
-        if (file.path != expectedPath) return false
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
+        if (file.path != catalogFile.absolutePath) return false
         return super.isApplicable(dataContext) && editor.project == project
     }
 }

@@ -201,7 +201,11 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
      */
     private fun parseUnresolvedDependencies(output: String): List<UnresolvedDep> {
         val result = mutableListOf<UnresolvedDep>()
-        val lines = output.lines()
+        // 预处理：将 "xxx.Required by:" 拆成两行（Gradle 有时不换行）
+        val normalizedOutput = output
+            .replace(Regex("""\.Required by:"""), ".\nRequired by:")
+            .replace(Regex("""(?<=[^\s])Required by:"""), "\nRequired by:")
+        val lines = normalizedOutput.lines()
 
         // 匹配 "Could not find/resolve group:artifact:version"
         // 注意：group 可能包含点号（如 org.apache.velocity），所以用 [^:\s]+ 匹配
@@ -645,9 +649,8 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
     }
 
     private fun openCatalogFile(project: Project) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val tomlFile = LocalFileSystem.getInstance().findFileByIoFile(File(basePath, catalogPath)) ?: return
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
+        val tomlFile = LocalFileSystem.getInstance().findFileByIoFile(catalogFile) ?: return
         FileEditorManager.getInstance(project).openFile(tomlFile, true)
     }
 
@@ -727,17 +730,52 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
     }
 
     private fun showPrivateDepNotification(project: Project, dep: UnresolvedDep) {
+        // 先在后台探测常见仓库
+        ProgressManager.getInstance().run(object : Task.Backgroundable(
+            project, "Probing repositories for ${dep.groupId}:${dep.artifactId}...", true
+        ) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                val foundRepos = RepositoryProber.probe(dep.groupId, dep.artifactId, dep.version)
+                ApplicationManager.getApplication().invokeLater {
+                    showPrivateDepNotificationWithRepos(project, dep, foundRepos)
+                }
+            }
+        })
+    }
+
+    private fun showPrivateDepNotificationWithRepos(
+        project: Project,
+        dep: UnresolvedDep,
+        foundRepos: List<RepositoryProber.KnownRepo>
+    ) {
+        val coord = "${dep.groupId}:${dep.artifactId}:${dep.version}"
+        val (title, body) = if (foundRepos.isNotEmpty()) {
+            val repoNames = foundRepos.joinToString(", ") { it.name }
+            "Found $coord in: $repoNames" to
+                "This artifact is not on Maven Central but was found in other repositories. Add the repository to resolve it."
+        } else {
+            "$coord not on Maven Central" to
+                "Not found in any known public repository. This may be a private/internal artifact.\nTry: ./gradlew publishToMavenLocal in the source project."
+        }
+
         val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup("GradleBuddy")
-            .createNotification(
-                "${dep.groupId}:${dep.artifactId} not on Maven Central",
-                "This may be a private artifact. Try: ./gradlew publishToMavenLocal in the source project.",
-                NotificationType.WARNING
-            )
-            .addAction(object : AnAction("Open TOML") {
-                override fun actionPerformed(e: AnActionEvent) { openCatalogAndLocate(project, dep) }
+            .createNotification(title, body, NotificationType.WARNING)
+
+        // 为每个找到的仓库添加 "Add xxx" 按钮
+        for (repo in foundRepos.take(3)) {
+            notification.addAction(object : AnAction("Add ${repo.name}") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    addRepositoryToProject(project, repo, dep)
+                    notification.expire()
+                }
             })
-        // 如果有模块信息，添加跳转到 kts 的按钮
+        }
+
+        notification.addAction(object : AnAction("Open TOML") {
+            override fun actionPerformed(e: AnActionEvent) { openCatalogAndLocate(project, dep) }
+        })
         if (dep.requiredByModules.isNotEmpty()) {
             notification.addAction(object : AnAction("Open Module KTS") {
                 override fun actionPerformed(e: AnActionEvent) { navigateToModuleKts(project, dep) }
@@ -746,10 +784,229 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         notification.notify(project)
     }
 
+    /**
+     * 将仓库声明添加到项目中。
+     *
+     * 优先写入 settings.gradle.kts 的 dependencyResolutionManagement.repositories 块，
+     * 如果没有该块则写入根 build.gradle.kts 的 repositories 块（allprojects 或 subprojects）。
+     * 如果都找不到合适位置，回退到报错模块的 build.gradle.kts。
+     */
+    private fun addRepositoryToProject(project: Project, repo: RepositoryProber.KnownRepo, dep: UnresolvedDep) {
+        val gradleSettings = try {
+            org.jetbrains.plugins.gradle.settings.GradleSettings.getInstance(project)
+        } catch (_: Throwable) { null }
+
+        val rootPaths = gradleSettings?.linkedProjectsSettings?.map { it.externalProjectPath }
+            ?: listOfNotNull(project.basePath)
+
+        for (rootPath in rootPaths) {
+            // 策略1: settings.gradle.kts → dependencyResolutionManagement { repositories { } }
+            val settingsKts = File(rootPath, "settings.gradle.kts")
+            if (settingsKts.exists() && insertRepoIntoFile(project, settingsKts, repo, "dependencyResolutionManagement")) {
+                showRepoAddedNotification(project, repo, settingsKts.name)
+                return
+            }
+            // 策略1b: settings.gradle (Groovy)
+            val settingsGroovy = File(rootPath, "settings.gradle")
+            if (settingsGroovy.exists() && insertRepoIntoFile(project, settingsGroovy, repo, "dependencyResolutionManagement")) {
+                showRepoAddedNotification(project, repo, settingsGroovy.name)
+                return
+            }
+            // 策略2: 根 build.gradle.kts → allprojects { repositories { } } 或顶层 repositories { }
+            val buildKts = File(rootPath, "build.gradle.kts")
+            if (buildKts.exists() && insertRepoIntoFile(project, buildKts, repo, "repositories")) {
+                showRepoAddedNotification(project, repo, buildKts.name)
+                return
+            }
+            val buildGroovy = File(rootPath, "build.gradle")
+            if (buildGroovy.exists() && insertRepoIntoFile(project, buildGroovy, repo, "repositories")) {
+                showRepoAddedNotification(project, repo, buildGroovy.name)
+                return
+            }
+        }
+
+        // 策略3: 报错模块的 build.gradle.kts
+        if (dep.requiredByModules.isNotEmpty()) {
+            val basePath = project.basePath ?: return
+            for (modulePath in dep.requiredByModules) {
+                val relativePath = modulePath.trimStart(':').replace(':', '/')
+                val moduleKts = File(basePath, "$relativePath/build.gradle.kts")
+                if (moduleKts.exists() && insertRepoIntoFile(project, moduleKts, repo, "repositories")) {
+                    showRepoAddedNotification(project, repo, moduleKts.name)
+                    return
+                }
+            }
+        }
+
+        // 都找不到，提示用户手动添加
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(
+                "Could not auto-add repository",
+                "Please manually add ${repo.ktsSnippet} to your repositories block.",
+                NotificationType.INFORMATION
+            )
+            .notify(project)
+    }
+
+    /**
+     * 在指定文件中查找 repositories { } 块并插入仓库声明。
+     *
+     * @param targetBlock 目标块名称：
+     *   - "dependencyResolutionManagement" → 在 dependencyResolutionManagement { repositories { HERE } } 中插入
+     *   - "repositories" → 在顶层 repositories { HERE } 或 allprojects { repositories { HERE } } 中插入
+     * @return true 如果成功插入
+     */
+    private fun insertRepoIntoFile(project: Project, file: File, repo: RepositoryProber.KnownRepo, targetBlock: String): Boolean {
+        if (!file.exists()) return false
+        val content = file.readText()
+
+        // 检查是否已经包含该仓库声明（避免重复添加）
+        if (content.contains(repo.ktsSnippet) || content.contains(repo.url)) return true // 已存在，视为成功
+
+        val insertOffset = findRepositoriesInsertOffset(content, targetBlock) ?: return false
+
+        val indent = detectIndent(content, insertOffset)
+        val newLine = "$indent${repo.ktsSnippet}\n"
+        val newContent = content.substring(0, insertOffset) + newLine + content.substring(insertOffset)
+
+        val vf = LocalFileSystem.getInstance().findFileByIoFile(file)
+        if (vf != null) {
+            val document = FileDocumentManager.getInstance().getDocument(vf)
+            if (document != null) {
+                WriteCommandAction.runWriteCommandAction(project, "Add repository: ${repo.name}", null, {
+                    document.replaceString(0, document.textLength, newContent)
+                    PsiDocumentManager.getInstance(project).commitDocument(document)
+                    FileDocumentManager.getInstance().saveDocument(document)
+                })
+                return true
+            }
+        }
+        // fallback: 直接写文件
+        file.writeText(newContent)
+        LocalFileSystem.getInstance().refreshAndFindFileByPath(file.absolutePath)
+        return true
+    }
+
+    /**
+     * 在文件内容中查找 repositories { } 块的插入位置（右花括号之前）。
+     *
+     * 对于 "dependencyResolutionManagement"：查找 dependencyResolutionManagement { ... repositories { ... ↑HERE } }
+     * 对于 "repositories"：查找顶层 repositories { ... ↑HERE } 或 allprojects/subprojects { repositories { ... ↑HERE } }
+     */
+    private fun findRepositoriesInsertOffset(content: String, targetBlock: String): Int? {
+        if (targetBlock == "dependencyResolutionManagement") {
+            // 查找 dependencyResolutionManagement 块内的 repositories 块
+            val drmIdx = content.indexOf("dependencyResolutionManagement")
+            if (drmIdx < 0) return null
+            val drmBraceStart = content.indexOf('{', drmIdx)
+            if (drmBraceStart < 0) return null
+            val drmBraceEnd = findMatchingBrace(content, drmBraceStart) ?: return null
+            val drmBlock = content.substring(drmBraceStart, drmBraceEnd + 1)
+            val repoIdx = drmBlock.indexOf("repositories")
+            if (repoIdx < 0) return null
+            val repoBraceStart = drmBlock.indexOf('{', repoIdx)
+            if (repoBraceStart < 0) return null
+            val repoBraceEnd = findMatchingBrace(drmBlock, repoBraceStart) ?: return null
+            // 插入位置：repositories 块的右花括号之前
+            return drmBraceStart + repoBraceEnd
+        }
+
+        // 对于 "repositories"：查找 allprojects/subprojects 内的 repositories，或顶层 repositories
+        val candidates = mutableListOf<Int>()
+
+        // 查找 allprojects { repositories { } } 和 subprojects { repositories { } }
+        for (wrapper in listOf("allprojects", "subprojects")) {
+            val wrapperIdx = content.indexOf(wrapper)
+            if (wrapperIdx < 0) continue
+            val wBraceStart = content.indexOf('{', wrapperIdx)
+            if (wBraceStart < 0) continue
+            val wBraceEnd = findMatchingBrace(content, wBraceStart) ?: continue
+            val wBlock = content.substring(wBraceStart, wBraceEnd + 1)
+            val repoIdx = wBlock.indexOf("repositories")
+            if (repoIdx < 0) continue
+            val repoBraceStart = wBlock.indexOf('{', repoIdx)
+            if (repoBraceStart < 0) continue
+            val repoBraceEnd = findMatchingBrace(wBlock, repoBraceStart) ?: continue
+            candidates.add(wBraceStart + repoBraceEnd)
+        }
+
+        // 查找顶层 repositories { }（不在 buildscript/plugins/dependencies 等块内）
+        var searchFrom = 0
+        while (true) {
+            val repoIdx = content.indexOf("repositories", searchFrom)
+            if (repoIdx < 0) break
+            // 确保不是 xxxrepositories（前面不是字母）
+            if (repoIdx > 0 && content[repoIdx - 1].isLetterOrDigit()) {
+                searchFrom = repoIdx + 1
+                continue
+            }
+            val repoBraceStart = content.indexOf('{', repoIdx)
+            if (repoBraceStart < 0) break
+            // 确保 { 紧跟在 repositories 后面（允许空白）
+            val between = content.substring(repoIdx + "repositories".length, repoBraceStart).trim()
+            if (between.isNotEmpty()) {
+                searchFrom = repoIdx + 1
+                continue
+            }
+            val repoBraceEnd = findMatchingBrace(content, repoBraceStart)
+            if (repoBraceEnd != null) {
+                candidates.add(repoBraceEnd)
+            }
+            searchFrom = repoIdx + 1
+        }
+
+        // 返回第一个找到的位置
+        return candidates.firstOrNull()
+    }
+
+    /**
+     * 查找匹配的右花括号位置。
+     */
+    private fun findMatchingBrace(content: String, openBraceIdx: Int): Int? {
+        var depth = 0
+        var inString = false
+        var stringChar = ' '
+        for (i in openBraceIdx until content.length) {
+            val c = content[i]
+            if (inString) {
+                if (c == stringChar && (i == 0 || content[i - 1] != '\\')) inString = false
+                continue
+            }
+            when (c) {
+                '"', '\'' -> { inString = true; stringChar = c }
+                '{' -> depth++
+                '}' -> { depth--; if (depth == 0) return i }
+            }
+        }
+        return null
+    }
+
+    /**
+     * 检测插入位置的缩进级别。
+     */
+    private fun detectIndent(content: String, offset: Int): String {
+        // 找到 offset 之前最近的非空行的缩进
+        val before = content.substring(0, offset)
+        val lastLine = before.lines().lastOrNull { it.isNotBlank() } ?: return "        "
+        val indent = lastLine.takeWhile { it == ' ' || it == '\t' }
+        return indent
+    }
+
+    private fun showRepoAddedNotification(project: Project, repo: RepositoryProber.KnownRepo, fileName: String) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(
+                "Repository added: ${repo.name}",
+                "Added ${repo.ktsSnippet} to $fileName. Re-sync Gradle to resolve the dependency.",
+                NotificationType.INFORMATION
+            )
+            .notify(project)
+    }
+
     private fun openCatalogAndLocate(project: Project, dep: UnresolvedDep) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val tomlFile = LocalFileSystem.getInstance().findFileByIoFile(File(basePath, catalogPath)) ?: return
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
+        val tomlFile = LocalFileSystem.getInstance().findFileByIoFile(catalogFile) ?: return
         val editors = FileEditorManager.getInstance(project).openFile(tomlFile, true)
         val doc = FileDocumentManager.getInstance().getDocument(tomlFile) ?: return
         val text = doc.text
@@ -779,19 +1036,58 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
                     if (latest != null) fixes.add(dep to latest) else notFound.add(dep)
                     if (indicator.isCanceled) return
                 }
+
+                // 对 Maven Central 找不到的依赖，探测其他仓库
+                val repoSuggestions = mutableMapOf<RepositoryProber.KnownRepo, MutableList<UnresolvedDep>>()
+                val trulyNotFound = mutableListOf<UnresolvedDep>()
+                if (notFound.isNotEmpty()) {
+                    indicator.text = "Probing alternative repositories..."
+                    for ((i, dep) in notFound.withIndex()) {
+                        indicator.fraction = i.toDouble() / notFound.size
+                        indicator.text2 = "${dep.groupId}:${dep.artifactId}"
+                        val repos = RepositoryProber.probe(dep.groupId, dep.artifactId, dep.version)
+                        if (repos.isNotEmpty()) {
+                            for (repo in repos) {
+                                repoSuggestions.getOrPut(repo) { mutableListOf() }.add(dep)
+                            }
+                        } else {
+                            trulyNotFound.add(dep)
+                        }
+                        if (indicator.isCanceled) return
+                    }
+                }
+
                 ApplicationManager.getApplication().invokeLater {
                     for ((dep, newVersion) in fixes) applyFix(project, dep, newVersion)
                     val msg = buildString {
                         if (fixes.isNotEmpty()) appendLine("Fixed ${fixes.size}: updated to latest from Maven Central.")
-                        if (notFound.isNotEmpty()) {
-                            appendLine("${notFound.size} not on Maven Central (private?):")
-                            for (d in notFound) appendLine("  • ${d.groupId}:${d.artifactId}:${d.version}")
+                        if (repoSuggestions.isNotEmpty()) {
+                            appendLine("${notFound.size - trulyNotFound.size} found in other repositories:")
+                            for ((repo, repoDeps) in repoSuggestions) {
+                                appendLine("  ${repo.name}: ${repoDeps.joinToString(", ") { it.artifactId }}")
+                            }
+                        }
+                        if (trulyNotFound.isNotEmpty()) {
+                            appendLine("${trulyNotFound.size} not found anywhere (private?):")
+                            for (d in trulyNotFound) appendLine("  • ${d.groupId}:${d.artifactId}:${d.version}")
                         }
                     }
-                    NotificationGroupManager.getInstance()
+                    val notification = NotificationGroupManager.getInstance()
                         .getNotificationGroup("GradleBuddy")
                         .createNotification("Fix Unresolvable Dependencies", msg.trim(), NotificationType.INFORMATION)
-                        .notify(project)
+
+                    // 为每个建议的仓库添加 "Add xxx" 按钮
+                    for (repo in repoSuggestions.keys.take(3)) {
+                        val repoDeps = repoSuggestions[repo] ?: continue
+                        notification.addAction(object : AnAction("Add ${repo.name}") {
+                            override fun actionPerformed(e: AnActionEvent) {
+                                addRepositoryToProject(project, repo, repoDeps.first())
+                                notification.expire()
+                            }
+                        })
+                    }
+
+                    notification.notify(project)
                 }
             }
         })
@@ -961,9 +1257,9 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
     // ── Catalog lookup helpers ──────────────────────────────────────────
 
     private fun findCatalogContaining(project: Project, dep: UnresolvedDep): VirtualFile? {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         val basePath = project.basePath ?: return null
-        val configured = LocalFileSystem.getInstance().findFileByIoFile(File(basePath, catalogPath))
+        val configured = LocalFileSystem.getInstance().findFileByIoFile(catalogFile)
         if (configured != null) {
             val text = FileDocumentManager.getInstance().getDocument(configured)?.text
                 ?: String(configured.contentsToByteArray())

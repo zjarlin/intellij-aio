@@ -67,9 +67,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         }
 
         // 解析现有的版本目录，查找版本号匹配的候选项
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         val existingContent = if (catalogFile.exists()) {
             parseVersionCatalog(catalogFile.readText())
         } else {
@@ -213,9 +211,7 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val project = file.project
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
 
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         val existingContent = if (catalogFile.exists()) {
             parseVersionCatalog(catalogFile.readText())
         } else {
@@ -225,7 +221,18 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         val existingLibrary = existingContent.libraries.values.firstOrNull { entry ->
             entry.groupId == info.groupId && entry.artifactId == info.artifactId
         }
-        val libraryKey = existingLibrary?.alias ?: generateLibraryKey(info.groupId, info.artifactId)
+        val libraryKey = if (existingLibrary != null) {
+            existingLibrary.alias
+        } else {
+            // 生成候选 key，如果与已有但坐标不同的条目冲突，则追加 group 前缀消歧
+            val candidateKey = generateLibraryKey(info.groupId, info.artifactId)
+            val conflicting = existingContent.libraries[candidateKey]
+            if (conflicting != null && (conflicting.groupId != info.groupId || conflicting.artifactId != info.artifactId)) {
+                generateDisambiguatedLibraryKey(info.groupId, info.artifactId)
+            } else {
+                candidateKey
+            }
+        }
         val accessorKey = toCatalogAccessor(libraryKey)
 
         // 确定最终使用的 versionKey：
@@ -524,6 +531,17 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
             .replace(".", "-")
             .replace("_", "-")
             .lowercase()
+    }
+
+    /**
+     * 当 artifactId 生成的 key 与已有条目冲突（坐标不同）时，
+     * 使用 groupId 最后一段 + artifactId 来消歧。
+     * 例如 group="eu.iamkonstantin.kotlin", artifact="gadulka" → "kotlin-gadulka"
+     */
+    private fun generateDisambiguatedLibraryKey(groupId: String, artifactId: String): String {
+        val groupSuffix = groupId.substringAfterLast(".")
+        val base = artifactId.replace(".", "-").replace("_", "-").lowercase()
+        return "${groupSuffix}-${base}".lowercase()
     }
 
     private fun toCatalogAccessor(alias: String): String {

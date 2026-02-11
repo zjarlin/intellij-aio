@@ -81,16 +81,15 @@ class DeprecatedArtifactInspection : LocalInspectionTool() {
      */
     private fun buildArtifactMap(holder: ProblemsHolder): Map<String, Pair<String, String>>? {
         val project = holder.project
-        val basePath = project.basePath ?: return null
-
-        val catalogPath = try {
-            GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val catalogIoFile = try {
+            GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         } catch (_: Exception) {
-            GradleBuddySettingsService.DEFAULT_VERSION_CATALOG_PATH
+            val basePath = project.basePath ?: return null
+            java.io.File(basePath, GradleBuddySettingsService.DEFAULT_VERSION_CATALOG_PATH)
         }
 
         val vFile = LocalFileSystem.getInstance()
-            .findFileByPath("$basePath/$catalogPath") ?: return null
+            .findFileByIoFile(catalogIoFile) ?: return null
         val psiFile = PsiManager.getInstance(project).findFile(vFile) as? TomlFile ?: return null
 
         val map = mutableMapOf<String, Pair<String, String>>()

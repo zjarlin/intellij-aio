@@ -274,11 +274,8 @@ class VersionCatalogMigrator(private val project: Project) {
     }
 
     private fun writeCatalogFile(catalog: CatalogData): VirtualFile? {
-        val basePath = project.basePath ?: return null
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-
         // 解析路径：分离目录和文件名
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         val catalogDir = catalogFile.parentFile
 
         // 确保目录存在

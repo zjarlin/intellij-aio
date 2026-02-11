@@ -3,6 +3,8 @@ package site.addzero.gradle.buddy.settings
 import com.intellij.openapi.components.*
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
+import org.jetbrains.plugins.gradle.settings.GradleSettings
+import java.io.File
 
 @Service(Service.Level.PROJECT)
 @State(
@@ -80,6 +82,37 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     fun resetToDefaults() {
         myState.defaultTasks = DEFAULT_TASKS.toMutableList()
         myState.versionCatalogPath = DEFAULT_VERSION_CATALOG_PATH
+    }
+
+    /**
+     * 解析版本目录文件的真实路径。
+     *
+     * 优先通过 GradleSettings 获取 linked Gradle project 的根路径，
+     * 而非依赖 project.basePath（后者在子目录打开项目时不可靠）。
+     * 如果没有 linked Gradle project，fallback 到 project.basePath。
+     *
+     * @return 找到的第一个存在的 catalog File，或基于最佳猜测的 File（可能不存在）
+     */
+    fun resolveVersionCatalogFile(project: Project): File {
+        val catalogRelPath = getVersionCatalogPath()
+        // 优先用 GradleSettings 获取真实的 Gradle root
+        try {
+            val gradleSettings = GradleSettings.getInstance(project)
+            val rootPaths = gradleSettings.linkedProjectsSettings.map { it.externalProjectPath }
+            for (rootPath in rootPaths) {
+                val candidate = File(rootPath, catalogRelPath)
+                if (candidate.exists()) return candidate
+            }
+            // 没有找到已存在的，返回第一个 root 的路径（用于创建新文件）
+            if (rootPaths.isNotEmpty()) {
+                return File(rootPaths.first(), catalogRelPath)
+            }
+        } catch (_: Throwable) {
+            // GradleSettings 不可用时 fallback
+        }
+        // fallback: basePath
+        val basePath = project.basePath ?: return File(catalogRelPath)
+        return File(basePath, catalogRelPath)
     }
 
     companion object {

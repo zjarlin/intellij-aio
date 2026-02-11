@@ -174,18 +174,14 @@ class GradleKtsPluginToAliasIntention : IntentionAction, PriorityAction {
         document.replaceString(startOffset, endOffset, newDeclaration)
 
         // 刷新虚拟文件系统
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
         LocalFileSystem.getInstance().refreshAndFindFileByPath(catalogFile.absolutePath)
     }
 
     // 合并插件到版本目录文件（幂等操作）
     // 返回实际使用的 toml key（可能是已存在的）
     private fun mergePluginToVersionCatalog(project: Project, info: PluginInfo, tomlKey: String, versionKey: String): String {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return tomlKey
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
 
         // 确保目录存在
         val catalogDir = catalogFile.parentFile

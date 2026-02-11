@@ -161,9 +161,7 @@ class GradleKtsPluginToTomlIntention : IntentionAction, PriorityAction {
 
     // 合并插件到版本目录文件
     private fun mergePluginToVersionCatalog(project: Project, info: PluginInfo, versionKey: String, pluginKey: String) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
 
         // 确保目录存在
         val catalogDir = catalogFile.parentFile

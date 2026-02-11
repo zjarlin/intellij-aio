@@ -166,9 +166,7 @@ class ResolveAllPluginArtifactsAction : AnAction(
         project: Project,
         resolved: List<Pair<PluginDeclaration, PluginMarkerResolver.ResolvedArtifact>>
     ) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
-        val basePath = project.basePath ?: return
-        val catalogFile = File(basePath, catalogPath)
+        val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
 
         WriteCommandAction.runWriteCommandAction(project, "Add plugin artifacts to version catalog", null, Runnable {
             val catalogDir = catalogFile.parentFile

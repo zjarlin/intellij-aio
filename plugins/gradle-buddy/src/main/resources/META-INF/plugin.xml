@@ -18,6 +18,9 @@
   </description>
 
   <depends>com.intellij.modules.platform</depends>
+
+  <!-- 与 Maven Buddy 的搜索功能互斥，两者不能同时安装 -->
+  <incompatible-with>site.addzero.maven-buddy</incompatible-with>
   <depends>org.jetbrains.kotlin</depends>
   <depends>org.jetbrains.plugins.gradle</depends>
   <depends>org.toml.lang</depends>
@@ -366,6 +369,28 @@
 
     <!-- Deprecated Artifact Cache (application-level, cross-project) -->
     <applicationService serviceImplementation="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactService"/>
+
+    <!-- Maven Search Services (from gradle-buddy-search module) -->
+    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.settings.MavenSearchSettings"/>
+    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.cache.SearchResultCacheService"/>
+    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.history.SearchHistoryService"/>
+
+    <!-- Search Everywhere Contributor (Maven Dependencies tab in Shift+Shift) -->
+    <searchEverywhereContributor
+      implementation="site.addzero.gradle.buddy.search.MavenDependencySearchContributorFactory"/>
+
+    <!-- Maven Search Settings Page -->
+    <projectConfigurable
+      parentId="tools"
+      instance="site.addzero.gradle.buddy.search.settings.MavenSearchConfigurable"
+      id="site.addzero.gradle.buddy.search.settings"
+      bundle="messages.MavenSearchBundle"
+      key="settings.mavensearch.display.name"/>
+
+    <!-- Maven Search Notification Group -->
+    <notificationGroup
+      id="MavenSearch"
+      displayType="BALLOON" bundle="messages.MavenSearchBundle" key="notification.group.maven.search"/>
 
     <!-- Floating toolbar for Version Catalog -->
     <editorFloatingToolbarProvider implementation="site.addzero.gradle.buddy.notification.VersionCatalogFloatingToolbarProvider"/>

@@ -9,6 +9,10 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.util.ProcessingContext
+import site.addzero.gradle.buddy.search.cache.SearchResultCacheService
+import site.addzero.gradle.buddy.search.history.ArtifactHistoryEntry
+import site.addzero.gradle.buddy.search.history.SearchHistoryService
+import site.addzero.gradle.buddy.search.settings.MavenSearchSettings
 import site.addzero.network.call.maven.util.MavenArtifact
 import site.addzero.network.call.maven.util.MavenCentralPaginatedSearchUtil
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
@@ -37,7 +41,7 @@ class VersionCatalogCompletionContributor : CompletionContributor() {
 
 private class VersionCatalogCompletionProvider : CompletionProvider<CompletionParameters>() {
 
-    // 所有 maven-buddy-core 服务通过 MavenBuddyBridge 安全访问（compileOnly，运行时可能不存在）
+    // 搜索服务直接引用（gradle-buddy-search 模块）
 
     override fun addCompletions(
         parameters: CompletionParameters,
@@ -60,10 +64,11 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         val query = ctx.query
         val prefixMatcher = result.withPrefixMatcher(query)
 
-        if (MavenBuddyBridge.historyEnabled) {
+        val historyService = SearchHistoryService.getInstance()
+        if (historyService.enableHistory) {
             val historyArtifacts = when {
-                query.length < 2 -> MavenBuddyBridge.recentArtifacts(15)
-                else -> MavenBuddyBridge.matchArtifacts(query, 8)
+                query.length < 2 -> historyService.recentArtifacts(15)
+                else -> historyService.matchArtifacts(query, 8)
             }
             historyArtifacts.forEachIndexed { index, entry ->
                 prefixMatcher.addElement(
@@ -77,8 +82,8 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
             return
         }
 
-        @Suppress("UNCHECKED_CAST")
-        val cached = (MavenBuddyBridge.cacheMatch(query, limit = 20) as? List<MavenArtifact>) ?: emptyList()
+        val cacheService = SearchResultCacheService.getInstance()
+        val cached = cacheService.match(query, limit = 20)
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -95,10 +100,10 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         runCatching {
             val session = MavenCentralPaginatedSearchUtil.searchByKeywordPaginated(
                 keyword = query,
-                pageSize = MavenBuddyBridge.pageSize.coerceIn(10, 30)
+                pageSize = MavenSearchSettings.getInstance().pageSize.coerceIn(10, 30)
             )
             val artifacts = session.loadNextPage().artifacts
-            if (artifacts.isNotEmpty()) MavenBuddyBridge.cacheAddAll(artifacts)
+            if (artifacts.isNotEmpty()) cacheService.addAll(artifacts)
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -134,12 +139,13 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         val existingLibs = parseExistingLibraries(text)
 
         // 先从历史记录中匹配
-        if (MavenBuddyBridge.historyEnabled && query.length >= 2) {
-            val historyArtifacts = MavenBuddyBridge.matchArtifacts(query, 5)
+        val historyService = SearchHistoryService.getInstance()
+        if (historyService.enableHistory && query.length >= 2) {
+            val historyArtifacts = historyService.matchArtifacts(query, 5)
             historyArtifacts.forEachIndexed { index, entry ->
-                val entryGroupId = MavenBuddyBridge.entryGroupId(entry)
-                val entryArtifactId = MavenBuddyBridge.entryArtifactId(entry)
-                val entryVersion = MavenBuddyBridge.entryVersion(entry)
+                val entryGroupId = entry.groupId
+                val entryArtifactId = entry.artifactId
+                val entryVersion = entry.version
                 val suggestion = buildAliasSuggestion(entryGroupId, entryArtifactId, entryVersion, existingLibs)
                 prefixMatcher.addElement(
                     PrioritizedLookupElement.withPriority(
@@ -162,8 +168,8 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         }
 
         // 缓存
-        @Suppress("UNCHECKED_CAST")
-        val cached = (MavenBuddyBridge.cacheMatch(query, limit = 15) as? List<MavenArtifact>) ?: emptyList()
+        val cacheService = SearchResultCacheService.getInstance()
+        val cached = cacheService.match(query, limit = 15)
         if (cached.isNotEmpty()) {
             cached.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -190,10 +196,10 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
         runCatching {
             val session = MavenCentralPaginatedSearchUtil.searchByKeywordPaginated(
                 keyword = query,
-                pageSize = MavenBuddyBridge.pageSize.coerceIn(10, 30)
+                pageSize = MavenSearchSettings.getInstance().pageSize.coerceIn(10, 30)
             )
             val artifacts = session.loadNextPage().artifacts
-            if (artifacts.isNotEmpty()) MavenBuddyBridge.cacheAddAll(artifacts)
+            if (artifacts.isNotEmpty()) cacheService.addAll(artifacts)
 
             artifacts.forEachIndexed { index, artifact ->
                 ProgressManager.checkCanceled()
@@ -359,10 +365,10 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
 
     // === 值补全的 LookupElement 构建 ===
 
-    private fun createHistoryElement(entry: Any, ctx: TomlContext, priority: Double): LookupElement {
-        val entryGroupId = MavenBuddyBridge.entryGroupId(entry)
-        val entryArtifactId = MavenBuddyBridge.entryArtifactId(entry)
-        val entryVersion = MavenBuddyBridge.entryVersion(entry)
+    private fun createHistoryElement(entry: ArtifactHistoryEntry, ctx: TomlContext, priority: Double): LookupElement {
+        val entryGroupId = entry.groupId
+        val entryArtifactId = entry.artifactId
+        val entryVersion = entry.version
         val insertText = formatInsertText(entryGroupId, entryArtifactId, entryVersion, ctx)
         return PrioritizedLookupElement.withPriority(
             LookupElementBuilder.create(insertText)
@@ -446,7 +452,7 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
 
         // 记录历史
         ApplicationManager.getApplication().executeOnPooledThread {
-            MavenBuddyBridge.recordHistory(groupId, artifactId, version)
+            SearchHistoryService.getInstance().record(groupId, artifactId, version)
         }
     }
 
@@ -487,11 +493,11 @@ private class VersionCatalogCompletionProvider : CompletionProvider<CompletionPa
                         }
                     }
                 }
-                MavenBuddyBridge.recordHistory(groupId, artifactId, version)
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
             }
         } else {
             ApplicationManager.getApplication().executeOnPooledThread {
-                MavenBuddyBridge.recordHistory(groupId, artifactId, version)
+                SearchHistoryService.getInstance().record(groupId, artifactId, version)
             }
         }
     }

@@ -46,6 +46,9 @@
 
   <depends>com.intellij.modules.platform</depends>
 
+  <!-- 与 Gradle Buddy 的搜索功能互斥，两者不能同时安装 -->
+  <incompatible-with>site.addzero.gradle-buddy</incompatible-with>
+
   <extensions defaultExtensionNs="com.intellij">
     <!-- Search Everywhere Contributor -->
     <searchEverywhereContributor

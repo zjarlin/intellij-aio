@@ -2,6 +2,10 @@
 ---
 ## 功能特性
 
+### 🆕 近期更新 (2026.02.18)
+- **内置搜索模块**：maven-buddy 的搜索/缓存/历史功能已迁移到 gradle-buddy 内部（`gradle-buddy-search` 子模块），安装 gradle-buddy 即可使用智能依赖补全，无需额外安装 maven-buddy
+- **插件验证修复**：彻底消除 `Package 'site.addzero.maven' is not found` 错误，删除 MavenBuddyBridge 反射层
+
 ### 🆕 近期更新 (2026.02.16)
 - **Wrapper 自动更新**：Settings → Tools → Gradle Buddy 新增「Auto-update Gradle Wrapper on project open」复选框，启用后每次打开项目自动静默更新所有 wrapper 到最新版本（使用首选镜像）
 - **修复 wrapper 模块未打包**：修复 `ClassNotFoundException: WrapperVersionCheckStartup`
@@ -21,7 +25,7 @@
 - **引用修复过滤优化**：library 引用修复时过滤掉 `libs.versions.xxx` 候选，单候选静默替换
 - **Gradle 错误格式兼容**：支持 `Could not find xxx.Required by:project ':yyy'` 无换行拼接格式
 - **统一 TOML 路径解析**：全部使用 `GradleBuddySettingsService.resolveVersionCatalogFile()` 替代硬编码路径
-- **maven-buddy 独立性**：通过 `compileOnly` + `MavenBuddyBridge` 桥接，消除 ClassLoader 冲突
+- **搜索功能内置**：智能依赖补全的搜索/缓存/历史功能已内置于 `gradle-buddy-search` 子模块，无需安装 maven-buddy
 
 ### 🆕 近期更新 (2026.02.10)
 - **Gradle Sync 依赖解析错误自动捕获与修复**：Gradle Sync 时遇到 "Could not find/resolve" 依赖错误，自动弹出通知提供一键修复

@@ -7,7 +7,7 @@ intellijPlatform {
   pluginConfiguration {
     id = "site.addzero.$pluginName"
     name = pluginName
-        version = "2026.02.16"
+        version = "2026.02.18"
   }
 }
 
@@ -20,6 +20,7 @@ dependencies {
   implementation(project(":plugins:gradle-buddy:gradle-buddy-fix-catalog-ref"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-linemarker"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-wrapper"))
+  implementation(project(":plugins:gradle-buddy:gradle-buddy-search"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
   implementation(project(":plugins:gradle-buddy:gradle-buddy-buildlogic"))
 }

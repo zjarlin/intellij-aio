@@ -2,6 +2,24 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.02.18] - 2026-02-18
+
+### ✨ 新增功能
+- **内置搜索模块 (gradle-buddy-search)**：将 maven-buddy-core 的搜索/缓存/历史功能迁移到 gradle-buddy 内部独立模块
+  - `SearchResultCacheService`：SQLite 本地缓存，加速重复搜索
+  - `SearchHistoryService`：搜索历史持久化（关键词 + 选中工件）
+  - `MavenSearchSettings`：搜索配置（分页、超时、防抖等）
+  - 安装 gradle-buddy 即可使用智能补全，无需额外安装 maven-buddy
+
+### 🗑️ 移除
+- **MavenBuddyBridge**：删除反射桥接层，补全功能直接引用 gradle-buddy-search 模块的服务类
+  - 彻底消除 `Package 'site.addzero.maven' is not found` 插件验证错误
+  - 不再需要 `compileOnly` maven-buddy-core 依赖
+
+### 🔧 改进
+- **插件验证通过**：字节码中不再包含对 `site.addzero.maven.*` 的任何引用
+- **补全性能**：直接调用服务替代反射，减少运行时开销
+
 ## [2026.02.16] - 2026-02-16
 
 ### ✨ 新增功能

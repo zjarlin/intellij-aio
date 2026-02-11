@@ -4,6 +4,7 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
@@ -124,9 +125,9 @@ class WrapperVersionCheckStartup : ProjectActivity {
             notification.addAction(object : AnAction("Choose Mirror...") {
                 override fun actionPerformed(e: AnActionEvent) {
                     notification.expire()
-                    // 触发 Tools 菜单的完整操作
+                    // 通过 ActionUtil 正确调用，避免直接调用 @OverrideOnly 的 actionPerformed
                     val action = UpdateGradleWrapperAction()
-                    action.actionPerformed(e)
+                    ActionUtil.invokeAction(action, e.dataContext, e.place, e.inputEvent, null)
                 }
             })
 

@@ -283,18 +283,27 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
     }
 
     private fun findCorrectFormat(invalidReference: String, availableAliases: Set<String>): String? {
-        val candidates = mutableSetOf<String>()
+        // 对原始引用和剥离版本后缀后的引用都尝试匹配
+        val variants = listOf(invalidReference, AliasSimilarityMatcher.stripGradleVersionSuffix(invalidReference)).distinct()
 
-        val camelCaseConverted = invalidReference.replace(Regex("([a-z])([A-Z])")) { matchResult ->
-            "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
+        for (ref in variants) {
+            val candidates = mutableSetOf<String>()
+
+            val camelCaseConverted = ref.replace(Regex("([a-z])([A-Z])")) { matchResult ->
+                "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
+            }
+            candidates.add(camelCaseConverted)
+
+            candidates.add(ref.replace('_', '.'))
+            candidates.add(ref.replace('-', '.'))
+            candidates.add(ref.lowercase())
+            candidates.add(ref) // 剥离后缀后的原始形式也加入
+
+            val match = candidates.firstOrNull { it in availableAliases }
+            if (match != null) return match
         }
-        candidates.add(camelCaseConverted)
 
-        candidates.add(invalidReference.replace('_', '.'))
-        candidates.add(invalidReference.replace('-', '.'))
-        candidates.add(invalidReference.lowercase())
-
-        return candidates.firstOrNull { it in availableAliases }
+        return null
     }
 
     private data class CandidateItem(

@@ -7,7 +7,7 @@ dependencies {
     implementation("io.modelcontextprotocol:kotlin-sdk-server:0.8.1")
 
     // Ktor CIO engine for embedded HTTP server (SSE transport)
-    implementation("io.ktor:ktor-server-cio:${libs.versions.ktor.get()}")
+    implementation("io.ktor:ktor-server-cio:3.4.0")
 
     // kotlinx-serialization for JSON serialization of MCP responses
     implementation(libs.org.jetbrains.kotlinx.kotlinx.serialization.json)

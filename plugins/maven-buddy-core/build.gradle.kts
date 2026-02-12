@@ -3,7 +3,7 @@ plugins {
 }
 dependencies {
   implementation(libs.site.addzero.tool.api.maven)
-   implementation(libs.org.xerial.sqlite.jdbc)
+   implementation(libs.org.xerial.sqlite.jdbc.v3)
 
 }
 

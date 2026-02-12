@@ -180,26 +180,36 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
      * 例如: gradlePlugin.ksp -> gradle.plugin.ksp
      */
     private fun findCorrectFormat(invalidReference: String, availableAliases: Set<String>): String? {
-        // 尝试各种可能的转换
-        val candidates = mutableSetOf<String>()
+        // 对原始引用和剥离 Gradle 版本后缀后的引用都尝试匹配
+        val variants = listOf(invalidReference, AliasSimilarityMatcher.stripGradleVersionSuffix(invalidReference)).distinct()
 
-        // 1. 驼峰转点分隔
-        // gradlePlugin.ksp -> gradle.plugin.ksp
-        val camelCaseConverted = invalidReference.replace(Regex("([a-z])([A-Z])")) { matchResult ->
-            "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
+        for (ref in variants) {
+            val candidates = mutableSetOf<String>()
+
+            // 1. 驼峰转点分隔
+            // gradlePlugin.ksp -> gradle.plugin.ksp
+            val camelCaseConverted = ref.replace(Regex("([a-z])([A-Z])")) { matchResult ->
+                "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
+            }
+            candidates.add(camelCaseConverted)
+
+            // 2. 下划线转点
+            candidates.add(ref.replace('_', '.'))
+
+            // 3. 连字符转点
+            candidates.add(ref.replace('-', '.'))
+
+            // 4. 全小写
+            candidates.add(ref.lowercase())
+
+            // 5. 剥离后缀后的原始形式
+            candidates.add(ref)
+
+            // 查找匹配的别名
+            val match = candidates.firstOrNull { it in availableAliases }
+            if (match != null) return match
         }
-        candidates.add(camelCaseConverted)
 
-        // 2. 下划线转点
-        candidates.add(invalidReference.replace('_', '.'))
-
-        // 3. 连字符转点
-        candidates.add(invalidReference.replace('-', '.'))
-
-        // 4. 全小写
-        candidates.add(invalidReference.lowercase())
-
-        // 查找匹配的别名
-        return candidates.firstOrNull { it in availableAliases }
+        return null
     }
 }

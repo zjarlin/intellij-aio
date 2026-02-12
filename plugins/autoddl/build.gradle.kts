@@ -25,7 +25,7 @@ dependencies {
     implementation(libs.site.addzero.tool.ai)
     implementation(libs.site.addzero.tool.toml)
     implementation(libs.site.addzero.tool.io.codegen)
-    implementation(libs.site.addzero.tool.str)
+    implementation(libs.site.addzero.tool.str.v2026)
     implementation(libs.site.addzero.tool.jvmstr)
     implementation(libs.site.addzero.tool.coll)
     implementation(libs.site.addzero.tool.reflection)

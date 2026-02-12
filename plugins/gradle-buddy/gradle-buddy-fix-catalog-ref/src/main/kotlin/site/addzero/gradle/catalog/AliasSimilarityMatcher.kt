@@ -29,10 +29,11 @@ class AliasSimilarityMatcher {
         invalidReference: String,
         availableAliases: Set<String>
     ): List<MatchResult> {
-        // 分词
-        val referenceTokens = tokenize(invalidReference)
+        // 剥离 Gradle 版本后缀后再分词，同时保留原始 tokens 用于回退
+        val strippedReference = stripGradleVersionSuffix(invalidReference)
+        val referenceTokens = tokenize(strippedReference)
 
-        println("[AliasSimilarityMatcher] Reference tokens: $referenceTokens")
+        println("[AliasSimilarityMatcher] Reference tokens (stripped='$strippedReference'): $referenceTokens")
 
         // 计算每个别名的相似度
         val results = availableAliases.map { alias ->
@@ -62,6 +63,35 @@ class AliasSimilarityMatcher {
             .split('.', '-', '_')
             .map { it.lowercase() }
             .filter { it.isNotEmpty() }
+    }
+
+    companion object {
+        /**
+         * Gradle 版本后缀正则：匹配末尾的 .vN、.vNaltN、.vNrcN、.vNbetaN、.vNalphaN 等
+         *
+         * Gradle 在生成 version catalog accessor 时，如果 TOML alias 的 segment 以数字开头
+         * 或者存在版本歧义，会追加版本后缀。例如：
+         *   io-ktor-ktor-client-core + version.ref="ktor"(3.0.0-beta-2)
+         *   → libs.io.ktor.ktor.client.core.v3alt2
+         *
+         * 常见后缀模式：
+         *   .v0, .v2026, .v3alt2, .v2rc1, .v1beta3, .v4alpha1
+         */
+        private val GRADLE_VERSION_SUFFIX = Regex(
+            """(?:\.[vV]\d+(?:alt|rc|beta|alpha|snapshot|dev|pre|m|cr)?\d*)+$"""
+        )
+
+        /**
+         * 剥离 Gradle 生成的版本后缀
+         * 例如：
+         *   io.ktor.ktor.client.core.v3alt2 → io.ktor.ktor.client.core
+         *   org.babyfish.jimmer.jimmer.ksp.v0 → org.babyfish.jimmer.jimmer.ksp
+         *   site.addzero.ioc.core.v2026 → site.addzero.ioc.core
+         *   androidx.compose.bom → androidx.compose.bom（无后缀，不变）
+         */
+        fun stripGradleVersionSuffix(reference: String): String {
+            return GRADLE_VERSION_SUFFIX.replace(reference, "")
+        }
     }
 
     /**

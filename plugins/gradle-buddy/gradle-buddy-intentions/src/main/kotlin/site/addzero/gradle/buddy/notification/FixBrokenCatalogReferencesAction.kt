@@ -471,21 +471,32 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         accessorTokensMap: Map<String, List<String>>
     ): List<String> {
         val candidates = mutableSetOf<String>()
-        // Strategy 1: Exact normalized accessor match
-        normalizedToAccessors[toGradleAccessorName(brokenRef)]?.let { candidates.addAll(it) }
 
-        val refTokens = brokenRef.split('.').map(String::lowercase)
-        if (refTokens.isEmpty()) return candidates.toList()
+        // 同时对原始引用和剥离 Gradle 版本后缀后的引用进行匹配
+        val variants = listOf(brokenRef, stripGradleVersionSuffix(brokenRef)).distinct()
 
-        // Strategy 2: Token suffix match
-        accessorTokensMap.entries.filter { (_, tokens) ->
-            tokens.size > refTokens.size && tokens.takeLast(refTokens.size) == refTokens
-        }.forEach { candidates.add(it.key) }
+        for (ref in variants) {
+            // Strategy 1: Exact normalized accessor match
+            normalizedToAccessors[toGradleAccessorName(ref)]?.let { candidates.addAll(it) }
 
-        // Strategy 3: Token ordered-subset match
-        accessorTokensMap.entries.filter { (_, tokens) ->
-            tokens.size > refTokens.size && isOrderedSubset(refTokens, tokens)
-        }.forEach { candidates.add(it.key) }
+            val refTokens = ref.split('.').map(String::lowercase)
+            if (refTokens.isEmpty()) continue
+
+            // Strategy 2: Token suffix match
+            accessorTokensMap.entries.filter { (_, tokens) ->
+                tokens.size > refTokens.size && tokens.takeLast(refTokens.size) == refTokens
+            }.forEach { candidates.add(it.key) }
+
+            // Strategy 3: Token ordered-subset match
+            accessorTokensMap.entries.filter { (_, tokens) ->
+                tokens.size > refTokens.size && isOrderedSubset(refTokens, tokens)
+            }.forEach { candidates.add(it.key) }
+
+            // Strategy 4: Exact token match (stripped ref tokens == alias tokens)
+            accessorTokensMap.entries.filter { (_, tokens) ->
+                tokens == refTokens
+            }.forEach { candidates.add(it.key) }
+        }
 
         return candidates.toList()
     }
@@ -566,5 +577,21 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             "get", "getOrNull", "orNull", "asProvider", "map", "flatMap",
             "orElse", "forUseAtConfigurationTime", "toString"
         )
+
+        /**
+         * Gradle 版本后缀正则：匹配末尾的 .vN、.vNaltN、.vNrcN 等
+         * 例如: .v0, .v2026, .v3alt2, .v2rc1
+         */
+        private val GRADLE_VERSION_SUFFIX = Regex(
+            """(?:\.[vV]\d+(?:alt|rc|beta|alpha|snapshot|dev|pre|m|cr)?\d*)+$"""
+        )
+
+        /**
+         * 剥离 Gradle 生成的版本后缀
+         * 例如: site.addzero.ioc.core.v2026 → site.addzero.ioc.core
+         */
+        fun stripGradleVersionSuffix(reference: String): String {
+            return GRADLE_VERSION_SUFFIX.replace(reference, "")
+        }
     }
 }

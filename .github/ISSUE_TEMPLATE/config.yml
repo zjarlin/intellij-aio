@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 讨论区
+    url: https://github.com/TrueNine/intellij-aio/discussions
+    about: 用于一般性问题讨论和交流

@@ -1,0 +1,49 @@
+<idea-plugin>
+    <id>site.addzero.kotlin-null-fixer</id>
+    <name>Kotlin Null Fixer</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <description><![CDATA[
+        Batch fix Kotlin null safety errors: automatically replace unsafe dot calls (.) with safe calls (?.)
+        on nullable receivers. One click from the floating toolbar in the editor.
+        <br/><br/>
+        一键修复 Kotlin 空安全错误：自动将 nullable receiver 上的不安全调用 (.) 替换为安全调用 (?.)。
+        在编辑器右上角悬浮工具条点击即可修复当前文件。
+    ]]></description>
+
+    <idea-version since-build="242" until-build="262.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="KotlinNullFixer" displayType="BALLOON" isLogByDefault="true"/>
+
+        <!-- 悬浮工具条：在 .kt 文件编辑器右上角显示 -->
+        <editorFloatingToolbarProvider
+            implementation="site.addzero.nullfixer.NullFixerFloatingToolbarProvider"/>
+    </extensions>
+
+    <actions>
+        <!-- Floating Toolbar Group -->
+        <group id="KotlinNullFixer.FloatingToolbarGroup"
+               text="Kotlin Null Fixer"
+               popup="false"/>
+
+        <!-- Fix current file (toolbar button + Tools menu + right-click menu) -->
+        <action id="KotlinNullFixer.FixFile"
+                class="site.addzero.nullfixer.FixNullSafetyAction"
+                text="Fix Null Safety → ?."
+                description="Replace all unsafe dot calls with safe calls (?.) in the current Kotlin file"
+                icon="AllIcons.Actions.QuickfixBulb">
+            <add-to-group group-id="KotlinNullFixer.FloatingToolbarGroup" anchor="first"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

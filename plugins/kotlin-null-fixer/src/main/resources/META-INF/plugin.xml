@@ -2,6 +2,7 @@
     <id>site.addzero.kotlin-null-fixer</id>
     <name>Kotlin Null Fixer</name>
     <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+    <icon>icons/kotlin-null-fixer.svg</icon>
 
     <description><![CDATA[
         Batch fix Kotlin null safety errors: automatically replace unsafe dot calls (.) with safe calls (?.)

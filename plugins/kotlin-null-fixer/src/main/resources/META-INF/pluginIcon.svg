@@ -1,0 +1,17 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nullFixGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7F52FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B794F6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#nullFixGrad)" opacity="0.12"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" stroke="url(#nullFixGrad)" stroke-width="2" fill="none"/>
+
+  <text x="9" y="27" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="url(#nullFixGrad)">?</text>
+  
+  <circle cx="18" cy="30" r="2.5" fill="url(#nullFixGrad)"/>
+
+  <path d="M23 12 L30 19" stroke="url(#nullFixGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: 讨论区
-    url: https://github.com/TrueNine/intellij-aio/discussions
+    url: https://github.com/zjarlin/intellij-aio/issues?q=is%3Aissue%20state%3Aopen%20label%3Aquestion
     about: 用于一般性问题讨论和交流

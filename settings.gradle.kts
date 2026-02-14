@@ -15,10 +15,17 @@ plugins {
 // >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
 // Generated at: 2026-01-21T18:24:51.570029
 // Loaded: 3, Excluded: 0, Total: 3
-include(":plugins:gradle-buddy")
-include(":plugins:gradle-buddy:id-fixer")
+//include(":plugins:gradle-buddy") // excluded by Gradle Buddy
+//include(":plugins:gradle-buddy:id-fixer") // excluded by Gradle Buddy
 // <<< Gradle Buddy: End Of Block <<<
 
 
 
 //include(":plugins:dotfiles") // excluded by Gradle Buddy
+
+
+// >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
+// Generated at: 2026-02-14T18:10:37.781066
+// Loaded: 1, Excluded: 0, Total: 1
+include(":plugins:kotlin-null-fixer")
+// <<< Gradle Module Sleep: End Of Block <<<

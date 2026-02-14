@@ -4,9 +4,9 @@
     <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
 
     <description><![CDATA[
-        一键修复 Kotlin 空安全错误：自动将 nullable receiver 上的不安全调用 (.) 替换为安全调用 (?.)。
-        当文件存在空安全错误时，编辑器顶部自动出现修复横幅，点击即可批量修复。
-        修复后横幅自动消失；编辑代码产生新错误时横幅自动出现。
+        Batch fix Kotlin null-safety errors in one click. Automatically replaces unsafe dot calls (.)
+        with safe calls (?.) on nullable receivers, and fixes return type mismatches with .orEmpty()
+        or elvis operator. Shows an editor banner when fixable null-safety errors are detected.
     ]]></description>
 
     <idea-version since-build="242" until-build="262.*"/>

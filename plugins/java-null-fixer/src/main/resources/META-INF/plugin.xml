@@ -1,0 +1,39 @@
+<idea-plugin>
+    <id>site.addzero.java-null-fixer</id>
+    <name>Java Null Fixer</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <description><![CDATA[
+        Batch fix Java null-pointer warnings in one click. Automatically applies IntelliJ built-in
+        Quick Fixes (Surround with null check, etc.) to all "may produce NullPointerException" warnings.
+        Shows an editor banner when fixable null-pointer issues are detected.
+    ]]></description>
+
+    <idea-version since-build="242" until-build="262.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="JavaNullFixer" displayType="BALLOON" isLogByDefault="true"/>
+
+        <!-- 编辑器顶部横幅：有空指针警告时显示修复按钮 -->
+        <editorNotificationProvider
+            implementation="site.addzero.java.nullfixer.JavaNullEditorNotificationProvider"/>
+
+        <!-- 高亮完成后刷新横幅 -->
+        <postStartupActivity implementation="site.addzero.java.nullfixer.JavaNullDaemonListener"/>
+    </extensions>
+
+    <actions>
+        <action id="JavaNullFixer.FixFile"
+                class="site.addzero.java.nullfixer.FixJavaNullSafetyAction"
+                text="Fix Java Null Safety (Batch)"
+                description="Batch apply null check quick fixes in the current Java file"
+                icon="AllIcons.Actions.QuickfixBulb">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

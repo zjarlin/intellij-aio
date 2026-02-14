@@ -7,13 +7,11 @@ LSI_LAZY_REFACTORING_SUMMARY.md
 .DS_Store
 build
 .claude
+.kiro
 .idea
 gradle/wrapper/gradle-8.10.2-all.zip
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
-
-!**/build/
-
 !**/src/test/**/build/
 
 

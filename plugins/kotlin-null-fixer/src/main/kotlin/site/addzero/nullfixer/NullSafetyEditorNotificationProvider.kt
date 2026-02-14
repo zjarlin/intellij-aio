@@ -40,13 +40,13 @@ class NullSafetyEditorNotificationProvider : EditorNotificationProvider, DumbAwa
             val editor = fileEditor.editor
             val document = editor.document
 
-            // 检查是否有可修复的空安全错误
+            // 检查是否有可修复的空安全错误（匹配逻辑与 NullSafetyFixer.collectErrors 一致）
             var errorCount = 0
             DaemonCodeAnalyzerEx.processHighlights(
                 document, project, HighlightSeverity.ERROR, 0, document.textLength
             ) { info: HighlightInfo ->
                 val desc = info.description ?: ""
-                if (NullSafetyFixer.ALL_PATTERNS.any { desc.contains(it) }) {
+                if (NullSafetyFixer.isFixableError(desc)) {
                     errorCount++
                 }
                 true

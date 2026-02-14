@@ -29,8 +29,13 @@ object NullSafetyFixer {
         "返回类型不匹配",
     )
 
-    /** 所有可修复的错误模式 */
+    /** 所有可修复的错误模式（仅用于外部参考） */
     val ALL_PATTERNS: List<String> = UNSAFE_CALL_PATTERNS + RETURN_MISMATCH_PATTERNS
+
+    /** 判断错误描述是否属于可修复的空安全问题 */
+    fun isFixableError(desc: String): Boolean =
+        UNSAFE_CALL_PATTERNS.any { desc.contains(it) } ||
+        RETURN_MISMATCH_PATTERNS.any { desc.startsWith(it) }
 
     data class FixResult(val fixed: Int, val skipped: Int, val fileName: String)
 
@@ -82,7 +87,8 @@ object NullSafetyFixer {
             document, project, HighlightSeverity.ERROR, 0, document.textLength
         ) { info: HighlightInfo ->
             val desc = info.description ?: ""
-            if (ALL_PATTERNS.any { desc.contains(it) }) {
+            if (UNSAFE_CALL_PATTERNS.any { desc.contains(it) } ||
+                RETURN_MISMATCH_PATTERNS.any { desc.startsWith(it) }) {
                 found = true
             }
             !found
@@ -100,7 +106,7 @@ object NullSafetyFixer {
             when {
                 UNSAFE_CALL_PATTERNS.any { desc.contains(it) } ->
                     errors.add(ErrorLocation(range, ErrorKind.UNSAFE_CALL, desc))
-                RETURN_MISMATCH_PATTERNS.any { desc.contains(it) } ->
+                RETURN_MISMATCH_PATTERNS.any { desc.startsWith(it) } ->
                     errors.add(ErrorLocation(range, ErrorKind.RETURN_MISMATCH, desc))
             }
             true

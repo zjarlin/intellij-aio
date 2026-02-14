@@ -51,13 +51,19 @@ object NullSafetyFixer {
         var fixed = 0
         var skipped = 0
 
+        // 先修 UNSAFE_CALL（. → ?.），再修 RETURN_MISMATCH，各自从后往前
         WriteCommandAction.runWriteCommandAction(project, "Fix Kotlin Null Safety", null, {
-            for (error in errors.sortedByDescending { it.range.startOffset }) {
-                val success = when (error.kind) {
-                    ErrorKind.UNSAFE_CALL -> fixUnsafeCall(project, psiFile, error.range)
-                    ErrorKind.RETURN_MISMATCH -> fixReturnMismatch(project, psiFile, error)
-                }
-                if (success) fixed++ else skipped++
+            val unsafeCalls = errors.filter { it.kind == ErrorKind.UNSAFE_CALL }
+                .sortedByDescending { it.range.startOffset }
+            val returnMismatches = errors.filter { it.kind == ErrorKind.RETURN_MISMATCH }
+                .sortedByDescending { it.range.startOffset }
+
+            for (error in unsafeCalls) {
+                if (fixUnsafeCall(project, psiFile, error.range)) fixed++ else skipped++
+            }
+            PsiDocumentManager.getInstance(project).commitDocument(document)
+            for (error in returnMismatches) {
+                if (fixReturnMismatch(project, psiFile, error)) fixed++ else skipped++
             }
         }, psiFile)
 
@@ -115,21 +121,19 @@ object NullSafetyFixer {
     // ========== RETURN_TYPE_MISMATCH 修复 ==========
 
     /**
-     * 修复返回类型不匹配：当函数返回 List<T> 但表达式是 List<T>? 时，
-     * 在表达式末尾加 .orEmpty()（集合类型）或 ?: error("unexpected null")（其他类型）。
+     * 修复返回类型不匹配：当函数返回 List<T> 但表达式是 List<T>? 时。
      *
-     * 典型场景：
-     *   return songs?.mapNotNull { ... }
-     *   → return songs?.mapNotNull { ... }.orEmpty()
-     *
-     * 也处理隐式 return（函数体最后一个表达式）。
+     * 策略：
+     * - 集合类型 + 安全调用链 → 用 elvis `?: emptyList()` 而不是 `.orEmpty()`
+     *   避免 `a?.b.orEmpty()` 产生新的 UNSAFE_CALL
+     * - 集合类型 + 普通表达式 → `.orEmpty()`
+     * - 非集合类型 → `?: error("unexpected null")`
      */
     private fun fixReturnMismatch(project: Project, psiFile: PsiFile, error: ErrorLocation): Boolean {
         val element = psiFile.findElementAt(error.range.startOffset) ?: return false
         val desc = error.description
         val factory = KtPsiFactory(project)
 
-        // 找到 return 表达式或者直接是表达式
         val returnExpr = PsiTreeUtil.getParentOfType(element, KtReturnExpression::class.java)
         val exprToFix = returnExpr?.returnedExpression
             ?: PsiTreeUtil.getParentOfType(element, KtSafeQualifiedExpression::class.java)
@@ -137,15 +141,18 @@ object NullSafetyFixer {
             ?: return false
 
         val exprText = exprToFix.text
-
-        // 判断期望的返回类型是否是集合类型
         val isCollectionReturn = COLLECTION_PATTERNS.any { desc.contains(it) }
+        val isSafeCallChain = exprToFix is KtSafeQualifiedExpression
+            || PsiTreeUtil.findChildOfType(exprToFix, KtSafeQualifiedExpression::class.java) != null
 
-        val fixedText = if (isCollectionReturn) {
-            "$exprText.orEmpty()"
-        } else {
-            // 通用修复：加 elvis + 抛异常
-            "($exprText ?: error(\"unexpected null\"))"
+        val fixedText = when {
+            isCollectionReturn && isSafeCallChain ->
+                // 用 elvis 避免 a?.b.orEmpty() 的 UNSAFE_CALL 问题
+                "($exprText ?: emptyList())"
+            isCollectionReturn ->
+                "$exprText.orEmpty()"
+            else ->
+                "($exprText ?: error(\"unexpected null\"))"
         }
 
         exprToFix.replace(factory.createExpression(fixedText))

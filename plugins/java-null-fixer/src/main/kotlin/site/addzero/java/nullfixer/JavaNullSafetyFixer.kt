@@ -23,19 +23,33 @@ import com.intellij.psi.PsiFile
  */
 object JavaNullSafetyFixer {
 
-    /** 匹配空指针相关警告的关键词 */
+    /**
+     * 匹配空指针相关警告的关键词。
+     * 覆盖 IntelliJ 内置检查 + 各注解框架（JSpecify、JetBrains、JSR-305、
+     * Checker Framework、Android、Lombok、Eclipse 等）产生的警告。
+     * 只匹配真正需要 null check 修复的场景，避免误判。
+     */
     val NULL_WARNING_PATTERNS = listOf(
+        // IntelliJ 内置 NullPointerException 检查
         "NullPointerException",
-        "may produce 'NullPointerException'",
+        "may produce",
+        // 解引用 null
+        "Dereference of",
+        // 传参 null
+        "passing 'null'",
+        "passing null",
+        // 方法返回值可能为 null
         "might be null",
         "could be null",
-        "Nullable",
-        "argument might be null",
-        "result of .* is null",
-        "condition .* is always",
-        "Dereference of",
-        "passing 'null'",
-        "null value",
+        "may be null",
+        // 注解驱动的警告（不限定包名，短名称匹配）
+        "@Nullable",
+        "@NonNull",
+        "@NotNull",
+        "@Nonnull",
+        "@CheckForNull",
+        // 自动拆箱可能 NPE
+        "unboxing of",
     )
 
     /** Quick Fix 名称优先级（优先选择 surround with null check） */

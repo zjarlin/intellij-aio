@@ -36,10 +36,10 @@ class FixNullSafetyAction : AnAction(), DumbAware {
         val message = when {
             result.fixed == 0 && result.skipped == 0 ->
                 "✅ 未发现空安全问题"
-            result.fixed > 0 && result.skipped == 0 ->
+            result.fixed > 0 && result.remainingErrors == 0 ->
                 "✅ 已修复 ${result.fixed} 处 → ?."
-            result.fixed > 0 ->
-                "✅ 修复 ${result.fixed} 处，跳过 ${result.skipped} 处"
+            result.fixed > 0 && result.remainingErrors > 0 ->
+                "✅ 修复 ${result.fixed} 处，还剩 ${result.remainingErrors} 处错误"
             else ->
                 "⚠️ 发现 ${result.skipped} 处问题但无法自动定位"
         }

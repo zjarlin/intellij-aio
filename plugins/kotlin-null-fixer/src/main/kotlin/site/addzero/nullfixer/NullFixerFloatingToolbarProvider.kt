@@ -6,7 +6,7 @@ import com.intellij.openapi.editor.toolbar.floating.AbstractFloatingToolbarProvi
 
 /**
  * 悬浮工具条：在 .kt 文件的编辑器右上角显示 "Fix Null Safety" 按钮。
- * 只在 Kotlin 文件上显示。
+ * 只在 Kotlin 文件上显示（错误检测在修复时进行）。
  */
 class NullFixerFloatingToolbarProvider :
     AbstractFloatingToolbarProvider("KotlinNullFixer.FloatingToolbarGroup") {

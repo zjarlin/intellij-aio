@@ -2,14 +2,11 @@
     <id>site.addzero.kotlin-null-fixer</id>
     <name>Kotlin Null Fixer</name>
     <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
-    <icon>icons/kotlin-null-fixer.svg</icon>
 
     <description><![CDATA[
-        Batch fix Kotlin null safety errors: automatically replace unsafe dot calls (.) with safe calls (?.)
-        on nullable receivers. One click from the floating toolbar in the editor.
-        <br/><br/>
         一键修复 Kotlin 空安全错误：自动将 nullable receiver 上的不安全调用 (.) 替换为安全调用 (?.)。
-        在编辑器右上角悬浮工具条点击即可修复当前文件。
+        当文件存在空安全错误时，编辑器顶部自动出现修复横幅，点击即可批量修复。
+        修复后横幅自动消失；编辑代码产生新错误时横幅自动出现。
     ]]></description>
 
     <idea-version since-build="242" until-build="262.*"/>
@@ -25,24 +22,21 @@
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="KotlinNullFixer" displayType="BALLOON" isLogByDefault="true"/>
 
-        <!-- 悬浮工具条：在 .kt 文件编辑器右上角显示 -->
-        <editorFloatingToolbarProvider
-            implementation="site.addzero.nullfixer.NullFixerFloatingToolbarProvider"/>
+        <!-- 编辑器顶部横幅：有空安全错误时显示修复按钮 -->
+        <editorNotificationProvider
+            implementation="site.addzero.nullfixer.NullSafetyEditorNotificationProvider"/>
+
+        <!-- 高亮完成后刷新横幅 -->
+        <postStartupActivity implementation="site.addzero.nullfixer.NullSafetyDaemonListener"/>
     </extensions>
 
     <actions>
-        <!-- Floating Toolbar Group -->
-        <group id="KotlinNullFixer.FloatingToolbarGroup"
-               text="Kotlin Null Fixer"
-               popup="false"/>
-
-        <!-- Fix current file (toolbar button + Tools menu + right-click menu) -->
+        <!-- 右键菜单 + Tools 菜单（不依赖横幅也能用） -->
         <action id="KotlinNullFixer.FixFile"
                 class="site.addzero.nullfixer.FixNullSafetyAction"
                 text="Fix Null Safety → ?."
                 description="Replace all unsafe dot calls with safe calls (?.) in the current Kotlin file"
                 icon="AllIcons.Actions.QuickfixBulb">
-            <add-to-group group-id="KotlinNullFixer.FloatingToolbarGroup" anchor="first"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>

@@ -188,6 +188,15 @@
       <add-to-group group-id="GradleBuddy.FavoriteTasksToolbarGroup"/>
     </action>
 
+    <!-- Git Build Dir Fixer: scan and fix .gitignore for build directories -->
+    <action id="GradleBuddy.FixBuildDirGitIgnore"
+            class="site.addzero.gradle.buddy.gitfixer.BuildDirGitIgnoreFixer"
+            text="Fix Build Dir in Git (.gitignore)"
+            description="Scan all build/ directories and ensure they are covered by .gitignore, clean git index if needed"
+            icon="AllIcons.Actions.QuickfixBulb">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+
   </actions>
 
 
@@ -418,6 +427,9 @@
 
     <!-- Gradle Wrapper version check on project open -->
     <postStartupActivity implementation="site.addzero.gradle.buddy.wrapper.WrapperVersionCheckStartup"/>
+
+    <!-- Git Build Dir Fixer: check for build dirs in untracked files on project open -->
+    <postStartupActivity implementation="site.addzero.gradle.buddy.gitfixer.GitBuildDirStartupCheck"/>
 
     <!-- Intention: Update Gradle wrapper distributionUrl (in gradle-wrapper.properties) -->
     <!-- 不限制 language，由 isAvailable() 中的 file.name 检查控制 -->

@@ -152,6 +152,9 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
             return
         }
 
+        // 清除文件系统中已不存在的旧模块路径（如重命名/删除后的残留）
+        purgeStaleModules()
+
         ApplicationManager.getApplication().invokeLater {
             val settings = ModuleSleepSettingsService.getInstance(project)
             val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
@@ -179,6 +182,9 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
     private fun checkAndReleaseUnusedModules() {
         // 检查是否启用自动睡眠
         if (!isAutoSleepActive()) return
+
+        // 清除文件系统中已不存在的旧模块路径
+        purgeStaleModules()
 
         val settings = ModuleSleepSettingsService.getInstance(project)
         val idleTimeoutMinutes = settings.getModuleIdleTimeoutMinutes()
@@ -215,6 +221,32 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
                     showNotification("Modules Released", "Released: ${modulesToRelease.joinToString(", ")}")
                 }
             }
+        }
+    }
+
+    /**
+     * 清除 loadedModules 中在文件系统上已不存在的模块路径。
+     * 典型场景：用户重命名或删除了模块目录，旧路径仍残留在内存缓存中。
+     */
+    private fun purgeStaleModules() {
+        val projectBasePath = project.basePath ?: return
+        val stale = loadedModules.filter { modulePath ->
+            if (modulePath == ":") return@filter false
+            val relativePath = modulePath.removePrefix(":").replace(':', '/')
+            val moduleDir = java.io.File(projectBasePath, relativePath)
+            // 目录不存在，或者不再包含 build 文件 → 视为过期
+            !moduleDir.isDirectory ||
+                (!java.io.File(moduleDir, "build.gradle.kts").exists() &&
+                 !java.io.File(moduleDir, "build.gradle").exists())
+        }
+        if (stale.isNotEmpty()) {
+            logger.info("Purging ${stale.size} stale module(s) from cache: $stale")
+            stale.forEach { modulePath ->
+                loadedModules.remove(modulePath)
+                moduleLastAccessTime.remove(modulePath)
+            }
+            // 同步清理 openFileModules 中指向已失效模块的条目
+            openFileModules.entries.removeIf { (_, mod) -> stale.contains(mod) }
         }
     }
 

@@ -25,7 +25,15 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-02-14T18:10:37.781066
-// Loaded: 1, Excluded: 0, Total: 1
-include(":plugins:kotlin-null-fixer")
+// Generated at: 2026-02-28T17:06:46.115113
+// Loaded: 7, Excluded: 0, Total: 7
+include(":lib:ide-component-dynamicform")
+include(":lib:ide-component-settings-old")
+include(":lib:tool-awt")
+include(":lib:tool-psi-toml")
+include(":lib:tool-swing")
+include(":plugins:autoddl")
+include(":plugins:project-init-wizard")
 // <<< Gradle Module Sleep: End Of Block <<<
+
+include(":plugins:project-init-wizard")

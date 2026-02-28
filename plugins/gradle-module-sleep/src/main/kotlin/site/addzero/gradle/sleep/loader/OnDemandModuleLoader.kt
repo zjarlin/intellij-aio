@@ -438,10 +438,26 @@ object OnDemandModuleLoader {
     fun applyOnDemandLoading(project: Project, activeModules: Set<String>, syncAfter: Boolean = true): Boolean {
         val settingsFile = findSettingsFile(project) ?: return false
 
+        // 过滤掉文件系统中已不存在的模块路径（如重命名/删除后的残留）
+        val projectBasePath = project.basePath
+        val validatedModules = if (projectBasePath != null) {
+            activeModules.filter { modulePath ->
+                if (modulePath == ":") return@filter true
+                isModulePathPresent(modulePath, projectBasePath)
+            }.toSet()
+        } else {
+            activeModules
+        }
+
+        if (validatedModules.isEmpty()) {
+            logger.warn("No valid modules remain after filtering stale paths")
+            return false
+        }
+
         return try {
             WriteCommandAction.runWriteCommandAction(project) {
                 val originalContent = String(settingsFile.contentsToByteArray())
-                val newContent = rewriteSettingsWithActiveModules(originalContent, activeModules)
+                val newContent = rewriteSettingsWithActiveModules(originalContent, validatedModules)
                 settingsFile.setBinaryContent(newContent.toByteArray())
             }
 

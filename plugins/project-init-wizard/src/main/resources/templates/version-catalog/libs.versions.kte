@@ -1,0 +1,17 @@
+@param String catalogName
+@param String kotlinVersion
+@param String springBootVersion
+@param String springBootVersion
+
+[versions]
+kotlin = "${kotlinVersion}"
+kotlinGradlePlugin = "${kotlinVersion}"
+
+[libraries]
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib" }
+
+[plugins]
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
+[bundles]
+kotlin = ["kotlin-stdlib"]

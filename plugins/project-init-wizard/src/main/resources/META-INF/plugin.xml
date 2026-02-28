@@ -1,0 +1,49 @@
+<idea-plugin>
+    <id>site.addzero.project-init-wizard</id>
+    <name>Project Init Wizard</name>
+    <vendor>zjarlin</vendor>
+
+    <description><![CDATA[
+    <h3>Project Init Wizard - Custom Project Template Generator</h3>
+    <p>Initialize new projects from custom templates with jte templating engine.</p>
+
+    <h4>Features:</h4>
+    <ul>
+        <li>📁 <b>Custom Templates</b>: Place your templates in ~/.project-init-wizard/templates/</li>
+        <li>🔧 <b>JTE Templating</b>: Use jte syntax for dynamic variable replacement</li>
+        <li>📦 <b>Built-in Templates</b>: Includes kotlin-basic and version-catalog templates</li>
+    </ul>
+
+    <h4>Template Structure:</h4>
+    <pre>
+~/.project-init-wizard/templates/
+└── my-template/
+    ├── template.yml
+    └── src/main/kotlin/...
+    </pre>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <p>1.0.0 - Initial release</p>
+    ]]></change-notes>
+
+    <idea-version since-build="252" until-build="262.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <actions>
+        <action id="site.addzero.projectinitwizard.NewModule"
+            class="site.addzero.projectinitwizard.action.InitProjectAction"
+            text="Project from Template"
+            description="Create new module from custom template">
+            <add-to-group group-id="NewModuleGroup" anchor="first"/>
+        </action>
+    </actions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <moduleBuilder builderClass="site.addzero.projectinitwizard.wizard.ProjectInitModuleBuilder"
+            id="site.addzero.projectinitwizard.module"
+            order="first"/>
+    </extensions>
+
+</idea-plugin>

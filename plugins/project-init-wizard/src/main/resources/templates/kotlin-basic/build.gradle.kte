@@ -1,0 +1,27 @@
+@param String groupId
+@param String kotlinVersion
+@param String jvmTarget
+
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "${kotlinVersion}"
+    id("java-library")
+}
+
+group = "${groupId}"
+version = "0.0.1"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib"))
+}
+
+kotlin {
+    jvmToolchain(${jvmTarget}.toInt())
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}

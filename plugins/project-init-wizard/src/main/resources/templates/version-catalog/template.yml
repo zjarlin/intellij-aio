@@ -1,0 +1,7 @@
+name: version-catalog
+description: Gradle Version Catalog (libs.versions.toml)
+variables:
+  - name: catalogName
+    type: string
+    default: "libs"
+    description: Catalog name

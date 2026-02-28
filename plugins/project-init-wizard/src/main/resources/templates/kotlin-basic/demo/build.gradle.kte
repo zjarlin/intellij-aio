@@ -1,0 +1,16 @@
+@param String groupId
+
+plugins {
+    id("org.jetbrains.kotlin.jvm")
+}
+
+group = "${groupId}"
+version = "0.0.1"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib"))
+}

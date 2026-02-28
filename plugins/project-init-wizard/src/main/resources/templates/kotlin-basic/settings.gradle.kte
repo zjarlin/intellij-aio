@@ -1,0 +1,12 @@
+@param String groupId
+@param String projectName
+
+rootProject.name = "${projectName}"
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+
+include(":demo")

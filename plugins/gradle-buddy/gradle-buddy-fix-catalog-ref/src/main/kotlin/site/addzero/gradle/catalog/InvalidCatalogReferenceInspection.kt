@@ -5,7 +5,6 @@ import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
 
@@ -29,12 +28,16 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
             override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
                 super.visitDotQualifiedExpression(expression)
 
-                if (isPartialCatalogReference(expression)) {
+                if (CatalogExpressionUtils.isPartialCatalogReference(expression)) {
                     return
                 }
 
-                // 检查是否是版本目录引用
-                if (!isCatalogReference(expression)) {
+                if (!CatalogExpressionUtils.isCatalogReference(expression)) {
+                    return
+                }
+
+                // 跳过包含方法调用的表达式（如 libs.findVersion("jdk").orElse(null)）
+                if (CatalogExpressionUtils.containsMethodCall(expression)) {
                     return
                 }
 
@@ -42,36 +45,20 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
                 val scanner = CatalogReferenceScanner(project)
                 val catalogs = scanner.scanAllCatalogs()
 
-                // 提取引用的目录名和别名
-                val (catalogName, reference) = extractCatalogReference(expression) ?: return
+                val (catalogName, reference) = CatalogExpressionUtils.extractCatalogReference(expression) ?: return
 
-                // 检查目录是否存在
-                val availableAliases = catalogs[catalogName]
-                if (availableAliases == null) {
-                    // 目录不存在，跳过检查
-                    return
-                }
+                val availableAliases = catalogs[catalogName] ?: return
 
-                // 检查别名是否存在
                 if (availableAliases.contains(reference)) {
-                    // 引用正确，无需修复
                     return
                 }
 
-                // 判断错误类型
-                val error = detectErrorType(catalogName, reference, availableAliases)
+                val error = CatalogExpressionUtils.detectErrorType(catalogName, reference, availableAliases)
 
-                // 获取合适的修复策略
-                val strategy = CatalogFixStrategyFactory.getStrategy(error)
-                if (strategy == null) {
-                    // 没有合适的策略，跳过
-                    return
-                }
+                val strategy = CatalogFixStrategyFactory.getStrategy(error) ?: return
 
-                // 创建快速修复
                 val fix = strategy.createFix(project, error)
                 if (fix == null) {
-                    // 无法创建修复，只报告问题
                     holder.registerProblem(
                         expression,
                         strategy.getFixDescription(error),
@@ -87,129 +74,5 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
                 }
             }
         }
-    }
-
-    /**
-     * 判断表达式是否是版本目录引用
-     * 例如: libs.gradle.plugin.ksp
-     */
-    private fun isCatalogReference(expression: KtDotQualifiedExpression): Boolean {
-        val topExpression = getTopExpression(expression)
-        if (containsForbiddenSegment(topExpression)) return false
-
-        var current = topExpression
-        while (current.receiverExpression is KtDotQualifiedExpression) {
-            current = current.receiverExpression as KtDotQualifiedExpression
-        }
-
-        val rootName = (current.receiverExpression as? KtNameReferenceExpression)?.getReferencedName()
-
-        // 常见的版本目录名称
-        val catalogNames = setOf("libs", "zlibs", "klibs", "testLibs")
-        return rootName in catalogNames
-    }
-
-    /**
-     * 提取目录名和引用路径
-     * 例如: libs.gradle.plugin.ksp -> ("libs", "gradle.plugin.ksp")
-     */
-    private fun extractCatalogReference(expression: KtDotQualifiedExpression): Pair<String, String>? {
-        val topExpression = getTopExpression(expression)
-        val fullText = topExpression.text
-        val parts = fullText.split(".")
-
-        if (parts.size < 2) {
-            return null
-        }
-
-        val catalogName = parts[0]
-        val reference = parts.drop(1).joinToString(".")
-
-        return catalogName to reference
-    }
-
-    private fun getTopExpression(expression: KtDotQualifiedExpression): KtDotQualifiedExpression {
-        var topExpression = expression
-        while (topExpression.parent is KtDotQualifiedExpression) {
-            topExpression = topExpression.parent as KtDotQualifiedExpression
-        }
-        return topExpression
-    }
-
-    private fun containsForbiddenSegment(expression: KtDotQualifiedExpression): Boolean {
-        val fullText = expression.text
-        return fullText.contains(".javaClass") || fullText.endsWith(".javaClass")
-    }
-
-    private fun isPartialCatalogReference(expression: KtDotQualifiedExpression): Boolean {
-        val parent = expression.parent as? KtDotQualifiedExpression ?: return false
-        return parent.receiverExpression == expression
-    }
-
-    /**
-     * 检测错误类型
-     */
-    private fun detectErrorType(
-        catalogName: String,
-        invalidReference: String,
-        availableAliases: Set<String>
-    ): CatalogReferenceError {
-        // 尝试找到正确的格式
-        val correctReference = findCorrectFormat(invalidReference, availableAliases)
-
-        return if (correctReference != null) {
-            // 找到了正确格式，说明是格式错误
-            CatalogReferenceError.WrongFormat(
-                catalogName = catalogName,
-                invalidReference = invalidReference,
-                correctReference = correctReference,
-                availableAliases = availableAliases
-            )
-        } else {
-            // 找不到正确格式，说明未声明
-            CatalogReferenceError.NotDeclared(
-                catalogName = catalogName,
-                invalidReference = invalidReference,
-                availableAliases = availableAliases
-            )
-        }
-    }
-
-    /**
-     * 尝试找到正确的格式
-     * 例如: gradlePlugin.ksp -> gradle.plugin.ksp
-     */
-    private fun findCorrectFormat(invalidReference: String, availableAliases: Set<String>): String? {
-        // 对原始引用和剥离 Gradle 版本后缀后的引用都尝试匹配
-        val variants = listOf(invalidReference, AliasSimilarityMatcher.stripGradleVersionSuffix(invalidReference)).distinct()
-
-        for (ref in variants) {
-            val candidates = mutableSetOf<String>()
-
-            // 1. 驼峰转点分隔
-            // gradlePlugin.ksp -> gradle.plugin.ksp
-            val camelCaseConverted = ref.replace(Regex("([a-z])([A-Z])")) { matchResult ->
-                "${matchResult.groupValues[1]}.${matchResult.groupValues[2].lowercase()}"
-            }
-            candidates.add(camelCaseConverted)
-
-            // 2. 下划线转点
-            candidates.add(ref.replace('_', '.'))
-
-            // 3. 连字符转点
-            candidates.add(ref.replace('-', '.'))
-
-            // 4. 全小写
-            candidates.add(ref.lowercase())
-
-            // 5. 剥离后缀后的原始形式
-            candidates.add(ref)
-
-            // 查找匹配的别名
-            val match = candidates.firstOrNull { it in availableAliases }
-            if (match != null) return match
-        }
-
-        return null
     }
 }

@@ -2,17 +2,14 @@ package site.addzero.gradle.catalog
 
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.codeInsight.intention.PriorityAction
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.PopupStep
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtPsiFactory
 
 /**
  * 浏览版本目录的其他候选项
@@ -26,14 +23,14 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = "Gradle buddy"
 
     override fun getText(): String {
         val count = cachedCandidates?.size ?: 0
         return if (count > 0) {
-            "(Gradle Buddy) Browse catalog alternatives ($count candidates)"
+            "(Gradle buddy) Browse catalog alternatives ($count candidates)"
         } else {
-            "(Gradle Buddy) Browse catalog alternatives"
+            "(Gradle buddy) Browse catalog alternatives"
         }
     }
 
@@ -47,38 +44,31 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return false
 
-        // 找到最顶层的 KtDotQualifiedExpression
-        var dotExpression = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
-            ?: return false
+        val dotExpression = CatalogExpressionUtils.findTopDotExpression(element) ?: return false
 
-        while (dotExpression.parent is KtDotQualifiedExpression) {
-            dotExpression = dotExpression.parent as KtDotQualifiedExpression
-        }
-
-        if (!isCatalogReference(dotExpression)) {
+        if (!CatalogExpressionUtils.isCatalogReference(dotExpression)) {
             return false
         }
 
-        val (catalogName, reference) = extractCatalogReference(dotExpression) ?: return false
+        if (CatalogExpressionUtils.containsMethodCall(dotExpression)) {
+            return false
+        }
+
+        val (catalogName, reference) = CatalogExpressionUtils.extractCatalogReference(dotExpression) ?: return false
 
         val scanner = CatalogReferenceScanner(project)
         val catalogs = scanner.scanAllCatalogs()
 
         val availableAliases = catalogs[catalogName] ?: return false
 
-        // 使用相似度匹配查找候选项
         val matcher = AliasSimilarityMatcher()
-        var suggestedAliases = matcher.findSimilarAliases(reference, availableAliases)
-
-        // 如果是 library 引用，过滤掉 versions.xxx 候选项
-        val prefixes = listOf("versions.", "plugins.", "bundles.")
-        if (prefixes.none { reference.startsWith(it) }) {
-            suggestedAliases = suggestedAliases.filter { !it.alias.startsWith("versions.") }
-        }
+        val suggestedAliases = CatalogExpressionUtils.filterCandidatesForReference(
+            reference,
+            matcher.findSimilarAliases(reference, availableAliases)
+        )
 
         if (suggestedAliases.isEmpty()) return false
 
-        // 缓存结果
         cachedCandidates = suggestedAliases.map { result ->
             CandidateItem(
                 alias = result.alias,
@@ -105,10 +95,8 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return
 
-        // 找到目标 dotExpression 并严格校验
-        val dotExpression = findTargetDotExpression(element, catalogName, currentReference) ?: return
+        val dotExpression = CatalogExpressionUtils.findTargetDotExpression(element, catalogName, currentReference) ?: return
 
-        // 显示弹出菜单
         val popup = JBPopupFactory.getInstance().createListPopup(
             object : BaseListPopupStep<CandidateItem>("浏览版本目录引用", candidates) {
                 override fun getTextFor(value: CandidateItem): String {
@@ -124,8 +112,8 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
                     if (selectedValue != null && finalChoice && !selectedValue.isCurrent) {
-                        com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
-                            replaceDotExpression(
+                        WriteCommandAction.runWriteCommandAction(project) {
+                            CatalogExpressionUtils.replaceDotExpression(
                                 project,
                                 dotExpression,
                                 selectedValue.catalogName,
@@ -133,98 +121,12 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
                             )
                         }
                     }
-                    return PopupStep.FINAL_CHOICE
+                    return FINAL_CHOICE
                 }
             }
         )
 
         popup.showInBestPositionFor(editor)
-    }
-
-    /**
-     * 从 element 向上找到目标 KtDotQualifiedExpression，
-     * 并严格校验其文本与预期的 catalogName.oldReference 完全匹配
-     */
-    private fun findTargetDotExpression(
-        element: PsiElement,
-        catalogName: String,
-        oldReference: String
-    ): KtDotQualifiedExpression? {
-        var dotExpression = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
-            ?: return null
-
-        while (dotExpression.parent is KtDotQualifiedExpression) {
-            dotExpression = dotExpression.parent as KtDotQualifiedExpression
-        }
-
-        val expectedText = "$catalogName.$oldReference"
-        if (dotExpression.text != expectedText) {
-            return null
-        }
-
-        return dotExpression
-    }
-
-    /**
-     * 直接替换已定位的 dotExpression
-     */
-    private fun replaceDotExpression(
-        project: Project,
-        dotExpression: KtDotQualifiedExpression,
-        catalogName: String,
-        newReference: String
-    ) {
-        val cleanRef = if (newReference.startsWith("$catalogName.")) {
-            newReference.removePrefix("$catalogName.")
-        } else {
-            newReference
-        }
-
-        val newFullReference = "$catalogName.$cleanRef"
-        val factory = KtPsiFactory(project)
-        val newExpression = factory.createExpression(newFullReference)
-        dotExpression.replace(newExpression)
-    }
-
-    private fun isCatalogReference(expression: KtDotQualifiedExpression): Boolean {
-        val topExpression = getTopExpression(expression)
-        if (containsForbiddenSegment(topExpression)) return false
-
-        var current = topExpression
-        while (current.receiverExpression is KtDotQualifiedExpression) {
-            current = current.receiverExpression as KtDotQualifiedExpression
-        }
-
-        val rootName = (current.receiverExpression as? org.jetbrains.kotlin.psi.KtNameReferenceExpression)?.getReferencedName()
-        val catalogNames = setOf("libs", "zlibs", "klibs", "testLibs")
-        return rootName in catalogNames
-    }
-
-    private fun extractCatalogReference(expression: KtDotQualifiedExpression): Pair<String, String>? {
-        val fullText = getTopExpression(expression).text
-        val parts = fullText.split(".")
-
-        if (parts.size < 2) {
-            return null
-        }
-
-        val catalogName = parts[0]
-        val reference = parts.drop(1).joinToString(".")
-
-        return catalogName to reference
-    }
-
-    private fun getTopExpression(expression: KtDotQualifiedExpression): KtDotQualifiedExpression {
-        var topExpression = expression
-        while (topExpression.parent is KtDotQualifiedExpression) {
-            topExpression = topExpression.parent as KtDotQualifiedExpression
-        }
-        return topExpression
-    }
-
-    private fun containsForbiddenSegment(expression: KtDotQualifiedExpression): Boolean {
-        val fullText = expression.text
-        return fullText.contains(".javaClass") || fullText.endsWith(".javaClass")
     }
 
     private data class CandidateItem(

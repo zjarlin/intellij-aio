@@ -1,0 +1,4 @@
+dependencies {
+    // 从候选项中选择正确的版本目录引用
+    implementation(libs.gradle.plugin.ksp)
+}

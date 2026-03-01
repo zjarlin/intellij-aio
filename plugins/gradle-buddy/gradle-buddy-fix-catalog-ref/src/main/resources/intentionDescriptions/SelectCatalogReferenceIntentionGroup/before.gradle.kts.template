@@ -1,0 +1,4 @@
+dependencies {
+    // 光标在 gradlePlugin.ksp 上，按 Alt+Enter
+    implementation(libs.<spot>gradlePlugin.ksp</spot>)
+}

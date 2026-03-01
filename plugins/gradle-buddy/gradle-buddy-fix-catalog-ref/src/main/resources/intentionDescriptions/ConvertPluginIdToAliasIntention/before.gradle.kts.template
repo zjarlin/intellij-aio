@@ -1,0 +1,4 @@
+plugins {
+    // 光标在 id("io.insert-koin.koin-compiler") 上，按 Alt+Enter
+    <spot>id("io.insert-koin.koin-compiler")</spot> version "1.0.0"
+}

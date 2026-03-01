@@ -1,0 +1,4 @@
+plugins {
+    // 转换为版本目录别名引用
+    alias(libs.plugins.koin.compiler)
+}

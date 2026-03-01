@@ -23,7 +23,7 @@ dependencies {
     implementation("site.addzero:tool-sql-executor:2025.11.26")
 
     // 工具类
-    implementation(libs.site.addzero.tool.str.v2025)
+    implementation(libs.site.addzero.tool.str)
     implementation(libs.site.addzero.tool.coll)
     implementation(libs.site.addzero.tool.io.codegen)
 

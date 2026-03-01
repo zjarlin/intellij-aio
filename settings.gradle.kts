@@ -25,14 +25,17 @@ plugins {
 
 
 // >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>
-// Generated at: 2026-02-28T17:06:46.115113
-// Loaded: 7, Excluded: 0, Total: 7
+// Generated at: 2026-02-28T17:08:41.621421
+// Loaded: 10, Excluded: 0, Total: 10
 include(":lib:ide-component-dynamicform")
+include(":lib:ide-component-settings")
 include(":lib:ide-component-settings-old")
 include(":lib:tool-awt")
 include(":lib:tool-psi-toml")
 include(":lib:tool-swing")
 include(":plugins:autoddl")
+include(":plugins:autoddl-jimmer")
+include(":plugins:gradle-module-sleep")
 include(":plugins:project-init-wizard")
 // <<< Gradle Module Sleep: End Of Block <<<
 

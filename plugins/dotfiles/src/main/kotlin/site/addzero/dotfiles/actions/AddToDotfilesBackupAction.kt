@@ -14,7 +14,7 @@ import site.addzero.dotfiles.sync.DotfilesProjectSyncService
 import java.nio.file.Paths
 
 class AddToDotfilesBackupAction : AnAction("Add to Dotfiles Backup") {
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return

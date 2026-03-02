@@ -1,6 +1,7 @@
 package site.addzero.gradle.sleep.actions
 
 import com.intellij.ide.DataManager
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -21,6 +22,8 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware {
+
+  override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
   private companion object {
     const val FIELD_PROPERTY = "moduleSleep.rootsField"

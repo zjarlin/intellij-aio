@@ -30,6 +30,8 @@ import java.io.File
  */
 class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return

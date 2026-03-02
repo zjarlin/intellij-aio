@@ -1,5 +1,6 @@
 package site.addzero.gradle.buddy.buildlogic
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
@@ -26,6 +27,8 @@ class ResolveAllPluginArtifactsAction : AnAction(
     "Scan all plugins in .gradle.kts files and resolve their implementation artifacts to version catalog",
     null
 ) {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return

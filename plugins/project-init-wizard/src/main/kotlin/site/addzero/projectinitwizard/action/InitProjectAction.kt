@@ -1,5 +1,6 @@
 package site.addzero.projectinitwizard.action
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
@@ -10,6 +11,8 @@ import site.addzero.projectinitwizard.ui.TemplateSelectionDialogWrapper
 import java.io.File
 
 class InitProjectAction : AnAction(), DumbAware {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
         // Get built-in template directory from plugin resources

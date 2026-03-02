@@ -1,5 +1,6 @@
 package site.addzero.gradle.sleep.actions
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -16,6 +17,8 @@ class LoadOnlyCurrentFileModuleAction : AnAction(
   ModuleSleepIcons.KeepFile
 ), DumbAware {
 
+  override fun getActionUpdateThread() = ActionUpdateThread.BGT
+
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
     val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
@@ -31,10 +34,15 @@ class LoadOnlyCurrentFileModuleAction : AnAction(
 
   override fun update(e: AnActionEvent) {
     e.presentation.icon = ModuleSleepIcons.KeepFile
-    val project = e.project
-    e.presentation.isEnabledAndVisible = project != null &&
-        project.service<GradleModuleSleepService>().isFeatureAvailable() &&
-        !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed() &&
-        e.getData(CommonDataKeys.VIRTUAL_FILE) != null
+    val project = e.project ?: run {
+      e.presentation.isEnabledAndVisible = false
+      return
+    }
+
+    val hasSelectedFile = FileEditorManager.getInstance(project).selectedFiles.isNotEmpty()
+    e.presentation.isEnabledAndVisible =
+      project.service<GradleModuleSleepService>().isFeatureAvailable() &&
+      !ModuleSleepSettingsService.getInstance(project).isFloatingToolbarCollapsed() &&
+      hasSelectedFile
   }
 }

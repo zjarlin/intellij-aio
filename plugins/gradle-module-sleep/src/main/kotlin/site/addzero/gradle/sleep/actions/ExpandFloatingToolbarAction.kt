@@ -24,7 +24,7 @@ class ExpandFloatingToolbarAction : AnAction(
     ModuleSleepSettingsService.getInstance(project).setFloatingToolbarCollapsed(false)
   }
 
-  override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+  override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
   override fun update(e: AnActionEvent) {
     val project = e.project

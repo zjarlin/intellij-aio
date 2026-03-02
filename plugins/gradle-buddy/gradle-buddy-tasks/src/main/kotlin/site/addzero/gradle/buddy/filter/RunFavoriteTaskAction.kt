@@ -2,6 +2,7 @@ package site.addzero.gradle.buddy.filter
 
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
@@ -20,6 +21,8 @@ import javax.swing.Icon
  * it's prefixed with the current module's Gradle path (e.g. ":lib:gradle-plugin:build").
  */
 class RunFavoriteTaskAction : AnAction {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     private var taskName: String = ""
 

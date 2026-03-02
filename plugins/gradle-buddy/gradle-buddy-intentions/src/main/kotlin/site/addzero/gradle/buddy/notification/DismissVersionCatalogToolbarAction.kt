@@ -14,7 +14,7 @@ class DismissVersionCatalogToolbarAction : AnAction(), DumbAware {
             .setValue(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, true)
     }
 
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.project != null

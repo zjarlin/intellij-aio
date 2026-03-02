@@ -1,5 +1,6 @@
 package site.addzero.gradle.buddy.migration.versioncatalog
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
@@ -29,6 +30,8 @@ class MigrateToVersionCatalogAction : AnAction(
     "Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml",
     null
 ) {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return

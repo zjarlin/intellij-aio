@@ -14,7 +14,7 @@ class OrganizeVersionCatalogAction : AnAction(), DumbAware {
         VersionCatalogSorter(project).sort(file)
     }
 
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.project != null

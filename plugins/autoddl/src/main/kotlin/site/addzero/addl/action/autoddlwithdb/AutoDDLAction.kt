@@ -23,6 +23,7 @@ import com.intellij.database.psi.DbDataSource
 import com.intellij.database.psi.DbElement
 import com.intellij.database.psi.DbTable
 import com.intellij.database.util.DasUtil
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.LangDataKeys
@@ -38,6 +39,8 @@ import java.sql.Connection
 
 
 class AutoDDLAction : AnAction() {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     private lateinit var dataSource: DbDataSource
 

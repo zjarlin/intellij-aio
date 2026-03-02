@@ -1,5 +1,6 @@
 package site.addzero.gradle.sleep.actions
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
@@ -12,6 +13,8 @@ import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
  * 流程: 获取打开的标签页 -> 推导模块 -> 生成 include 语句 -> 应用到 settings.gradle.kts -> 触发 Gradle 同步
  */
 class LoadOnlyOpenTabModulesAction : AnAction(), DumbAware {
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return

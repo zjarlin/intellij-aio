@@ -1,0 +1,4 @@
+dependencies {
+    implementation(project("<spot></spot>:project:ksp:jimmer-ksp-ext"))
+}
+

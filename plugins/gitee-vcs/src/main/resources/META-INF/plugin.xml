@@ -55,14 +55,15 @@
     </extensions>
 
     <actions>
-        <group id="Gitee.MainGroup" text="Gitee" popup="true" icon="AllIcons.Vcs.Vendors.Github">
-            <add-to-group group-id="VcsGroup" anchor="after" relative-to-action="GitHub.MainGroup"/>
+        <group id="Gitee.MainGroup" text="Gitee" popup="true">
+            <!-- 添加到 Tools 菜单 -->
+            <add-to-group group-id="ToolsMenu" anchor="after" relative-to-action="GitHub.MainGroup"/>
 
             <action id="Gitee.ShareProject"
                 class="site.addzero.gitee.actions.ShareProjectOnGiteeAction"
                 text="Share Project on Gitee..."
                 description="Push local project to create Gitee repository"
-                icon="AllIcons.Vcs.Vendors.Github"/>
+                />
 
             <separator/>
 

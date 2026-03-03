@@ -13,6 +13,6 @@ val pluginName = project.name
 intellijPlatform {
     pluginConfiguration {
         id = "site.addzero.$pluginName"
-        name = "Gitee"
+//        name = "Gitee"
     }
 }

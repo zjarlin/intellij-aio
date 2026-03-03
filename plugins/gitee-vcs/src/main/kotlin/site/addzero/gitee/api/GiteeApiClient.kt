@@ -141,8 +141,9 @@ class GiteeApiClient(private val accessToken: String) {
      * Build a GET request
      */
     private fun buildGetRequest(endpoint: String): Request {
+        val separator = if (endpoint.contains("?")) "&" else "?"
         return Request.Builder()
-            .url("$BASE_URL$endpoint&access_token=$accessToken")
+            .url("$BASE_URL$endpoint${separator}access_token=$accessToken")
             .header("Accept", "application/json")
             .get()
             .build()

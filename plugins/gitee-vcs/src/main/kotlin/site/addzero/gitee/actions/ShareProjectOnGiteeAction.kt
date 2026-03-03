@@ -72,24 +72,78 @@ class ShareProjectOnGiteeAction : AnAction() {
                         return
                     }
 
-                    // Create repository on Gitee
-                    val repo = apiClient.createRepo(repoName, description, isPrivate, false)
+                    // Get user info first
+                    val user = apiClient.getUser()
 
-                    indicator.text = "Pushing to Gitee..."
+                    // Check if repository with same name exists
+                    val repo = try {
+                        val existingRepo = apiClient.getRepo(user.login, repoName)
+                        // Repository exists, use it
+                        log.info("Repository already exists: ${existingRepo.name}")
+                        existingRepo
+                    } catch (e: GiteeApiException) {
+                        // Repository doesn't exist, create it
+                        log.info("Creating new repository: $repoName")
+                        apiClient.createRepo(repoName, description, isPrivate, false)
+                    }
+
+                    indicator.text = "Pushing to Gitee: ${repo.name}..."
 
                     // Add remote and push
                     val git = service<Git>()
                     val repoPath = repository?.root ?: findProjectBaseDir(project) ?: return
 
-                    // Add remote
-                    val addRemoteHandler = GitLineHandler(project, repoPath, GitCommand.REMOTE)
-                    addRemoteHandler.addParameters("add", "origin", repo.cloneUrl)
-                    git.runCommand(addRemoteHandler)
+                    // Get the clone URL - use htmlUrl if cloneUrl is null
+                    val remoteUrl = repo.cloneUrl?.takeIf { it.isNotBlank() }
+                        ?: repo.htmlUrl?.takeIf { it.isNotBlank() }?.let { "$it.git" }
+                        ?: "https://gitee.com/${repo.owner.login}/$repoName.git"
+
+                    // Check if origin remote exists
+                    val hasOrigin = repository?.remotes?.any { it.name == "origin" } ?: false
+
+                    // Add or set remote
+                    val remoteHandler = GitLineHandler(project, repoPath, GitCommand.REMOTE)
+                    if (hasOrigin) {
+                        remoteHandler.addParameters("set-url", "origin", remoteUrl)
+                    } else {
+                        remoteHandler.addParameters("add", "origin", remoteUrl)
+                    }
+                    val remoteResult = git.runCommand(remoteHandler)
+                    if (!remoteResult.success()) {
+                        showNotification(project, "Failed to add remote: ${remoteResult.errorOutputAsJoinedString}", NotificationType.ERROR)
+                        return
+                    }
 
                     // Get current branch
                     val currentBranch = repository?.currentBranch?.name ?: "master"
 
+                    // Check if there are commits
+                    val logHandler = GitLineHandler(project, repoPath, GitCommand.LOG)
+                    logHandler.addParameters("-1", "--oneline")
+                    val logResult = git.runCommand(logHandler)
+                    val hasCommits = logResult.success() && logResult.output.isNotEmpty()
+
+                    if (!hasCommits) {
+                        // Need to make initial commit
+                        indicator.text = "Creating initial commit..."
+
+                        // Add all files
+                        val addHandler = GitLineHandler(project, repoPath, GitCommand.ADD)
+                        addHandler.addParameters(".")
+                        git.runCommand(addHandler)
+
+                        // Commit
+                        val commitHandler = GitLineHandler(project, repoPath, GitCommand.COMMIT)
+                        commitHandler.addParameters("-m", "Initial commit")
+                        val commitResult = git.runCommand(commitHandler)
+                        if (!commitResult.success()) {
+                            showNotification(project, "Failed to create initial commit: ${commitResult.errorOutputAsJoinedString}", NotificationType.WARNING)
+                            return
+                        }
+                    }
+
                     // Push to Gitee
+                    indicator.text = "Pushing to Gitee..."
                     val pushHandler = GitLineHandler(project, repoPath, GitCommand.PUSH)
                     pushHandler.addParameters("-u", "origin", currentBranch)
                     val pushResult = git.runCommand(pushHandler)
@@ -110,7 +164,12 @@ class ShareProjectOnGiteeAction : AnAction() {
 
                 } catch (e: GiteeApiException) {
                     log.error("Failed to share project on Gitee", e)
-                    showNotification(project, "Failed to share project: ${e.message}", NotificationType.ERROR)
+                    val message = when {
+                        e.message?.contains("已存在") == true -> "Repository already exists on Gitee"
+                        e.message?.contains("access_token") == true -> "Invalid access token"
+                        else -> "Failed to share project: ${e.message}"
+                    }
+                    showNotification(project, message, NotificationType.ERROR)
                 } catch (e: Exception) {
                     log.error("Unexpected error sharing project", e)
                     showNotification(project, "Unexpected error: ${e.message}", NotificationType.ERROR)

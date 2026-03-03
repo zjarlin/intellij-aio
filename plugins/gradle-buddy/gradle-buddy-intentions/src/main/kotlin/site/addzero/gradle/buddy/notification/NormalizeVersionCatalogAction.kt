@@ -38,7 +38,6 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
         normalize(project, file)
     }
 
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabledAndVisible = e.project != null

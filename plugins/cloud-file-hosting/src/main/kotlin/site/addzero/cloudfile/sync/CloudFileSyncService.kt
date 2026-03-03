@@ -12,6 +12,7 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import kotlinx.coroutines.*
 import site.addzero.cloudfile.cache.OfflineCacheManager
 import site.addzero.cloudfile.git.GitIntegrationService
+import site.addzero.cloudfile.git.GitignoreChecker
 import site.addzero.cloudfile.settings.CloudFileSettings
 import site.addzero.cloudfile.settings.ProjectHostingSettings
 import site.addzero.cloudfile.storage.StorageService
@@ -32,6 +33,7 @@ class CloudFileSyncService(private val project: Project) {
     private val projectSettings = ProjectHostingSettings.getInstance(project)
     private val gitService = GitIntegrationService.getInstance(project)
     private val cacheManager = OfflineCacheManager.getInstance(project)
+    private val gitignoreChecker = GitignoreChecker.getInstance(project)
 
     private var storageService: StorageService? = null
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -81,14 +83,17 @@ class CloudFileSyncService(private val project: Project) {
         val namespace = projectSettings.getNamespace(project)
         val rules = projectSettings.getEffectiveRules(project)
 
+        indicator?.text = "Loading rules..."
+
         if (rules.isEmpty()) {
-            showNotification("No hosting rules", "No files configured for cloud hosting")
+            showNotification("No hosting rules", "No files configured for cloud hosting. Right-click a file/folder and select 'Add to Cloud Hosting' first.")
             return
         }
 
+        indicator?.text = "Collecting files..."
         val filesToSync = collectMatchingFiles(rules)
         if (filesToSync.isEmpty()) {
-            showNotification("No files to sync", "No files matched the hosting rules")
+            showNotification("No files to sync", "No files matched the hosting rules. Check your .gitignore settings.")
             return
         }
 
@@ -344,7 +349,8 @@ class CloudFileSyncService(private val project: Project) {
                     }
                 }
                 CloudFileSettings.HostingRule.RuleType.DIRECTORY -> {
-                    val dir = File(basePath, rule.pattern)
+                    val pattern = rule.pattern.removeSuffix("/")
+                    val dir = File(basePath, pattern)
                     if (dir.exists() && dir.isDirectory) {
                         dir.walkTopDown()
                             .filter { it.isFile }
@@ -378,8 +384,10 @@ class CloudFileSyncService(private val project: Project) {
             when (rule.type) {
                 CloudFileSettings.HostingRule.RuleType.FILE ->
                     relativePath == rule.pattern
-                CloudFileSettings.HostingRule.RuleType.DIRECTORY ->
-                    relativePath.startsWith(rule.pattern.removeSuffix("/") + "/")
+                CloudFileSettings.HostingRule.RuleType.DIRECTORY -> {
+                    val pattern = rule.pattern.removeSuffix("/")
+                    relativePath.startsWith(pattern + "/") || relativePath == pattern
+                }
                 CloudFileSettings.HostingRule.RuleType.GLOB -> {
                     val matcher = FileSystems.getDefault().getPathMatcher("glob:${rule.pattern}")
                     matcher.matches(Paths.get(relativePath))
@@ -389,11 +397,10 @@ class CloudFileSyncService(private val project: Project) {
     }
 
     /**
-     * Check if file is ignored by Git
+     * Check if file is ignored by Git (.gitignore)
      */
     private fun isGitIgnored(file: File): Boolean {
-        // Simplified check - would integrate with GitIndexUtil in full implementation
-        return false
+        return gitignoreChecker.isIgnored(file)
     }
 
     /**

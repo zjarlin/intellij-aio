@@ -19,6 +19,8 @@
                         serviceImplementation="site.addzero.cloudfile.sync.CloudFileSyncService"/>
         <projectService serviceInterface="site.addzero.cloudfile.git.GitIntegrationService"
                         serviceImplementation="site.addzero.cloudfile.git.GitIntegrationService"/>
+        <projectService serviceInterface="site.addzero.cloudfile.git.GitignoreChecker"
+                        serviceImplementation="site.addzero.cloudfile.git.GitignoreChecker"/>
         <projectService serviceInterface="site.addzero.cloudfile.cache.OfflineCacheManager"
                         serviceImplementation="site.addzero.cloudfile.cache.OfflineCacheManager"/>
         <projectService serviceInterface="site.addzero.cloudfile.share.ShareLinkManager"

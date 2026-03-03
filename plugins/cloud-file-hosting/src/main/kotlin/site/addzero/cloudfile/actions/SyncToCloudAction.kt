@@ -2,11 +2,10 @@ package site.addzero.cloudfile.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.project.Project
 import site.addzero.cloudfile.sync.CloudFileSyncService
 
 /**
@@ -14,23 +13,24 @@ import site.addzero.cloudfile.sync.CloudFileSyncService
  */
 class SyncToCloudAction : AnAction(
     "Sync to Cloud",
-    "Sync selected files to cloud storage",
+    "Sync all configured files to cloud storage",
     com.intellij.icons.AllIcons.Actions.Upload
 ) {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val virtualFiles = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
+        performSyncWithProgress(project)
+    }
 
-        if (virtualFiles.isNullOrEmpty()) {
-            Messages.showWarningDialog(project, "Please select files to sync", "No Selection")
-            return
-        }
-
-        val syncService = CloudFileSyncService.getInstance(project)
-
+    private fun performSyncWithProgress(project: Project) {
+        // Use modal task for visible progress dialog
         ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "Syncing to Cloud", true) {
+            object : Task.Modal(project, "Syncing to Cloud", true) {
                 override fun run(indicator: ProgressIndicator) {
+                    indicator.isIndeterminate = false
+                    indicator.text = "Initializing..."
+                    indicator.fraction = 0.0
+
+                    val syncService = CloudFileSyncService.getInstance(project)
                     syncService.syncToCloud(force = true, indicator = indicator)
                 }
             }

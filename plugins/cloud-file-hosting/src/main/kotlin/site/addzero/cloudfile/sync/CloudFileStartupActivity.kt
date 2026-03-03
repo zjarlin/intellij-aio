@@ -1,15 +1,13 @@
 package site.addzero.cloudfile.sync
 
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.asContextElement
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import site.addzero.cloudfile.git.GitIntegrationService
 import site.addzero.cloudfile.settings.CloudFileSettings
 import site.addzero.cloudfile.settings.ProjectHostingSettings
@@ -41,17 +39,24 @@ class CloudFileStartupActivity : ProjectActivity {
         val gitInfo = gitService.getGitInfo()
         logger.info("Git info: authors=${gitInfo.authors}, remote=${gitInfo.remoteUrl}")
 
-        // Initialize sync service
-        val syncService = CloudFileSyncService.getInstance(project)
-
-        // Perform initial sync from cloud (remote is authoritative)
+        // Perform initial sync from cloud (remote is authoritative) with progress
         if (settings.state.autoSync) {
-            withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                try {
-                    syncService.syncFromCloud(null)
-                } catch (e: Exception) {
-                    logger.error("Initial sync failed", e)
-                }
+            ApplicationManager.getApplication().invokeLater {
+                ProgressManager.getInstance().run(
+                    object : Task.Backgroundable(project, "Cloud File Hosting - Initial Sync", true) {
+                        override fun run(indicator: ProgressIndicator) {
+                            indicator.isIndeterminate = false
+                            indicator.text = "Connecting to cloud storage..."
+
+                            val syncService = CloudFileSyncService.getInstance(project)
+                            try {
+                                syncService.syncFromCloud(indicator)
+                            } catch (e: Exception) {
+                                logger.error("Initial sync failed", e)
+                            }
+                        }
+                    }
+                )
             }
         }
     }

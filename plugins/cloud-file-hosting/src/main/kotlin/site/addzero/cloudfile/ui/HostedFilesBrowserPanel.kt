@@ -10,7 +10,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.ui.DoubleClickEvent
 import com.intellij.ui.PopupHandler
 import com.intellij.ui.TreeSpeedSearch
 import com.intellij.ui.components.JBScrollPane

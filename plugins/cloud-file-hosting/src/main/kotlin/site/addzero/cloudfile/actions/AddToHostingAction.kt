@@ -1,5 +1,6 @@
 package site.addzero.cloudfile.actions
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -28,11 +29,10 @@ class AddToHostingAction : AnAction(
             "Add to Cloud Hosting",
             Messages.getQuestionIcon(),
             options,
-            options[0],
-            null
+            options[0]
         )
 
-        if (choice < 0) return
+        if (choice == -1) return
 
         val relativePath = getRelativePath(project, virtualFile)
         if (relativePath == null) {
@@ -55,8 +55,15 @@ class AddToHostingAction : AnAction(
             else -> CloudFileSettings.HostingRule.RuleType.FILE
         }
 
-        settings.addProjectRule(relativePath, type)
-        Messages.showInfoMessage(project as com.intellij.openapi.project.Project, "Added '$relativePath' to project hosting rules", "Success")
+        // Ensure directory paths end with /
+        val pattern = if (type == CloudFileSettings.HostingRule.RuleType.DIRECTORY && !relativePath.endsWith("/")) {
+            "$relativePath/"
+        } else {
+            relativePath
+        }
+
+        settings.addProjectRule(pattern, type)
+        Messages.showInfoMessage(project as com.intellij.openapi.project.Project, "Added '$pattern' to project hosting rules", "Success")
     }
 
     private fun addToGlobalRules(project: Project, file: VirtualFile, relativePath: String) {
@@ -68,8 +75,15 @@ class AddToHostingAction : AnAction(
             else -> CloudFileSettings.HostingRule.RuleType.FILE
         }
 
-        settings.state.globalRules.add(CloudFileSettings.HostingRule(relativePath, type))
-        Messages.showInfoMessage(project as com.intellij.openapi.project.Project, "Added '$relativePath' to global hosting rules", "Success")
+        // Ensure directory paths end with /
+        val pattern = if (type == CloudFileSettings.HostingRule.RuleType.DIRECTORY && !relativePath.endsWith("/")) {
+            "$relativePath/"
+        } else {
+            relativePath
+        }
+
+        settings.state.globalRules.add(CloudFileSettings.HostingRule(pattern, type))
+        Messages.showInfoMessage(project as com.intellij.openapi.project.Project, "Added '$pattern' to global hosting rules", "Success")
     }
 
     private fun getRelativePath(project: Project, file: VirtualFile): String? {
@@ -79,6 +93,10 @@ class AddToHostingAction : AnAction(
         } else {
             null
         }
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread {
+        return ActionUpdateThread.BGT
     }
 
     override fun update(e: AnActionEvent) {

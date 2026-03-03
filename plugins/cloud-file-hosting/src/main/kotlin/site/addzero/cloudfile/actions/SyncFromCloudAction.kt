@@ -29,11 +29,15 @@ class SyncFromCloudAction : AnAction(
 
         if (result != Messages.YES) return
 
-        val syncService = CloudFileSyncService.getInstance(project)
-
+        // Use modal task for visible progress dialog
         ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "Syncing from Cloud", true) {
+            object : Task.Modal(project, "Syncing from Cloud", true) {
                 override fun run(indicator: ProgressIndicator) {
+                    indicator.isIndeterminate = false
+                    indicator.text = "Connecting to cloud..."
+                    indicator.fraction = 0.0
+
+                    val syncService = CloudFileSyncService.getInstance(project)
                     syncService.syncFromCloud(indicator)
                 }
             }

@@ -70,6 +70,14 @@
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
 
+    <action id="GradleBuddy.FixBrokenProjectReferences"
+            class="site.addzero.gradle.buddy.notification.FixBrokenProjectReferencesAction"
+            text="Fix Broken Project References"
+            description="Scan all .gradle.kts files and fix broken project() and projects.* references"
+            icon="AllIcons.Actions.QuickfixBulb">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+
     <action id="GradleBuddy.DismissVersionCatalogToolbar"
             class="site.addzero.gradle.buddy.notification.DismissVersionCatalogToolbarAction"
             text="Don't Remind"
@@ -307,6 +315,13 @@
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.projectdep.InsertProjectDependencyIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Fix broken project() dependency path by leaf module name -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.FixProjectDependencyPathIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

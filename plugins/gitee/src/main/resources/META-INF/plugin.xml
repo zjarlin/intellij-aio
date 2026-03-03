@@ -1,0 +1,97 @@
+<idea-plugin>
+    <id>site.addzero.gitee</id>
+    <name>Gitee</name>
+    <vendor>zjarlin</vendor>
+
+    <description><![CDATA[
+    <h3>Gitee Integration for IntelliJ IDEA</h3>
+    <p>Integrates with Gitee (码云) - China's leading code hosting platform.</p>
+
+    <h4>Key Features:</h4>
+    <ul>
+        <li>⭐ <b>Share Project on Gitee</b>: Push local projects to create Gitee repositories</li>
+        <li>🔀 <b>Create Pull Request</b>: Create PRs directly from IDE</li>
+        <li>👀 <b>View Pull Requests</b>: Browse project PRs</li>
+        <li>🔄 <b>Sync Fork</b>: Sync forked repositories with upstream</li>
+        <li>📥 <b>Clone from Gitee</b>: Clone repositories from Gitee</li>
+        <li>🔐 <b>Account Management</b>: Manage Gitee access tokens</li>
+    </ul>
+
+    <h4>Usage:</h4>
+    <ol>
+        <li>Go to Settings → Tools → Gitee, configure your access token</li>
+        <li>Use Git → Gitee menu to access all features</li>
+    </ol>
+
+    <h4>Getting Access Token:</h4>
+    <p>Visit <a href="https://gitee.com/profile/personal_access_tokens">Gitee Personal Access Tokens</a> to generate your token.</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <p>1.0.0 - Initial release with Share Project on Gitee feature</p>
+    ]]></change-notes>
+
+    <idea-version since-build="252" until-build="262.*"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Settings Service -->
+        <applicationService
+            serviceImplementation="site.addzero.gitee.settings.GiteeSettings"/>
+
+        <!-- Settings Page -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="site.addzero.gitee.settings.GiteeConfigurable"
+            id="site.addzero.gitee.settings"
+            displayName="Gitee"/>
+
+        <!-- Notification Group -->
+        <notificationGroup
+            id="GiteeNotifications"
+            displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <group id="Gitee.MainGroup" text="Gitee" popup="true" icon="AllIcons.Vcs.Vendors.Github">
+            <add-to-group group-id="VcsGroup" anchor="after" relative-to-action="GitHub.MainGroup"/>
+
+            <action id="Gitee.ShareProject"
+                class="site.addzero.gitee.actions.ShareProjectOnGiteeAction"
+                text="Share Project on Gitee..."
+                description="Push local project to create Gitee repository"
+                icon="AllIcons.Vcs.Vendors.Github"/>
+
+            <separator/>
+
+            <action id="Gitee.CreatePullRequest"
+                class="site.addzero.gitee.actions.CreatePullRequestAction"
+                text="Create Pull Request..."
+                description="Create a pull request on Gitee"
+                icon="AllIcons.Vcs.Merge"/>
+
+            <action id="Gitee.ViewPullRequests"
+                class="site.addzero.gitee.actions.ViewPullRequestsAction"
+                text="View Pull Requests"
+                description="View pull requests on Gitee"
+                icon="AllIcons.Vcs.History"/>
+
+            <action id="Gitee.SyncFork"
+                class="site.addzero.gitee.actions.SyncForkAction"
+                text="Sync Fork"
+                description="Sync forked repository with upstream"
+                icon="AllIcons.Actions.Refresh"/>
+
+            <separator/>
+
+            <action id="Gitee.Clone"
+                class="site.addzero.gitee.actions.CloneFromGiteeAction"
+                text="Clone from Gitee..."
+                description="Clone a repository from Gitee"
+                icon="AllIcons.Actions.CheckOut"/>
+        </group>
+    </actions>
+
+</idea-plugin>

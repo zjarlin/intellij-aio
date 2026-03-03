@@ -40,3 +40,4 @@ include(":plugins:project-init-wizard")
 // <<< Gradle Module Sleep: End Of Block <<<
 
 include(":plugins:project-init-wizard")
+include(":plugins:cloud-file-hosting")

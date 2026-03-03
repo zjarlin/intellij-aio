@@ -9,6 +9,10 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.ui.popup.PopupStep
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileVisitor
 import com.intellij.psi.PsiFile
 
 /**
@@ -21,7 +25,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = "Gradle buddy"
 
     override fun getText(): String = "(Gradle Buddy) Insert project dependency"
 
@@ -43,7 +47,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
 
         val basePath = project.basePath ?: return
         val currentModulePath = detectModulePathFromFile(file, basePath) ?: return
-        val allModules = scanAllModules(project, basePath)
+        val allModules = scanAllModules(basePath)
             .filter { it != currentModulePath } // exclude self
 
         if (allModules.isEmpty()) return
@@ -54,7 +58,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
             ModuleCandidate(modulePath, dist)
         }.sortedBy { it.distance }
 
-        // Show popup
+        // Show popup with search enabled
         val step = object : BaseListPopupStep<ModuleCandidate>("Select Project Dependency", sorted) {
             override fun getTextFor(value: ModuleCandidate): String {
                 val shortName = value.path.substringAfterLast(':')
@@ -65,7 +69,14 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
                 if (finalChoice) {
                     insertDependency(project, editor, selectedValue.path)
                 }
-                return PopupStep.FINAL_CHOICE
+                return FINAL_CHOICE
+            }
+
+            override fun isSpeedSearchEnabled(): Boolean = true
+
+            override fun getIndexedString(value: ModuleCandidate): String {
+                // Allow searching by both short name and full path
+                return value.path
             }
         }
 
@@ -88,15 +99,15 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
 
         val textToInsert = "\n$indent$depLine"
 
-        WriteCommandAction.runWriteCommandAction(project, "Insert Project Dependency", null, Runnable {
+        WriteCommandAction.writeCommandAction(project).withName("Insert Project Dependency").run<Throwable> {
             document.insertString(lineEndOffset, textToInsert)
             editor.caretModel.moveToOffset(lineEndOffset + textToInsert.length)
-        })
+        }
     }
 
     /**
-     * Check if the offset is inside a `dependencies { ... }` block.
-     * Simple heuristic: walk backwards from offset looking for "dependencies" followed by "{".
+     * Checks if the offset is inside a `dependencies { ... }` block.
+     * Uses a simple heuristic: walking backwards from offset looking for "dependencies" followed by "{".
      */
     private fun isInsideDependenciesBlock(file: PsiFile, offset: Int): Boolean {
         val text = file.text
@@ -115,8 +126,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
                         // Found the opening brace that contains our offset
                         // Check if the text before it is "dependencies"
                         val before = text.substring(0, i).trimEnd()
-                        if (before.endsWith("dependencies")) return true
-                        return false
+                        return before.endsWith("dependencies")
                     }
                 }
             }
@@ -146,8 +156,8 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
     /**
      * Scan the project for all Gradle modules by finding build.gradle.kts / build.gradle files.
      */
-    private fun scanAllModules(project: Project, basePath: String): List<String> {
-        val baseDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+    private fun scanAllModules(basePath: String): List<String> {
+        val baseDir = LocalFileSystem.getInstance()
             .findFileByPath(basePath) ?: return emptyList()
 
         val modules = mutableListOf<String>()
@@ -155,24 +165,27 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
         return modules
     }
 
-    private fun collectModules(dir: com.intellij.openapi.vfs.VirtualFile, basePath: String, result: MutableList<String>) {
-        // Skip hidden directories and build directories
-        val name = dir.name
-        if (name.startsWith(".") || name == "build" || name == "node_modules" || name == "buildSrc") return
+    private fun collectModules(dir: VirtualFile, basePath: String, result: MutableList<String>) {
+        VfsUtilCore.visitChildrenRecursively(dir, object : VirtualFileVisitor<Void>() {
+            override fun visitFile(file: VirtualFile): Boolean {
+                if (!file.isDirectory) return true
 
-        val hasBuildFile = dir.findChild("build.gradle.kts") != null || dir.findChild("build.gradle") != null
-        if (hasBuildFile) {
-            val rel = dir.path.removePrefix(basePath).trimStart('/')
-            val modulePath = if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
-            result.add(modulePath)
-        }
+                // Skip hidden directories and build directories
+                val name = file.name
+                if (name.startsWith(".") || name == "build" || name == "node_modules" || name == "buildSrc") {
+                    return false // Skip this directory and its children
+                }
 
-        // Recurse into subdirectories
-        for (child in dir.children) {
-            if (child.isDirectory) {
-                collectModules(child, basePath, result)
+                val hasBuildFile = file.findChild("build.gradle.kts") != null || file.findChild("build.gradle") != null
+                if (hasBuildFile) {
+                    val rel = file.path.removePrefix(basePath).trimStart('/')
+                    val modulePath = if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
+                    result.add(modulePath)
+                }
+
+                return true // Continue visiting children
             }
-        }
+        })
     }
 
     private data class ModuleCandidate(val path: String, val distance: Int)

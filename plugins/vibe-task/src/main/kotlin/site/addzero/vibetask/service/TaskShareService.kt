@@ -6,6 +6,7 @@ import site.addzero.vibetask.model.ShareResult
 import site.addzero.vibetask.model.ShareTarget
 import site.addzero.vibetask.model.VibeTask
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
@@ -65,7 +66,7 @@ class TaskShareService {
 
     private fun tryUploadToTermbin(content: String): ShareResult {
         return try {
-            val url = URL("https://termbin.com")
+            val url = URI("https://termbin.com").toURL()
             val connection = url.openConnection() as HttpURLConnection
 
             connection.apply {
@@ -111,7 +112,7 @@ class TaskShareService {
         }
 
         return try {
-            val url = URL("https://api.github.com/gists")
+            val url = URI("https://api.github.com/gists").toURL()
             val connection = url.openConnection() as HttpURLConnection
 
             val jsonBody = buildGistJson(tasks, "Vibe Tasks Export")
@@ -171,7 +172,7 @@ class TaskShareService {
         }
 
         return try {
-            val url = URL("https://gitee.com/api/v5/gists")
+            val url = URI("https://gitee.com/api/v5/gists").toURL()
             val connection = url.openConnection() as HttpURLConnection
 
             val jsonBody = buildGistJson(tasks, "Vibe Tasks Export")

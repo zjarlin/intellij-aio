@@ -175,8 +175,77 @@ class StorageSettingsPanel : Configurable {
         }
 
         private fun testConnection() {
-            // Implementation would test the connection
-            com.intellij.openapi.ui.Messages.showInfoMessage("Connection test would go here", "Test")
+            val provider = providerCombo.selectedItem as String
+            val progress = com.intellij.openapi.progress.ProgressManager.getInstance()
+
+            progress.runProcessWithProgressSynchronously({
+                val indicator = progress.progressIndicator
+                indicator.text = "Testing $provider connection..."
+
+                val success = when (provider) {
+                    "S3" -> testS3Connection()
+                    "OSS" -> testOssConnection()
+                    else -> false
+                }
+
+                indicator.stop()
+
+                com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+                    if (success) {
+                        com.intellij.openapi.ui.Messages.showInfoMessage("Connection successful!", "Test Result")
+                    } else {
+                        com.intellij.openapi.ui.Messages.showErrorDialog(
+                            "Connection failed. Please check your settings.",
+                            "Test Result"
+                        )
+                    }
+                }
+            }, "Testing Connection", true, null)
+        }
+
+        private fun testS3Connection(): Boolean {
+            return try {
+                val accessKey = String(s3AccessKeyField.password)
+                val secretKey = String(s3SecretKeyField.password)
+                val bucket = s3BucketField.text
+                val endpoint = s3EndpointField.text
+                val region = s3RegionField.text.ifBlank { "us-east-1" }
+
+                if (accessKey.isBlank() || secretKey.isBlank() || bucket.isBlank()) {
+                    return false
+                }
+
+                val service = site.addzero.cloudfile.storage.ToolS3StorageService(
+                    endpoint, region, bucket, accessKey, secretKey
+                )
+                val result = service.testConnection()
+                service.close()
+                result
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        private fun testOssConnection(): Boolean {
+            return try {
+                val accessKeyId = String(ossAccessKeyIdField.password)
+                val accessKeySecret = String(ossAccessKeySecretField.password)
+
+                if (accessKeyId.isBlank() || accessKeySecret.isBlank() || ossBucketField.text.isBlank()) {
+                    return false
+                }
+
+                val client = com.aliyun.oss.OSSClientBuilder().build(
+                    ossEndpointField.text,
+                    accessKeyId,
+                    accessKeySecret
+                )
+                val exists = client.doesBucketExist(ossBucketField.text)
+                client.shutdown()
+                exists
+            } catch (e: Exception) {
+                false
+            }
         }
 
         private fun createLabeledComponent(label: String, component: javax.swing.JComponent): javax.swing.JPanel {

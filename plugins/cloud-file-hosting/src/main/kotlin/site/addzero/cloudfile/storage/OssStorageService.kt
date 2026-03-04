@@ -57,6 +57,32 @@ class OssStorageService(
         }
     }
 
+    override fun uploadBytes(data: ByteArray, remotePath: String, namespace: String?, contentType: String): StorageService.UploadResult {
+        val fullPath = buildFullPath(remotePath, namespace)
+
+        return try {
+            val result = ossClient.putObject(bucket, fullPath, java.io.ByteArrayInputStream(data))
+
+            StorageService.UploadResult(
+                success = true,
+                etag = result.eTag,
+                remotePath = fullPath
+            )
+        } catch (e: OSSException) {
+            logger.error("Failed to upload bytes to OSS: $remotePath", e)
+            StorageService.UploadResult(
+                success = false,
+                error = "${e.errorCode}: ${e.errorMessage}"
+            )
+        } catch (e: Exception) {
+            logger.error("Failed to upload bytes to OSS: $remotePath", e)
+            StorageService.UploadResult(
+                success = false,
+                error = e.message
+            )
+        }
+    }
+
     override fun downloadFile(remotePath: String, localFile: File, namespace: String?): Boolean {
         val fullPath = buildFullPath(remotePath, namespace)
 

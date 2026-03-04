@@ -82,7 +82,7 @@ class AddToHostingAction : AnAction(
             relativePath
         }
 
-        settings.state.globalRules.add(CloudFileSettings.HostingRule(pattern, type))
+        settings.addGlobalRule(pattern, type)
         Messages.showInfoMessage(project as com.intellij.openapi.project.Project, "Added '$pattern' to global hosting rules", "Success")
     }
 

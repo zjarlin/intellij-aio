@@ -8,7 +8,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Application Level Settings -->
-        <applicationService serviceImplementation="site.addzero.cloudfile.settings.CloudFileSettings"/>
+        <applicationService serviceInterface="site.addzero.cloudfile.settings.CloudFileSettings"
+                            serviceImplementation="site.addzero.cloudfile.settings.CloudFileSettings"/>
         <applicationConfigurable instance="site.addzero.cloudfile.settings.CloudFileConfigurable" displayName="Cloud File Hosting"/>
 
         <!-- Project Level Settings -->
@@ -64,14 +65,6 @@
                 icon="AllIcons.Actions.Download">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-        </action>
-
-        <action id="CloudFile.AddToHosting"
-                class="site.addzero.cloudfile.actions.AddToHostingAction"
-                text="Add to Cloud Hosting"
-                description="Add file to cloud hosting rules"
-                icon="AllIcons.Nodes.PpLibFolder">
-            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
 
         <action id="CloudFile.OpenSettings"

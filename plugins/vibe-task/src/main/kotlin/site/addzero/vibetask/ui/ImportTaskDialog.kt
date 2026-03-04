@@ -13,6 +13,7 @@ import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.datatransfer.DataFlavor
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import javax.swing.*
 import javax.swing.border.EmptyBorder
@@ -194,7 +195,7 @@ class ImportTaskDialog(private val project: Project) : DialogWrapper(project) {
         // 在后台线程中获取
         SwingUtilities.invokeLater {
             try {
-                val url = URL(urlStr)
+                val url = URI(urlStr).toURL()
                 val connection = url.openConnection() as HttpURLConnection
                 connection.apply {
                     requestMethod = "GET"

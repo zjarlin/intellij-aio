@@ -18,6 +18,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.modules.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- 项目启动时注入到 Problems 面板 -->
@@ -30,5 +31,11 @@
         <notificationGroup id="Problem4AI Notifications" displayType="BALLOON" isLogByDefault="true"/>
 
         <!-- 项目级服务 -->
+        <projectService
+                serviceImplementation="site.addzero.diagnostic.config.DiagnosticExclusionConfig"/>
+        <projectService
+                serviceImplementation="site.addzero.diagnostic.service.DiagnosticCollectorService"/>
+        <projectService
+                serviceImplementation="site.addzero.diagnostic.service.GlobalDiagnosticCache"/>
     </extensions>
 </idea-plugin>

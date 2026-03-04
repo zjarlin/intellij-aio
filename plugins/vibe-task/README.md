@@ -1,4 +1,4 @@
-# Vibe Task
+# A lightweight task/memo plugin for "vibe coding": Quickly record inspirations within the IDE, categorize and view them by project/module, and support JSON/Markdown import/export as well as adding completed items to the project.
 
 一个面向「vibe coding」的轻量任务/备忘插件：在 IDE 内快速记录灵感、按项目/模块归类查看，并支持 JSON/Markdown 导入导出与把已完成事项追加到项目 `README.md`。
 

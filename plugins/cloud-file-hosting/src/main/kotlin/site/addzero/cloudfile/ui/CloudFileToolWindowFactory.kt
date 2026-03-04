@@ -100,22 +100,46 @@ class CloudFileQuickPanel(private val project: Project) : JPanel(BorderLayout())
 
     private fun createFileListPanel(): JComponent {
         val panel = JPanel(BorderLayout())
-        panel.border = BorderFactory.createTitledBorder("Hosted Files")
+        panel.border = BorderFactory.createTitledBorder("Configured Rules (Local)")
 
         val model = DefaultListModel<String>()
         val list = JBList(model)
 
         // Populate with current rules
         val projectSettings = site.addzero.cloudfile.settings.ProjectHostingSettings.getInstance(project)
-        val rules = projectSettings.getEffectiveRules(project)
+        val globalSettings = site.addzero.cloudfile.settings.CloudFileSettings.getInstance()
 
-        rules.forEach { rule ->
-            val typeLabel = when (rule.type) {
-                site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.FILE -> "[File]"
-                site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.DIRECTORY -> "[Dir]"
-                site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.GLOB -> "[Glob]"
+        // Show global rules
+        val globalRules = globalSettings.state.globalRules
+        if (globalRules.isNotEmpty()) {
+            model.addElement("=== Global Rules ===")
+            globalRules.forEach { rule ->
+                val typeLabel = when (rule.type) {
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.FILE -> "[File]"
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.DIRECTORY -> "[Dir]"
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.GLOB -> "[Glob]"
+                }
+                model.addElement("  $typeLabel ${rule.pattern}")
             }
-            model.addElement("$typeLabel ${rule.pattern}")
+        }
+
+        // Show project rules
+        val projectRules = projectSettings.state.projectRules
+        if (projectRules.isNotEmpty()) {
+            model.addElement("=== Project Rules ===")
+            projectRules.forEach { rule ->
+                val typeLabel = when (rule.type) {
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.FILE -> "[File]"
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.DIRECTORY -> "[Dir]"
+                    site.addzero.cloudfile.settings.CloudFileSettings.HostingRule.RuleType.GLOB -> "[Glob]"
+                }
+                model.addElement("  $typeLabel ${rule.pattern}")
+            }
+        }
+
+        if (model.isEmpty) {
+            model.addElement("(No rules configured)")
+            model.addElement("Right-click a file/folder and select 'Add to Cloud Hosting'")
         }
 
         panel.add(JBScrollPane(list), BorderLayout.CENTER)

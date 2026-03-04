@@ -27,6 +27,16 @@ interface StorageService {
     fun uploadFile(localFile: File, remotePath: String, namespace: String? = null): UploadResult
 
     /**
+     * Upload raw bytes to cloud storage (for compressed data)
+     * @param data Byte array to upload
+     * @param remotePath Remote path (key)
+     * @param namespace Project namespace
+     * @param contentType MIME type of the content
+     * @return Upload result with ETag
+     */
+    fun uploadBytes(data: ByteArray, remotePath: String, namespace: String? = null, contentType: String = "application/octet-stream"): UploadResult
+
+    /**
      * Download a file from cloud storage
      * @param remotePath Remote path (key)
      * @param localFile Local file to save to
@@ -95,7 +105,7 @@ object StorageServiceFactory {
         accessKey: String,
         secretKey: String
     ): StorageService {
-        return S3StorageService(endpoint, region, bucket, accessKey, secretKey)
+        return ToolS3StorageService(endpoint, region, bucket, accessKey, secretKey)
     }
 
     fun createOssService(

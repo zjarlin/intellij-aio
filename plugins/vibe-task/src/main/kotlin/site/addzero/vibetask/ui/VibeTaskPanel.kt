@@ -17,8 +17,10 @@ import com.intellij.ui.content.Content
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import site.addzero.vibetask.model.ProjectModule
+import javax.swing.UIManager
 import site.addzero.vibetask.model.VibeTask
 import site.addzero.vibetask.service.VibeTaskService
+import site.addzero.vibetask.actions.GeneratePromptAction
 import site.addzero.vibetask.settings.TaskViewSettings
 import site.addzero.vibetask.settings.TaskViewRule
 import site.addzero.vibetask.settings.CustomView
@@ -319,6 +321,11 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
 
             add(JButton("↓ 导入").apply {
                 addActionListener { showImportDialog() }
+            })
+
+            add(JButton("🤖 提示词").apply {
+                toolTipText = "生成 AI 提示词 (选中任务或当前模块未完成任务)"
+                addActionListener { generatePrompt() }
             })
         }
 
@@ -790,6 +797,126 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             .showSettingsDialog(project, "Vibe Task 视图规则")
     }
 
+    /**
+     * 生成 AI 提示词
+     */
+    private fun generatePrompt() {
+        val selectedTasks = taskList.selectedValuesList
+
+        // 确定要包含的任务
+        val tasksToInclude = if (selectedTasks.isNotEmpty()) {
+            selectedTasks
+        } else {
+            // 获取当前视图下的未完成任务
+            val currentTasks = listModel.toList()
+                .filter { it.status != VibeTask.TaskStatus.DONE && it.status != VibeTask.TaskStatus.CANCELLED }
+            if (currentTasks.isEmpty()) {
+                Messages.showInfoMessage(project, "当前视图没有未完成的任务", "提示")
+                return
+            }
+            currentTasks
+        }
+
+        val module = getCurrentModuleContext()
+        val prompt = buildAIPrompt(tasksToInclude, module)
+
+        // 复制到剪贴板
+        val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+        clipboard.setContents(StringSelection(prompt), null)
+
+        // 显示通知
+        val message = if (selectedTasks.isNotEmpty()) {
+            "已复制 ${selectedTasks.size} 个选中任务的 AI 提示词"
+        } else {
+            "已复制 ${tasksToInclude.size} 个未完成任务的 AI 提示词"
+        }
+
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("VibeTask Notifications")
+            ?.createNotification(message, NotificationType.INFORMATION)
+            ?.notify(project)
+    }
+
+    /**
+     * 构建 AI 提示词
+     */
+    private fun buildAIPrompt(tasks: List<VibeTask>, module: ProjectModule?): String {
+        return buildString {
+            appendLine("# Vibe Coding 任务")
+            appendLine()
+
+            if (module != null) {
+                appendLine("## 当前模块: ${module.name}")
+                appendLine("路径: ${module.path}")
+                appendLine("类型: ${module.type}")
+                appendLine()
+            } else {
+                appendLine("## 项目: ${project.name}")
+                appendLine()
+            }
+
+            appendLine("## 待办任务 (${tasks.size}个)")
+            appendLine()
+
+            // 按优先级分组
+            val highPriority = tasks.filter { it.priority == VibeTask.Priority.HIGH }
+            val mediumPriority = tasks.filter { it.priority == VibeTask.Priority.MEDIUM }
+            val lowPriority = tasks.filter { it.priority == VibeTask.Priority.LOW }
+
+            if (highPriority.isNotEmpty()) {
+                appendLine("### 🔴 高优先级")
+                highPriority.forEachIndexed { index, task ->
+                    appendLine("${index + 1}. ${task.content}")
+                }
+                appendLine()
+            }
+
+            if (mediumPriority.isNotEmpty()) {
+                appendLine("### 🟡 中优先级")
+                mediumPriority.forEachIndexed { index, task ->
+                    appendLine("${index + 1}. ${task.content}")
+                }
+                appendLine()
+            }
+
+            if (lowPriority.isNotEmpty()) {
+                appendLine("### 🟢 低优先级")
+                lowPriority.forEachIndexed { index, task ->
+                    appendLine("${index + 1}. ${task.content}")
+                }
+                appendLine()
+            }
+
+            appendLine("## 实现要求")
+            appendLine()
+            appendLine("请根据以上任务:")
+            appendLine("1. 分析代码结构和现有实现")
+            appendLine("2. 优先处理高优先级任务")
+            appendLine("3. 保持代码风格一致性")
+            appendLine("4. 编写必要的注释")
+            appendLine("5. 如有问题请明确提出")
+        }
+    }
+
+    // ========== 公共方法 ==========
+
+    /**
+     * 获取当前选中的任务列表
+     */
+    fun getSelectedTasks(): List<VibeTask> {
+        return taskList.selectedValuesList
+    }
+
+    /**
+     * 获取当前模块上下文
+     */
+    fun getCurrentModuleContext(): ProjectModule? {
+        return when (val view = currentView) {
+            is ViewNode.Module -> view.module
+            else -> null
+        }
+    }
+
     // ========== 列表渲染器 ==========
 
     private inner class TaskCellRenderer : JPanel(BorderLayout()), ListCellRenderer<VibeTask> {
@@ -820,20 +947,20 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             hasFocus: Boolean
         ): Component {
             background = if (isSelected)
-                JBColor.namedColor("List.selectionBackground", UIUtil.getListSelectionBackground())
+                JBColor.namedColor("List.selectionBackground", UIManager.getColor("List.selectionBackground"))
             else
-                JBColor.namedColor("Panel.background", UIUtil.getPanelBackground())
+                JBColor.namedColor("Panel.background", UIManager.getColor("Panel.background"))
 
             checkBox.isSelected = value.status == VibeTask.TaskStatus.DONE
             checkBox.isEnabled = false
 
             contentLabel.apply {
                 text = value.content
-                font = UIUtil.getLabelFont()
+                font = UIManager.getFont("Label.font")
                 foreground = if (isSelected)
-                    JBColor.namedColor("List.selectionForeground", UIUtil.getListSelectionForeground())
+                    JBColor.namedColor("List.selectionForeground", UIManager.getColor("List.selectionForeground"))
                 else if (value.status == VibeTask.TaskStatus.DONE) JBColor.GRAY
-                else JBColor.namedColor("Label.foreground", UIUtil.getLabelForeground())
+                else JBColor.namedColor("Label.foreground", UIManager.getColor("Label.foreground"))
             }
 
             val dateStr = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
@@ -853,9 +980,9 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
 
             infoLabel.apply {
                 text = "$statusIcon $priorityIcon ${value.getScopeDisplay()}$assigneeStr · $dateStr"
-                font = UIUtil.getLabelFont().deriveFont(Font.PLAIN, 11f)
+                font = UIManager.getFont("Label.font")?.deriveFont(Font.PLAIN, 11f)
                 foreground = if (isSelected)
-                    JBColor.namedColor("List.selectionForeground", UIUtil.getListSelectionForeground())
+                    JBColor.namedColor("List.selectionForeground", UIManager.getColor("List.selectionForeground"))
                 else JBColor.GRAY
             }
 

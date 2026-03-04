@@ -7,7 +7,7 @@ import site.addzero.vibetask.model.ProjectModule
 import site.addzero.vibetask.model.VibeTask
 import site.addzero.vibetask.storage.VibeTaskStorage
 
-@Service
+@Service(Service.Level.PROJECT)
 class VibeTaskService(private val project: Project) {
 
     private val storage = service<VibeTaskStorage>()

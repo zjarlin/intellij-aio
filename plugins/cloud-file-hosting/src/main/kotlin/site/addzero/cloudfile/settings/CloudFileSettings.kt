@@ -2,6 +2,7 @@ package site.addzero.cloudfile.settings
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
@@ -14,11 +15,11 @@ import site.addzero.cloudfile.util.SecureStorage
  * Global settings for Cloud File Hosting
  * Application level - applies to all projects
  */
+@Service(Service.Level.APP)
 @State(
     name = "CloudFileSettings",
     storages = [
-        Storage("cloud-file-hosting.xml"),
-        Storage(StoragePathMacros.CACHE_FILE)
+        Storage("cloud-file-hosting.xml")
     ]
 )
 class CloudFileSettings : PersistentStateComponent<CloudFileSettings.State> {
@@ -103,6 +104,14 @@ class CloudFileSettings : PersistentStateComponent<CloudFileSettings.State> {
 
     override fun loadState(state: State) {
         XmlSerializerUtil.copyBean(state, this.state)
+    }
+
+    fun addGlobalRule(pattern: String, type: HostingRule.RuleType) {
+        state.globalRules.add(HostingRule(pattern, type))
+    }
+
+    fun removeGlobalRule(pattern: String) {
+        state.globalRules.removeIf { it.pattern == pattern }
     }
 
     // Credentials are stored separately with encryption

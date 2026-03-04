@@ -12,9 +12,8 @@ intellijPlatform {
 }
 
 dependencies {
-    // AWS S3 SDK
-    implementation("software.amazon.awssdk:s3:2.29.16")
-    implementation("software.amazon.awssdk:auth:2.29.16")
+    // S3 Storage Client (includes AWS SDK)
+    implementation("site.addzero:tool-s3:+")
 
     // Aliyun OSS
     implementation("com.aliyun.oss:aliyun-sdk-oss:3.17.4")

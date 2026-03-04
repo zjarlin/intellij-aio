@@ -9,10 +9,12 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.ui.tree.TreeUtil
+import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.model.DiagnosticSeverity
 import site.addzero.diagnostic.model.FileDiagnostics
 import site.addzero.diagnostic.service.DiagnosticCollectorService
 import site.addzero.diagnostic.service.GlobalDiagnosticCache
+import site.addzero.diagnostic.ui.ExclusionConfigDialog
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout
@@ -60,19 +62,35 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         toolbar.add(refreshButton)
         
         toolbar.addSeparator()
-        
+
         val copyAllButton = JButton("复制全部", AllIcons.Actions.Copy)
         copyAllButton.toolTipText = "复制所有诊断信息生成AI修复提示词"
         copyAllButton.addActionListener { copyAllToClipboard() }
         toolbar.add(copyAllButton)
-        
+
         val copyErrorsButton = JButton("复制错误", AllIcons.General.Error)
         copyErrorsButton.addActionListener { copyErrorsToClipboard() }
         toolbar.add(copyErrorsButton)
-        
+
         val copyWarningsButton = JButton("复制警告", AllIcons.General.Warning)
         copyWarningsButton.addActionListener { copyWarningsToClipboard() }
         toolbar.add(copyWarningsButton)
+
+        toolbar.addSeparator()
+
+        // 复制当前文件错误按钮
+        val copyCurrentFileButton = JButton("复制当前文件", AllIcons.Actions.Copy)
+        copyCurrentFileButton.toolTipText = "复制当前选中文件的错误信息"
+        copyCurrentFileButton.addActionListener { copyCurrentFileErrors() }
+        toolbar.add(copyCurrentFileButton)
+
+        toolbar.addSeparator()
+
+        // 配置按钮
+        val configButton = JButton("配置", AllIcons.General.Settings)
+        configButton.toolTipText = "配置排除规则和扫描选项"
+        configButton.addActionListener { showConfigDialog() }
+        toolbar.add(configButton)
         
         add(toolbar, BorderLayout.NORTH)
         add(JBScrollPane(tree), BorderLayout.CENTER)
@@ -105,13 +123,19 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
      */
     private fun loadFromGlobalCache() {
         if (!globalCache.isInitialized()) {
-            statusLabel.text = "正在扫描项目..."
+            statusLabel.text = "等待扫描开始..."
             return
         }
-        
+
         // 将缓存数据转换为 FileDiagnostics 列表
         val diagnostics = globalCache.getAllDiagnostics()
-        updateTree(diagnostics)
+        if (diagnostics.isEmpty()) {
+            statusLabel.text = "扫描完成: 未发现错误或警告"
+            rootNode.removeAllChildren()
+            treeModel.reload()
+        } else {
+            updateTree(diagnostics)
+        }
     }
     
     private fun refreshDiagnostics() {
@@ -202,27 +226,86 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         copyToClipboard(content)
     }
     
-    private fun buildPromptContent(diagnostics: List<FileDiagnostics>): String = buildString {
-        appendLine("请帮我修复以下编译问题：")
-        appendLine()
-        diagnostics.forEach { fileDiag ->
-            appendLine("=== 文件: ${fileDiag.file.name} ===")
-            fileDiag.items.forEachIndexed { index, item ->
-                appendLine("问题${index + 1}:")
-                appendLine("  行号: ${item.lineNumber}")
-                appendLine("  类型: ${if (item.severity == DiagnosticSeverity.ERROR) "错误" else "警告"}")
-                appendLine("  内容: ${item.message}")
-            }
-            appendLine()
-        }
-    }
+    private fun buildPromptContent(diagnostics: List<FileDiagnostics>): String = PromptBuilder.build(diagnostics)
     
     private fun copyToClipboard(content: String) {
         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
         clipboard.setContents(StringSelection(content), null)
         statusLabel.text = "已复制到剪贴板"
     }
-    
+
+    /**
+     * 提示构建工具
+     */
+    private object PromptBuilder {
+        fun build(diagnostics: List<FileDiagnostics>): String = buildString {
+            appendLine("请帮我修复以下编译问题：")
+            appendLine()
+            diagnostics.forEach { fileDiag ->
+                appendLine("=== 文件: ${fileDiag.file.name} ===")
+                fileDiag.items.forEachIndexed { index, item ->
+                    appendLine("问题${index + 1}:")
+                    appendLine("  行号: ${item.lineNumber}")
+                    appendLine("  类型: ${if (item.severity == DiagnosticSeverity.ERROR) "错误" else "警告"}")
+                    appendLine("  内容: ${item.message}")
+                }
+                appendLine()
+            }
+        }
+    }
+
+    /**
+     * 显示配置对话框
+     */
+    private fun showConfigDialog() {
+        val config = DiagnosticExclusionConfig.getInstance(project)
+
+        val dialog = ExclusionConfigDialog(project, config)
+        if (dialog.showAndGet()) {
+            // 用户确认后重新扫描
+            refreshDiagnostics()
+        }
+    }
+
+    /**
+     * 复制当前选中文件的错误
+     */
+    private fun copyCurrentFileErrors() {
+        val selectedPath = tree.selectionPath
+        val selectedNode = selectedPath?.lastPathComponent as? DefaultMutableTreeNode
+            ?: run {
+                statusLabel.text = "请先选择一个文件或错误"
+                return
+            }
+
+        when (val userObject = selectedNode.userObject) {
+            is FileNode -> {
+                val content = buildPromptContent(listOf(userObject.fileDiagnostics))
+                copyToClipboard(content)
+            }
+            is ItemNode -> {
+                // 获取父节点（FileNode）
+                val parentNode = selectedNode.parent as? DefaultMutableTreeNode
+                val fileNode = parentNode?.userObject as? FileNode
+                if (fileNode != null) {
+                    // 只复制选中的这一条错误
+                    val singleItemDiag = fileNode.fileDiagnostics.copy(
+                        items = listOf(
+                            fileNode.fileDiagnostics.items.find {
+                                it.lineNumber == userObject.lineNumber && it.message == userObject.message
+                            } ?: fileNode.fileDiagnostics.items.first()
+                        )
+                    )
+                    val content = buildPromptContent(listOf(singleItemDiag))
+                    copyToClipboard(content)
+                }
+            }
+            else -> {
+                statusLabel.text = "请选择一个文件或具体错误"
+            }
+        }
+    }
+
     // 数据节点类
     data class CategoryNode(val name: String, val count: Int)
     data class FileNode(val fileDiagnostics: FileDiagnostics, val severity: DiagnosticSeverity)

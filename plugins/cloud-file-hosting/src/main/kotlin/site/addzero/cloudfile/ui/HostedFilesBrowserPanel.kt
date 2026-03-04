@@ -134,6 +134,24 @@ class HostedFilesBrowserPanel(private val project: Project) : SimpleToolWindowPa
         )
     }
 
+    /**
+     * Preview files that will be synced based on current rules
+     */
+    fun previewLocalRules(): List<String> {
+        val rules = projectSettings.getEffectiveRules(project)
+        val files = mutableListOf<String>()
+
+        rules.forEach { rule ->
+            when (rule.type) {
+                CloudFileSettings.HostingRule.RuleType.FILE -> files.add("[File] ${rule.pattern}")
+                CloudFileSettings.HostingRule.RuleType.DIRECTORY -> files.add("[Dir] ${rule.pattern}")
+                CloudFileSettings.HostingRule.RuleType.GLOB -> files.add("[Glob] ${rule.pattern}")
+            }
+        }
+
+        return files
+    }
+
     private fun loadRemoteFiles(namespace: String?, indicator: ProgressIndicator) {
         indicator.isIndeterminate = true
         indicator.text = "Connecting to cloud storage..."

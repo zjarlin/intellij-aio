@@ -7,6 +7,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.util.Condition
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -80,7 +82,7 @@ class ImportExportDialog(
                         val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
                             .withTitle("选择 JSON 文件")
                             .withDescription("选择要导入的 Vibe Tasks JSON 文件")
-                            .withExtensionFilter("JSON 文件", "json")
+                            .withFileFilter(Condition<VirtualFile> { it.extension?.lowercase() == "json" })
                         FileChooser.chooseFile(descriptor, project, null) { file ->
                             text = file.path
                             // 自动读取文件内容
@@ -220,7 +222,7 @@ class ImportExportDialog(
         val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
             .withTitle("选择 JSON 文件")
             .withDescription("选择要导入的 Vibe Tasks JSON 文件")
-            .withExtensionFilter("JSON 文件", "json")
+            .withFileFilter(Condition<VirtualFile> { it.extension?.lowercase() == "json" })
 
         FileChooser.chooseFile(descriptor, project, null) { file ->
             try {

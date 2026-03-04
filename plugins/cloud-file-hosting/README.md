@@ -92,7 +92,7 @@ cloud://bucket/
 
 1. 远程存储为**只读**（从 IDE 视角），所有修改应通过插件进行
 2. 首次启用时会自动从云端拉取文件覆盖本地
-3. `.gitignore` 建议添加 `.cloudfile/backups/`
+3. `.gitignore` 建议添加 `.cloud-file-hosting/backups/`
 
 ## 快捷键
 

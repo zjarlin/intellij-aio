@@ -1,49 +1,77 @@
 package site.addzero.cloudfile.cache
 
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.util.io.DataInputOutputUtil
 import site.addzero.cloudfile.settings.CloudFileSettings
 import site.addzero.cloudfile.storage.StorageService
-import site.addzero.cloudfile.util.FileHashUtil
 import java.io.*
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Manages local cache for offline mode
  * Files are cached locally and synced when network becomes available
+ *
+ * Cache locations:
+ * - Project cache: $PROJECT/.cloud-file-hosting/cache/
+ * - Global cache: $IDE_SYSTEM_DIR/cloud-file-hosting/cache/global/
  */
 class OfflineCacheManager(private val project: Project) {
 
     private val logger = Logger.getInstance(OfflineCacheManager::class.java)
     private val settings = CloudFileSettings.getInstance()
 
-    private val cacheDir: File by lazy {
-        File(project.basePath, ".cloudfile/cache").apply {
+    companion object {
+        const val CACHE_DIR_NAME = ".cloud-file-hosting"
+        const val CACHE_SUBDIR = "cache"
+
+        fun getInstance(project: Project): OfflineCacheManager {
+            return project.getService(OfflineCacheManager::class.java)
+        }
+    }
+
+    private val projectCacheDir: File by lazy {
+        File(project.basePath, "$CACHE_DIR_NAME/$CACHE_SUBDIR").apply {
             if (!exists()) mkdirs()
         }
     }
 
-    private val metadataFile: File by lazy {
-        File(cacheDir, "metadata.dat")
+    private val globalCacheDir: File by lazy {
+        File(PathManager.getSystemPath(), "$CACHE_DIR_NAME/$CACHE_SUBDIR/global").apply {
+            if (!exists()) mkdirs()
+        }
     }
 
-    private val pendingSyncFile: File by lazy {
-        File(cacheDir, "pending_sync.dat")
+    private fun getCacheDir(namespace: String?): File {
+        return if (namespace == null) {
+            globalCacheDir
+        } else {
+            projectCacheDir
+        }
     }
 
-    // In-memory cache of metadata
-    private val fileMetadata = ConcurrentHashMap<String, CachedFileInfo>()
+    private fun getMetadataFile(namespace: String?): File {
+        return File(getCacheDir(namespace), "metadata.dat")
+    }
+
+    private fun getPendingSyncFile(namespace: String?): File {
+        return File(getCacheDir(namespace), "pending_sync.dat")
+    }
+
+    // In-memory cache of metadata - separated by namespace type
+    private val projectFileMetadata = ConcurrentHashMap<String, CachedFileInfo>()
+    private val globalFileMetadata = ConcurrentHashMap<String, CachedFileInfo>()
     private val pendingUploads = ConcurrentHashMap<String, PendingUpload>()
 
     init {
-        loadMetadata()
+        loadMetadata(null) // Load global
+        loadMetadata(project.name) // Load project
         loadPendingSyncs()
+    }
+
+    private fun getMetadataMap(namespace: String?): ConcurrentHashMap<String, CachedFileInfo> {
+        return if (namespace == null) globalFileMetadata else projectFileMetadata
     }
 
     /**
@@ -52,6 +80,7 @@ class OfflineCacheManager(private val project: Project) {
     fun cacheFile(relativePath: String, content: ByteArray, namespace: String?): Boolean {
         return try {
             val cacheKey = getCacheKey(relativePath, namespace)
+            val cacheDir = getCacheDir(namespace)
             val cacheFile = File(cacheDir, cacheKey)
 
             cacheFile.parentFile?.mkdirs()
@@ -67,8 +96,8 @@ class OfflineCacheManager(private val project: Project) {
                 syncedToCloud = false
             )
 
-            fileMetadata[cacheKey] = metadata
-            saveMetadata()
+            getMetadataMap(namespace)[cacheKey] = metadata
+            saveMetadata(namespace)
 
             // Add to pending uploads
             pendingUploads[cacheKey] = PendingUpload(
@@ -91,12 +120,13 @@ class OfflineCacheManager(private val project: Project) {
      */
     fun getCachedFile(relativePath: String, namespace: String?): ByteArray? {
         val cacheKey = getCacheKey(relativePath, namespace)
-        val metadata = fileMetadata[cacheKey] ?: return null
+        val metadataMap = getMetadataMap(namespace)
+        val metadata = metadataMap[cacheKey] ?: return null
 
         val cacheFile = File(metadata.localPath)
         if (!cacheFile.exists()) {
-            fileMetadata.remove(cacheKey)
-            saveMetadata()
+            metadataMap.remove(cacheKey)
+            saveMetadata(namespace)
             return null
         }
 
@@ -113,7 +143,8 @@ class OfflineCacheManager(private val project: Project) {
      */
     fun isCached(relativePath: String, namespace: String?): Boolean {
         val cacheKey = getCacheKey(relativePath, namespace)
-        val metadata = fileMetadata[cacheKey] ?: return false
+        val metadataMap = getMetadataMap(namespace)
+        val metadata = metadataMap[cacheKey] ?: return false
         return File(metadata.localPath).exists()
     }
 
@@ -121,7 +152,14 @@ class OfflineCacheManager(private val project: Project) {
      * Get all cached files for a namespace
      */
     fun getCachedFiles(namespace: String?): List<CachedFileInfo> {
-        return fileMetadata.values.filter { it.namespace == namespace }
+        return getMetadataMap(namespace).values.toList()
+    }
+
+    /**
+     * Get all cached files across all namespaces
+     */
+    fun getAllCachedFiles(): List<CachedFileInfo> {
+        return (projectFileMetadata.values + globalFileMetadata.values).toList()
     }
 
     /**
@@ -129,10 +167,11 @@ class OfflineCacheManager(private val project: Project) {
      */
     fun markAsSynced(relativePath: String, namespace: String?) {
         val cacheKey = getCacheKey(relativePath, namespace)
-        fileMetadata[cacheKey]?.let { info ->
+        val metadataMap = getMetadataMap(namespace)
+        metadataMap[cacheKey]?.let { info ->
             info.syncedToCloud = true
             info.syncedTimestamp = System.currentTimeMillis()
-            saveMetadata()
+            saveMetadata(namespace)
         }
         pendingUploads.remove(cacheKey)
         savePendingSyncs()
@@ -149,37 +188,72 @@ class OfflineCacheManager(private val project: Project) {
      * Clear cache for a namespace
      */
     fun clearNamespaceCache(namespace: String?) {
-        val toRemove = fileMetadata.filter { it.value.namespace == namespace }.keys
+        val metadataMap = getMetadataMap(namespace)
+        val toRemove = metadataMap.filter { it.value.namespace == namespace }.keys
         toRemove.forEach { key ->
-            fileMetadata[key]?.let { info ->
+            metadataMap[key]?.let { info ->
                 try {
                     File(info.localPath).delete()
                 } catch (e: Exception) {
                     logger.warn("Failed to delete cache file: ${info.localPath}", e)
                 }
             }
-            fileMetadata.remove(key)
+            metadataMap.remove(key)
             pendingUploads.remove(key)
         }
-        saveMetadata()
+        saveMetadata(namespace)
         savePendingSyncs()
+    }
+
+    /**
+     * Clear all cache (both global and project)
+     */
+    fun clearAllCache() {
+        // Clear project cache
+        clearNamespaceCache(project.name)
+        // Clear global cache
+        clearNamespaceCache(null)
     }
 
     /**
      * Get cache statistics
      */
-    fun getCacheStats(): CacheStats {
-        val totalSize = fileMetadata.values.sumOf { it.size }
-        val pendingCount = pendingUploads.size
-        val syncedCount = fileMetadata.count { it.value.syncedToCloud }
+    fun getCacheStats(namespace: String? = null): CacheStats {
+        val metadata = if (namespace != null) {
+            getMetadataMap(namespace).values.toList()
+        } else {
+            getAllCachedFiles()
+        }
+
+        val totalSize = metadata.sumOf { it.size }
+        val pendingCount = if (namespace != null) {
+            pendingUploads.count { it.value.namespace == namespace }
+        } else {
+            pendingUploads.size
+        }
+        val syncedCount = metadata.count { it.syncedToCloud }
 
         return CacheStats(
-            totalFiles = fileMetadata.size,
+            totalFiles = metadata.size,
             totalSizeBytes = totalSize,
             pendingUploads = pendingCount,
             syncedFiles = syncedCount,
-            cacheDirPath = cacheDir.absolutePath
+            cacheDirPath = if (namespace == null) globalCacheDir.absolutePath else projectCacheDir.absolutePath
         )
+    }
+
+    /**
+     * Get global cache statistics
+     */
+    fun getGlobalCacheStats(): CacheStats {
+        return getCacheStats(null)
+    }
+
+    /**
+     * Get project cache statistics
+     */
+    fun getProjectCacheStats(): CacheStats {
+        return getCacheStats(project.name)
     }
 
     /**
@@ -188,20 +262,34 @@ class OfflineCacheManager(private val project: Project) {
     fun cleanupOldCache(maxAgeDays: Int = 30) {
         val cutoff = System.currentTimeMillis() - (maxAgeDays * 24 * 60 * 60 * 1000)
 
-        val toRemove = fileMetadata.filter { it.value.cachedTimestamp < cutoff }.keys
-        toRemove.forEach { key ->
-            fileMetadata[key]?.let { info ->
+        // Clean project cache
+        projectFileMetadata.filter { it.value.cachedTimestamp < cutoff }.keys.forEach { key ->
+            projectFileMetadata[key]?.let { info ->
                 try {
                     File(info.localPath).delete()
                 } catch (e: Exception) {
                     logger.warn("Failed to delete old cache file", e)
                 }
             }
-            fileMetadata.remove(key)
+            projectFileMetadata.remove(key)
             pendingUploads.remove(key)
         }
 
-        saveMetadata()
+        // Clean global cache
+        globalFileMetadata.filter { it.value.cachedTimestamp < cutoff }.keys.forEach { key ->
+            globalFileMetadata[key]?.let { info ->
+                try {
+                    File(info.localPath).delete()
+                } catch (e: Exception) {
+                    logger.warn("Failed to delete old global cache file", e)
+                }
+            }
+            globalFileMetadata.remove(key)
+            pendingUploads.remove(key)
+        }
+
+        saveMetadata(project.name)
+        saveMetadata(null)
         savePendingSyncs()
     }
 
@@ -220,8 +308,11 @@ class OfflineCacheManager(private val project: Project) {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun loadMetadata() {
+    private fun loadMetadata(namespace: String?) {
+        val metadataFile = getMetadataFile(namespace)
         if (!metadataFile.exists()) return
+
+        val metadataMap = getMetadataMap(namespace)
 
         try {
             DataInputStream(FileInputStream(metadataFile)).use { input ->
@@ -239,19 +330,22 @@ class OfflineCacheManager(private val project: Project) {
                     ).apply {
                         syncedTimestamp = input.readLong()
                     }
-                    fileMetadata[key] = info
+                    metadataMap[key] = info
                 }
             }
         } catch (e: Exception) {
-            logger.error("Failed to load cache metadata", e)
+            logger.error("Failed to load cache metadata for ${namespace ?: "global"}", e)
         }
     }
 
-    private fun saveMetadata() {
+    private fun saveMetadata(namespace: String?) {
+        val metadataFile = getMetadataFile(namespace)
+        val metadataMap = getMetadataMap(namespace)
+
         try {
             DataOutputStream(FileOutputStream(metadataFile)).use { output ->
-                output.writeInt(fileMetadata.size)
-                fileMetadata.forEach { (key, info) ->
+                output.writeInt(metadataMap.size)
+                metadataMap.forEach { (key, info) ->
                     output.writeUTF(key)
                     output.writeUTF(info.relativePath)
                     output.writeUTF(info.namespace ?: "")
@@ -264,15 +358,22 @@ class OfflineCacheManager(private val project: Project) {
                 }
             }
         } catch (e: Exception) {
-            logger.error("Failed to save cache metadata", e)
+            logger.error("Failed to save cache metadata for ${namespace ?: "global"}", e)
         }
     }
 
     private fun loadPendingSyncs() {
-        if (!pendingSyncFile.exists()) return
+        // Load from both locations
+        loadPendingSyncsFromDir(projectCacheDir)
+        loadPendingSyncsFromDir(globalCacheDir)
+    }
+
+    private fun loadPendingSyncsFromDir(cacheDir: File) {
+        val pendingFile = File(cacheDir, "pending_sync.dat")
+        if (!pendingFile.exists()) return
 
         try {
-            DataInputStream(FileInputStream(pendingSyncFile)).use { input ->
+            DataInputStream(FileInputStream(pendingFile)).use { input ->
                 val count = input.readInt()
                 repeat(count) {
                     val upload = PendingUpload(
@@ -285,13 +386,20 @@ class OfflineCacheManager(private val project: Project) {
                 }
             }
         } catch (e: Exception) {
-            logger.error("Failed to load pending syncs", e)
+            logger.error("Failed to load pending syncs from ${cacheDir.path}", e)
         }
     }
 
     private fun savePendingSyncs() {
+        // Save to both locations
+        savePendingSyncsToDir(projectCacheDir)
+        savePendingSyncsToDir(globalCacheDir)
+    }
+
+    private fun savePendingSyncsToDir(cacheDir: File) {
+        val pendingFile = File(cacheDir, "pending_sync.dat")
         try {
-            DataOutputStream(FileOutputStream(pendingSyncFile)).use { output ->
+            DataOutputStream(FileOutputStream(pendingFile)).use { output ->
                 output.writeInt(pendingUploads.size)
                 pendingUploads.values.forEach { upload ->
                     output.writeUTF(upload.cacheKey)
@@ -301,7 +409,7 @@ class OfflineCacheManager(private val project: Project) {
                 }
             }
         } catch (e: Exception) {
-            logger.error("Failed to save pending syncs", e)
+            logger.error("Failed to save pending syncs to ${cacheDir.path}", e)
         }
     }
 
@@ -331,11 +439,5 @@ class OfflineCacheManager(private val project: Project) {
         val cacheDirPath: String
     ) {
         fun totalSizeMB(): Double = totalSizeBytes / (1024.0 * 1024.0)
-    }
-
-    companion object {
-        fun getInstance(project: Project): OfflineCacheManager {
-            return project.getService(OfflineCacheManager::class.java)
-        }
     }
 }

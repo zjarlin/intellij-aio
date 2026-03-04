@@ -17,6 +17,7 @@ import site.addzero.cloudfile.settings.CloudFileSettings
 import site.addzero.cloudfile.settings.ProjectHostingSettings
 import site.addzero.cloudfile.storage.StorageService
 import site.addzero.cloudfile.storage.StorageServiceFactory
+import site.addzero.cloudfile.util.CompressionUtil
 import site.addzero.cloudfile.util.FileHashUtil
 import java.io.File
 import java.nio.file.FileSystems
@@ -78,19 +79,31 @@ class CloudFileSyncService(private val project: Project) {
     /**
      * Sync files to cloud (upload)
      * Falls back to local cache if network is unavailable
+     * @param selectedFiles Optional list of files selected by user. If provided and not already in rules, they will be auto-added.
      */
-    fun syncToCloud(force: Boolean = false, indicator: ProgressIndicator? = null) {
+    fun syncToCloud(force: Boolean = false, indicator: ProgressIndicator? = null, selectedFiles: List<VirtualFile>? = null) {
         val namespace = projectSettings.getNamespace(project)
-        val rules = projectSettings.getEffectiveRules(project)
+        var rules = projectSettings.getEffectiveRules(project)
 
-        indicator?.text = "Loading rules..."
+        indicator?.text = "Checking rules..."
+
+        // Auto-add selected files that are not already in rules
+        if (!selectedFiles.isNullOrEmpty()) {
+            val newRulesAdded = autoAddSelectedFiles(selectedFiles, rules)
+            if (newRulesAdded > 0) {
+                // Reload rules after adding new ones
+                rules = projectSettings.getEffectiveRules(project)
+                showNotification("Auto-added Rules", "Added $newRulesAdded new file(s)/folder(s) to hosting rules")
+            }
+        }
 
         if (rules.isEmpty()) {
-            showNotification("No hosting rules", "No files configured for cloud hosting. Right-click a file/folder and select 'Add to Cloud Hosting' first.")
+            showNotification("No hosting rules", "No files configured for cloud hosting. Select files/folders and click 'Sync to Cloud'.")
             return
         }
 
         indicator?.text = "Collecting files..."
+        val basePath = project.basePath ?: return
         val filesToSync = collectMatchingFiles(rules)
         if (filesToSync.isEmpty()) {
             showNotification("No files to sync", "No files matched the hosting rules. Check your .gitignore settings.")
@@ -113,36 +126,95 @@ class CloudFileSyncService(private val project: Project) {
         indicator?.isIndeterminate = false
         indicator?.fraction = 0.0
 
-        filesToSync.forEachIndexed { index, file ->
-            indicator?.fraction = (index + 1).toDouble() / filesToSync.size
-            indicator?.text = "Processing ${file.name}..."
+        // Group files by parent directory for potential compression
+        val filesByDirectory = filesToSync.groupBy { it.parentFile }
 
-            val relativePath = file.relativeTo(project.basePath?.let { File(it) } ?: file.parentFile).path
+        filesByDirectory.forEach { (parentDir, files) ->
+            if (parentDir == null) return@forEach
 
-            // Always cache the file locally
-            val content = file.readBytes()
-            val cached = cacheManager.cacheFile(relativePath, content, namespace)
+            val parentRelativePath = parentDir.relativeTo(File(basePath)).path
 
-            if (hasNetwork && service != null) {
-                // Try to upload to cloud
-                val result = service.uploadFile(file, relativePath, namespace)
+            // Check if we should compress this directory
+            if (CompressionUtil.shouldCompress(files)) {
+                indicator?.text = "Compressing $parentRelativePath..."
 
-                if (result.success) {
-                    successCount++
-                    cacheManager.markAsSynced(relativePath, namespace)
-                    syncedFiles.add(ProjectHostingSettings.SyncedFileInfo(
-                        relativePath = relativePath,
-                        remoteEtag = result.etag ?: "",
-                        lastModified = file.lastModified(),
-                        size = file.length()
-                    ))
-                } else {
-                    failCount++
-                    logger.warn("Failed to upload ${file.path}: ${result.error}. File cached locally.")
+                // Compress the entire directory
+                val compressedData = CompressionUtil.compressFiles(files, parentDir)
+                if (compressedData != null) {
+                    val zipPath = "$parentRelativePath.zip"
+                    val hash = CompressionUtil.computeCompressedHash(compressedData)
+
+                    // Check if remote file exists with same hash (using metadata)
+                    val remoteInfo = service?.getFileInfo(zipPath, namespace)
+                    if (remoteInfo?.etag == hash) {
+                        logger.info("Skipping unchanged compressed directory: $zipPath")
+                        successCount += files.size
+                        return@forEach
+                    }
+
+                    indicator?.text = "Uploading $zipPath (${formatSize(compressedData.size.toLong())})..."
+
+                    if (hasNetwork && service != null) {
+                        val result = service.uploadBytes(
+                            compressedData,
+                            zipPath,
+                            namespace,
+                            "application/zip"
+                        )
+
+                        if (result.success) {
+                            successCount += files.size
+                            // Mark all files in this directory as synced
+                            files.forEach { f ->
+                                val relPath = f.relativeTo(File(basePath)).path
+                                cacheManager.markAsSynced(relPath, namespace)
+                            }
+                            logger.info("Uploaded compressed directory: $zipPath with ${files.size} files")
+                        } else {
+                            failCount += files.size
+                            logger.warn("Failed to upload compressed directory: $zipPath - ${result.error}")
+                        }
+                    }
+                    return@forEach
                 }
-            } else if (cached) {
-                // File cached locally for later sync
-                cachedCount++
+            }
+
+            // Fall back to individual file upload
+            files.forEachIndexed { index, file ->
+                indicator?.fraction = (index + 1).toDouble() / files.size
+                val relativePath = file.relativeTo(File(basePath)).path
+                indicator?.text = "Processing $relativePath..."
+
+                // Skip generated files
+                if (isGeneratedFile(file)) {
+                    logger.info("Skipping generated file: $relativePath")
+                    return@forEachIndexed
+                }
+
+                // Cache locally first
+                val content = file.readBytes()
+                val cached = cacheManager.cacheFile(relativePath, content, namespace)
+
+                if (hasNetwork && service != null) {
+                    val result = service.uploadFile(file, relativePath, namespace)
+
+                    if (result.success) {
+                        successCount++
+                        cacheManager.markAsSynced(relativePath, namespace)
+                        syncedFiles.add(ProjectHostingSettings.SyncedFileInfo(
+                            relativePath = relativePath,
+                            remoteEtag = result.etag ?: "",
+                            lastModified = file.lastModified(),
+                            size = file.length()
+                        ))
+                    } else {
+                        failCount++
+                        logger.warn("Failed to upload ${file.path}: ${result.error}. File cached locally.")
+                    }
+                } else if (cached) {
+                    // File cached locally for later sync
+                    cachedCount++
+                }
             }
         }
 
@@ -191,25 +263,54 @@ class CloudFileSyncService(private val project: Project) {
                 indicator?.fraction = (index + 1).toDouble() / remoteFiles.size
                 indicator?.text = "Downloading ${remoteFile.key}..."
 
-                val localFile = File(basePath, remoteFile.key)
-
-                // Backup existing file if different
-                if (localFile.exists()) {
-                    backupFile(localFile)
-                }
-
-                if (service.downloadFile(remoteFile.key, localFile, namespace)) {
-                    successCount++
-                    // Cache the downloaded file
-                    cacheManager.cacheFile(remoteFile.key, localFile.readBytes(), namespace)
-                    cacheManager.markAsSynced(remoteFile.key, namespace)
-
-                    // Refresh VFS
-                    ApplicationManager.getApplication().invokeLater {
-                        LocalFileSystem.getInstance().refreshAndFindFileByIoFile(localFile)
+                // Check if this is a compressed directory
+                if (remoteFile.key.endsWith(".zip")) {
+                    // Download to temp file
+                    val tempFile = File.createTempFile("cloudfile_", ".zip")
+                    if (service.downloadFile(remoteFile.key, tempFile, namespace)) {
+                        // Decompress
+                        val targetDir = File(basePath, remoteFile.key.removeSuffix(".zip"))
+                        indicator?.text = "Extracting ${remoteFile.key}..."
+                        if (CompressionUtil.decompressToDirectory(tempFile.readBytes(), targetDir)) {
+                            successCount++
+                            // Cache all extracted files
+                            targetDir.walkTopDown().filter { it.isFile }.forEach { f ->
+                                val relPath = f.relativeTo(File(basePath)).path
+                                cacheManager.cacheFile(relPath, f.readBytes(), namespace)
+                                cacheManager.markAsSynced(relPath, namespace)
+                            }
+                            // Refresh VFS
+                            ApplicationManager.getApplication().invokeLater {
+                                LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetDir)
+                            }
+                        } else {
+                            failCount++
+                        }
+                    } else {
+                        failCount++
                     }
+                    tempFile.delete()
                 } else {
-                    failCount++
+                    val localFile = File(basePath, remoteFile.key)
+
+                    // Backup existing file if different
+                    if (localFile.exists()) {
+                        backupFile(localFile)
+                    }
+
+                    if (service.downloadFile(remoteFile.key, localFile, namespace)) {
+                        successCount++
+                        // Cache the downloaded file
+                        cacheManager.cacheFile(remoteFile.key, localFile.readBytes(), namespace)
+                        cacheManager.markAsSynced(remoteFile.key, namespace)
+
+                        // Refresh VFS
+                        ApplicationManager.getApplication().invokeLater {
+                            LocalFileSystem.getInstance().refreshAndFindFileByIoFile(localFile)
+                        }
+                    } else {
+                        failCount++
+                    }
                 }
             }
 
@@ -334,6 +435,62 @@ class CloudFileSyncService(private val project: Project) {
     }
 
     /**
+     * Auto-add selected files to project rules if they are not already covered by existing rules
+     * Returns the number of new rules added
+     */
+    private fun autoAddSelectedFiles(selectedFiles: List<VirtualFile>, existingRules: List<CloudFileSettings.HostingRule>): Int {
+        var addedCount = 0
+        val basePath = project.basePath ?: return 0
+
+        selectedFiles.forEach { virtualFile ->
+            val relativePath = virtualFile.path.removePrefix(basePath).removePrefix("/")
+            if (relativePath.isEmpty()) return@forEach
+
+            // Check if this file is already covered by any existing rule
+            val alreadyCovered = existingRules.any { rule ->
+                when (rule.type) {
+                    CloudFileSettings.HostingRule.RuleType.FILE ->
+                        rule.pattern == relativePath
+                    CloudFileSettings.HostingRule.RuleType.DIRECTORY -> {
+                        val pattern = rule.pattern.removeSuffix("/")
+                        relativePath.startsWith(pattern + "/") || relativePath == pattern
+                    }
+                    CloudFileSettings.HostingRule.RuleType.GLOB -> {
+                        val matcher = java.nio.file.FileSystems.getDefault()
+                            .getPathMatcher("glob:${rule.pattern}")
+                        matcher.matches(java.nio.file.Paths.get(relativePath))
+                    }
+                }
+            }
+
+            if (!alreadyCovered) {
+                // Determine the type and add to project rules
+                val type = when {
+                    virtualFile.isDirectory -> CloudFileSettings.HostingRule.RuleType.DIRECTORY
+                    relativePath.contains("*") -> CloudFileSettings.HostingRule.RuleType.GLOB
+                    else -> CloudFileSettings.HostingRule.RuleType.FILE
+                }
+
+                // Ensure directory paths end with /
+                val pattern = if (type == CloudFileSettings.HostingRule.RuleType.DIRECTORY && !relativePath.endsWith("/")) {
+                    "$relativePath/"
+                } else {
+                    relativePath
+                }
+
+                // Check if exact same rule already exists
+                val ruleExists = existingRules.any { it.pattern == pattern && it.type == type }
+                if (!ruleExists) {
+                    projectSettings.addProjectRule(pattern, type)
+                    addedCount++
+                }
+            }
+        }
+
+        return addedCount
+    }
+
+    /**
      * Collect all files matching the hosting rules
      */
     private fun collectMatchingFiles(rules: List<CloudFileSettings.HostingRule>): List<File> {
@@ -404,10 +561,35 @@ class CloudFileSyncService(private val project: Project) {
     }
 
     /**
+     * Check if file is a generated file (like Accessors, hashCode, equals, toString)
+     */
+    private fun isGeneratedFile(file: File): Boolean {
+        val name = file.name
+        // Skip common generated file patterns
+        return when {
+            // Kt-generated accessors/hashCode/equals/toString
+            name.contains("\u54c8\u5e0c\u7801") || // hashCode in Chinese
+            name.contains("Accessors") ||
+            name.contains("Generated") ||
+            name.contains("Kt\$") ||
+            name.endsWith("\$impl.kt") ||
+            name.endsWith("\$DefaultImpls.class") -> true
+            // Build directories
+            file.path.contains("/build/") ||
+            file.path.contains("/.gradle/") ||
+            file.path.contains("/out/") -> true
+            // IDE generated
+            name.endsWith("~") || // backup files
+            name.startsWith(".") -> true // hidden files
+            else -> false
+        }
+    }
+
+    /**
      * Backup file before overwriting
      */
     private fun backupFile(file: File) {
-        val backupDir = File(project.basePath, ".cloudfile/backups")
+        val backupDir = File(project.basePath, ".cloud-file-hosting/backups")
         backupDir.mkdirs()
         val backupFile = File(backupDir, "${file.name}.${System.currentTimeMillis()}.bak")
         file.copyTo(backupFile, overwrite = true)
@@ -421,6 +603,18 @@ class CloudFileSyncService(private val project: Project) {
             .getNotificationGroup("CloudFile Notifications")
             .createNotification(title, content, com.intellij.notification.NotificationType.INFORMATION)
             .notify(project)
+    }
+
+    /**
+     * Format size in human readable format
+     */
+    private fun formatSize(size: Long): String {
+        return when {
+            size < 1024 -> "$size B"
+            size < 1024 * 1024 -> "${size / 1024} KB"
+            size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)} MB"
+            else -> "${size / (1024 * 1024 * 1024)} GB"
+        }
     }
 
     fun dispose() {

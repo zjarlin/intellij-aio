@@ -49,9 +49,20 @@
                 description="Open Vibe Task panel"
                 icon="AllIcons.Actions.Lightning">
             <add-to-group group-id="ViewMenu" anchor="last"/>
-            <add-to-group group-id="ToolbarRunGroup" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V" second-keystroke="T"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V" second-keystroke="T"/>
+        </action>
+
+        <!-- Fast Vibe 下拉按钮 - 顶部工具栏 -->
+        <action id="VibeTask.FastVibe"
+                class="site.addzero.vibetask.actions.FastVibeDropdownAction"
+                text="Fast Vibe"
+                description="快速记录当前模块的想法"
+                icon="AllIcons.Actions.Lightning">
+            <add-to-group group-id="MainToolbar" anchor="after" relative-to-action="RunConfiguration"/>
+            <add-to-group group-id="NavbarPopupMenu" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V"/>
         </action>
 
         <action id="VibeTask.AddTask"
@@ -61,6 +72,15 @@
                 icon="AllIcons.Actions.RealIntentionBulb">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- 生成 AI 提示词 Action -->
+        <action id="VibeTask.GeneratePrompt"
+                class="site.addzero.vibetask.actions.GeneratePromptAction"
+                text="Generate AI Prompt"
+                description="将任务生成 AI 提示词"
+                icon="AllIcons.Actions.IntentionBulb">
+            <add-to-group group-id="VibeTask.ToolbarActions" anchor="first"/>
         </action>
     </actions>
 </idea-plugin>

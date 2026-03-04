@@ -38,6 +38,9 @@ class TaskViewSettings : PersistentStateComponent<TaskViewSettings.State> {
      * 获取所有规则（如果为空返回默认规则）
      */
     fun getRules(): List<TaskViewRule> {
+        // 过滤掉 null 元素（XML 反序列化可能产生）
+        state.rules = state.rules.filterNotNull().toMutableList()
+
         if (state.rules.isEmpty()) {
             state.rules = TaskViewConfig.createDefault().rules
         }

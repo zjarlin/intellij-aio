@@ -1,0 +1,41 @@
+<idea-plugin>
+    <id>site.addzero.projecttabs</id>
+    <name>project-toggle</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <description><![CDATA[
+        <p>Display open projects as clickable tabs in Status Bar (bottom).</p>
+        <p>Features:</p>
+        <ul>
+            <li>Show open projects as buttons in bottom Status Bar</li>
+            <li>Click to switch between projects</li>
+            <li>Active project has blue underline</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Settings -->
+        <applicationService serviceImplementation="site.addzero.projecttabs.settings.ProjectTabsSettings"/>
+        <applicationConfigurable instance="site.addzero.projecttabs.settings.ProjectTabsConfigurable" displayName="Project Tabs"/>
+
+        <!-- Status Bar Widget -->
+        <statusBarWidgetFactory id="ProjectTabsWidget"
+                                implementation="site.addzero.projecttabs.ui.ProjectTabsStatusBarWidgetFactory"
+                                order="before git"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Project Tabs Notifications" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <action id="ProjectTabs.OpenInNewTab"
+                class="site.addzero.projecttabs.actions.OpenProjectInTabAction"
+                text="Open Project in New Tab"
+                description="Open a project in a new tab"
+                icon="AllIcons.Nodes.Project">
+            <add-to-group group-id="FileOpenGroup" anchor="after" relative-to-action="OpenFile"/>
+        </action>
+    </actions>
+</idea-plugin>

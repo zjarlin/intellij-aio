@@ -56,6 +56,9 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
     // 当前选中的视图
     private var currentView: ViewNode = ViewNode.AllTasks
 
+    // 当前状态筛选
+    private var currentStatusFilter: String = "全部"
+
     // 检测到的模块
     private var detectedModules: List<ProjectModule> = emptyList()
 
@@ -297,6 +300,7 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             val statusCombo = JComboBox(arrayOf("全部", "待办", "进行中", "已完成", "已取消"))
             statusCombo.addActionListener {
                 if (it.actionCommand == "comboBoxChanged") {
+                    currentStatusFilter = statusCombo.selectedItem as? String ?: "全部"
                     refreshTasks()
                 }
             }
@@ -455,8 +459,26 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
         }
 
+        // 应用状态筛选
+        val filteredTasks = if (currentStatusFilter == "全部") {
+            allTasks
+        } else {
+            val status = when (currentStatusFilter) {
+                "待办" -> VibeTask.TaskStatus.TODO
+                "进行中" -> VibeTask.TaskStatus.IN_PROGRESS
+                "已完成" -> VibeTask.TaskStatus.DONE
+                "已取消" -> VibeTask.TaskStatus.CANCELLED
+                else -> null
+            }
+            if (status != null) {
+                allTasks.filter { it.status == status }
+            } else {
+                allTasks
+            }
+        }
+
         listModel.removeAll()
-        listModel.add(allTasks.sortedByDescending { it.createdAt })
+        listModel.add(filteredTasks.sortedByDescending { it.createdAt })
     }
 
     // ========== 操作方法 ==========

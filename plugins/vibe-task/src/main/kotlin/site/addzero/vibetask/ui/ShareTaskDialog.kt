@@ -225,7 +225,11 @@ class ShareTaskDialog(
 
         if (result.success) {
             // 复制结果到剪贴板
-            val clipboardContent = result.url ?: buildClipboardContent()
+            // 对于 CLIPBOARD 模式，复制 JSON 格式以便导入；其他模式复制 URL
+            val clipboardContent = when (target) {
+                ShareTarget.CLIPBOARD -> buildJsonContent()
+                else -> result.url ?: buildClipboardContent()
+            }
             val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
             clipboard.setContents(StringSelection(clipboardContent), null)
 
@@ -263,6 +267,47 @@ class ShareTaskDialog(
                 }
             }
         }
+    }
+
+    /**
+     * 构建 JSON 格式的内容，用于剪贴板分享（便于导入）
+     */
+    private fun buildJsonContent(): String {
+        return buildString {
+            appendLine("{")
+            appendLine("  \"version\": 3,")
+            appendLine("  \"exportTime\": ${System.currentTimeMillis()},")
+            appendLine("  \"taskCount\": ${tasks.size},")
+            appendLine("  \"tasks\": [")
+            tasks.forEachIndexed { index, task ->
+                append("    {")
+                append("\"id\":\"${escapeJson(task.id)}\",")
+                append("\"content\":\"${escapeJson(task.content)}\",")
+                append("\"projectPath\":\"${escapeJson(task.projectPath)}\",")
+                append("\"projectName\":\"${escapeJson(task.projectName)}\",")
+                append("\"moduleName\":\"${escapeJson(task.moduleName)}\",")
+                append("\"modulePath\":\"${escapeJson(task.modulePath)}\",")
+                append("\"status\":\"${task.status.name}\",")
+                append("\"priority\":\"${task.priority.name}\",")
+                append("\"assignees\":[${task.assignees.joinToString(",") { "\"${escapeJson(it)}\"" }}],")
+                append("\"createdAt\":${task.createdAt},")
+                append("\"completedAt\":${task.completedAt ?: "null"},")
+                append("\"tags\":[${task.tags.joinToString(",") { "\"${escapeJson(it)}\"" }}]")
+                append("}")
+                if (index < tasks.size - 1) appendLine(",") else appendLine()
+            }
+            appendLine("  ]")
+            appendLine("}")
+        }
+    }
+
+    private fun escapeJson(str: String): String {
+        return str
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
     }
 
     private fun openBrowser(url: String) {

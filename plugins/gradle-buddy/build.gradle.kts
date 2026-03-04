@@ -14,6 +14,12 @@ intellijPlatform {
     }
 }
 
+tasks {
+    patchPluginXml {
+        sinceBuild.set("252")
+        untilBuild.set("262.*")
+    }
+}
 dependencies {
     implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
     implementation(project(":plugins:gradle-buddy:gradle-buddy-intentions"))

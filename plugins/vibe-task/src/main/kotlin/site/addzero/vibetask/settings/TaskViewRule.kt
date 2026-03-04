@@ -1,14 +1,24 @@
 package site.addzero.vibetask.settings
 
+import com.intellij.util.xmlb.annotations.Attribute
+import com.intellij.util.xmlb.annotations.Tag
+
 /**
  * 任务视图识别规则
  */
+@Tag("rule")
 data class TaskViewRule(
+    @Attribute
     val id: String = java.util.UUID.randomUUID().toString(),
+    @Attribute
     val name: String = "",           // 规则名称（用于显示）
+    @Attribute
     val type: RuleType = RuleType.CONTAINS,
+    @Attribute
     val pattern: String = "",        // 匹配模式
+    @Attribute
     val icon: String = "📁",         // 图标
+    @Attribute
     val enabled: Boolean = true
 ) {
     enum class RuleType {
@@ -85,9 +95,14 @@ data class TaskViewConfig(
 /**
  * 自定义视图（用户手动创建的）
  */
+@Tag("customView")
 data class CustomView(
+    @Attribute
     val id: String = java.util.UUID.randomUUID().toString(),
+    @Attribute
     val name: String = "",
+    @Attribute
     val icon: String = "📁",
+    @Tag("modulePath")
     val modulePaths: MutableList<String> = mutableListOf()  // 包含的模块路径
 )

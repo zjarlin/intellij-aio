@@ -41,3 +41,5 @@ include(":plugins:project-init-wizard")
 
 include(":plugins:project-init-wizard")
 include(":plugins:cloud-file-hosting")
+include(":plugins:vibe-task")
+include(":plugins:project-tabs")

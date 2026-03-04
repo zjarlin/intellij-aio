@@ -1,0 +1,66 @@
+<idea-plugin>
+    <id>site.addzero.vibetask</id>
+    <name>Vibe Task</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <description><![CDATA[
+        Vibe Coding Task Manager - 记录和管理你的 vibe coding 需求<br/>
+        <ul>
+            <li>项目级备忘，自动关联当前项目</li>
+            <li>支持全局备忘查看</li>
+            <li>一键将已完成需求追加到 README</li>
+            <li>JSON 导入/导出，跨设备同步数据</li>
+            <li>简洁的任务面板，快速记录灵感</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Application Level Settings -->
+        <applicationService serviceImplementation="site.addzero.vibetask.storage.VibeTaskStorage"/>
+        <applicationService serviceImplementation="site.addzero.vibetask.settings.TaskViewSettings"/>
+
+        <!-- Settings Page -->
+        <applicationConfigurable
+                parentId="tools"
+                instance="site.addzero.vibetask.settings.TaskViewRulesConfigurable"
+                id="vibe-task.rules"
+                displayName="Vibe Task 视图规则"/>
+
+        <!-- Project Service -->
+        <projectService serviceImplementation="site.addzero.vibetask.service.VibeTaskService"/>
+
+        <!-- Tool Window -->
+        <toolWindow id="Vibe Task"
+                    anchor="right"
+                    factoryClass="site.addzero.vibetask.ui.VibeTaskToolWindowFactory"
+                    icon="AllIcons.Actions.Lightning"
+                    secondary="false"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="VibeTask Notifications" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <action id="VibeTask.OpenPanel"
+                class="site.addzero.vibetask.actions.OpenVibeTaskPanelAction"
+                text="Open Vibe Task Panel"
+                description="Open Vibe Task panel"
+                icon="AllIcons.Actions.Lightning">
+            <add-to-group group-id="ViewMenu" anchor="last"/>
+            <add-to-group group-id="ToolbarRunGroup" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V" second-keystroke="T"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V" second-keystroke="T"/>
+        </action>
+
+        <action id="VibeTask.AddTask"
+                class="site.addzero.vibetask.actions.AddTaskAction"
+                text="Add Vibe Task"
+                description="Quickly add a new vibe task"
+                icon="AllIcons.Actions.RealIntentionBulb">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -5,14 +5,9 @@ import com.intellij.openapi.diagnostic.Logger
 import site.addzero.vibetask.model.ShareResult
 import site.addzero.vibetask.model.ShareTarget
 import site.addzero.vibetask.model.VibeTask
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 
 @Service
 class TaskShareService {
@@ -41,32 +36,48 @@ class TaskShareService {
     }
 
     /**
-     * 上传到临时文件服务 (0x0.st)
-     * 优点：无需注册，匿名上传，自动过期
+     * 上传到临时文件服务 (termbin.com)
+     * 备选方案：使用 nc/纯文本上传
      */
     private fun uploadToTempService(tasks: List<VibeTask>): ShareResult {
         return try {
             val content = buildTaskContent(tasks)
-            val url = URL("https://0x0.st")
+
+            // 尝试 termbin.com - 纯文本上传服务
+            val result = tryUploadToTermbin(content)
+            if (result.success) return result
+
+            // 如果失败，直接返回错误建议
+            ShareResult(
+                success = false,
+                message = "临时外链服务暂时不可用。建议使用 GitHub/Gitee Gist 分享",
+                target = ShareTarget.TEMP_LINK
+            )
+        } catch (e: Exception) {
+            logger.error("Failed to upload to temp service", e)
+            ShareResult(
+                success = false,
+                message = "上传失败: ${e.message}。建议改用 GitHub/Gitee Gist",
+                target = ShareTarget.TEMP_LINK
+            )
+        }
+    }
+
+    private fun tryUploadToTermbin(content: String): ShareResult {
+        return try {
+            val url = URL("https://termbin.com")
             val connection = url.openConnection() as HttpURLConnection
 
             connection.apply {
                 requestMethod = "POST"
                 doOutput = true
-                setRequestProperty("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary")
-            }
-
-            val boundary = "----WebKitFormBoundary"
-            val payload = buildString {
-                append("--$boundary\r\n")
-                append("Content-Disposition: form-data; name=\"file\"; filename=\"vibe-tasks.json\"\r\n")
-                append("Content-Type: application/json\r\n\r\n")
-                append(content)
-                append("\r\n--$boundary--\r\n")
+                connectTimeout = 15000
+                readTimeout = 15000
+                setRequestProperty("Content-Type", "text/plain")
             }
 
             connection.outputStream.use { os ->
-                os.write(payload.toByteArray(StandardCharsets.UTF_8))
+                os.write(content.toByteArray(StandardCharsets.UTF_8))
             }
 
             val responseCode = connection.responseCode
@@ -75,24 +86,15 @@ class TaskShareService {
                 ShareResult(
                     success = true,
                     url = response,
-                    message = "分享成功！链接有效期约30天",
+                    message = "分享成功！",
                     target = ShareTarget.TEMP_LINK
                 )
             } else {
-                val error = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                ShareResult(
-                    success = false,
-                    message = "上传失败: $error",
-                    target = ShareTarget.TEMP_LINK
-                )
+                ShareResult(success = false, message = "termbin 服务返回错误: $responseCode", target = ShareTarget.TEMP_LINK)
             }
         } catch (e: Exception) {
-            logger.error("Failed to upload to temp service", e)
-            ShareResult(
-                success = false,
-                message = "上传失败: ${e.message}",
-                target = ShareTarget.TEMP_LINK
-            )
+            logger.warn("termbin upload failed", e)
+            ShareResult(success = false, message = e.message ?: "Unknown error", target = ShareTarget.TEMP_LINK)
         }
     }
 
@@ -117,6 +119,8 @@ class TaskShareService {
             connection.apply {
                 requestMethod = "POST"
                 doOutput = true
+                connectTimeout = 15000
+                readTimeout = 15000
                 setRequestProperty("Authorization", "token $token")
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
@@ -175,13 +179,13 @@ class TaskShareService {
             connection.apply {
                 requestMethod = "POST"
                 doOutput = true
+                connectTimeout = 15000
+                readTimeout = 15000
                 setRequestProperty("Content-Type", "application/json")
             }
 
-            // Gitee 使用 access_token 作为查询参数
-            val outputStream = connection.outputStream
-            OutputStreamWriter(outputStream, StandardCharsets.UTF_8).use { writer ->
-                writer.write(jsonBody)
+            connection.outputStream.use { os ->
+                os.write(jsonBody.toByteArray(StandardCharsets.UTF_8))
             }
 
             val responseCode = connection.responseCode

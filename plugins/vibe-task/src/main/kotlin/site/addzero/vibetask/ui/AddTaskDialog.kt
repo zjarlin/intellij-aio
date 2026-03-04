@@ -248,7 +248,6 @@ class AddTaskDialog(
     override fun doValidate(): ValidationInfo? {
         return when {
             contentField.text.isBlank() -> ValidationInfo("请输入需求描述", contentField)
-            contentField.text.length > 500 -> ValidationInfo("需求描述太长了 (最多500字符)", contentField)
             else -> null
         }
     }

@@ -7,20 +7,27 @@ import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.showYesNoDialog
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.content.Content
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import site.addzero.vibetask.model.ProjectModule
 import site.addzero.vibetask.model.VibeTask
 import site.addzero.vibetask.service.VibeTaskService
-import site.addzero.vibetask.settings.TaskViewRule
 import site.addzero.vibetask.settings.TaskViewSettings
+import site.addzero.vibetask.settings.TaskViewRule
+import site.addzero.vibetask.settings.CustomView
 import java.awt.*
 import java.awt.datatransfer.StringSelection
-import java.awt.event.*
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.swing.*
@@ -58,20 +65,28 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
     sealed class ViewNode {
         abstract val name: String
         abstract val icon: String
+        abstract val isEditable: Boolean
+        abstract val isDeletable: Boolean
 
         object Global : ViewNode() {
             override val name = "全局备忘"
             override val icon = "🌍"
+            override val isEditable = false
+            override val isDeletable = false
         }
 
         object AllTasks : ViewNode() {
             override val name = "全部任务"
             override val icon = "✨"
+            override val isEditable = false
+            override val isDeletable = false
         }
 
         object ProjectLevel : ViewNode() {
             override val name = "项目级任务"
             override val icon = "📁"
+            override val isEditable = false
+            override val isDeletable = false
         }
 
         data class RuleGroup(
@@ -80,6 +95,8 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
         ) : ViewNode() {
             override val name get() = rule.name
             override val icon get() = rule.icon
+            override val isEditable = true
+            override val isDeletable = true
         }
 
         data class Module(
@@ -92,13 +109,27 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
                 ProjectModule.ModuleType.APP -> "🚀"
                 ProjectModule.ModuleType.UNKNOWN -> "📁"
             }
+            override val isEditable = false
+            override val isDeletable = false
         }
 
         data class Custom(
             override val name: String,
             override val icon: String = "📂",
-            val modulePaths: List<String> = emptyList()
-        ) : ViewNode()
+            val modulePaths: List<String> = emptyList(),
+            val id: String = UUID.randomUUID().toString()
+        ) : ViewNode() {
+            override val isEditable = true
+            override val isDeletable = true
+        }
+
+        // 模块任务分组（未分类模块）
+        object ModuleTasks : ViewNode() {
+            override val name = "模块任务"
+            override val icon = "📦"
+            override val isEditable = false
+            override val isDeletable = false
+        }
     }
 
     init {
@@ -266,7 +297,6 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             val statusCombo = JComboBox(arrayOf("全部", "待办", "进行中", "已完成", "已取消"))
             statusCombo.addActionListener {
                 if (it.actionCommand == "comboBoxChanged") {
-                    currentStatusFilter = statusCombo.selectedItem as? String ?: "全部"
                     refreshTasks()
                 }
             }
@@ -283,8 +313,8 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
                 addActionListener { shareSelectedTasks() }
             })
 
-            add(JButton("↓ 导出").apply {
-                addActionListener { showImportExportMenu() }
+            add(JButton("↓ 导入").apply {
+                addActionListener { showImportDialog() }
             })
         }
 
@@ -344,29 +374,28 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
         rootNode.add(createTreeNode(ViewNode.Global))
         rootNode.add(createTreeNode(ViewNode.ProjectLevel))
 
-        // 2. 按规则分组的模块
+        // 2. 按规则分组的模块（显示所有启用的规则，即使没有匹配模块）
         val groupedModules = settings.groupModulesByRules(detectedModules)
         val rules = settings.getRules()
 
         rules.forEach { rule ->
             val modules = groupedModules[rule.id] ?: emptyList()
-            if (modules.isNotEmpty() || rule.enabled) {
-                val ruleNode = createTreeNode(ViewNode.RuleGroup(rule, modules))
-                modules.forEach { module ->
-                    ruleNode.add(createTreeNode(ViewNode.Module(module)))
-                }
-                rootNode.add(ruleNode)
+            // 始终显示启用的规则，即使没有匹配的模块
+            val ruleNode = createTreeNode(ViewNode.RuleGroup(rule, modules))
+            modules.forEach { module ->
+                ruleNode.add(createTreeNode(ViewNode.Module(module)))
             }
+            rootNode.add(ruleNode)
         }
 
-        // 3. 未分类模块
+        // 3. 模块任务（未分类模块放在这里）
         val uncategorized = groupedModules["uncategorized"] ?: emptyList()
         if (uncategorized.isNotEmpty()) {
-            val otherNode = DefaultMutableTreeNode("📂 其他")
+            val moduleTasksNode = createTreeNode(ViewNode.ModuleTasks)
             uncategorized.forEach { module ->
-                otherNode.add(createTreeNode(ViewNode.Module(module)))
+                moduleTasksNode.add(createTreeNode(ViewNode.Module(module)))
             }
-            rootNode.add(otherNode)
+            rootNode.add(moduleTasksNode)
         }
 
         // 4. 全部任务
@@ -402,8 +431,6 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
         }
     }
 
-    private var currentStatusFilter: String = "全部"
-
     private fun refreshTasks() {
         // 根据当前视图获取任务
         val allTasks = when (val view = currentView) {
@@ -419,33 +446,17 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
             is ViewNode.Module -> {
                 service.getModuleTasks(view.module.path)
             }
+            is ViewNode.ModuleTasks -> {
+                // 模块任务视图显示所有项目级模块任务
+                service.getProjectTasks().filter { it.modulePath.isNotBlank() }
+            }
             is ViewNode.Custom -> {
                 service.getProjectTasks().filter { it.modulePath in view.modulePaths }
             }
-            else -> emptyList()
         }
 
-        // 应用状态筛选
-        val filter = currentStatusFilter ?: "全部"
-        val filteredTasks = if (filter == "全部") {
-            allTasks
-        } else {
-            val status = when (filter) {
-                "待办" -> VibeTask.TaskStatus.TODO
-                "进行中" -> VibeTask.TaskStatus.IN_PROGRESS
-                "已完成" -> VibeTask.TaskStatus.DONE
-                "已取消" -> VibeTask.TaskStatus.CANCELLED
-                else -> null
-            }
-            if (status != null) {
-                allTasks.filter { it.status == status }
-            } else {
-                allTasks
-            }
-        }.sortedByDescending { it.createdAt }
-
         listModel.removeAll()
-        listModel.add(filteredTasks)
+        listModel.add(allTasks.sortedByDescending { it.createdAt })
     }
 
     // ========== 操作方法 ==========
@@ -483,6 +494,7 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
                     service.updateTask(updated)
                 } else {
                     val newTask = service.addTask(content, isGlobal, priority, selectedModule)
+                    // 如果有负责人，更新任务
                     if (assignees.isNotEmpty()) {
                         service.updateTask(newTask.copy(assignees = assignees))
                     }
@@ -564,8 +576,22 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
         ShareTaskDialog(project, selected).show()
     }
 
-    private fun showImportExportMenu() {
-        // 实现导入导出
+    /**
+     * 显示导入对话框
+     */
+    private fun showImportDialog() {
+        val dialog = ImportTaskDialog(project)
+        if (dialog.showAndGet()) {
+            val importedCount = dialog.getImportedCount()
+            if (importedCount > 0) {
+                Messages.showInfoMessage(project, "成功导入 $importedCount 个任务", "导入成功")
+                refreshTasks()
+            } else if (importedCount == 0) {
+                Messages.showInfoMessage(project, "没有导入任何任务", "提示")
+            } else {
+                Messages.showErrorDialog(project, "导入失败，请检查数据格式", "导入失败")
+            }
+        }
     }
 
     /**
@@ -607,24 +633,134 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
 
         // 显示通知
         val message = if (tasks.size == 1) "已复制任务内容" else "已复制 ${tasks.size} 个任务"
-        com.intellij.notification.NotificationGroupManager.getInstance()
+        NotificationGroupManager.getInstance()
             .getNotificationGroup("VibeTask Notifications")
-            ?.createNotification(message, com.intellij.notification.NotificationType.INFORMATION)
+            ?.createNotification(message, NotificationType.INFORMATION)
             ?.notify(project)
     }
+
+    // ========== 视图操作 ==========
 
     private fun addCustomView() {
         val name = Messages.showInputDialog(project, "视图名称:", "添加自定义视图", Messages.getQuestionIcon())
             ?: return
-        // 添加自定义视图逻辑
+
+        if (name.isBlank()) {
+            Messages.showErrorDialog(project, "视图名称不能为空", "错误")
+            return
+        }
+
+        // 创建新规则
+        val rule = TaskViewRule(
+            name = name,
+            type = TaskViewRule.RuleType.CONTAINS,
+            pattern = name.lowercase(),
+            icon = "📂"
+        )
+        settings.addRule(rule)
+        rebuildViewTree()
+
+        Messages.showInfoMessage(project, "已添加视图: $name", "成功")
     }
 
     private fun editSelectedView() {
-        // 编辑当前选中视图
+        val selectedNode = viewTree.lastSelectedPathComponent as? DefaultMutableTreeNode
+            ?: return
+        val viewNode = selectedNode.userObject as? ViewNode
+            ?: return
+
+        if (!viewNode.isEditable) {
+            Messages.showInfoMessage(project, "该视图不可编辑", "提示")
+            return
+        }
+
+        when (viewNode) {
+            is ViewNode.RuleGroup -> {
+                // 编辑规则
+                val newName = Messages.showInputDialog(
+                    project,
+                    "视图名称:",
+                    "编辑视图",
+                    Messages.getQuestionIcon(),
+                    viewNode.rule.name,
+                    null
+                ) ?: return
+
+                if (newName.isBlank()) {
+                    Messages.showErrorDialog(project, "视图名称不能为空", "错误")
+                    return
+                }
+
+                val updatedRule = viewNode.rule.copy(name = newName)
+                settings.updateRule(updatedRule)
+                rebuildViewTree()
+            }
+            is ViewNode.Custom -> {
+                // 编辑自定义视图
+                val newName = Messages.showInputDialog(
+                    project,
+                    "视图名称:",
+                    "编辑视图",
+                    Messages.getQuestionIcon(),
+                    viewNode.name,
+                    null
+                ) ?: return
+
+                if (newName.isBlank()) {
+                    Messages.showErrorDialog(project, "视图名称不能为空", "错误")
+                    return
+                }
+
+                // 创建新的 CustomView 并更新
+                val updatedView = CustomView(
+                    id = viewNode.id,
+                    name = newName,
+                    icon = viewNode.icon,
+                    modulePaths = viewNode.modulePaths.toMutableList()
+                )
+                settings.updateCustomView(updatedView)
+                rebuildViewTree()
+            }
+            else -> {
+                Messages.showInfoMessage(project, "该视图不可编辑", "提示")
+            }
+        }
     }
 
     private fun deleteSelectedView() {
-        // 删除当前选中视图
+        val selectedNode = viewTree.lastSelectedPathComponent as? DefaultMutableTreeNode
+            ?: return
+        val viewNode = selectedNode.userObject as? ViewNode
+            ?: return
+
+        if (!viewNode.isDeletable) {
+            Messages.showInfoMessage(project, "该视图不可删除", "提示")
+            return
+        }
+
+        val result = Messages.showYesNoDialog(
+            "确定要删除视图 \"${viewNode.name}\" 吗?",
+            "删除视图",
+            Messages.getQuestionIcon()
+        )
+
+        if (result != Messages.YES) return
+
+        when (viewNode) {
+            is ViewNode.RuleGroup -> {
+                settings.removeRule(viewNode.rule.id)
+                rebuildViewTree()
+                Messages.showInfoMessage(project, "已删除视图: ${viewNode.name}", "成功")
+            }
+            is ViewNode.Custom -> {
+                settings.removeCustomView(viewNode.id)
+                rebuildViewTree()
+                Messages.showInfoMessage(project, "已删除视图: ${viewNode.name}", "成功")
+            }
+            else -> {
+                Messages.showInfoMessage(project, "该视图不可删除", "提示")
+            }
+        }
     }
 
     private fun openSettings() {
@@ -691,11 +827,10 @@ class VibeTaskPanel(private val project: Project) : JPanel(BorderLayout()) {
                 VibeTask.Priority.MEDIUM -> "🟡"
                 VibeTask.Priority.LOW -> "🟢"
             }
+            val assigneeStr = if (value.assignees.isNotEmpty()) " ${value.getAssigneeDisplay()}" else ""
 
             infoLabel.apply {
-                text = "$statusIcon $priorityIcon ${value.getScopeDisplay()}${
-                    if (value.assignees.isNotEmpty()) " ${value.getAssigneeDisplay()}" else ""
-                } · $dateStr"
+                text = "$statusIcon $priorityIcon ${value.getScopeDisplay()}$assigneeStr · $dateStr"
                 font = UIUtil.getLabelFont().deriveFont(Font.PLAIN, 11f)
                 foreground = if (isSelected)
                     JBColor.namedColor("List.selectionForeground", UIUtil.getListSelectionForeground())

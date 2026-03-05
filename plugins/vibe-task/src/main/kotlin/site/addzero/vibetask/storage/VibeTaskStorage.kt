@@ -275,7 +275,7 @@ class VibeTaskStorage {
         // Format: id|content|projectPath|projectName|moduleName|modulePath|status|priority|assignees|createdAt|completedAt|tags
         return listOf(
             task.id,
-            task.content.replace("|", "\\|"),
+            task.content.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "\\n").replace("\r", "\\r"),
             task.projectPath,
             task.projectName,
             task.moduleName,
@@ -296,7 +296,11 @@ class VibeTaskStorage {
 
             VibeTask(
                 id = parts[0],
-                content = parts[1].replace("\\|", "|"),
+                content = parts[1]
+                    .replace("\\n", "\n")
+                    .replace("\\r", "\r")
+                    .replace("\\|", "|")
+                    .replace("\\\\", "\\"),
                 projectPath = parts[2],
                 projectName = parts[3],
                 moduleName = parts.getOrNull(4) ?: "",

@@ -78,7 +78,7 @@ class ToolS3StorageService(
             )
 
             StorageService.UploadResult(
-                success = result.isSuccess,
+                success = result.isSuccess(),
                 etag = result.message, // The library returns etag in message for success
                 remotePath = fullPath
             )
@@ -103,7 +103,7 @@ class ToolS3StorageService(
             )
 
             StorageService.UploadResult(
-                success = result.isSuccess,
+                success = result.isSuccess(),
                 etag = result.message,
                 remotePath = fullPath
             )
@@ -139,7 +139,7 @@ class ToolS3StorageService(
 
         return try {
             val result = client.deleteObject(bucket, fullPath)
-            result.isSuccess
+            result.isSuccess()
         } catch (e: Exception) {
             logger.error("Failed to delete file from S3: $fullPath", e)
             false

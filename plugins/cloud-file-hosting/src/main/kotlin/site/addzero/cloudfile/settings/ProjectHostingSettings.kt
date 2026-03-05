@@ -80,7 +80,11 @@ class ProjectHostingSettings : PersistentStateComponent<ProjectHostingSettings.S
     }
 
     fun addProjectRule(pattern: String, type: CloudFileSettings.HostingRule.RuleType) {
-        state.projectRules.add(CloudFileSettings.HostingRule(pattern, type))
+        // 检查是否已存在相同的规则（pattern 和 type 都相同）
+        val exists = state.projectRules.any { it.pattern == pattern && it.type == type }
+        if (!exists) {
+            state.projectRules.add(CloudFileSettings.HostingRule(pattern, type))
+        }
     }
 
     fun removeProjectRule(pattern: String) {
@@ -103,7 +107,8 @@ class ProjectHostingSettings : PersistentStateComponent<ProjectHostingSettings.S
         // Add project-specific rules
         result.addAll(state.projectRules.filter { it.enabled })
 
-        return result
+        // 去重：根据 pattern 和 type 组合去重，保留第一个出现的
+        return result.distinctBy { it.pattern to it.type }
     }
 
     fun recordSync(files: List<SyncedFileInfo>) {

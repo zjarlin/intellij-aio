@@ -301,8 +301,8 @@ class VibeTaskStorage {
                 projectName = parts[3],
                 moduleName = parts.getOrNull(4) ?: "",
                 modulePath = parts.getOrNull(5) ?: "",
-                status = VibeTask.TaskStatus.valueOf(parts[6]),
-                priority = VibeTask.Priority.valueOf(parts[7]),
+                status = parseStatus(parts[6]),
+                priority = parsePriority(parts[7]),
                 assignees = parts.getOrNull(8)?.split(",")?.filter { it.isNotEmpty() } ?: emptyList(),
                 createdAt = parts.getOrNull(9)?.toLongOrNull() ?: System.currentTimeMillis(),
                 completedAt = parts.getOrNull(10)?.takeIf { it.isNotEmpty() }?.toLongOrNull(),
@@ -311,6 +311,32 @@ class VibeTaskStorage {
         } catch (e: Exception) {
             logger.warn("Failed to parse task line: $line", e)
             null
+        }
+    }
+
+    /**
+     * 容错解析 TaskStatus，处理数据异常
+     */
+    private fun parseStatus(value: String): VibeTask.TaskStatus {
+        return try {
+            VibeTask.TaskStatus.valueOf(value.uppercase())
+        } catch (e: Exception) {
+            // 如果存储了 Priority 值到 status 字段，进行映射修复
+            when (value.uppercase()) {
+                "HIGH", "MEDIUM", "LOW" -> VibeTask.TaskStatus.TODO
+                else -> VibeTask.TaskStatus.TODO
+            }
+        }
+    }
+
+    /**
+     * 容错解析 Priority
+     */
+    private fun parsePriority(value: String): VibeTask.Priority {
+        return try {
+            VibeTask.Priority.valueOf(value.uppercase())
+        } catch (e: Exception) {
+            VibeTask.Priority.MEDIUM
         }
     }
 }

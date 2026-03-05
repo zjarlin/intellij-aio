@@ -15,6 +15,9 @@ dependencies {
     // S3 Storage Client (includes AWS SDK)
     implementation("site.addzero:tool-s3:+")
 
+    // AWS SDK S3 - 显式声明以解决传递依赖问题
+    implementation(libs.software.amazon.awssdk.s3)
+
     // Aliyun OSS
     implementation("com.aliyun.oss:aliyun-sdk-oss:3.17.4")
 

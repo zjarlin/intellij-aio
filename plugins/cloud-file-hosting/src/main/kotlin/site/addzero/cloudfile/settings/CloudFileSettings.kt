@@ -107,7 +107,11 @@ class CloudFileSettings : PersistentStateComponent<CloudFileSettings.State> {
     }
 
     fun addGlobalRule(pattern: String, type: HostingRule.RuleType) {
-        state.globalRules.add(HostingRule(pattern, type))
+        // 检查是否已存在相同的规则（pattern 和 type 都相同）
+        val exists = state.globalRules.any { it.pattern == pattern && it.type == type }
+        if (!exists) {
+            state.globalRules.add(HostingRule(pattern, type))
+        }
     }
 
     fun removeGlobalRule(pattern: String) {

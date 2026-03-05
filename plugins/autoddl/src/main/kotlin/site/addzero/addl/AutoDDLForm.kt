@@ -36,7 +36,7 @@ class AutoDDLForm(project: Project?) : DialogWrapper(project) {
 
     // 新增成员变量
     private lateinit var tabbedPane: JTabbedPane
-    private lateinit var panelGenerateDDL: JPanel
+    private lateinit var panelGenerateDDL: JPane
     private lateinit var panelFunction1: JPanel
     private lateinit var panelFunction2: JPanel
 

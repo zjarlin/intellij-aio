@@ -95,6 +95,32 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
     }
 
     /**
+     * 获取启用的文件扩展名列表
+     */
+    fun getEnabledFileExtensions(): List<String> {
+        return state.enabledFileExtensions.takeIf { it.isNotEmpty() }
+            ?: ExclusionState.DEFAULT_FILE_EXTENSIONS
+    }
+
+    /**
+     * 设置启用的文件扩展名列表
+     */
+    fun setEnabledFileExtensions(extensions: List<String>) {
+        state.enabledFileExtensions = extensions
+            .map { it.lowercase().removePrefix(".") }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    /**
+     * 检查文件扩展名是否应该被扫描
+     */
+    fun isEnabledExtension(file: VirtualFile): Boolean {
+        val ext = file.extension?.lowercase() ?: return false
+        return ext in getEnabledFileExtensions()
+    }
+
+    /**
      * 从.gitignore加载排除规则，只在首次调用时执行
      */
     fun loadFromGitignore(project: Project) {
@@ -175,5 +201,10 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 data class ExclusionState(
     var customPatterns: List<String> = emptyList(),
     var useDefaultPatterns: Boolean = true,
-    var gitignoreLoaded: Boolean = false
-)
+    var gitignoreLoaded: Boolean = false,
+    var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS
+) {
+    companion object {
+        val DEFAULT_FILE_EXTENSIONS = listOf("java", "kt")
+    }
+}

@@ -40,6 +40,10 @@
 
         <!-- Notification Group -->
         <notificationGroup id="VibeTask Notifications" displayType="BALLOON" isLogByDefault="true"/>
+
+        <!-- Search Everywhere 集成 - 随处搜索 Vibe Task 内容 -->
+        <searchEverywhereContributor
+                implementation="site.addzero.vibetask.search.VibeTaskSearchEverywhereContributorFactory"/>
     </extensions>
 
     <actions>
@@ -49,20 +53,19 @@
                 description="Open Vibe Task panel"
                 icon="AllIcons.Actions.Lightning">
             <add-to-group group-id="ViewMenu" anchor="last"/>
+            <add-to-group group-id="GoToAction" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V" second-keystroke="T"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V" second-keystroke="T"/>
         </action>
 
-        <!-- Fast Vibe 下拉按钮 - 顶部工具栏 -->
+        <!-- Fast Vibe 下拉按钮 - 主工具栏右侧 -->
         <action id="VibeTask.FastVibe"
                 class="site.addzero.vibetask.actions.FastVibeDropdownAction"
                 text="Fast Vibe"
                 description="快速记录当前模块的想法"
                 icon="AllIcons.Actions.Lightning">
-            <add-to-group group-id="MainToolbar" anchor="after" relative-to-action="RunConfiguration"/>
-            <add-to-group group-id="NavbarPopupMenu" anchor="first"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V"/>
-            <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V"/>
+            <!-- 主工具栏右侧（项目切换、分支切换、随处搜索之后） -->
+            <add-to-group group-id="MainToolbarRight" anchor="before" relative-to-action="HelpTopics"/>
         </action>
 
         <action id="VibeTask.AddTask"

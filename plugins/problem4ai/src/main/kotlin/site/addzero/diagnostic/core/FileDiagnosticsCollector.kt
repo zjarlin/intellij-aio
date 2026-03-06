@@ -3,13 +3,19 @@ package site.addzero.diagnostic.core
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
+import com.intellij.codeInspection.InspectionEngine
+import com.intellij.codeInspection.InspectionManager
+import com.intellij.codeInspection.ProblemHighlightType
+import com.intellij.codeInspection.ex.LocalInspectionToolWrapper
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.impl.DocumentMarkupModel
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.problems.WolfTheProblemSolver
+import com.intellij.profile.codeInspection.InspectionProjectProfileManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
@@ -45,6 +51,12 @@ fun VirtualFile.collectDiagnostics(project: Project): FileDiagnostics? {
 
     // 2. 文档高亮（DocumentMarkupModel）
     psiFile.checkDocumentHighlights(project, items)
+
+    // 3. 未打开文件执行离线检查，补全详细错误（无需打开编辑器）
+    val isFileOpen = FileEditorManager.getInstance(project).openFiles.contains(this)
+    if (!isFileOpen) {
+        psiFile.runDeepInspection(this, items)
+    }
 
     // 3. 已打开文件的文件级高亮（Daemon）
     psiFile.checkDaemonHighlights(project, items)
@@ -124,6 +136,69 @@ private fun PsiFile.checkDocumentHighlights(project: Project, items: MutableList
                 )
             }
         }
+    } catch (_: Exception) {
+        // 静默处理
+    }
+}
+
+/**
+ * 对未打开文件执行离线检查，收集细粒度问题详情
+ */
+private fun PsiFile.runDeepInspection(file: VirtualFile, items: MutableList<DiagnosticItem>) {
+    try {
+        val profile = InspectionProjectProfileManager.getInstance(project).currentProfile
+        val inspectionManager = InspectionManager.getInstance(project)
+        val document = PsiDocumentManager.getInstance(project).getDocument(this)
+
+        // 只取当前文件适用的本地检查，避免跨语言误报
+        val tools = profile.getInspectionTools(this)
+            .mapNotNull { it as? LocalInspectionToolWrapper }
+        if (tools.isEmpty()) {
+            return
+        }
+
+        val result = InspectionEngine.inspectEx(
+            tools,
+            this,
+            inspectionManager,
+            false,
+            EmptyProgressIndicator()
+        )
+
+        result.values
+            .flatten()
+            .forEach { descriptor ->
+                val message = descriptor.descriptionTemplate
+                val lineNumber = when {
+                    descriptor.lineNumber > 0 -> descriptor.lineNumber
+                    document != null -> {
+                        val offset = descriptor.psiElement?.textOffset
+                            ?: descriptor.startElement?.textOffset
+                            ?: 0
+                        document.getLineNumber(offset) + 1
+                    }
+                    else -> 1
+                }
+
+                val severity = when (descriptor.highlightType) {
+                    ProblemHighlightType.ERROR,
+                    ProblemHighlightType.GENERIC_ERROR,
+                    ProblemHighlightType.LIKE_UNKNOWN_SYMBOL -> DiagnosticSeverity.ERROR
+                    else -> DiagnosticSeverity.WARNING
+                }
+
+                if (items.none { it.lineNumber == lineNumber && it.message == message }) {
+                    items.add(
+                        DiagnosticItem(
+                            file = file,
+                            psiFile = this,
+                            lineNumber = lineNumber,
+                            message = message,
+                            severity = severity
+                        )
+                    )
+                }
+            }
     } catch (_: Exception) {
         // 静默处理
     }

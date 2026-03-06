@@ -3,7 +3,6 @@ package site.addzero.gradle.sleep.actions
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
@@ -21,9 +20,9 @@ class LoadOnlyCurrentFileModuleAction : AnAction(
 
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
-    val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
     if (!project.service<GradleModuleSleepService>().isFeatureAvailable()) return
     val fileEditorManager = FileEditorManager.getInstance(project)
+    val file = fileEditorManager.selectedFiles.firstOrNull() ?: return
 
     fileEditorManager.openFiles
       .filter { it != file }

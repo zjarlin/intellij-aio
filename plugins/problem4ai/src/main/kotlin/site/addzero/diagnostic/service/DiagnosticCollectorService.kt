@@ -28,6 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
+ * 诊断信息包装类，解决 ConcurrentHashMap 不能存 null 的问题
+ */
+private class DiagnosticResult(val diagnostics: FileDiagnostics?)
+
+/**
  * 诊断收集服务 - 重新设计版
  *
  * 核心设计：
@@ -39,8 +44,8 @@ import java.util.concurrent.atomic.AtomicReference
 @Service(Service.Level.PROJECT)
 class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
-    // 完整缓存：所有已扫描文件的诊断信息（包括无问题的文件，value为null表示无问题）
-    private val diagnosticsCache = ConcurrentHashMap<VirtualFile, FileDiagnostics?>()
+    // 完整缓存：所有已扫描文件的诊断信息（包括无问题的文件，diagnostics=null表示无问题）
+    private val diagnosticsCache = ConcurrentHashMap<VirtualFile, DiagnosticResult>()
 
     // 待扫描队列：文件变更时加入此队列
     private val needScanQueue = LinkedBlockingQueue<VirtualFile>()
@@ -161,7 +166,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 获取所有有问题的诊断（用于面板显示）
      */
     fun getAllProblemDiagnostics(): List<FileDiagnostics> {
-        return diagnosticsCache.values.filterNotNull()
+        return diagnosticsCache.values
+            .mapNotNull { it.diagnostics }
             .filter { it.items.isNotEmpty() }
             .sortedBy { it.file.path }
     }
@@ -170,7 +176,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 获取指定文件的诊断（可能返回null表示无问题或尚未扫描）
      */
     fun getDiagnostics(file: VirtualFile): FileDiagnostics? {
-        return diagnosticsCache[file]
+        return diagnosticsCache[file]?.diagnostics
     }
 
     override fun close() {
@@ -263,8 +269,10 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                 }
             }
 
-            // 更新缓存
-            diagnosticsCache.putAll(results)
+            // 更新缓存（包装成 DiagnosticResult 避免 null）
+            results.forEach { (file, diag) ->
+                diagnosticsCache[file] = DiagnosticResult(diag)
+            }
 
             // 更新进度
             val processed = scanned.addAndGet(batch.size)
@@ -326,8 +334,10 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                 }
             }
 
-            // 更新缓存
-            diagnosticsCache.putAll(results)
+            // 更新缓存（包装成 DiagnosticResult 避免 null）
+            results.forEach { (file, diag) ->
+                diagnosticsCache[file] = DiagnosticResult(diag)
+            }
 
             // 更新进度
             val progress = ScanProgress(
@@ -353,13 +363,23 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
     /**
      * 收集所有源文件（用于全量扫描）
+     * 遍历所有内容根（contentRoots），不只是源码根（sourceRoots）
      */
     private fun collectAllSourceFiles(): List<VirtualFile> {
         val files = mutableListOf<VirtualFile>()
         val projectRootManager = ProjectRootManager.getInstance(project)
-        val sourceRoots = projectRootManager.contentSourceRoots.toList()
 
-        sourceRoots.forEach { root ->
+        // 使用 contentRoots 而不是 contentSourceRoots，以包含项目中的所有文件
+        val contentRoots = projectRootManager.contentRoots.toList()
+
+        // 如果没有内容根，回退到使用 contentSourceRoots
+        val rootsToScan = if (contentRoots.isEmpty()) {
+            projectRootManager.contentSourceRoots.toList()
+        } else {
+            contentRoots
+        }
+
+        rootsToScan.forEach { root ->
             if (!root.isValid || !root.exists()) return@forEach
 
             VfsUtilCore.visitChildrenRecursively(root, object : VirtualFileVisitor<Unit>() {

@@ -6,6 +6,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.util.Alarm
 import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.model.FileDiagnostics
 import java.util.concurrent.CopyOnWriteArrayList
@@ -160,9 +161,19 @@ class GlobalDiagnosticCacheInitializer : ProjectActivity {
         val exclusionConfig = DiagnosticExclusionConfig.getInstance(project)
         exclusionConfig.loadFromGitignore(project)
 
-        // 等待索引完成后执行全量扫描
+        val cache = GlobalDiagnosticCache.getInstance(project)
+
+        // 启动后立即扫一次，尽早给面板基础结果
+        cache.performFullScan()
+
+        // 新项目导入阶段根目录可能尚未就绪，延迟再触发两次兜底
+        val retryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+        retryAlarm.addRequest({ cache.performFullScan() }, 2000)
+        retryAlarm.addRequest({ cache.performFullScan() }, 6000)
+
+        // 索引完成后再扫一次，补齐语义级错误
         com.intellij.openapi.project.DumbService.getInstance(project).runWhenSmart {
-            GlobalDiagnosticCache.getInstance(project).performFullScan()
+            cache.performFullScan()
         }
     }
 }

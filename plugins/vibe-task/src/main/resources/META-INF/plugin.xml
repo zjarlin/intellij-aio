@@ -47,13 +47,15 @@
     </extensions>
 
     <actions>
+        <group id="VibeTask.ToolbarActions" text="Vibe Task Toolbar Actions" popup="false"/>
+
         <action id="VibeTask.OpenPanel"
                 class="site.addzero.vibetask.actions.OpenVibeTaskPanelAction"
                 text="Open Vibe Task Panel"
                 description="Open Vibe Task panel"
                 icon="AllIcons.Actions.Lightning">
             <add-to-group group-id="ViewMenu" anchor="last"/>
-            <add-to-group group-id="GoToAction" anchor="last"/>
+            <add-to-group group-id="GoToMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift V" second-keystroke="T"/>
             <keyboard-shortcut keymap="Mac OS X" first-keystroke="meta shift V" second-keystroke="T"/>
         </action>

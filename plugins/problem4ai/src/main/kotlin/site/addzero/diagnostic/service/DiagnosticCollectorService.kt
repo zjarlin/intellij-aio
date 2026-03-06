@@ -1,5 +1,6 @@
 package site.addzero.diagnostic.service
 
+import com.intellij.ProjectTopics
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
@@ -16,6 +17,9 @@ import com.intellij.openapi.compiler.CompilerTopics
 import com.intellij.openapi.compiler.CompilationStatusListener
 import com.intellij.openapi.compiler.CompileContext
 import com.intellij.problems.ProblemListener
+import com.intellij.openapi.roots.ModuleRootEvent
+import com.intellij.openapi.roots.ModuleRootListener
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.util.Alarm
 import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.core.collectDiagnostics
@@ -58,6 +62,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     private val isScanning = AtomicBoolean(false)
     private val isFullScanning = AtomicBoolean(false)
     private val debounceAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    private val fullScanRetryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
 
     // 进度跟踪
     private val scanProgress = AtomicReference(ScanProgress())
@@ -183,6 +188,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         listeners.clear()
         progressListeners.clear()
         debounceAlarm.dispose()
+        fullScanRetryAlarm.dispose()
     }
 
     // ==================== 内部实现 ====================
@@ -230,6 +236,19 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                 }
             }
         )
+
+        // 监听项目根变化（如新项目导入完成、模块加载完成）
+        connection.subscribe(
+            ProjectTopics.PROJECT_ROOTS,
+            object : ModuleRootListener {
+                override fun rootsChanged(event: ModuleRootEvent) {
+                    fullScanRetryAlarm.cancelAllRequests()
+                    fullScanRetryAlarm.addRequest({
+                        performFullScan()
+                    }, 1000)
+                }
+            }
+        )
     }
 
     /**
@@ -245,6 +264,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
         if (filesToScan.isEmpty()) {
             updateProgress(ScanProgress())
+            scheduleFullScanRetry()
             return
         }
 
@@ -263,10 +283,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             if (indicator?.isCanceled == true) return@forEach
 
             // 扫描这一批
-            val results = ReadAction.compute<Map<VirtualFile, FileDiagnostics?>, Throwable> {
-                batch.associateWith { file ->
-                    file.collectDiagnostics(project)
-                }
+            val results = batch.associateWith { file ->
+                file.collectDiagnostics(project)
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）
@@ -285,6 +303,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             )
             updateProgress(progress)
 
+            // 分批通知监听器，避免“必须等扫完才看到结果”
+            notifyDiagnosticsListeners()
+
             indicator?.let {
                 it.fraction = processed.toDouble() / total
                 it.text2 = "${batch.lastOrNull()?.name} ($processed/$total)"
@@ -299,11 +320,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         // 扫描完成
         updateProgress(ScanProgress())
 
-        // 通知监听器
-        val problems = getAllProblemDiagnostics()
-        ApplicationManager.getApplication().invokeLater {
-            listeners.forEach { it(problems) }
-        }
+        // 扫描完成后再通知一次，确保最终一致
+        notifyDiagnosticsListeners()
     }
 
     /**
@@ -328,10 +346,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         val batchSize = 5
         filesToScan.chunked(batchSize).forEachIndexed { index, batch ->
             // 扫描这一批
-            val results = ReadAction.compute<Map<VirtualFile, FileDiagnostics?>, Throwable> {
-                batch.associateWith { file ->
-                    file.collectDiagnostics(project)
-                }
+            val results = batch.associateWith { file ->
+                file.collectDiagnostics(project)
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）
@@ -349,16 +365,30 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             )
             updateProgress(progress)
 
+            // 增量扫描也分批通知一次，快速反馈面板
+            notifyDiagnosticsListeners()
+
             Thread.sleep(5)
         }
 
         updateProgress(ScanProgress())
 
-        // 通知监听器
+        // 扫描完成后再通知一次，确保最终一致
+        notifyDiagnosticsListeners()
+    }
+
+    private fun notifyDiagnosticsListeners() {
         val problems = getAllProblemDiagnostics()
         ApplicationManager.getApplication().invokeLater {
             listeners.forEach { it(problems) }
         }
+    }
+
+    private fun scheduleFullScanRetry() {
+        fullScanRetryAlarm.cancelAllRequests()
+        fullScanRetryAlarm.addRequest({
+            performFullScan()
+        }, 1500)
     }
 
     /**
@@ -379,7 +409,21 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             contentRoots
         }
 
-        rootsToScan.forEach { root ->
+        // 对于新项目初始化早期，根模型可能暂时为空，兜底使用项目根目录
+        val fallbackRoots = if (rootsToScan.isEmpty()) {
+            val basePath = project.basePath
+            if (basePath.isNullOrBlank()) {
+                emptyList()
+            } else {
+                listOfNotNull(LocalFileSystem.getInstance().findFileByPath(basePath))
+            }
+        } else {
+            emptyList()
+        }
+
+        (rootsToScan + fallbackRoots)
+            .distinctBy { it.path }
+            .forEach { root ->
             if (!root.isValid || !root.exists()) return@forEach
 
             VfsUtilCore.visitChildrenRecursively(root, object : VirtualFileVisitor<Unit>() {
@@ -392,7 +436,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                     return true
                 }
             })
-        }
+            }
 
         return files
     }

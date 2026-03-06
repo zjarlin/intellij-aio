@@ -2,6 +2,8 @@ package site.addzero.diagnostic.problemsview
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -185,8 +187,23 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     private fun setupAutoRefresh() {
         collectorService.addListener(diagnosticsListener)
         collectorService.addProgressListener(progressListener)
+        setupEditorSelectionSync()
         // 初始加载
         loadFromGlobalCache()
+        // 面板初始化时兜底触发一次全量扫描
+        collectorService.performFullScan()
+    }
+
+    private fun setupEditorSelectionSync() {
+        val connection = project.messageBus.connect(project)
+        connection.subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun selectionChanged(event: FileEditorManagerEvent) {
+                    syncSelectionToFile(event.newFile)
+                }
+            }
+        )
     }
 
     private fun updateProgress(progress: DiagnosticCollectorService.ScanProgress) {
@@ -215,19 +232,21 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
 
             // 保存当前选中的文件
             val selectedFile = fileList.selectedValue?.file
+            val activeEditorFile = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
 
             // 更新文件列表
             fileListModel.clear()
             diagnostics.sortedBy { it.file.path }.forEach { fileListModel.addElement(it) }
 
-            // 恢复选中或默认选中第一个
-            if (selectedFile != null) {
-                val index = (0 until fileListModel.size()).find { fileListModel.getElementAt(it).file == selectedFile }
-                if (index != null) {
-                    fileList.selectedIndex = index
+            // 优先选中当前编辑器标签页对应文件
+            val selectedByEditor = syncSelectionToFile(activeEditorFile, clearWhenMissing = true)
+
+            // 如果当前编辑器文件不在问题列表，再回退到旧选中或首项
+            if (!selectedByEditor) {
+                val restoredByPrevious = syncSelectionToFile(selectedFile)
+                if (!restoredByPrevious && fileListModel.size() > 0) {
+                    fileList.selectedIndex = 0
                 }
-            } else if (fileListModel.size() > 0) {
-                fileList.selectedIndex = 0
             }
 
             // 更新状态
@@ -240,6 +259,27 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
                 "共 ${diagnostics.size} 个文件, $errorCount 个错误, $warningCount 个警告"
             }
         }
+    }
+
+    private fun syncSelectionToFile(file: VirtualFile?, clearWhenMissing: Boolean = false): Boolean {
+        if (file == null) {
+            return false
+        }
+
+        val index = (0 until fileListModel.size()).firstOrNull { fileListModel.getElementAt(it).file == file }
+        if (index == null) {
+            if (clearWhenMissing) {
+                fileList.clearSelection()
+                problemListModel.clear()
+            }
+            return false
+        }
+
+        if (fileList.selectedIndex != index) {
+            fileList.selectedIndex = index
+            fileList.ensureIndexIsVisible(index)
+        }
+        return true
     }
 
     private fun updateProblemList(fileDiagnostics: FileDiagnostics) {

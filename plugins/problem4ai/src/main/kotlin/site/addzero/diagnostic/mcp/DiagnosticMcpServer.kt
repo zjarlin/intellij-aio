@@ -431,7 +431,7 @@ class DiagnosticMcpServer(private val project: Project) {
     private fun handleRefreshDiagnostics(): JsonObject {
         val collector = DiagnosticCollectorService.getInstance(project)
         // Note: This is async, returns current cached data
-        collector.triggerIncrementalScan()
+        collector.performFullScan()
 
         val diagnostics = collector.getAllProblemDiagnostics()
         return buildJsonObject {

@@ -75,7 +75,6 @@
             text="Fix Broken Project References"
             description="Scan all .gradle.kts files and fix broken project() and projects.* references"
             icon="AllIcons.Actions.QuickfixBulb">
-      <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
 
     <action id="GradleBuddy.DismissVersionCatalogToolbar"

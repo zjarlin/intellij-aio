@@ -24,13 +24,14 @@ import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import site.addzero.gradle.buddy.notification.FixBrokenProjectReferencesAction
 
 /**
- * Alt+Enter intention: fix broken `implementation(project(":...:leaf"))` by searching real modules via leaf name.
+ * Alt+Enter intention: auto fix broken project refs.
  *
- * Example:
- *   implementation(project(":project:ksp:jimmer-ksp-ext"))  (not exists)
- *   -> implementation(project(":project:compiler:jimmer-ksp-ext"))
+ * Behavior:
+ * 1) If only current broken `project(":...")` is detected -> single fix flow.
+ * 2) If other broken refs exist in project -> open batch fix dialog.
  */
 class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
 
@@ -38,12 +39,12 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "(Gradle Buddy) Fix project dependency path (by module name)"
+    override fun getText(): String = "(Gradle Buddy) Fix project refs (auto single/batch)"
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("使用 project(\":...\") 的末级模块名，在工程中搜索真实模块路径并替换。")
+        return IntentionPreviewInfo.Html("自动修复 project 引用：若仅当前一处异常则单条修复；若检测到其他异常则进入批量修复。")
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -69,6 +70,13 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
 
         val leafName = currentPath.substringAfterLast(':').trim()
         if (leafName.isEmpty()) return
+
+        val currentVf = file.virtualFile
+        val currentRange = stringExpr.textRange.startOffset until stringExpr.textRange.endOffset
+        if (currentVf != null && FixBrokenProjectReferencesAction.hasOtherBrokenReferences(project, currentVf, currentRange)) {
+            FixBrokenProjectReferencesAction.runBatchFix(project)
+            return
+        }
 
         val pointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(stringExpr)
         val currentModulePath = detectModulePathFromFile(file, basePath)

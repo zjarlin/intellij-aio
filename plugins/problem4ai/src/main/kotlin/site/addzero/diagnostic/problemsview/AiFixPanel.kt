@@ -1,6 +1,7 @@
 package site.addzero.diagnostic.problemsview
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
@@ -35,6 +36,9 @@ import javax.swing.DefaultListModel
  * 右侧：问题详情（Detail）
  */
 class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
+    companion object {
+        private val LOG: Logger = Logger.getInstance(AiFixPanel::class.java)
+    }
 
     // 左侧文件列表
     private val fileListModel = DefaultListModel<FileDiagnostics>()
@@ -188,9 +192,11 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         collectorService.addListener(diagnosticsListener)
         collectorService.addProgressListener(progressListener)
         setupEditorSelectionSync()
+        LOG.info("[Problem4AI][Panel] listeners registered for project=${project.name}")
         // 初始加载
         loadFromGlobalCache()
         // 面板初始化时兜底触发一次全量扫描
+        LOG.info("[Problem4AI][Panel] trigger full scan on panel init")
         collectorService.performFullScan()
     }
 
@@ -200,6 +206,7 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
             object : FileEditorManagerListener {
                 override fun selectionChanged(event: FileEditorManagerEvent) {
+                    LOG.debug("[Problem4AI][Panel] editor selection changed: ${event.newFile?.path ?: "<none>"}")
                     syncSelectionToFile(event.newFile)
                 }
             }
@@ -223,6 +230,7 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
 
     private fun loadFromGlobalCache() {
         val diagnostics = globalCache.getAllDiagnostics()
+        LOG.info("[Problem4AI][Panel] load cache diagnostics=${diagnostics.size}")
         updatePanel(diagnostics)
     }
 
@@ -237,6 +245,9 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
             // 更新文件列表
             fileListModel.clear()
             diagnostics.sortedBy { it.file.path }.forEach { fileListModel.addElement(it) }
+            LOG.debug(
+                "[Problem4AI][Panel] rebuild list diagnostics=${diagnostics.size} modelSize=${fileListModel.size()} activeEditor=${activeEditorFile?.path ?: "<none>"}"
+            )
 
             // 优先选中当前编辑器标签页对应文件
             val selectedByEditor = syncSelectionToFile(activeEditorFile, clearWhenMissing = true)
@@ -258,11 +269,15 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
             } else {
                 "共 ${diagnostics.size} 个文件, $errorCount 个错误, $warningCount 个警告"
             }
+            LOG.debug(
+                "[Problem4AI][Panel] status updated files=${diagnostics.size} errors=$errorCount warnings=$warningCount selected=${fileList.selectedValue?.file?.path ?: "<none>"}"
+            )
         }
     }
 
     private fun syncSelectionToFile(file: VirtualFile?, clearWhenMissing: Boolean = false): Boolean {
         if (file == null) {
+            LOG.debug("[Problem4AI][Panel] syncSelection skip: null file")
             return false
         }
 
@@ -271,6 +286,7 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
             if (clearWhenMissing) {
                 fileList.clearSelection()
                 problemListModel.clear()
+                LOG.debug("[Problem4AI][Panel] syncSelection clear because missing file=${file.path}")
             }
             return false
         }
@@ -278,6 +294,7 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         if (fileList.selectedIndex != index) {
             fileList.selectedIndex = index
             fileList.ensureIndexIsVisible(index)
+            LOG.debug("[Problem4AI][Panel] syncSelection selected index=$index file=${file.path}")
         }
         return true
     }
@@ -288,8 +305,8 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun refreshDiagnostics() {
-        // 触发增量扫描处理队列中的文件
-        collectorService.triggerIncrementalScan()
+        LOG.info("[Problem4AI][Panel] manual refresh clicked -> full scan")
+        collectorService.performFullScan()
     }
 
     private fun navigateToFile(file: VirtualFile, line: Int) {

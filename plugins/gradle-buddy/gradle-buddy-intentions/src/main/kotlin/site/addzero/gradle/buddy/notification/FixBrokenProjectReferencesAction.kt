@@ -58,8 +58,10 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val basePath = project.basePath ?: return
+        runBatchFix(project)
+    }
 
+    private fun runBatchFixFlow(project: Project, basePath: String) {
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Scanning broken project references...", true) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
@@ -593,6 +595,33 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
     }
 
     companion object {
+        fun runBatchFix(project: Project) {
+            val basePath = project.basePath ?: return
+            FixBrokenProjectReferencesAction().runBatchFixFlow(project, basePath)
+        }
+
+        fun hasOtherBrokenReferences(
+            project: Project,
+            currentFile: VirtualFile,
+            currentRange: IntRange
+        ): Boolean {
+            val basePath = project.basePath ?: return false
+            val action = FixBrokenProjectReferencesAction()
+
+            return ApplicationManager.getApplication().runReadAction<Boolean> {
+                val allModulePaths = action.scanAllModules(basePath).distinct()
+                val modulePathSet = allModulePaths.toSet()
+                val ktsFiles = action.collectGradleKtsFiles(basePath)
+                val broken = action.collectBrokenRefs(project, basePath, ktsFiles, modulePathSet)
+
+                broken.any { ref ->
+                    ref.ktsFile.path != currentFile.path ||
+                        ref.matchRange.first != currentRange.first ||
+                        ref.matchRange.last != currentRange.last
+                }
+            }
+        }
+
         private val DEPENDENCY_CONFIGURATIONS = setOf(
             "implementation", "api", "compileOnly", "runtimeOnly",
             "testImplementation", "testApi", "testCompileOnly", "testRuntimeOnly",

@@ -2,11 +2,13 @@ package site.addzero.diagnostic.service
 
 import com.intellij.ProjectTopics
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
@@ -14,12 +16,20 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileVisitor
 import com.intellij.openapi.compiler.CompilerTopics
+import com.intellij.openapi.compiler.CompilerManager
+import com.intellij.openapi.compiler.CompilerMessage
+import com.intellij.openapi.compiler.CompilerMessageCategory
 import com.intellij.openapi.compiler.CompilationStatusListener
 import com.intellij.openapi.compiler.CompileContext
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.problems.ProblemListener
 import com.intellij.openapi.roots.ModuleRootEvent
 import com.intellij.openapi.roots.ModuleRootListener
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.util.Alarm
 import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.core.collectDiagnostics
@@ -50,6 +60,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
     // 完整缓存：所有已扫描文件的诊断信息（包括无问题的文件，diagnostics=null表示无问题）
     private val diagnosticsCache = ConcurrentHashMap<VirtualFile, DiagnosticResult>()
+    private val compileDiagnosticsCache = ConcurrentHashMap<VirtualFile, FileDiagnostics>()
 
     // 待扫描队列：文件变更时加入此队列
     private val needScanQueue = LinkedBlockingQueue<VirtualFile>()
@@ -62,6 +73,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     private val isScanning = AtomicBoolean(false)
     private val isFullScanning = AtomicBoolean(false)
     private val fullScanRerunRequested = AtomicBoolean(false)
+    private val compileTriggeredOnce = AtomicBoolean(false)
     private val debounceAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val fullScanRetryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
 
@@ -81,6 +93,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     }
 
     companion object {
+        private val LOG: Logger = Logger.getInstance(DiagnosticCollectorService::class.java)
+
         fun getInstance(project: Project): DiagnosticCollectorService =
             project.getService(DiagnosticCollectorService::class.java)
 
@@ -103,6 +117,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      */
     fun performFullScan(indicator: ProgressIndicator? = null) {
         if (DumbService.getInstance(project).isDumb) {
+            LOG.debug("[Problem4AI][Scan] skip full scan in dumb mode, reschedule when smart")
             DumbService.getInstance(project).runWhenSmart {
                 performFullScan(indicator)
             }
@@ -110,17 +125,20 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         }
 
         if (isFullScanning.compareAndSet(false, true)) {
+            LOG.info("[Problem4AI][Scan] full scan requested, start async")
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     doFullScan(indicator)
                 } finally {
                     isFullScanning.set(false)
                     if (fullScanRerunRequested.compareAndSet(true, false)) {
+                        LOG.info("[Problem4AI][Scan] rerun full scan because request arrived during running scan")
                         performFullScan(indicator)
                     }
                 }
             }
         } else {
+            LOG.debug("[Problem4AI][Scan] full scan already running, mark rerun")
             fullScanRerunRequested.set(true)
         }
     }
@@ -130,6 +148,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      */
     fun triggerIncrementalScan() {
         if (isScanning.compareAndSet(false, true)) {
+            LOG.debug("[Problem4AI][Scan] incremental scan triggered")
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     processNeedScanQueue()
@@ -137,6 +156,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                     isScanning.set(false)
                 }
             }
+        } else {
+            LOG.debug("[Problem4AI][Scan] incremental scan ignored because scanner is busy")
         }
     }
 
@@ -144,11 +165,21 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 将文件加入待扫描队列
      */
     fun queueForScan(file: VirtualFile) {
-        if (!file.isValid || file.isDirectory) return
-        if (!isSourceFile(file)) return
-        if (exclusionConfig.isExcluded(file)) return
+        if (!file.isValid || file.isDirectory) {
+            LOG.debug("[Problem4AI][Queue] skip invalid/dir: ${file.path}")
+            return
+        }
+        if (!isSourceFile(file)) {
+            LOG.debug("[Problem4AI][Queue] skip extension: ${file.path}, ext=${file.extension ?: "<none>"}")
+            return
+        }
+        if (exclusionConfig.isExcluded(file)) {
+            LOG.debug("[Problem4AI][Queue] skip excluded: ${file.path}")
+            return
+        }
 
         needScanQueue.offer(file)
+        LOG.debug("[Problem4AI][Queue] queued: ${file.path}, pending=${needScanQueue.size}")
 
         // 防抖触发增量扫描
         debounceAlarm.cancelAllRequests()
@@ -184,8 +215,12 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 获取所有有问题的诊断（用于面板显示）
      */
     fun getAllProblemDiagnostics(): List<FileDiagnostics> {
-        return diagnosticsCache.values
-            .mapNotNull { it.diagnostics }
+        val allFiles = LinkedHashSet<VirtualFile>()
+        allFiles.addAll(diagnosticsCache.keys)
+        allFiles.addAll(compileDiagnosticsCache.keys)
+
+        return allFiles
+            .mapNotNull { file -> mergeFileDiagnostics(file) }
             .filter { it.items.isNotEmpty() }
             .sortedBy { it.file.path }
     }
@@ -194,7 +229,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 获取指定文件的诊断（可能返回null表示无问题或尚未扫描）
      */
     fun getDiagnostics(file: VirtualFile): FileDiagnostics? {
-        return diagnosticsCache[file]?.diagnostics
+        return mergeFileDiagnostics(file)
     }
 
     override fun close() {
@@ -208,12 +243,14 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
     private fun setupListeners() {
         val connection = project.messageBus.connect(project)
+        LOG.info("[Problem4AI][Listener] setup listeners for project=${project.name}")
 
         // 监听 DaemonCodeAnalyzer 完成 - 文件被分析后触发
         connection.subscribe(
             DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC,
             object : DaemonCodeAnalyzer.DaemonListener {
                 override fun daemonFinished(fileEditors: Collection<FileEditor>) {
+                    LOG.debug("[Problem4AI][Listener] daemonFinished editors=${fileEditors.size}")
                     // 将已打开的文件加入扫描队列
                     fileEditors.forEach { editor ->
                         editor.file?.let { queueForScan(it) }
@@ -226,9 +263,18 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         connection.subscribe(
             ProblemListener.TOPIC,
             object : ProblemListener {
-                override fun problemsAppeared(file: VirtualFile) = queueForScan(file)
-                override fun problemsDisappeared(file: VirtualFile) = queueForScan(file)
-                override fun problemsChanged(file: VirtualFile) = queueForScan(file)
+                override fun problemsAppeared(file: VirtualFile) {
+                    LOG.debug("[Problem4AI][Listener] problemsAppeared: ${file.path}")
+                    queueForScan(file)
+                }
+                override fun problemsDisappeared(file: VirtualFile) {
+                    LOG.debug("[Problem4AI][Listener] problemsDisappeared: ${file.path}")
+                    queueForScan(file)
+                }
+                override fun problemsChanged(file: VirtualFile) {
+                    LOG.debug("[Problem4AI][Listener] problemsChanged: ${file.path}")
+                    queueForScan(file)
+                }
             }
         )
 
@@ -242,7 +288,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                     warnings: Int,
                     compileContext: CompileContext
                 ) {
+                    applyCompileContextMessages(compileContext)
                     if (!aborted) {
+                        LOG.info("[Problem4AI][Listener] compilation finished, requeue scanned files=${diagnosticsCache.size}")
                         // 编译完成后，将所有已扫描的文件重新加入队列
                         diagnosticsCache.keys.forEach { queueForScan(it) }
                     }
@@ -255,10 +303,22 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             ProjectTopics.PROJECT_ROOTS,
             object : ModuleRootListener {
                 override fun rootsChanged(event: ModuleRootEvent) {
+                    LOG.info("[Problem4AI][Listener] project roots changed, schedule full scan")
                     fullScanRetryAlarm.cancelAllRequests()
                     fullScanRetryAlarm.addRequest({
                         performFullScan()
                     }, 1000)
+                }
+            }
+        )
+
+        // 监听文件系统变化，保证未打开文件修改后也会刷新缓存
+        connection.subscribe(
+            VirtualFileManager.VFS_CHANGES,
+            object : BulkFileListener {
+                override fun after(events: List<VFileEvent>) {
+                    LOG.debug("[Problem4AI][Listener] VFS changes count=${events.size}")
+                    handleVfsChanges(events)
                 }
             }
         )
@@ -269,6 +329,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      */
     private fun doFullScan(indicator: ProgressIndicator?) {
         updateProgress(ScanProgress(isScanning = true, isFullScan = true))
+        LOG.info("[Problem4AI][Scan] full scan started")
 
         // 收集所有要扫描的文件
         val filesToScan = ReadAction.compute<List<VirtualFile>, Throwable> {
@@ -276,10 +337,12 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         }
 
         if (filesToScan.isEmpty()) {
+            LOG.warn("[Problem4AI][Scan] full scan found 0 files, schedule retry")
             updateProgress(ScanProgress())
             scheduleFullScanRetry()
             return
         }
+        LOG.info("[Problem4AI][Scan] full scan files=${filesToScan.size}")
 
         val total = filesToScan.size
         val scanned = AtomicInteger(0)
@@ -294,18 +357,26 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         // 分批扫描
         filesToScan.chunked(batchSize).forEach { batch ->
             if (indicator?.isCanceled == true) return@forEach
+            if (DumbService.getInstance(project).isDumb) {
+                LOG.info("[Problem4AI][Scan] switch to dumb mode during full scan, reschedule")
+                updateProgress(ScanProgress())
+                performFullScan()
+                return
+            }
 
             // 扫描这一批
             val results = batch.associateWith { file ->
-                ReadAction.compute<FileDiagnostics?, Throwable> {
-                    file.collectDiagnostics(project)
-                }
+                collectDiagnosticsSafely(file)
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）
             results.forEach { (file, diag) ->
                 diagnosticsCache[file] = DiagnosticResult(diag)
             }
+            val batchWithProblems = results.count { it.value?.items?.isNotEmpty() == true }
+            LOG.debug(
+                "[Problem4AI][Scan] full batch processed=${batch.size}, withProblems=$batchWithProblems, cacheSize=${diagnosticsCache.size}"
+            )
 
             // 更新进度
             val processed = scanned.addAndGet(batch.size)
@@ -334,6 +405,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
         // 扫描完成
         updateProgress(ScanProgress())
+        LOG.info("[Problem4AI][Scan] full scan completed, problems=${getAllProblemDiagnostics().size}, cacheSize=${diagnosticsCache.size}")
+        maybeTriggerBackgroundCompile()
 
         // 扫描完成后再通知一次，确保最终一致
         notifyDiagnosticsListeners()
@@ -355,6 +428,12 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         }
 
         if (filesToScan.isEmpty()) return
+        if (DumbService.getInstance(project).isDumb) {
+            LOG.debug("[Problem4AI][Scan] incremental paused in dumb mode, requeue files=${filesToScan.size}")
+            filesToScan.forEach { needScanQueue.offer(it) }
+            return
+        }
+        LOG.debug("[Problem4AI][Scan] incremental start files=${filesToScan.size}")
 
         updateProgress(ScanProgress(isScanning = true, isFullScan = false))
 
@@ -362,15 +441,17 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         filesToScan.chunked(batchSize).forEachIndexed { index, batch ->
             // 扫描这一批
             val results = batch.associateWith { file ->
-                ReadAction.compute<FileDiagnostics?, Throwable> {
-                    file.collectDiagnostics(project)
-                }
+                collectDiagnosticsSafely(file)
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）
             results.forEach { (file, diag) ->
                 diagnosticsCache[file] = DiagnosticResult(diag)
             }
+            val batchWithProblems = results.count { it.value?.items?.isNotEmpty() == true }
+            LOG.debug(
+                "[Problem4AI][Scan] incremental batch processed=${batch.size}, withProblems=$batchWithProblems, cacheSize=${diagnosticsCache.size}"
+            )
 
             // 更新进度
             val progress = ScanProgress(
@@ -389,6 +470,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         }
 
         updateProgress(ScanProgress())
+        LOG.debug("[Problem4AI][Scan] incremental completed, problems=${getAllProblemDiagnostics().size}")
 
         // 扫描完成后再通知一次，确保最终一致
         notifyDiagnosticsListeners()
@@ -396,13 +478,188 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
     private fun notifyDiagnosticsListeners() {
         val problems = getAllProblemDiagnostics()
+        LOG.debug("[Problem4AI][UI] notify listeners=${listeners.size}, problemFiles=${problems.size}")
         ApplicationManager.getApplication().invokeLater {
             listeners.forEach { it(problems) }
         }
     }
 
+    private fun collectDiagnosticsSafely(file: VirtualFile): FileDiagnostics? {
+        return try {
+            ReadAction.compute<FileDiagnostics?, Throwable> {
+                file.collectDiagnostics(project)
+            }
+        } catch (_: ProcessCanceledException) {
+            null
+        } catch (e: Exception) {
+            LOG.debug("[Problem4AI][Scan] collect failed for file=${file.path}", e)
+            null
+        }
+    }
+
+    private fun mergeFileDiagnostics(file: VirtualFile): FileDiagnostics? {
+        val scanDiagnostics = diagnosticsCache[file]?.diagnostics
+        val compileDiagnostics = compileDiagnosticsCache[file]
+        return mergeDiagnostics(scanDiagnostics, compileDiagnostics)
+    }
+
+    private fun mergeDiagnostics(
+        scanDiagnostics: FileDiagnostics?,
+        compileDiagnostics: FileDiagnostics?
+    ): FileDiagnostics? {
+        if (scanDiagnostics == null) return compileDiagnostics
+        if (compileDiagnostics == null) return scanDiagnostics
+
+        val mergedItems = (scanDiagnostics.items + compileDiagnostics.items)
+            .distinctBy { Triple(it.lineNumber, it.message, it.severity) }
+            .sortedBy { it.lineNumber }
+
+        return FileDiagnostics(
+            file = scanDiagnostics.file,
+            psiFile = scanDiagnostics.psiFile ?: compileDiagnostics.psiFile,
+            items = mergedItems
+        )
+    }
+
+    private fun applyCompileContextMessages(compileContext: CompileContext) {
+        val grouped = LinkedHashMap<VirtualFile, MutableList<site.addzero.diagnostic.model.DiagnosticItem>>()
+
+        fun collectByCategory(category: CompilerMessageCategory, severity: site.addzero.diagnostic.model.DiagnosticSeverity) {
+            compileContext.getMessages(category).forEach { message ->
+                val file = message.virtualFile ?: return@forEach
+                if (!file.isValid || file.isDirectory) return@forEach
+                if (!isSourceFile(file) || exclusionConfig.isExcluded(file)) return@forEach
+
+                val line = extractLineFromCompilerMessage(message)
+                val text = message.message?.takeIf { it.isNotBlank() } ?: return@forEach
+                val list = grouped.getOrPut(file) { mutableListOf() }
+                if (list.none { it.lineNumber == line && it.message == text && it.severity == severity }) {
+                    list.add(
+                        site.addzero.diagnostic.model.DiagnosticItem(
+                            file = file,
+                            psiFile = null,
+                            lineNumber = line,
+                            message = text,
+                            severity = severity
+                        )
+                    )
+                }
+            }
+        }
+
+        collectByCategory(CompilerMessageCategory.ERROR, site.addzero.diagnostic.model.DiagnosticSeverity.ERROR)
+        collectByCategory(CompilerMessageCategory.WARNING, site.addzero.diagnostic.model.DiagnosticSeverity.WARNING)
+
+        compileDiagnosticsCache.clear()
+        grouped.forEach { (file, items) ->
+            compileDiagnosticsCache[file] = FileDiagnostics(
+                file = file,
+                psiFile = null,
+                items = items.sortedBy { it.lineNumber }
+            )
+        }
+
+        val errorCount = compileDiagnosticsCache.values.sumOf {
+            it.items.count { item -> item.severity == site.addzero.diagnostic.model.DiagnosticSeverity.ERROR }
+        }
+        val warningCount = compileDiagnosticsCache.values.sumOf {
+            it.items.count { item -> item.severity == site.addzero.diagnostic.model.DiagnosticSeverity.WARNING }
+        }
+        LOG.info(
+            "[Problem4AI][Compile] compile context applied files=${compileDiagnosticsCache.size} errors=$errorCount warnings=$warningCount"
+        )
+        notifyDiagnosticsListeners()
+    }
+
+    private fun maybeTriggerBackgroundCompile() {
+        if (!compileTriggeredOnce.compareAndSet(false, true)) {
+            return
+        }
+
+        if (DumbService.getInstance(project).isDumb) {
+            compileTriggeredOnce.set(false)
+            LOG.debug("[Problem4AI][Compile] skip background make in dumb mode, will retry later")
+            return
+        }
+
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                return@invokeLater
+            }
+            LOG.info("[Problem4AI][Compile] trigger background make to collect unopened-file compile diagnostics")
+            CompilerManager.getInstance(project).make { aborted, errors, warnings, _ ->
+                LOG.info("[Problem4AI][Compile] background make completed aborted=$aborted errors=$errors warnings=$warnings")
+                if (aborted) {
+                    compileTriggeredOnce.set(false)
+                    fullScanRetryAlarm.cancelAllRequests()
+                    fullScanRetryAlarm.addRequest({
+                        maybeTriggerBackgroundCompile()
+                    }, 2000)
+                    LOG.info("[Problem4AI][Compile] background make aborted, schedule retry in 2000ms")
+                }
+            }
+        }
+    }
+
+    private fun extractLineFromCompilerMessage(message: CompilerMessage): Int {
+        val descriptor = message.navigatable as? OpenFileDescriptor
+        val line = descriptor?.line ?: -1
+        return if (line >= 0) line + 1 else 1
+    }
+
+    private fun handleVfsChanges(events: List<VFileEvent>) {
+        if (events.isEmpty()) return
+
+        var cacheChanged = false
+        val changedFiles = LinkedHashSet<VirtualFile>()
+
+        events.forEach { event ->
+            val file = event.file ?: return@forEach
+
+            if (event is VFileDeleteEvent || !file.isValid) {
+                if (removeFromCache(file)) {
+                    cacheChanged = true
+                }
+                return@forEach
+            }
+
+            if (file.isDirectory) return@forEach
+
+            if (!isSourceFile(file) || exclusionConfig.isExcluded(file)) {
+                if (removeFromCache(file)) {
+                    cacheChanged = true
+                }
+                return@forEach
+            }
+
+            changedFiles.add(file)
+        }
+
+        changedFiles.forEach { queueForScan(it) }
+        if (changedFiles.isNotEmpty()) {
+            LOG.debug("[Problem4AI][Listener] VFS changed source files=${changedFiles.size}")
+        }
+
+        if (cacheChanged) {
+            LOG.debug("[Problem4AI][Cache] cache entries removed by VFS event")
+            notifyDiagnosticsListeners()
+        }
+    }
+
+    private fun removeFromCache(file: VirtualFile): Boolean {
+        val removedByKey = diagnosticsCache.remove(file) != null
+        val removedCompileByKey = compileDiagnosticsCache.remove(file) != null
+        val removedByPath = diagnosticsCache.keys.removeIf { cached -> cached.path == file.path }
+        val removedCompileByPath = compileDiagnosticsCache.keys.removeIf { cached -> cached.path == file.path }
+        if (removedByKey || removedByPath || removedCompileByKey || removedCompileByPath) {
+            LOG.debug("[Problem4AI][Cache] removed stale cache for ${file.path}")
+        }
+        return removedByKey || removedByPath || removedCompileByKey || removedCompileByPath
+    }
+
     private fun scheduleFullScanRetry() {
         fullScanRetryAlarm.cancelAllRequests()
+        LOG.info("[Problem4AI][Scan] schedule full scan retry in 1500ms")
         fullScanRetryAlarm.addRequest({
             performFullScan()
         }, 1500)
@@ -438,9 +695,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             emptyList()
         }
 
-        (rootsToScan + fallbackRoots)
-            .distinctBy { it.path }
-            .forEach { root ->
+        val resolvedRoots = (rootsToScan + fallbackRoots).distinctBy { it.path }
+        LOG.info("[Problem4AI][Scan] collect roots count=${resolvedRoots.size}")
+        resolvedRoots.forEach { root ->
             if (!root.isValid || !root.exists()) return@forEach
 
             VfsUtilCore.visitChildrenRecursively(root, object : VirtualFileVisitor<Unit>() {
@@ -453,8 +710,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
                     return true
                 }
             })
-            }
+        }
 
+        LOG.info("[Problem4AI][Scan] collect source files count=${files.size}")
         return files
     }
 

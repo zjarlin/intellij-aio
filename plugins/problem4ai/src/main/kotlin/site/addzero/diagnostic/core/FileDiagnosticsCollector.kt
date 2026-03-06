@@ -3,13 +3,18 @@ package site.addzero.diagnostic.core
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx
+import com.intellij.codeInsight.daemon.impl.DaemonProgressIndicator
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.impl.DocumentMarkupModel
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.EmptyProgressIndicator
+import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.problems.WolfTheProblemSolver
 import com.intellij.psi.PsiDocumentManager
@@ -20,6 +25,8 @@ import com.intellij.psi.util.PsiTreeUtil
 import site.addzero.diagnostic.model.DiagnosticItem
 import site.addzero.diagnostic.model.DiagnosticSeverity
 import site.addzero.diagnostic.model.FileDiagnostics
+
+private val LOG: Logger = Logger.getInstance("site.addzero.diagnostic.core.FileDiagnosticsCollector")
 
 /**
  * 核心扩展函数：收集单个文件的诊断信息
@@ -146,7 +153,18 @@ private fun PsiFile.runDaemonMainPasses(project: Project, items: MutableList<Dia
 
     try {
         val daemon = DaemonCodeAnalyzerEx.getInstanceEx(project)
-        val highlights = daemon.runMainPasses(this, document, EmptyProgressIndicator())
+        val daemonProgress = DaemonProgressIndicator()
+        daemonProgress.start()
+        val highlights = try {
+            ProgressManager.getInstance().runProcess(
+                Computable<List<HighlightInfo>> {
+                    daemon.runMainPasses(this, document, daemonProgress)
+                },
+                daemonProgress
+            )
+        } finally {
+            daemonProgress.stop()
+        }
         highlights.forEach { info ->
             if (info.severity < HighlightSeverity.WARNING) {
                 return@forEach
@@ -175,8 +193,10 @@ private fun PsiFile.runDaemonMainPasses(project: Project, items: MutableList<Dia
                 )
             }
         }
-    } catch (_: Exception) {
-        // 静默处理
+    } catch (_: ProcessCanceledException) {
+        // Cancellation is expected and should not be logged.
+    } catch (e: Exception) {
+        LOG.debug("runMainPasses failed for file: ${file.path}", e)
     }
 }
 

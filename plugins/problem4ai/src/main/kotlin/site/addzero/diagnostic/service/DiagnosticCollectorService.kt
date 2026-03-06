@@ -61,6 +61,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     // 扫描控制
     private val isScanning = AtomicBoolean(false)
     private val isFullScanning = AtomicBoolean(false)
+    private val fullScanRerunRequested = AtomicBoolean(false)
     private val debounceAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val fullScanRetryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
 
@@ -101,14 +102,26 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 扫描所有文件，建立完整缓存
      */
     fun performFullScan(indicator: ProgressIndicator? = null) {
+        if (DumbService.getInstance(project).isDumb) {
+            DumbService.getInstance(project).runWhenSmart {
+                performFullScan(indicator)
+            }
+            return
+        }
+
         if (isFullScanning.compareAndSet(false, true)) {
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     doFullScan(indicator)
                 } finally {
                     isFullScanning.set(false)
+                    if (fullScanRerunRequested.compareAndSet(true, false)) {
+                        performFullScan(indicator)
+                    }
                 }
             }
+        } else {
+            fullScanRerunRequested.set(true)
         }
     }
 
@@ -284,7 +297,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
             // 扫描这一批
             val results = batch.associateWith { file ->
-                file.collectDiagnostics(project)
+                ReadAction.compute<FileDiagnostics?, Throwable> {
+                    file.collectDiagnostics(project)
+                }
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）
@@ -347,7 +362,9 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         filesToScan.chunked(batchSize).forEachIndexed { index, batch ->
             // 扫描这一批
             val results = batch.associateWith { file ->
-                file.collectDiagnostics(project)
+                ReadAction.compute<FileDiagnostics?, Throwable> {
+                    file.collectDiagnostics(project)
+                }
             }
 
             // 更新缓存（包装成 DiagnosticResult 避免 null）

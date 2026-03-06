@@ -1,17 +1,22 @@
 package site.addzero.diagnostic.problemsview
 
 import com.intellij.icons.AllIcons
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.concurrency.AppExecutorUtil
 import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.model.DiagnosticItem
 import site.addzero.diagnostic.model.DiagnosticSeverity
@@ -26,6 +31,10 @@ import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.nio.file.Path
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import javax.swing.*
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
@@ -39,6 +48,11 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     companion object {
         private val LOG: Logger = Logger.getInstance(AiFixPanel::class.java)
     }
+
+    private data class CliTarget(
+        val label: String,
+        val commandTemplate: String
+    )
 
     // 左侧文件列表
     private val fileListModel = DefaultListModel<FileDiagnostics>()
@@ -55,8 +69,10 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val diagnosticsListener: (List<FileDiagnostics>) -> Unit = { updatePanel(it) }
     private val progressListener: (DiagnosticCollectorService.ScanProgress) -> Unit = { updateProgress(it) }
 
+    private val exclusionConfig = DiagnosticExclusionConfig.getInstance(project)
     private val globalCache = GlobalDiagnosticCache.getInstance(project)
     private val collectorService = DiagnosticCollectorService.getInstance(project)
+    private lateinit var cliButtonPanel: JPanel
 
     init {
         setupUI()
@@ -88,6 +104,14 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         copyProblemButton.toolTipText = "复制当前选中的单个问题"
         copyProblemButton.addActionListener { copyCurrentProblem() }
         toolbar.add(copyProblemButton)
+
+        toolbar.addSeparator()
+
+        cliButtonPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 0)).apply {
+            isOpaque = false
+        }
+        toolbar.add(cliButtonPanel)
+        rebuildCliButtons()
 
         toolbar.addSeparator()
 
@@ -345,11 +369,329 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         copyToClipboard(content)
     }
 
+    private fun rebuildCliButtons() {
+        if (!::cliButtonPanel.isInitialized) {
+            return
+        }
+        cliButtonPanel.removeAll()
+
+        parseCliTargets().forEach { target ->
+            val button = JButton(target.label, AllIcons.RunConfigurations.TestState.Run).apply {
+                toolTipText = "执行: ${target.commandTemplate}（支持 {input} / {project}）"
+                addActionListener { sendToCliByPrefix(target) }
+            }
+            cliButtonPanel.add(button)
+        }
+
+        cliButtonPanel.revalidate()
+        cliButtonPanel.repaint()
+    }
+
+    private fun sendToCliByPrefix(target: CliTarget) {
+        val payload = buildPayloadForCli()
+        if (payload == null) {
+            statusLabel.text = "没有可发送的问题内容"
+            return
+        }
+
+        val commandTemplate = target.commandTemplate
+        val label = target.label
+
+        if (commandTemplate.isBlank()) {
+            statusLabel.text = "CLI前缀为空，无法执行"
+            return
+        }
+
+        if (label.isBlank()) {
+            statusLabel.text = "CLI标签为空，无法执行"
+            return
+        }
+
+        statusLabel.text = "正在执行 $label ..."
+        LOG.info("[Problem4AI][Panel] execute CLI label=$label template=$commandTemplate")
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val tempFile = Files.createTempFile("problem4ai-cli-", ".txt")
+            try {
+                Files.write(tempFile, payload.toByteArray(StandardCharsets.UTF_8))
+
+                val basePath = project.basePath ?: System.getProperty("user.home")
+                val command = resolveCliCommand(commandTemplate, tempFile, basePath)
+                if (command.isBlank()) {
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "$label 命令为空，取消执行"
+                    }
+                    runCatching { Files.deleteIfExists(tempFile) }
+                    return@executeOnPooledThread
+                }
+
+                val terminalCommand = buildTerminalCommand(command, tempFile, basePath)
+                val executedInTerminal = runOnEdtAndGet {
+                    executeInIdeaTerminal(label, basePath, terminalCommand)
+                }
+
+                if (executedInTerminal) {
+                    scheduleTempFileCleanup(tempFile)
+                    SwingUtilities.invokeLater {
+                        statusLabel.text = "已在 Terminal 执行 $label"
+                    }
+                    return@executeOnPooledThread
+                }
+
+                LOG.warn("[Problem4AI][Panel] terminal execution unavailable, fallback to background process")
+                executeInBackgroundProcess(label, basePath, command, tempFile)
+            } catch (e: Exception) {
+                LOG.warn("[Problem4AI][Panel] execute CLI command failed", e)
+                SwingUtilities.invokeLater {
+                    statusLabel.text = "$label 执行异常: ${e.message}"
+                    Messages.showErrorDialog(project, e.message ?: "未知异常", "发送到CLI: $label")
+                }
+                runCatching { Files.deleteIfExists(tempFile) }
+            }
+        }
+    }
+
+    private fun executeInIdeaTerminal(label: String, workDir: String, command: String): Boolean {
+        return try {
+            val managerClass = Class.forName("org.jetbrains.plugins.terminal.TerminalToolWindowManager")
+            val getInstanceMethod = managerClass.getMethod("getInstance", Project::class.java)
+            val manager = getInstanceMethod.invoke(null, project) ?: return false
+
+            val toolWindow = runCatching {
+                managerClass.getMethod("getToolWindow").invoke(manager) as? com.intellij.openapi.wm.ToolWindow
+            }.getOrNull()
+            toolWindow?.show()
+            toolWindow?.activate(null, true, true)
+
+            val widget = createTerminalWidget(managerClass, manager, label, workDir) ?: return false
+            val executeMethod = widget.javaClass.methods.firstOrNull {
+                it.name == "sendCommandToExecute" && it.parameterCount == 1
+            } ?: return false
+            executeMethod.invoke(widget, command)
+            widget.javaClass.methods.firstOrNull {
+                it.name == "requestFocus" && it.parameterCount == 0
+            }?.invoke(widget)
+            true
+        } catch (t: Throwable) {
+            LOG.warn("[Problem4AI][Panel] execute in terminal failed", t)
+            false
+        }
+    }
+
+    private fun createTerminalWidget(managerClass: Class<*>, manager: Any, label: String, workDir: String): Any? {
+        val tabName = "Problem4AI-$label"
+        val methods = managerClass.methods
+
+        methods.firstOrNull { it.name == "createShellWidget" && it.parameterCount == 4 }?.let {
+            return it.invoke(manager, workDir, tabName, true, true)
+        }
+        methods.firstOrNull { it.name == "createLocalShellWidget" && it.parameterCount == 4 }?.let {
+            return it.invoke(manager, workDir, tabName, true, true)
+        }
+        methods.firstOrNull { it.name == "createLocalShellWidget" && it.parameterCount == 3 }?.let {
+            return it.invoke(manager, workDir, tabName, true)
+        }
+        methods.firstOrNull { it.name == "createLocalShellWidget" && it.parameterCount == 2 }?.let {
+            return it.invoke(manager, workDir, tabName)
+        }
+        methods.firstOrNull { it.name == "createNewSession" && it.parameterCount == 0 }?.let {
+            return it.invoke(manager)
+        }
+
+        return null
+    }
+
+    private fun buildTerminalCommand(command: String, inputFile: Path, projectPath: String): String {
+        val inputPath = inputFile.toAbsolutePath().toString()
+        return if (isWindowsShell()) {
+            val escapedInput = inputPath.replace("\"", "\"\"")
+            val escapedProject = projectPath.replace("\"", "\"\"")
+            "set \"PROBLEM4AI_INPUT=$escapedInput\" && set \"PROBLEM4AI_PROJECT=$escapedProject\" && $command"
+        } else {
+            "PROBLEM4AI_INPUT=${quoteForShell(inputPath)} PROBLEM4AI_PROJECT=${quoteForShell(projectPath)} $command"
+        }
+    }
+
+    private fun executeInBackgroundProcess(label: String, basePath: String, command: String, tempFile: Path) {
+        try {
+            val commandLine = buildShellCommand(command).withWorkDirectory(basePath)
+            commandLine.environment["PROBLEM4AI_INPUT"] = tempFile.toAbsolutePath().toString()
+            commandLine.environment["PROBLEM4AI_PROJECT"] = basePath
+
+            val output = CapturingProcessHandler(commandLine).runProcess(120_000)
+            SwingUtilities.invokeLater {
+                when {
+                    output.isTimeout -> {
+                        statusLabel.text = "CLI执行超时（120s）"
+                        Messages.showWarningDialog(project, "命令执行超时（120s）", "发送到CLI: $label")
+                    }
+                    output.exitCode == 0 -> {
+                        statusLabel.text = "$label 执行成功"
+                        if (output.stdout.isNotBlank()) {
+                            Messages.showInfoMessage(project, output.stdout.take(2000), "$label 输出（前2000字符）")
+                        }
+                    }
+                    else -> {
+                        statusLabel.text = "$label 执行失败: exit=${output.exitCode}"
+                        val errorText = (output.stderr.ifBlank { output.stdout }).take(2000)
+                        Messages.showErrorDialog(project, errorText.ifBlank { "命令执行失败" }, "发送到CLI: $label")
+                    }
+                }
+            }
+        } finally {
+            runCatching { Files.deleteIfExists(tempFile) }
+        }
+    }
+
+    private fun scheduleTempFileCleanup(tempFile: Path) {
+        AppExecutorUtil.getAppScheduledExecutorService().schedule(
+            { runCatching { Files.deleteIfExists(tempFile) } },
+            10,
+            TimeUnit.MINUTES
+        )
+    }
+
+    private fun <T> runOnEdtAndGet(action: () -> T): T {
+        if (SwingUtilities.isEventDispatchThread()) {
+            return action()
+        }
+        var value: T? = null
+        var error: Throwable? = null
+        ApplicationManager.getApplication().invokeAndWait {
+            try {
+                value = action()
+            } catch (t: Throwable) {
+                error = t
+            }
+        }
+        error?.let { throw it }
+        @Suppress("UNCHECKED_CAST")
+        return value as T
+    }
+
+    private fun parseCliTargets(): List<CliTarget> {
+        return exclusionConfig.getAiCliPrefixes()
+            .mapNotNull { parseCliTarget(it) }
+    }
+
+    private fun parseCliTarget(raw: String): CliTarget? {
+        val line = raw.trim()
+        if (line.isBlank()) {
+            return null
+        }
+
+        val parts = line.split("|").map { it.trim() }.filter { it.isNotBlank() }
+        if (parts.isEmpty()) {
+            return null
+        }
+
+        val label = parts.first()
+        if (parts.size == 1) {
+            return CliTarget(label = label, commandTemplate = label)
+        }
+
+        val commandByOs = mutableMapOf<String, String>()
+        parts.drop(1).forEach { segment ->
+            val index = segment.indexOf(':')
+            if (index <= 0 || index >= segment.lastIndex) {
+                return@forEach
+            }
+            val osKey = normalizeOsKey(segment.substring(0, index))
+            val command = segment.substring(index + 1).trim()
+            if (command.isNotBlank()) {
+                commandByOs[osKey] = command
+            }
+        }
+
+        val current = currentOsKey()
+        val selected = commandByOs[current]
+            ?: commandByOs["default"]
+            ?: commandByOs["all"]
+            ?: label
+
+        return CliTarget(label = label, commandTemplate = selected)
+    }
+
+    private fun currentOsKey(): String {
+        val name = System.getProperty("os.name").lowercase()
+        return when {
+            name.contains("win") -> "win"
+            name.contains("mac") || name.contains("darwin") -> "mac"
+            else -> "linux"
+        }
+    }
+
+    private fun normalizeOsKey(raw: String): String {
+        return when (raw.trim().lowercase()) {
+            "windows", "win" -> "win"
+            "mac", "macos", "osx", "darwin" -> "mac"
+            "linux", "unix" -> "linux"
+            "default", "all", "*" -> "default"
+            else -> raw.trim().lowercase()
+        }
+    }
+
+    private fun resolveCliCommand(commandTemplate: String, inputPath: Path, projectPath: String): String {
+        val quotedInput = quoteForShell(inputPath.toAbsolutePath().toString())
+        val quotedProject = quoteForShell(projectPath)
+        var command = commandTemplate
+            .replace("{input}", quotedInput)
+            .replace("{project}", quotedProject)
+            .trim()
+
+        val hasInputBinding = commandTemplate.contains("{input}") ||
+            commandTemplate.contains("\$PROBLEM4AI_INPUT") ||
+            commandTemplate.contains("%PROBLEM4AI_INPUT%") ||
+            commandTemplate.contains("\${PROBLEM4AI_INPUT}")
+
+        if (!hasInputBinding) {
+            command += if (isWindowsShell()) {
+                " < \"%PROBLEM4AI_INPUT%\""
+            } else {
+                " < \"\$PROBLEM4AI_INPUT\""
+            }
+        }
+
+        return command
+    }
+
+    private fun quoteForShell(value: String): String {
+        return if (isWindowsShell()) {
+            "\"${value.replace("\"", "\\\"")}\""
+        } else {
+            "'${value.replace("'", "'\"'\"'")}'"
+        }
+    }
+
+    private fun isWindowsShell(): Boolean {
+        return System.getProperty("os.name").lowercase().contains("windows")
+    }
+
+    private fun buildShellCommand(command: String): GeneralCommandLine {
+        return if (isWindowsShell()) {
+            GeneralCommandLine("cmd.exe", "/c", command)
+        } else {
+            GeneralCommandLine("/bin/sh", "-lc", command)
+        }
+    }
+    private fun buildPayloadForCli(): String? {
+        val selectedFileDiagnostics = fileList.selectedValue
+        val selectedProblem = problemList.selectedValue
+
+        return when {
+            selectedFileDiagnostics != null && selectedProblem != null -> {
+                val singleItemDiagnostics = selectedFileDiagnostics.copy(items = listOf(selectedProblem))
+                buildPromptContent(listOf(singleItemDiagnostics))
+            }
+            selectedFileDiagnostics != null -> buildPromptContent(listOf(selectedFileDiagnostics))
+            currentDiagnostics.isNotEmpty() -> buildPromptContent(currentDiagnostics)
+            else -> null
+        }
+    }
+
     private fun buildPromptContent(diagnostics: List<FileDiagnostics>): String = buildString {
-        appendLine("请帮我修复以下编译问题：")
-        appendLine()
         diagnostics.forEach { fileDiag ->
-            appendLine("=== 文件: ${fileDiag.file.name} ===")
+            appendLine("problem in \"${fileDiag.file.path}\"")
             fileDiag.items.forEachIndexed { index, item ->
                 appendLine("问题${index + 1}:")
                 appendLine("  行号: ${item.lineNumber}")
@@ -367,9 +709,9 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun showConfigDialog() {
-        val config = DiagnosticExclusionConfig.getInstance(project)
-        val dialog = ExclusionConfigDialog(project, config)
+        val dialog = ExclusionConfigDialog(project, exclusionConfig)
         if (dialog.showAndGet()) {
+            rebuildCliButtons()
             refreshDiagnostics()
         }
     }
@@ -471,15 +813,13 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     }
 
     private fun excludeFile(file: VirtualFile) {
-        val config = DiagnosticExclusionConfig.getInstance(project)
-        config.addCustomPattern(file.path)
+        exclusionConfig.addCustomPattern(file.path)
         refreshDiagnostics()
         statusLabel.text = "已排除文件: ${file.name}"
     }
 
     private fun excludePattern(pattern: String) {
-        val config = DiagnosticExclusionConfig.getInstance(project)
-        config.addCustomPattern(pattern)
+        exclusionConfig.addCustomPattern(pattern)
         refreshDiagnostics()
         statusLabel.text = "已排除: $pattern"
     }

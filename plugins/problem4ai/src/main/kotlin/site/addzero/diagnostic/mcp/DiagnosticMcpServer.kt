@@ -454,9 +454,7 @@ class DiagnosticMcpServer(private val project: Project) {
             "File not found: $filePath"
         } else {
             buildString {
-                appendLine("请帮我修复以下编译问题：")
-                appendLine()
-                appendLine("=== 文件: ${fileDiag.file.name} ===")
+                appendLine("problem in \"${fileDiag.file.path}\"")
                 appendLine()
                 fileDiag.items.forEachIndexed { index, item ->
                     appendLine("问题 ${index + 1}:")
@@ -537,10 +535,8 @@ class DiagnosticMcpServer(private val project: Project) {
             "项目中没有发现错误。"
         } else {
             buildString {
-                appendLine("我需要修复项目中的 ${errorFiles.size} 个错误文件：")
-                appendLine()
                 errorFiles.forEach { fileDiag ->
-                    appendLine("文件: ${fileDiag.file.path}")
+                    appendLine("problem in \"${fileDiag.file.path}\"")
                     fileDiag.items.filter { it.severity == DiagnosticSeverity.ERROR }.forEach { item ->
                         appendLine("  - 行 ${item.lineNumber}: ${item.message}")
                     }

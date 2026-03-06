@@ -22,10 +22,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import site.addzero.gradle.buddy.intentions.projectdep.ModulePathDistance
 import java.awt.BorderLayout
@@ -47,7 +44,6 @@ import javax.swing.table.TableCellEditor
  *
  * Supported:
  * 1) project(":a:b:c") call (fix broken path by leaf module name)
- * 2) Type-safe project accessor: projects.a.bC (fix by leaf -> convert to project(":..."))
  *
  * Behavior:
  * - Collects all broken refs in the project
@@ -120,7 +116,7 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
     // ── Data model ──────────────────────────────────────────────────────
 
-    private enum class RefKind { PROJECT_CALL, TYPESAFE_ACCESSOR }
+    private enum class RefKind { PROJECT_CALL }
 
     /** A single broken reference occurrence in a kts file. */
     private data class BrokenProjectRef(
@@ -199,41 +195,6 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
                     )
                 )
             }
-
-            // 2) type-safe accessors in dependency configuration calls: implementation(projects.a.bC)
-            val depCalls = PsiTreeUtil.collectElementsOfType(psiFile, KtCallExpression::class.java)
-                .filter { isDependencyConfiguration(it.calleeExpression?.text) }
-
-            for (depCall in depCalls) {
-                for (arg in depCall.valueArguments) {
-                    val expr = arg.getArgumentExpression() as? KtExpression ?: continue
-                    val dot = unwrapParens(expr) as? KtDotQualifiedExpression ?: continue
-                    val segments = collectDotChainSegments(dot) ?: continue
-                    if (segments.firstOrNull() != "projects") continue
-                    if (segments.size < 2) continue
-
-                    val pathSegments = segments.drop(1).map { camelToKebab(it) }
-                    val derivedPath = ":" + pathSegments.joinToString(":")
-                    if (derivedPath in modulePathSet) continue
-
-                    val leaf = pathSegments.lastOrNull()?.trim().orEmpty()
-                    if (leaf.isEmpty()) continue
-
-                    val range = dot.textRange
-                    result.add(
-                        BrokenProjectRef(
-                            ktsFile = vf,
-                            kind = RefKind.TYPESAFE_ACCESSOR,
-                            key = dot.text,
-                            beforeDisplay = dot.text,
-                            leaf = leaf,
-                            matchRange = range.startOffset until range.endOffset,
-                            contextModulePath = moduleContext,
-                            derivedPath = derivedPath
-                        )
-                    )
-                }
-            }
         }
 
         return result
@@ -295,10 +256,7 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
                     val endExclusive = broken.matchRange.last + 1
                     if (start < 0 || endExclusive > text.length || start >= endExclusive) continue
 
-                    val replacement = when (broken.kind) {
-                        RefKind.PROJECT_CALL -> "\"$chosenModulePath\""
-                        RefKind.TYPESAFE_ACCESSOR -> "project(\"$chosenModulePath\")"
-                    }
+                    val replacement = "\"$chosenModulePath\""
 
                     text = text.substring(0, start) + replacement + text.substring(endExclusive)
                     fixed++
@@ -477,44 +435,9 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
     // ── Utilities ───────────────────────────────────────────────────────
 
-    private fun isDependencyConfiguration(callee: String?): Boolean {
-        if (callee.isNullOrBlank()) return false
-        return callee in DEPENDENCY_CONFIGURATIONS
-    }
-
-    private fun unwrapParens(expr: KtExpression): KtExpression {
-        var current = expr
-        while (true) {
-            val parenthesized = current as? org.jetbrains.kotlin.psi.KtParenthesizedExpression ?: break
-            val inner = parenthesized.expression ?: break
-            current = inner
-        }
-        return current
-    }
-
     private fun extractLiteralString(expr: KtStringTemplateExpression): String? {
         if (expr.entries.any { it !is KtLiteralStringTemplateEntry }) return null
         return expr.entries.joinToString(separator = "") { it.text }
-    }
-
-    private fun collectDotChainSegments(expr: KtDotQualifiedExpression): List<String>? {
-        val segments = mutableListOf<String>()
-        var current: KtExpression? = expr
-        while (current is KtDotQualifiedExpression) {
-            val selector = current.selectorExpression as? KtNameReferenceExpression ?: return null
-            segments.add(selector.getReferencedName())
-            current = current.receiverExpression
-        }
-        val head = (current as? KtNameReferenceExpression)?.getReferencedName() ?: return null
-        segments.add(head)
-        segments.reverse()
-        return segments
-    }
-
-    private fun camelToKebab(name: String): String {
-        return name
-            .replace(Regex("([a-z0-9])([A-Z])"), "$1-$2")
-            .lowercase()
     }
 
     private fun hasSettingsFile(dir: VirtualFile): Boolean {
@@ -622,12 +545,5 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
             }
         }
 
-        private val DEPENDENCY_CONFIGURATIONS = setOf(
-            "implementation", "api", "compileOnly", "runtimeOnly",
-            "testImplementation", "testApi", "testCompileOnly", "testRuntimeOnly",
-            "androidTestImplementation", "androidTestApi", "androidTestCompileOnly", "androidTestRuntimeOnly",
-            "debugImplementation", "releaseImplementation",
-            "kapt", "ksp", "annotationProcessor", "lintChecks"
-        )
     }
 }

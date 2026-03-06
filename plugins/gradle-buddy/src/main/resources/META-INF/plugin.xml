@@ -73,7 +73,7 @@
     <action id="GradleBuddy.FixBrokenProjectReferences"
             class="site.addzero.gradle.buddy.notification.FixBrokenProjectReferencesAction"
             text="Fix Broken Project References"
-            description="Scan all .gradle.kts files and fix broken project() and projects.* references"
+            description="Scan all .gradle.kts files and fix broken project() references"
             icon="AllIcons.Actions.QuickfixBulb">
     </action>
 

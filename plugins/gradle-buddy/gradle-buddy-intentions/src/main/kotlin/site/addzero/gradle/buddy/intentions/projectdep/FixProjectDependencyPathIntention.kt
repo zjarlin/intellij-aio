@@ -39,7 +39,7 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
 
     override fun getFamilyName(): String = "Gradle buddy"
 
-    override fun getText(): String = "(Gradle Buddy) Fix project refs (auto single/batch)"
+    override fun getText(): String = "(Gradle Buddy) 自动修复 project 引用（单条/批量）"
 
     override fun startInWriteAction(): Boolean = false
 

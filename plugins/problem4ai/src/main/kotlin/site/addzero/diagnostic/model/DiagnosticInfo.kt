@@ -31,7 +31,7 @@ data class FileDiagnostics(
     val hasWarnings: Boolean get() = items.any { it.severity == DiagnosticSeverity.WARNING }
     
     fun toAiPrompt(): String = buildString {
-        appendLine("=== 文件: ${file.name} ===")
+        appendLine("problem in \"${file.path}\"")
         items.forEachIndexed { index, item ->
             appendLine("问题${index + 1}:")
             appendLine("  行号: ${item.lineNumber}")

@@ -95,6 +95,28 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
     }
 
     /**
+     * 获取 AI CLI 前缀配置
+     */
+    fun getAiCliPrefixes(): List<String> {
+        return state.aiCliPrefixes
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .takeIf { it.isNotEmpty() }
+            ?: ExclusionState.DEFAULT_AI_CLI_PREFIXES
+    }
+
+    /**
+     * 设置 AI CLI 前缀配置
+     */
+    fun setAiCliPrefixes(prefixes: List<String>) {
+        state.aiCliPrefixes = prefixes
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    /**
      * 获取启用的文件扩展名列表
      */
     fun getEnabledFileExtensions(): List<String> {
@@ -202,9 +224,11 @@ data class ExclusionState(
     var customPatterns: List<String> = emptyList(),
     var useDefaultPatterns: Boolean = true,
     var gitignoreLoaded: Boolean = false,
-    var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS
+    var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS,
+    var aiCliPrefixes: List<String> = DEFAULT_AI_CLI_PREFIXES
 ) {
     companion object {
         val DEFAULT_FILE_EXTENSIONS = listOf("java", "kt")
+        val DEFAULT_AI_CLI_PREFIXES = listOf("codex", "claude", "gemini", "opencode")
     }
 }

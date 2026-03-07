@@ -1,9 +1,18 @@
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
 dependencies {
     // IntelliJ Platform 依赖由插件自动添加
+}
+
+intellijPlatform {
+    pluginConfiguration {
+        version = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+    }
 }
 
 //intellijPlatform {

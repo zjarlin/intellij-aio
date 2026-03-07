@@ -23,6 +23,8 @@ class ExclusionConfigDialog(
     private lateinit var useDefaultCheckbox: JBCheckBox
     private lateinit var patternsTextArea: JBTextArea
     private lateinit var newPatternField: JBTextField
+    private lateinit var maxFullScanField: JBTextField
+    private lateinit var maxIncrementalScanField: JBTextField
 
     init {
         title = "Problem4AI 排除规则配置"
@@ -69,6 +71,8 @@ class ExclusionConfigDialog(
         centerPanel.add(hintLabel, BorderLayout.SOUTH)
 
         centerContainer.add(centerPanel)
+        centerContainer.add(Box.createVerticalStrut(8))
+        centerContainer.add(createScanLimitPanel())
 
         panel.add(centerContainer, BorderLayout.CENTER)
 
@@ -136,6 +140,38 @@ class ExclusionConfigDialog(
         }
     }
 
+    private fun createScanLimitPanel(): JComponent {
+        val panel = JPanel()
+        panel.layout = BoxLayout(panel, BoxLayout.Y_AXIS)
+        panel.border = BorderFactory.createTitledBorder("扫描限制")
+
+        val fieldsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4))
+        fieldsPanel.add(JLabel("全量扫描文件上限:"))
+        maxFullScanField = JBTextField(config.getMaxFullScanFiles().toString(), 8)
+        fieldsPanel.add(maxFullScanField)
+
+        fieldsPanel.add(JLabel("增量单轮上限:"))
+        maxIncrementalScanField = JBTextField(config.getMaxIncrementalScanFiles().toString(), 8)
+        fieldsPanel.add(maxIncrementalScanField)
+        panel.add(fieldsPanel)
+
+        val actionsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
+        val resetDefaultButton = JButton("恢复默认(50/50)")
+        resetDefaultButton.addActionListener {
+            maxFullScanField.text = DiagnosticExclusionConfig.DEFAULT_MAX_FULL_SCAN_FILES.toString()
+            maxIncrementalScanField.text = DiagnosticExclusionConfig.DEFAULT_MAX_INCREMENTAL_SCAN_FILES.toString()
+        }
+        actionsPanel.add(resetDefaultButton)
+        panel.add(actionsPanel)
+
+        panel.add(JLabel("仅支持正整数，建议大项目先设 50~300"))
+        return panel
+    }
+
+    private fun parseLimitOrDefault(text: String, defaultValue: Int): Int {
+        return text.trim().toIntOrNull()?.takeIf { it > 0 } ?: defaultValue
+    }
+
     override fun doOKAction() {
         // 保存配置
         config.setUseDefaultPatterns(useDefaultCheckbox.isSelected)
@@ -145,6 +181,12 @@ class ExclusionConfigDialog(
             .map { it.trim() }
             .filter { it.isNotBlank() }
         config.setCustomPatterns(patterns)
+        config.setMaxFullScanFiles(
+            parseLimitOrDefault(maxFullScanField.text, config.getMaxFullScanFiles())
+        )
+        config.setMaxIncrementalScanFiles(
+            parseLimitOrDefault(maxIncrementalScanField.text, config.getMaxIncrementalScanFiles())
+        )
 
         super.doOKAction()
     }

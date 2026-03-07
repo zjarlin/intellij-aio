@@ -43,6 +43,10 @@ import java.util.concurrent.atomic.AtomicReference
  * 诊断信息包装类，解决 ConcurrentHashMap 不能存 null 的问题
  */
 private class DiagnosticResult(val diagnostics: FileDiagnostics?)
+private data class SourceFileCollectionResult(
+    val files: List<VirtualFile>,
+    val isTruncated: Boolean
+)
 
 /**
  * 诊断收集服务 - 重新设计版
@@ -328,17 +332,24 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     private fun doFullScan(indicator: ProgressIndicator?) {
         updateProgress(ScanProgress(isScanning = true, isFullScan = true))
         LOG.info("[Problem4AI][Scan] full scan started")
+        val maxFullScanFiles = exclusionConfig.getMaxFullScanFiles()
 
         // 收集所有要扫描的文件
-        val filesToScan = ApplicationManager.getApplication().runReadAction<List<VirtualFile>> {
-            collectAllSourceFiles()
+        val collectResult = ApplicationManager.getApplication().runReadAction<SourceFileCollectionResult> {
+            collectAllSourceFiles(maxFullScanFiles)
         }
+        val filesToScan = collectResult.files
 
         if (filesToScan.isEmpty()) {
             LOG.warn("[Problem4AI][Scan] full scan found 0 files, schedule retry")
             updateProgress(ScanProgress())
             scheduleFullScanRetry()
             return
+        }
+        if (collectResult.isTruncated) {
+            LOG.warn(
+                "[Problem4AI][Scan] full scan file list truncated at $maxFullScanFiles files to avoid IDE stalls"
+            )
         }
         LOG.info("[Problem4AI][Scan] full scan files=${filesToScan.size}")
 
@@ -414,15 +425,13 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 处理待扫描队列（增量扫描）
      */
     private fun processNeedScanQueue() {
-        val filesToScan = mutableListOf<VirtualFile>()
+        val filesToScan = LinkedHashSet<VirtualFile>()
+        val maxIncrementalScanFilesPerRun = exclusionConfig.getMaxIncrementalScanFiles()
 
         // 取出队列中所有文件
-        while (true) {
+        while (filesToScan.size < maxIncrementalScanFilesPerRun) {
             val file = needScanQueue.poll() ?: break
-            // 去重
-            if (file !in filesToScan) {
-                filesToScan.add(file)
-            }
+            filesToScan.add(file)
         }
 
         if (filesToScan.isEmpty()) return
@@ -431,12 +440,19 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             filesToScan.forEach { needScanQueue.offer(it) }
             return
         }
+        val hasPendingAfterBatch = needScanQueue.isNotEmpty()
+        if (hasPendingAfterBatch) {
+            LOG.info(
+                "[Problem4AI][Scan] incremental batch limited to $maxIncrementalScanFilesPerRun files, pending=${needScanQueue.size}"
+            )
+        }
         LOG.debug("[Problem4AI][Scan] incremental start files=${filesToScan.size}")
 
         updateProgress(ScanProgress(isScanning = true, isFullScan = false))
 
         val batchSize = 5
-        filesToScan.chunked(batchSize).forEachIndexed { index, batch ->
+        val filesToScanList = filesToScan.toList()
+        filesToScanList.chunked(batchSize).forEachIndexed { index, batch ->
             // 扫描这一批
             val results = batch.associateWith { file ->
                 collectDiagnosticsSafely(file)
@@ -455,7 +471,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             val progress = ScanProgress(
                 currentFile = batch.lastOrNull()?.name ?: "",
                 scannedCount = (index + 1) * batch.size,
-                totalCount = filesToScan.size,
+                totalCount = filesToScanList.size,
                 isScanning = true,
                 isFullScan = false
             )
@@ -472,6 +488,13 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
         // 扫描完成后再通知一次，确保最终一致
         notifyDiagnosticsListeners()
+
+        if (hasPendingAfterBatch) {
+            debounceAlarm.cancelAllRequests()
+            debounceAlarm.addRequest({
+                triggerIncrementalScan()
+            }, 200)
+        }
     }
 
     private fun notifyDiagnosticsListeners() {
@@ -667,9 +690,10 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
      * 收集所有源文件（用于全量扫描）
      * 遍历所有内容根（contentRoots），不只是源码根（sourceRoots）
      */
-    private fun collectAllSourceFiles(): List<VirtualFile> {
+    private fun collectAllSourceFiles(maxFiles: Int): SourceFileCollectionResult {
         val files = mutableListOf<VirtualFile>()
         val projectRootManager = ProjectRootManager.getInstance(project)
+        var limitReached = false
 
         // 使用 contentRoots 而不是 contentSourceRoots，以包含项目中的所有文件
         val contentRoots = projectRootManager.contentRoots.toList()
@@ -696,22 +720,28 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         val resolvedRoots = (rootsToScan + fallbackRoots).distinctBy { it.path }
         LOG.info("[Problem4AI][Scan] collect roots count=${resolvedRoots.size}")
         resolvedRoots.forEach { root ->
+            if (limitReached) return@forEach
             if (!root.isValid || !root.exists()) return@forEach
 
             VfsUtilCore.visitChildrenRecursively(root, object : VirtualFileVisitor<Unit>() {
                 override fun visitFile(file: VirtualFile): Boolean {
                     if (!file.isValid) return false
+                    if (limitReached) return false
                     if (file.isDirectory) return !shouldExcludeDirectory(file)
                     if (isSourceFile(file) && exclusionConfig.shouldScanFile(file)) {
                         files.add(file)
+                        if (files.size >= maxFiles) {
+                            limitReached = true
+                            return false
+                        }
                     }
                     return true
                 }
             })
         }
 
-        LOG.info("[Problem4AI][Scan] collect source files count=${files.size}")
-        return files
+        LOG.info("[Problem4AI][Scan] collect source files count=${files.size}, limitReached=$limitReached")
+        return SourceFileCollectionResult(files = files, isTruncated = limitReached)
     }
 
     private fun updateProgress(progress: ScanProgress) {

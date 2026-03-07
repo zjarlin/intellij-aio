@@ -9,7 +9,7 @@ intellijPlatform {
     pluginConfiguration {
         id = "site.addzero.vibetask"
 //        name = "Vibe Task"
-        version = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+        version = LocalDate.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
     }
 }
 

@@ -17,6 +17,9 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
     private var state = ExclusionState()
 
     companion object {
+        private const val MIN_SCAN_LIMIT = 1
+        private const val MAX_SCAN_LIMIT = 10_000
+
         fun getInstance(project: Project): DiagnosticExclusionConfig =
             project.getService(DiagnosticExclusionConfig::class.java)
 
@@ -39,6 +42,9 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
             "**/.git/**",
             "**/.svn/**"
         )
+
+        const val DEFAULT_MAX_FULL_SCAN_FILES = 50
+        const val DEFAULT_MAX_INCREMENTAL_SCAN_FILES = 50
     }
 
     override fun getState(): ExclusionState = state
@@ -92,6 +98,22 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
     fun setUseDefaultPatterns(use: Boolean) {
         state.useDefaultPatterns = use
+    }
+
+    fun getMaxFullScanFiles(): Int {
+        return normalizeScanLimit(state.maxFullScanFiles, DEFAULT_MAX_FULL_SCAN_FILES)
+    }
+
+    fun setMaxFullScanFiles(limit: Int) {
+        state.maxFullScanFiles = normalizeScanLimit(limit, DEFAULT_MAX_FULL_SCAN_FILES)
+    }
+
+    fun getMaxIncrementalScanFiles(): Int {
+        return normalizeScanLimit(state.maxIncrementalScanFiles, DEFAULT_MAX_INCREMENTAL_SCAN_FILES)
+    }
+
+    fun setMaxIncrementalScanFiles(limit: Int) {
+        state.maxIncrementalScanFiles = normalizeScanLimit(limit, DEFAULT_MAX_INCREMENTAL_SCAN_FILES)
     }
 
     /**
@@ -196,13 +218,20 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
             else -> "**/$pattern"
         }
     }
+
+    private fun normalizeScanLimit(value: Int, defaultValue: Int): Int {
+        val normalized = if (value > 0) value else defaultValue
+        return normalized.coerceIn(MIN_SCAN_LIMIT, MAX_SCAN_LIMIT)
+    }
 }
 
 data class ExclusionState(
     var customPatterns: List<String> = emptyList(),
     var useDefaultPatterns: Boolean = true,
     var gitignoreLoaded: Boolean = false,
-    var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS
+    var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS,
+    var maxFullScanFiles: Int = DiagnosticExclusionConfig.DEFAULT_MAX_FULL_SCAN_FILES,
+    var maxIncrementalScanFiles: Int = DiagnosticExclusionConfig.DEFAULT_MAX_INCREMENTAL_SCAN_FILES
 ) {
     companion object {
         val DEFAULT_FILE_EXTENSIONS = listOf("java", "kt")

@@ -22,7 +22,6 @@ class ExclusionConfigDialog(
 
     private lateinit var useDefaultCheckbox: JBCheckBox
     private lateinit var patternsTextArea: JBTextArea
-    private lateinit var cliPrefixesTextArea: JBTextArea
     private lateinit var newPatternField: JBTextField
 
     init {
@@ -37,7 +36,7 @@ class ExclusionConfigDialog(
         useDefaultCheckbox = JBCheckBox("使用默认排除模式（build/, node_modules/, .git/ 等）", config.isUseDefaultPatterns())
         panel.add(useDefaultCheckbox, BorderLayout.NORTH)
 
-        // 中间：配置区域（排除模式 + AI CLI 前缀）
+        // 中间：排除模式配置区域
         val centerContainer = JPanel()
         centerContainer.layout = BoxLayout(centerContainer, BoxLayout.Y_AXIS)
 
@@ -70,29 +69,6 @@ class ExclusionConfigDialog(
         centerPanel.add(hintLabel, BorderLayout.SOUTH)
 
         centerContainer.add(centerPanel)
-
-        val cliPanel = JPanel(BorderLayout())
-        cliPanel.border = BorderFactory.createTitledBorder("变量设置：AI CLI 前缀（每行一个）")
-        cliPrefixesTextArea = JBTextArea().apply {
-            text = config.getAiCliPrefixes().joinToString("\n")
-            lineWrap = false
-            font = JBTextArea().font
-        }
-        val cliScroll = JBScrollPane(cliPrefixesTextArea)
-        cliScroll.preferredSize = Dimension(500, 120)
-        cliPanel.add(cliScroll, BorderLayout.CENTER)
-        cliPanel.add(
-            JLabel(
-                "<html>" +
-                    "默认：codex / claude / gemini / opencode。<br>" +
-                    "支持跨平台格式：<code>名称|mac:命令|win:命令|linux:命令</code><br>" +
-                    "命令支持占位符：<code>{input}</code>（问题文件）与 <code>{project}</code>（项目根）" +
-                    "</html>"
-            ),
-            BorderLayout.SOUTH
-        )
-        centerContainer.add(Box.createVerticalStrut(8))
-        centerContainer.add(cliPanel)
 
         panel.add(centerContainer, BorderLayout.CENTER)
 
@@ -169,12 +145,6 @@ class ExclusionConfigDialog(
             .map { it.trim() }
             .filter { it.isNotBlank() }
         config.setCustomPatterns(patterns)
-
-        val cliPrefixes = cliPrefixesTextArea.text
-            .lines()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-        config.setAiCliPrefixes(cliPrefixes)
 
         super.doOKAction()
     }

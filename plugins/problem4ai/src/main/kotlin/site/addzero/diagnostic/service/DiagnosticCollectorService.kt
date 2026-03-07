@@ -1,10 +1,8 @@
 package site.addzero.diagnostic.service
 
-import com.intellij.ProjectTopics
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.progress.ProgressIndicator
@@ -300,7 +298,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
         // 监听项目根变化（如新项目导入完成、模块加载完成）
         connection.subscribe(
-            ProjectTopics.PROJECT_ROOTS,
+            ModuleRootListener.TOPIC,
             object : ModuleRootListener {
                 override fun rootsChanged(event: ModuleRootEvent) {
                     LOG.info("[Problem4AI][Listener] project roots changed, schedule full scan")
@@ -332,7 +330,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         LOG.info("[Problem4AI][Scan] full scan started")
 
         // 收集所有要扫描的文件
-        val filesToScan = ReadAction.compute<List<VirtualFile>, Throwable> {
+        val filesToScan = ApplicationManager.getApplication().runReadAction<List<VirtualFile>> {
             collectAllSourceFiles()
         }
 
@@ -486,7 +484,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
 
     private fun collectDiagnosticsSafely(file: VirtualFile): FileDiagnostics? {
         return try {
-            ReadAction.compute<FileDiagnostics?, Throwable> {
+            ApplicationManager.getApplication().runReadAction<FileDiagnostics?> {
                 file.collectDiagnostics(project)
             }
         } catch (_: ProcessCanceledException) {

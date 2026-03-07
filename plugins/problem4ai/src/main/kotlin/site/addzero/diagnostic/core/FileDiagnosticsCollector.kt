@@ -1,12 +1,8 @@
 package site.addzero.diagnostic.core
 
-import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx
-import com.intellij.codeInsight.daemon.impl.DaemonProgressIndicator
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.codeInspection.InspectionEngine
-import com.intellij.codeInspection.InspectionManager
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ex.LocalInspectionToolWrapper
 import com.intellij.diagnostic.PluginException
@@ -17,11 +13,9 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.problems.WolfTheProblemSolver
 import com.intellij.profile.codeInspection.InspectionProjectProfileManager
@@ -191,31 +185,37 @@ private fun PsiFile.checkDocumentHighlights(project: Project, items: MutableList
  * 对未打开文件执行 Daemon 主高亮，收集细粒度问题详情（含解析/类型错误）
  */
 private fun PsiFile.runDaemonMainPasses(project: Project, items: MutableList<DiagnosticItem>) {
+    collectDaemonHighlightsFromMarkup(project, items, source = "cached")
+}
+
+private fun PsiFile.collectDaemonHighlightsFromMarkup(
+    project: Project,
+    items: MutableList<DiagnosticItem>,
+    source: String
+) {
     val file = virtualFile ?: return
     val document = FileDocumentManager.getInstance().getDocument(file) ?: return
 
     try {
-        val daemon = DaemonCodeAnalyzerEx.getInstanceEx(project)
-        val daemonProgress = DaemonProgressIndicator()
-        daemonProgress.start()
-        val highlights = try {
-            ProgressManager.getInstance().runProcess(
-                Computable<List<HighlightInfo>> {
-                    daemon.runMainPasses(this, document, daemonProgress)
-                },
-                daemonProgress
-            )
-        } finally {
-            daemonProgress.stop()
+        val highlights = mutableListOf<HighlightInfo>()
+        DaemonCodeAnalyzerEx.processHighlights(
+            document,
+            project,
+            HighlightSeverity.WARNING,
+            0,
+            document.textLength
+        ) { info ->
+            highlights.add(info)
+            true
         }
+
+        var accepted = 0
         highlights.forEach { info ->
-            if (info.severity < HighlightSeverity.WARNING) {
-                return@forEach
-            }
+            if (info.severity < HighlightSeverity.WARNING) return@forEach
 
             val message = info.description ?: return@forEach
             val lineNumber = try {
-                document.getLineNumber(info.startOffset) + 1
+                document.getLineNumber(info.startOffset.coerceAtLeast(0)) + 1
             } catch (_: Exception) {
                 1
             }
@@ -234,13 +234,15 @@ private fun PsiFile.runDaemonMainPasses(project: Project, items: MutableList<Dia
                         }
                     )
                 )
+                accepted++
             }
         }
-        LOG.debug("[Problem4AI][Collect] runMainPasses highlights=${highlights.size} file=${file.path}")
+
+        LOG.debug("[Problem4AI][Collect] daemon-$source highlights=${highlights.size} accepted=$accepted file=${file.path}")
     } catch (_: ProcessCanceledException) {
         // Cancellation is expected and should not be logged.
     } catch (e: Exception) {
-        LOG.debug("runMainPasses failed for file: ${file.path}", e)
+        LOG.debug("daemon-$source highlight collect failed for file: ${file.path}", e)
     }
 }
 
@@ -259,7 +261,6 @@ private fun PsiFile.runOfflineInspectionFallback(file: VirtualFile, items: Mutab
 
     try {
         val profile = InspectionProjectProfileManager.getInstance(project).currentProfile
-        val inspectionManager = InspectionManager.getInstance(project)
         val document = PsiDocumentManager.getInstance(project).getDocument(this)
 
         val tools = profile.getInspectionTools(this).mapNotNull { it as? LocalInspectionToolWrapper }
@@ -267,13 +268,15 @@ private fun PsiFile.runOfflineInspectionFallback(file: VirtualFile, items: Mutab
             return
         }
 
-        val result = InspectionEngine.inspectEx(
+        val result = InspectionEngine.inspectElements(
             tools,
             this,
-            inspectionManager,
+            textRange,
             false,
-            EmptyProgressIndicator()
-        )
+            false,
+            EmptyProgressIndicator(),
+            listOf(this)
+        ) { _, _ -> true }
         var acceptedCount = 0
 
         result.values.flatten().forEach { descriptor ->
@@ -397,44 +400,7 @@ private fun PsiFile.checkDaemonHighlights(project: Project, items: MutableList<D
         val openFiles = FileEditorManager.getInstance(project).openFiles
         if (file !in openFiles) return
 
-        val daemonImpl = DaemonCodeAnalyzer.getInstance(project) as? DaemonCodeAnalyzerImpl ?: return
-        val document = PsiDocumentManager.getInstance(project).getDocument(this) ?: return
-
-        val method = DaemonCodeAnalyzerImpl::class.java.getDeclaredMethod(
-            "getFileLevelHighlights",
-            Project::class.java,
-            PsiFile::class.java
-        )
-        method.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val highlights = method.invoke(daemonImpl, project, this) as? List<HighlightInfo>
-
-        highlights?.forEach { info ->
-            if (info.severity < HighlightSeverity.WARNING) return@forEach
-
-            val message = info.description ?: return@forEach
-            val lineNumber = try {
-                document.getLineNumber(info.startOffset) + 1
-            } catch (_: Exception) {
-                return@forEach
-            }
-
-            if (items.none { it.lineNumber == lineNumber && it.message == message }) {
-                items.add(
-                    DiagnosticItem(
-                        file = file,
-                        psiFile = this,
-                        lineNumber = lineNumber,
-                        message = message,
-                        severity = if (info.severity >= HighlightSeverity.ERROR) {
-                            DiagnosticSeverity.ERROR
-                        } else {
-                            DiagnosticSeverity.WARNING
-                        }
-                    )
-                )
-            }
-        }
+        collectDaemonHighlightsFromMarkup(project, items, source = "open-file")
     } catch (_: Exception) {
         // 静默处理
     }

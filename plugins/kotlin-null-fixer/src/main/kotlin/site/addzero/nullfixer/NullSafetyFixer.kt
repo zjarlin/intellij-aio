@@ -39,9 +39,12 @@ object NullSafetyFixer {
 
     data class FixResult(val fixed: Int, val skipped: Int, val fileName: String)
 
-    private enum class ErrorKind { UNSAFE_CALL, RETURN_MISMATCH }
+    private object ErrorKind {
+        const val UNSAFE_CALL = 1
+        const val RETURN_MISMATCH = 2
+    }
 
-    private data class ErrorLocation(val range: TextRange, val kind: ErrorKind, val description: String)
+    private data class ErrorLocation(val range: TextRange, val kind: Int, val description: String)
 
     fun fixFile(project: Project, psiFile: PsiFile): FixResult {
         val document = PsiDocumentManager.getInstance(project).getDocument(psiFile)
@@ -118,10 +121,11 @@ object NullSafetyFixer {
 
     private fun fixUnsafeCall(project: Project, psiFile: PsiFile, range: TextRange): Boolean {
         val element = psiFile.findElementAt(range.startOffset) ?: return false
-        val dotExpr = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
+        val qualifiedExpr = PsiTreeUtil.getParentOfType(element, KtQualifiedExpression::class.java)
             ?: return false
         // 如果已经是安全调用就跳过
-        if (dotExpr is KtSafeQualifiedExpression) return false
+        if (qualifiedExpr is KtSafeQualifiedExpression) return false
+        val dotExpr = qualifiedExpr as? KtDotQualifiedExpression ?: return false
         val receiverText = dotExpr.receiverExpression.text
         val selectorText = dotExpr.selectorExpression?.text ?: return false
         val factory = KtPsiFactory(project)

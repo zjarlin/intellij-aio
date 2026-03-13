@@ -31,9 +31,9 @@ class GiteeConfigurable : Configurable {
                         .component
                 }
                 row {
-                    label("Username:")
+                    label("Account:")
                     usernameField = textField()
-                        .comment("Your Gitee username (optional)")
+                        .comment("Your Gitee username. If left empty, the plugin will detect it from the token.")
                         .component
                 }
                 row {
@@ -50,7 +50,7 @@ class GiteeConfigurable : Configurable {
                 comment(
                     """
                     Configure your Gitee access token to enable plugin features.
-                    The token needs 'repos' scope for repository operations.
+                    The token needs 'projects' or equivalent repository scope to load cloneable repositories.
                     """.trimIndent()
                 ).align(AlignX.FILL)
             }

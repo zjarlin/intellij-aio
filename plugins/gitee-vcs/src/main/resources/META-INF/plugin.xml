@@ -42,8 +42,9 @@
             serviceImplementation="site.addzero.gitee.settings.GiteeSettings"/>
 
         <!-- Settings Page -->
-        <applicationConfigurable
-            parentId="tools"
+        <projectConfigurable
+            parentId="project.propVCSSupport.Mappings"
+            groupWeight="-500"
             instance="site.addzero.gitee.settings.GiteeConfigurable"
             id="site.addzero.gitee.settings"
             displayName="Gitee"/>
@@ -52,12 +53,18 @@
         <notificationGroup
             id="GiteeNotifications"
             displayType="BALLOON"/>
+
+        <openapi.vcs.ui.cloneDialog.VcsCloneDialogExtension
+            id="site.addzero.gitee.ui.clone.GiteeCloneDialogExtension"
+            implementation="site.addzero.gitee.ui.clone.GiteeCloneDialogExtension"
+            order="after org.jetbrains.plugins.gitlab.ui.clone.GitLabCloneDialogExtension"/>
     </extensions>
 
     <actions>
         <group id="Gitee.MainGroup" text="Gitee" popup="true">
             <!-- 添加到 Tools 菜单 -->
             <add-to-group group-id="ToolsMenu" anchor="after" relative-to-action="GitHub.MainGroup"/>
+            <add-to-group group-id="Git.MainMenu" anchor="before" relative-to-action="Git.Configure.Remotes"/>
 
             <action id="Gitee.ShareProject"
                 class="site.addzero.gitee.actions.ShareProjectOnGiteeAction"
@@ -92,6 +99,14 @@
                 text="Clone from Gitee..."
                 description="Clone a repository from Gitee"
                 icon="AllIcons.Actions.CheckOut"/>
+
+            <separator/>
+
+            <action id="Gitee.Open.Settings"
+                class="site.addzero.gitee.actions.OpenGiteeSettingsAction"
+                text="Open Gitee Settings"
+                description="Open Gitee settings"
+                icon="AllIcons.General.Settings"/>
         </group>
     </actions>
 

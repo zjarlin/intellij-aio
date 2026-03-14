@@ -216,8 +216,14 @@ object ModuleSleepActionExecutor {
     if (activeModules.isEmpty()) {
       return LoadResult.NoModulesDetected(0)
     }
-    val (validModules, excludedModules) = OnDemandModuleLoader.partitionModules(activeModules)
-    val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
+
+    val validation = OnDemandModuleLoader.validateExistingModules(project, activeModules)
+    if (validation.validModules.isEmpty()) {
+      return LoadResult.NoModulesDetected(0)
+    }
+
+    val (validModules, excludedModules) = OnDemandModuleLoader.partitionModules(validation.validModules)
+    val success = OnDemandModuleLoader.applyOnDemandLoading(project, validation.validModules, syncAfter = true)
     return if (success) {
       LoadResult.Success(validModules, excludedModules)
     } else {

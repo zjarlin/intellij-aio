@@ -45,6 +45,13 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
     private val SYNC_DEBOUNCE = 2_000L // 2秒
 
     fun init() {
+        if (isModulesBuddyPluginEnabled()) {
+            featureAvailable = null
+            OnDemandModuleLoader.deleteGeneratedActiveModulesConfig(project)
+            logger.info("Gradle Module Sleep disabled: modules-buddy plugin detected in settings.gradle.kts")
+            return
+        }
+
         if (!isFeatureAvailable()) {
             logger.info("Gradle Module Sleep disabled: module count below threshold")
             return
@@ -272,14 +279,15 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
     }
 
     fun isFeatureAvailable(): Boolean {
-        featureAvailable?.let { return it }
         if (isModulesBuddyPluginEnabled()) {
-            featureAvailable = false
-            logger.info("Gradle Module Sleep disabled: modules-buddy plugin detected in settings.gradle.kts")
+            featureAvailable = null
             return false
         }
+
+        featureAvailable?.takeIf { it }?.let { return true }
+
         val available = getModuleCount() >= ModuleSleepSettingsService.LARGE_PROJECT_THRESHOLD
-        featureAvailable = available
+        featureAvailable = available.takeIf { it }
         return available
     }
 

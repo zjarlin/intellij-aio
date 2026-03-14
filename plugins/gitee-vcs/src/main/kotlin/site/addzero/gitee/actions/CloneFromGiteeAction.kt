@@ -25,11 +25,11 @@ class CloneFromGiteeAction : AnAction() {
         val project = e.project
         val settings = GiteeSettings.getInstance()
 
-        if (!settings.isConfigured()) {
+        if (!settings.hasCloneAccountConfigured()) {
             val openSettings = Messages.showYesNoDialog(
                 project,
-                "You are not logged in to Gitee yet. Open Settings to configure your Gitee account and access token now?",
-                "Login Required",
+                "Please set your Gitee account name first so the plugin can load your public repositories. Git username/password will be requested during clone when needed. Open Settings now?",
+                "Gitee Account Required",
                 "Open Settings",
                 "Cancel",
                 Messages.getInformationIcon()

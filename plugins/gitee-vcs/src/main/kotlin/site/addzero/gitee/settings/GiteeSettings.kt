@@ -38,6 +38,10 @@ class GiteeSettings : PersistentStateComponent<GiteeState> {
 
     fun isConfigured(): Boolean = accessToken.isNotBlank()
 
+    fun hasAccessToken(): Boolean = accessToken.isNotBlank()
+
+    fun hasCloneAccountConfigured(): Boolean = username.isNotBlank()
+
     companion object {
         fun getInstance(): GiteeSettings =
             ApplicationManager.getApplication().getService(GiteeSettings::class.java)

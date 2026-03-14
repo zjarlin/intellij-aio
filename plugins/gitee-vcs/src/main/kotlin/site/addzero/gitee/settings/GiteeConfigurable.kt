@@ -27,13 +27,13 @@ class GiteeConfigurable : Configurable {
                 row {
                     label("Access Token:")
                     accessTokenField = passwordField()
-                        .comment("Generate token at https://gitee.com/profile/personal_access_tokens")
+                        .comment("Optional. Needed for PRs, sharing repositories, and other advanced API features.")
                         .component
                 }
                 row {
                     label("Account:")
                     usernameField = textField()
-                        .comment("Your Gitee username. If left empty, the plugin will detect it from the token.")
+                        .comment("Used by Clone from Gitee to load your public repositories. Git will ask for username/password during clone when needed.")
                         .component
                 }
                 row {
@@ -49,8 +49,8 @@ class GiteeConfigurable : Configurable {
             row {
                 comment(
                     """
-                    Configure your Gitee access token to enable plugin features.
-                    The token needs 'projects' or equivalent repository scope to load cloneable repositories.
+                    Clone uses your Gitee account name to list public repositories and lets Git ask for credentials when needed.
+                    Access Token is optional and only used by advanced features like Share Project, Pull Requests, and authenticated API operations.
                     """.trimIndent()
                 ).align(AlignX.FILL)
             }

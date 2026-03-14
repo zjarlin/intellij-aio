@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Gitee API client using OkHttp
  */
-class GiteeApiClient(private val accessToken: String) {
+class GiteeApiClient(private val accessToken: String? = null) {
 
     companion object {
         const val BASE_URL = "https://gitee.com/api/v5"
@@ -44,6 +44,19 @@ class GiteeApiClient(private val accessToken: String) {
     @Throws(GiteeApiException::class)
     fun getRepos(page: Int = 1, perPage: Int = 20): List<Repo> {
         val request = buildGetRequest("/user/repos?page=$page&per_page=$perPage")
+        return executeRequest(request, object : TypeToken<List<Repo>>() {}.type)
+    }
+
+    /**
+     * Get public repositories for a specific account without requiring an access token.
+     */
+    @Throws(GiteeApiException::class)
+    fun getPublicRepos(username: String, page: Int = 1, perPage: Int = 20): List<Repo> {
+        val request = Request.Builder()
+            .url("$BASE_URL/users/$username/repos?page=$page&per_page=$perPage")
+            .header("Accept", "application/json")
+            .get()
+            .build()
         return executeRequest(request, object : TypeToken<List<Repo>>() {}.type)
     }
 
@@ -141,12 +154,18 @@ class GiteeApiClient(private val accessToken: String) {
      * Build a GET request
      */
     private fun buildGetRequest(endpoint: String): Request {
+        val token = requireAccessToken()
         val separator = if (endpoint.contains("?")) "&" else "?"
         return Request.Builder()
-            .url("$BASE_URL$endpoint${separator}access_token=$accessToken")
+            .url("$BASE_URL$endpoint${separator}access_token=$token")
             .header("Accept", "application/json")
             .get()
             .build()
+    }
+
+    private fun requireAccessToken(): String {
+        return accessToken?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("Gitee access token is required for this operation")
     }
 
     /**

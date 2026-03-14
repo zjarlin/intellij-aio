@@ -19,7 +19,8 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
-import git4idea.GitVcs
+import git4idea.checkout.GitCheckoutProvider
+import git4idea.commands.Git
 import site.addzero.gitee.api.GiteeApiClient
 import site.addzero.gitee.api.GiteeApiException
 import site.addzero.gitee.api.model.Repo
@@ -44,10 +45,9 @@ class GiteeClonePanel(
     private val onStateChanged: () -> Unit = {}
 ) {
     private enum class UiMode {
-        NEED_LOGIN,
+        NEED_ACCOUNT,
         LOADING,
         READY,
-        AUTH_ERROR,
         ERROR
     }
 
@@ -59,7 +59,7 @@ class GiteeClonePanel(
     private val accountLabel = JBLabel("Account: -")
     private val statusLabel = JBLabel("Loading repositories...")
     private val reloadButton = JButton("Reload")
-    private val accountActionButton = JButton("Login to Gitee")
+    private val accountActionButton = JButton("Set Gitee Account")
     private val panel = JPanel(BorderLayout(JBUI.scale(0), JBUI.scale(8)))
 
     private var allRepos: List<Repo> = emptyList()
@@ -168,8 +168,8 @@ class GiteeClonePanel(
         )
 
         updateUiState(
-            UiMode.NEED_LOGIN,
-            "Not logged in. Click 'Login to Gitee' to configure your account and access token."
+            UiMode.NEED_ACCOUNT,
+            "Set your Gitee account name first. Git username/password will be requested by Git during clone when needed."
         )
     }
 
@@ -177,7 +177,7 @@ class GiteeClonePanel(
 
     fun getPreferredFocusedComponent(): JComponent {
         return when {
-            !settings.isConfigured() -> accountActionButton
+            !settings.hasCloneAccountConfigured() -> accountActionButton
             repoListModel.isEmpty -> searchField
             else -> repoList
         }
@@ -190,7 +190,7 @@ class GiteeClonePanel(
     }
 
     fun isCloneEnabled(): Boolean {
-        return settings.isConfigured() &&
+        return settings.hasCloneAccountConfigured() &&
             !loading &&
             repoList.selectedValue != null &&
             directoryField.text.trim().isNotEmpty()
@@ -199,8 +199,8 @@ class GiteeClonePanel(
     fun validateAll(): List<ValidationInfo> {
         val validations = mutableListOf<ValidationInfo>()
 
-        if (!settings.isConfigured()) {
-            validations += ValidationInfo("Please log in to Gitee first.", accountActionButton)
+        if (!settings.hasCloneAccountConfigured()) {
+            validations += ValidationInfo("Please set your Gitee account first.", accountActionButton)
         }
 
         if (directoryField.text.trim().isEmpty()) {
@@ -238,15 +238,15 @@ class GiteeClonePanel(
             return
         }
 
-        if (!settings.isConfigured()) {
+        if (!settings.hasCloneAccountConfigured()) {
             repositoriesLoaded = false
             allRepos = emptyList()
             repoListModel.clear()
             accountLabel.text = "Account: not configured"
-            repoList.emptyText.text = "Configure access token first"
+            repoList.emptyText.text = "Set Gitee account first"
             updateUiState(
-                UiMode.NEED_LOGIN,
-                "Not logged in. Click 'Login to Gitee' to configure your account and access token."
+                UiMode.NEED_ACCOUNT,
+                "Set your Gitee account name first. Git username/password will be requested by Git during clone when needed."
             )
             onStateChanged()
             return
@@ -259,21 +259,19 @@ class GiteeClonePanel(
 
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val apiClient = GiteeApiClient(settings.accessToken)
-                val user = apiClient.getUser()
-                val accountName = settings.username.ifBlank { user.login }
-                val repos = loadAllRepositories(apiClient)
-
-                if (settings.username.isBlank() && user.login.isNotBlank()) {
-                    settings.username = user.login
-                }
+                val accountName = settings.username.trim()
+                val apiClient = GiteeApiClient()
+                val repos = loadAllPublicRepositories(apiClient, accountName)
 
                 ApplicationManager.getApplication().invokeLater {
                     repositoriesLoaded = true
                     loading = false
                     allRepos = repos
                     accountLabel.text = "Account: $accountName"
-                    updateUiState(UiMode.READY, "Loaded ${repos.size} repositories")
+                    updateUiState(
+                        UiMode.READY,
+                        "Loaded ${repos.size} public repositories. Git will ask for credentials during clone when needed."
+                    )
                     applyFilter()
                     onStateChanged()
                 }
@@ -285,14 +283,7 @@ class GiteeClonePanel(
                     repoListModel.clear()
                     accountLabel.text = "Account: ${settings.username.ifBlank { "-" }}"
                     repoList.emptyText.text = "Failed to load repositories"
-                    if (e.statusCode == 401 || e.statusCode == 403) {
-                        updateUiState(
-                            UiMode.AUTH_ERROR,
-                            "Authentication failed. Click 'Login to Gitee' to update your account or access token."
-                        )
-                    } else {
-                        updateUiState(UiMode.ERROR, e.message ?: "Failed to load repositories")
-                    }
+                    updateUiState(UiMode.ERROR, e.message ?: "Failed to load repositories")
                     onStateChanged()
                 }
             } catch (e: Exception) {
@@ -310,12 +301,12 @@ class GiteeClonePanel(
         }
     }
 
-    private fun loadAllRepositories(apiClient: GiteeApiClient): List<Repo> {
+    private fun loadAllPublicRepositories(apiClient: GiteeApiClient, username: String): List<Repo> {
         val repos = mutableListOf<Repo>()
         var page = 1
 
         while (true) {
-            val pageRepos = apiClient.getRepos(page = page, perPage = 100)
+            val pageRepos = apiClient.getPublicRepos(username = username, page = page, perPage = 100)
             if (pageRepos.isEmpty()) {
                 break
             }
@@ -373,36 +364,29 @@ class GiteeClonePanel(
         statusLabel.text = message
 
         when (mode) {
-            UiMode.NEED_LOGIN -> {
-                accountActionButton.text = "Login to Gitee"
+            UiMode.NEED_ACCOUNT -> {
+                accountActionButton.text = "Set Gitee Account"
                 reloadButton.isEnabled = false
                 searchField.isEnabled = false
                 repoList.isEnabled = false
             }
 
             UiMode.LOADING -> {
-                accountActionButton.text = "Manage Account"
+                accountActionButton.text = "Edit Account"
                 reloadButton.isEnabled = false
                 searchField.isEnabled = false
                 repoList.isEnabled = false
             }
 
             UiMode.READY -> {
-                accountActionButton.text = "Manage Account"
+                accountActionButton.text = "Edit Account"
                 reloadButton.isEnabled = true
                 searchField.isEnabled = true
                 repoList.isEnabled = true
             }
 
-            UiMode.AUTH_ERROR -> {
-                accountActionButton.text = "Login to Gitee"
-                reloadButton.isEnabled = true
-                searchField.isEnabled = false
-                repoList.isEnabled = false
-            }
-
             UiMode.ERROR -> {
-                accountActionButton.text = "Manage Account"
+                accountActionButton.text = "Edit Account"
                 reloadButton.isEnabled = true
                 searchField.isEnabled = false
                 repoList.isEnabled = false
@@ -413,63 +397,51 @@ class GiteeClonePanel(
     private fun cloneRepository(repo: Repo, targetDir: File, listener: CheckoutProvider.Listener?) {
         val parentProject = project
         val fullUrl = repo.cloneUrl.ifBlank { repo.htmlUrl }
+        val parentDir = targetDir.parentFile
+        if (parentDir == null) {
+            notify(parentProject, "Invalid clone target directory", NotificationType.ERROR)
+            return
+        }
 
-        com.intellij.openapi.progress.ProgressManager.getInstance().run(
-            object : com.intellij.openapi.progress.Task.Backgroundable(parentProject, "Cloning from Gitee...", true) {
-                override fun run(indicator: com.intellij.openapi.progress.ProgressIndicator) {
-                    try {
-                        indicator.text = "Cloning ${repo.fullName}..."
+        val parentDirVf = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+            .refreshAndFindFileByIoFile(parentDir)
+        if (parentDirVf == null) {
+            notify(parentProject, "Could not access clone target directory: ${parentDir.absolutePath}", NotificationType.ERROR)
+            return
+        }
 
-                        val process = ProcessBuilder("git", "clone", fullUrl, targetDir.absolutePath)
-                            .start()
+        val effectiveProject = parentProject ?: ProjectManager.getInstance().defaultProject
+        val effectiveListener = listener ?: createOpenProjectListener(effectiveProject)
 
-                        val exitCode = process.waitFor()
-                        val errorOutput = process.errorStream.bufferedReader().readText().trim()
-
-                        if (exitCode != 0) {
-                            notify(
-                                parentProject,
-                                if (errorOutput.isNotBlank()) errorOutput else "Failed to clone repository (exit code: $exitCode)",
-                                NotificationType.ERROR
-                            )
-                            return
-                        }
-
-                        com.intellij.openapi.vfs.LocalFileSystem.getInstance().refreshAndFindFileByPath(targetDir.absolutePath)
-
-                        notify(
-                            parentProject,
-                            "Successfully cloned to ${targetDir.absolutePath}",
-                            NotificationType.INFORMATION
-                        )
-
-                        ApplicationManager.getApplication().invokeLater {
-                            if (listener != null) {
-                                listener.directoryCheckedOut(targetDir, GitVcs.getKey())
-                                listener.checkoutCompleted()
-                            } else {
-                                promptToOpenProject(parentProject, targetDir, repo.name)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        notify(parentProject, "Failed to clone: ${e.message}", NotificationType.ERROR)
-                    }
-                }
-            }
+        GitCheckoutProvider.clone(
+            effectiveProject,
+            Git.getInstance(),
+            effectiveListener,
+            parentDirVf,
+            fullUrl,
+            repo.name,
+            parentDir.absolutePath
         )
     }
 
-    private fun promptToOpenProject(project: Project?, targetDir: File, repoName: String) {
-        val openProject = Messages.showYesNoDialog(
-            project,
-            "Clone completed. Open project '$repoName'?",
-            "Clone Complete",
-            Messages.getQuestionIcon()
-        ) == Messages.YES
+    private fun createOpenProjectListener(project: Project): CheckoutProvider.Listener {
+        return object : CheckoutProvider.Listener {
+            override fun directoryCheckedOut(directory: File, vcs: com.intellij.openapi.vcs.VcsKey) {
+                val openProject = Messages.showYesNoDialog(
+                    project,
+                    "Clone completed. Open project '${directory.name}'?",
+                    "Clone Complete",
+                    Messages.getQuestionIcon()
+                ) == Messages.YES
 
-        if (openProject) {
-            ApplicationManager.getApplication().invokeLater {
-                ProjectManager.getInstance().loadAndOpenProject(targetDir.absolutePath)
+                if (openProject) {
+                    ApplicationManager.getApplication().invokeLater {
+                        ProjectManager.getInstance().loadAndOpenProject(directory.absolutePath)
+                    }
+                }
+            }
+
+            override fun checkoutCompleted() {
             }
         }
     }

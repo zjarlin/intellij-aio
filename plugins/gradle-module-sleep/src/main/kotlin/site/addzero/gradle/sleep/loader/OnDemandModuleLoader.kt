@@ -47,11 +47,47 @@ object OnDemandModuleLoader {
     // 按需加载配置文件名
     private const val ACTIVE_MODULES_FILE = ".gradle-buddy/active-modules.gradle.kts"
 
+    // 当前版本的管理块标记
+    private const val MODULE_SLEEP_BLOCK_START = "// >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>"
+    private const val MODULE_SLEEP_BLOCK_END = "// <<< Gradle Module Sleep: End Of Block <<<"
+
+    // 兼容旧版本的 Gradle Buddy 标记，避免升级后残留旧块
+    private const val LEGACY_BLOCK_START = "// >>> Gradle Buddy: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>"
+    private const val LEGACY_BLOCK_END = "// <<< Gradle Buddy: End Of Block <<<"
+
     /**
      * 获取当前打开的所有标签页文件
      */
     fun getOpenEditorFiles(project: Project): List<VirtualFile> {
         return FileEditorManager.getInstance(project).openFiles.toList()
+    }
+
+    data class ModuleValidationResult(
+        val validModules: Set<String>,
+        val staleModules: Set<String>
+    )
+
+    fun validateExistingModules(project: Project, modules: Set<String>): ModuleValidationResult {
+        val projectBasePath = project.basePath
+        if (projectBasePath == null) {
+            return ModuleValidationResult(modules, emptySet())
+        }
+
+        val validModules = mutableSetOf<String>()
+        val staleModules = mutableSetOf<String>()
+        modules.forEach { modulePath ->
+            if (modulePath == ":" || isModulePathPresent(modulePath, projectBasePath)) {
+                validModules.add(modulePath)
+            } else {
+                staleModules.add(modulePath)
+            }
+        }
+
+        if (staleModules.isNotEmpty()) {
+            logger.info("Filtered ${staleModules.size} stale module reference(s): $staleModules")
+        }
+
+        return ModuleValidationResult(validModules, staleModules)
     }
 
     /**
@@ -431,6 +467,24 @@ object OnDemandModuleLoader {
         }
     }
 
+    fun deleteGeneratedActiveModulesConfig(project: Project): Boolean {
+        val baseDir = project.guessProjectDir() ?: return false
+        val configFile = baseDir.findFileByRelativePath(ACTIVE_MODULES_FILE) ?: return false
+
+        return try {
+            WriteCommandAction.runWriteCommandAction(project) {
+                if (configFile.isValid) {
+                    configFile.delete(OnDemandModuleLoader)
+                }
+            }
+            logger.info("Deleted generated active modules config: $ACTIVE_MODULES_FILE")
+            true
+        } catch (e: Exception) {
+            logger.warn("Failed to delete generated active modules config", e)
+            false
+        }
+    }
+
     /**
      * 应用按需加载 - 修改 settings.gradle.kts
      * 将现有的 include 语句替换为只包含激活模块的版本
@@ -438,16 +492,7 @@ object OnDemandModuleLoader {
     fun applyOnDemandLoading(project: Project, activeModules: Set<String>, syncAfter: Boolean = true): Boolean {
         val settingsFile = findSettingsFile(project) ?: return false
 
-        // 过滤掉文件系统中已不存在的模块路径（如重命名/删除后的残留）
-        val projectBasePath = project.basePath
-        val validatedModules = if (projectBasePath != null) {
-            activeModules.filter { modulePath ->
-                if (modulePath == ":") return@filter true
-                isModulePathPresent(modulePath, projectBasePath)
-            }.toSet()
-        } else {
-            activeModules
-        }
+        val validatedModules = validateExistingModules(project, activeModules).validModules
 
         if (validatedModules.isEmpty()) {
             logger.warn("No valid modules remain after filtering stale paths")
@@ -461,7 +506,7 @@ object OnDemandModuleLoader {
                 settingsFile.setBinaryContent(newContent.toByteArray())
             }
 
-            logger.info("Applied on-demand loading with ${activeModules.size} modules")
+            logger.info("Applied on-demand loading with ${validatedModules.size} valid module(s)")
 
             if (syncAfter) {
                 triggerGradleSync(project, settingsFile)
@@ -473,10 +518,6 @@ object OnDemandModuleLoader {
         }
     }
 
-    // Gradle Module Sleep 管理块的标记
-    private const val GRADLE_BUDDY_START = "// >>> Gradle Module Sleep: On-Demand Modules (DO NOT EDIT THIS BLOCK) >>>"
-    private const val GRADLE_BUDDY_END = "// <<< Gradle Module Sleep: End Of Block <<<"
-
     /**
      * 重写 settings.gradle.kts 内容，只保留激活的模块
      */
@@ -484,11 +525,11 @@ object OnDemandModuleLoader {
         val lines = originalContent.lines()
         val result = StringBuilder()
 
-        // 检查是否已有 Gradle Buddy 管理块
-        val startIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_START }
-        val endIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_END }
+        val managedBlockRange = findManagedBlockRange(lines)
 
-        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+        if (managedBlockRange != null) {
+            val startIndex = managedBlockRange.first
+            val endIndex = managedBlockRange.last
             // 替换现有的 Gradle Buddy 块
             for (i in lines.indices) {
                 when {
@@ -537,7 +578,7 @@ object OnDemandModuleLoader {
     private fun generateGradleBuddyBlock(activeModules: Set<String>): String {
         val (validModules, excludedModules) = partitionModules(activeModules)
         return buildString {
-            appendLine(GRADLE_BUDDY_START)
+            appendLine(MODULE_SLEEP_BLOCK_START)
             appendLine("// Generated at: ${java.time.LocalDateTime.now()}")
             appendLine("// Loaded: ${validModules.size}, Excluded: ${excludedModules.size}, Total: ${validModules.size + excludedModules.size}")
             if (excludedModules.isNotEmpty()) {
@@ -546,7 +587,7 @@ object OnDemandModuleLoader {
             validModules.sorted().forEach { modulePath ->
                 appendLine("include(\"$modulePath\")")
             }
-            append(GRADLE_BUDDY_END)
+            append(MODULE_SLEEP_BLOCK_END)
         }
     }
 
@@ -561,13 +602,9 @@ object OnDemandModuleLoader {
                 val content = String(settingsFile.contentsToByteArray())
                 val lines = content.lines()
 
-                // 查找并删除 Gradle Buddy 块
-                val startIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_START }
-                val endIndex = lines.indexOfFirst { it.trim() == GRADLE_BUDDY_END }
-
-                val filteredLines = if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-                    // 删除 Gradle Buddy 块
-                    lines.filterIndexed { index, _ -> index < startIndex || index > endIndex }
+                val managedBlockRange = findManagedBlockRange(lines)
+                val filteredLines = if (managedBlockRange != null) {
+                    lines.filterIndexed { index, _ -> index !in managedBlockRange }
                 } else {
                     lines
                 }
@@ -582,6 +619,12 @@ object OnDemandModuleLoader {
                     }
                 }
                 settingsFile.setBinaryContent(restored.trimEnd().toByteArray())
+
+                val baseDir = project.guessProjectDir()
+                val configFile = baseDir?.findFileByRelativePath(ACTIVE_MODULES_FILE)
+                if (configFile != null && configFile.isValid) {
+                    configFile.delete(OnDemandModuleLoader)
+                }
             }
 
             logger.info("Restored all modules")
@@ -603,6 +646,23 @@ object OnDemandModuleLoader {
         val baseDir = project.guessProjectDir() ?: return null
         return baseDir.findChild("settings.gradle.kts")
             ?: baseDir.findChild("settings.gradle")
+    }
+
+    private fun findManagedBlockRange(lines: List<String>): IntRange? {
+        val markerPairs = listOf(
+            MODULE_SLEEP_BLOCK_START to MODULE_SLEEP_BLOCK_END,
+            LEGACY_BLOCK_START to LEGACY_BLOCK_END
+        )
+
+        markerPairs.forEach { (startMarker, endMarker) ->
+            val startIndex = lines.indexOfFirst { it.trim() == startMarker }
+            val endIndex = lines.indexOfFirst { it.trim() == endMarker }
+            if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+                return startIndex..endIndex
+            }
+        }
+
+        return null
     }
 
     /**
@@ -633,8 +693,13 @@ object OnDemandModuleLoader {
             return LoadResult.NoModulesDetected(openFiles.size)
         }
 
-        val (validModules, excludedModules) = partitionModules(activeModules)
-        val success = applyOnDemandLoading(project, activeModules, syncAfter = true)
+        val validation = validateExistingModules(project, activeModules)
+        if (validation.validModules.isEmpty()) {
+            return LoadResult.NoModulesDetected(openFiles.size)
+        }
+
+        val (validModules, excludedModules) = partitionModules(validation.validModules)
+        val success = applyOnDemandLoading(project, validation.validModules, syncAfter = true)
         return if (success) {
             LoadResult.Success(validModules, excludedModules)
         } else {

@@ -20,17 +20,39 @@ class GiteeSettings : PersistentStateComponent<GiteeState> {
 
     override fun getState(): GiteeState = state
 
-    override fun loadState(state: GiteeState) {
-        this.state = state
+    override fun loadState(loadedState: GiteeState) {
+        if (loadedState.accessToken.isNotBlank() && GiteeCredentialStorage.getAccessToken().isNullOrBlank()) {
+            GiteeCredentialStorage.setAccessToken(loadedState.accessToken)
+        }
+
+        if (loadedState.accessToken.isNotBlank() && loadedState.authType == GiteeAuthType.PASSWORD.name) {
+            loadedState.authType = GiteeAuthType.TOKEN.name
+        }
+
+        loadedState.accessToken = ""
+        this.state = loadedState
     }
 
+    var authType: GiteeAuthType
+        get() = GiteeAuthType.fromValue(state.authType)
+        set(value) { state.authType = value.name }
+
     var accessToken: String
-        get() = state.accessToken
-        set(value) { state.accessToken = value }
+        get() = GiteeCredentialStorage.getAccessToken().orEmpty()
+        set(value) {
+            GiteeCredentialStorage.setAccessToken(value)
+            state.accessToken = ""
+        }
 
     var username: String
         get() = state.username
         set(value) { state.username = value }
+
+    var password: String
+        get() = GiteeCredentialStorage.getPassword().orEmpty()
+        set(value) {
+            GiteeCredentialStorage.setPassword(value)
+        }
 
     var defaultVisibility: String
         get() = state.defaultVisibility
@@ -40,7 +62,14 @@ class GiteeSettings : PersistentStateComponent<GiteeState> {
 
     fun hasAccessToken(): Boolean = accessToken.isNotBlank()
 
-    fun hasCloneAccountConfigured(): Boolean = username.isNotBlank()
+    fun hasPasswordCredentials(): Boolean = username.isNotBlank() && password.isNotBlank()
+
+    fun hasCloneAccountConfigured(): Boolean {
+        return when (authType) {
+            GiteeAuthType.PASSWORD -> hasPasswordCredentials()
+            GiteeAuthType.TOKEN -> hasAccessToken()
+        }
+    }
 
     companion object {
         fun getInstance(): GiteeSettings =

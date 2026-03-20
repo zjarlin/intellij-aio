@@ -46,7 +46,7 @@ class ShareProjectDialog(private val project: Project) : DialogWrapper(project) 
             }
             row {
                 label("The project will be pushed to Gitee as a new repository.")
-                    .comment("Make sure you have configured your access token in Settings → Tools → Gitee")
+                    .comment("Make sure you have configured Access Token mode in Settings → Version Control → Gitee")
             }
         }
     }

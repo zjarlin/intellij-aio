@@ -34,8 +34,8 @@ class ViewPullRequestsAction : AnAction() {
         val project = e.project ?: return
         val settings = GiteeSettings.getInstance()
 
-        if (!settings.isConfigured()) {
-            showNotification(project, "Please configure Gitee access token in Settings → Tools → Gitee", NotificationType.ERROR)
+        if (!settings.hasAccessToken()) {
+            showNotification(project, "This action requires Access Token mode. Please configure a Gitee access token in Settings → Version Control → Gitee.", NotificationType.ERROR)
             return
         }
 

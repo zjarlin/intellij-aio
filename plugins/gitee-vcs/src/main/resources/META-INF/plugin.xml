@@ -14,17 +14,17 @@
         <li>👀 <b>View Pull Requests</b>: Browse project PRs</li>
         <li>🔄 <b>Sync Fork</b>: Sync forked repositories with upstream</li>
         <li>📥 <b>Clone from Gitee</b>: Clone repositories from Gitee</li>
-        <li>🔐 <b>Account Management</b>: Manage Gitee access tokens</li>
+        <li>🔐 <b>Account Management</b>: Configure username/password or access token</li>
     </ul>
 
     <h4>Usage:</h4>
     <ol>
-        <li>Go to Settings → Tools → Gitee, configure your access token</li>
+        <li>Go to Settings → Version Control → Gitee, choose your authentication mode</li>
         <li>Use Git → Gitee menu to access all features</li>
     </ol>
 
     <h4>Getting Access Token:</h4>
-    <p>Visit <a href="https://gitee.com/profile/personal_access_tokens">Gitee Personal Access Tokens</a> to generate your token.</p>
+    <p>If you prefer token mode, visit <a href="https://gitee.com/profile/personal_access_tokens">Gitee Personal Access Tokens</a> to generate a token.</p>
     ]]></description>
 
     <change-notes><![CDATA[
@@ -58,6 +58,12 @@
             id="site.addzero.gitee.ui.clone.GiteeCloneDialogExtension"
             implementation="site.addzero.gitee.ui.clone.GiteeCloneDialogExtension"
             order="after org.jetbrains.plugins.gitlab.ui.clone.GitLabCloneDialogExtension"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="Git4Idea">
+        <GitHttpAuthDataProvider
+            id="Gitee"
+            implementation="site.addzero.gitee.git.GiteeGitHttpAuthDataProvider"/>
     </extensions>
 
     <actions>

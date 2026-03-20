@@ -24,6 +24,7 @@ import git4idea.commands.Git
 import site.addzero.gitee.api.GiteeApiClient
 import site.addzero.gitee.api.GiteeApiException
 import site.addzero.gitee.api.model.Repo
+import site.addzero.gitee.settings.GiteeAuthType
 import site.addzero.gitee.settings.GiteeConfigurable
 import site.addzero.gitee.settings.GiteeSettings
 import java.awt.BorderLayout
@@ -59,7 +60,7 @@ class GiteeClonePanel(
     private val accountLabel = JBLabel("Account: -")
     private val statusLabel = JBLabel("Loading repositories...")
     private val reloadButton = JButton("Reload")
-    private val accountActionButton = JButton("Set Gitee Account")
+    private val accountActionButton = JButton("Set Login")
     private val panel = JPanel(BorderLayout(JBUI.scale(0), JBUI.scale(8)))
 
     private var allRepos: List<Repo> = emptyList()
@@ -169,7 +170,7 @@ class GiteeClonePanel(
 
         updateUiState(
             UiMode.NEED_ACCOUNT,
-            "Set your Gitee account name first. Git username/password will be requested by Git during clone when needed."
+            "Set your Gitee login first. Choose either Username / Password or Access Token."
         )
     }
 
@@ -200,7 +201,7 @@ class GiteeClonePanel(
         val validations = mutableListOf<ValidationInfo>()
 
         if (!settings.hasCloneAccountConfigured()) {
-            validations += ValidationInfo("Please set your Gitee account first.", accountActionButton)
+            validations += ValidationInfo("Please configure Gitee login first.", accountActionButton)
         }
 
         if (directoryField.text.trim().isEmpty()) {
@@ -243,10 +244,10 @@ class GiteeClonePanel(
             allRepos = emptyList()
             repoListModel.clear()
             accountLabel.text = "Account: not configured"
-            repoList.emptyText.text = "Set Gitee account first"
+            repoList.emptyText.text = "Set Gitee login first"
             updateUiState(
                 UiMode.NEED_ACCOUNT,
-                "Set your Gitee account name first. Git username/password will be requested by Git during clone when needed."
+                "Set your Gitee login first. Choose either Username / Password or Access Token."
             )
             onStateChanged()
             return
@@ -259,9 +260,26 @@ class GiteeClonePanel(
 
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val accountName = settings.username.trim()
-                val apiClient = GiteeApiClient()
-                val repos = loadAllPublicRepositories(apiClient, accountName)
+                val authType = settings.authType
+                val apiClient = if (authType == GiteeAuthType.TOKEN) {
+                    GiteeApiClient(settings.accessToken)
+                } else {
+                    GiteeApiClient()
+                }
+                val accountName: String
+                val repos: List<Repo>
+
+                if (authType == GiteeAuthType.TOKEN) {
+                    val user = apiClient.getUser()
+                    accountName = user.login
+                    if (settings.username.isBlank()) {
+                        settings.username = user.login
+                    }
+                    repos = loadAllAuthenticatedRepositories(apiClient)
+                } else {
+                    accountName = settings.username.trim()
+                    repos = loadAllPublicRepositories(apiClient, accountName)
+                }
 
                 ApplicationManager.getApplication().invokeLater {
                     repositoriesLoaded = true
@@ -270,7 +288,11 @@ class GiteeClonePanel(
                     accountLabel.text = "Account: $accountName"
                     updateUiState(
                         UiMode.READY,
-                        "Loaded ${repos.size} public repositories. Git will ask for credentials during clone when needed."
+                        if (authType == GiteeAuthType.TOKEN) {
+                            "Loaded ${repos.size} repositories using your access token."
+                        } else {
+                            "Loaded ${repos.size} public repositories. Stored username/password will be used for Git HTTPS clone."
+                        }
                     )
                     applyFilter()
                     onStateChanged()
@@ -307,6 +329,27 @@ class GiteeClonePanel(
 
         while (true) {
             val pageRepos = apiClient.getPublicRepos(username = username, page = page, perPage = 100)
+            if (pageRepos.isEmpty()) {
+                break
+            }
+
+            repos += pageRepos
+            if (pageRepos.size < 100) {
+                break
+            }
+
+            page += 1
+        }
+
+        return repos.sortedBy { it.fullName.lowercase() }
+    }
+
+    private fun loadAllAuthenticatedRepositories(apiClient: GiteeApiClient): List<Repo> {
+        val repos = mutableListOf<Repo>()
+        var page = 1
+
+        while (true) {
+            val pageRepos = apiClient.getRepos(page = page, perPage = 100)
             if (pageRepos.isEmpty()) {
                 break
             }
@@ -365,28 +408,28 @@ class GiteeClonePanel(
 
         when (mode) {
             UiMode.NEED_ACCOUNT -> {
-                accountActionButton.text = "Set Gitee Account"
+                accountActionButton.text = "Set Login"
                 reloadButton.isEnabled = false
                 searchField.isEnabled = false
                 repoList.isEnabled = false
             }
 
             UiMode.LOADING -> {
-                accountActionButton.text = "Edit Account"
+                accountActionButton.text = "Edit Login"
                 reloadButton.isEnabled = false
                 searchField.isEnabled = false
                 repoList.isEnabled = false
             }
 
             UiMode.READY -> {
-                accountActionButton.text = "Edit Account"
+                accountActionButton.text = "Edit Login"
                 reloadButton.isEnabled = true
                 searchField.isEnabled = true
                 repoList.isEnabled = true
             }
 
             UiMode.ERROR -> {
-                accountActionButton.text = "Edit Account"
+                accountActionButton.text = "Edit Login"
                 reloadButton.isEnabled = true
                 searchField.isEnabled = false
                 repoList.isEnabled = false

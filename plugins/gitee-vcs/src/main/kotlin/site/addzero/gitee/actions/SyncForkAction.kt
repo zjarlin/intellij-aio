@@ -42,6 +42,24 @@ class SyncForkAction : AnAction() {
 
         val repoPath = repository.root
         val git = service<Git>()
+        val hasUpstream = repository.remotes.any { it.name == "upstream" }
+        val upstreamUrlToAdd = if (!hasUpstream) {
+            val upstreamUrl = com.intellij.openapi.ui.Messages.showInputDialog(
+                project,
+                "No upstream remote found. Enter upstream repository URL:",
+                "Add Upstream Remote",
+                com.intellij.openapi.ui.Messages.getQuestionIcon()
+            )
+
+            if (upstreamUrl.isNullOrBlank()) {
+                return
+            }
+
+            upstreamUrl
+        } else {
+            null
+        }
+        val currentBranch = repository.currentBranch?.name ?: "master"
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project,
@@ -50,28 +68,10 @@ class SyncForkAction : AnAction() {
         ) {
             override fun run(indicator: com.intellij.openapi.progress.ProgressIndicator) {
                 try {
-                    indicator.text = "Checking for upstream remote..."
-
-                    // Check if upstream remote exists
-                    val remotes = repository.remotes
-                    val hasUpstream = remotes.any { it.name == "upstream" }
-
-                    if (!hasUpstream) {
-                        // Ask user for upstream URL
-                        val upstreamUrl = com.intellij.openapi.ui.Messages.showInputDialog(
-                            project,
-                            "No upstream remote found. Enter upstream repository URL:",
-                            "Add Upstream Remote",
-                            com.intellij.openapi.ui.Messages.getQuestionIcon()
-                        )
-
-                        if (upstreamUrl.isNullOrBlank()) {
-                            return
-                        }
-
+                    if (upstreamUrlToAdd != null) {
                         indicator.text = "Adding upstream remote..."
                         val addRemoteHandler = GitLineHandler(project, repoPath, GitCommand.REMOTE)
-                        addRemoteHandler.addParameters("add", "upstream", upstreamUrl)
+                        addRemoteHandler.addParameters("add", "upstream", upstreamUrlToAdd)
                         val addResult = git.runCommand(addRemoteHandler)
 
                         if (!addResult.success()) {
@@ -90,9 +90,6 @@ class SyncForkAction : AnAction() {
                         showNotification(project, "Failed to fetch upstream: ${fetchResult.errorOutputAsHtmlString}", NotificationType.ERROR)
                         return
                     }
-
-                    // Get current branch
-                    val currentBranch = repository.currentBranch?.name ?: "master"
 
                     // Merge upstream into current branch
                     indicator.text = "Merging upstream/$currentBranch..."

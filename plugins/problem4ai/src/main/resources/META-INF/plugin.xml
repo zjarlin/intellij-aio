@@ -27,8 +27,8 @@
         <!-- 项目启动时触发全局诊断扫描（饿汉式） -->
         <postStartupActivity implementation="site.addzero.diagnostic.service.GlobalDiagnosticCacheInitializer"/>
 
-        <!-- 项目启动时初始化MCP服务 -->
-        <postStartupActivity implementation="site.addzero.diagnostic.mcp.DiagnosticMcpInitializer"/>
+        <!-- 项目启动时初始化 HTTP 服务并安装本地 skills -->
+        <postStartupActivity implementation="site.addzero.diagnostic.http.DiagnosticHttpInitializer"/>
 
         <!-- 通知组 -->
         <notificationGroup id="Problem4AI Notifications" displayType="BALLOON" isLogByDefault="true"/>
@@ -41,6 +41,6 @@
         <projectService
                 serviceImplementation="site.addzero.diagnostic.service.GlobalDiagnosticCache"/>
         <projectService
-                serviceImplementation="site.addzero.diagnostic.mcp.DiagnosticMcpServer"/>
+                serviceImplementation="site.addzero.diagnostic.http.DiagnosticHttpServer"/>
     </extensions>
 </idea-plugin>

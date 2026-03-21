@@ -163,6 +163,7 @@ fun interface CacheUpdateListener {
 class GlobalDiagnosticCacheInitializer : ProjectActivity {
     companion object {
         private val LOG: Logger = Logger.getInstance(GlobalDiagnosticCacheInitializer::class.java)
+        private const val STARTUP_SCAN_DELAY_MS = 4000
     }
 
     override suspend fun execute(project: Project) {
@@ -172,26 +173,14 @@ class GlobalDiagnosticCacheInitializer : ProjectActivity {
         exclusionConfig.loadFromGitignore(project)
 
         val cache = GlobalDiagnosticCache.getInstance(project)
-
-        // 启动后立即扫一次，尽早给面板基础结果
-        LOG.info("[Problem4AI][Startup] trigger immediate full scan")
-        cache.performFullScan()
-
-        // 新项目导入阶段根目录可能尚未就绪，延迟再触发两次兜底
         val retryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
-        retryAlarm.addRequest({
-            LOG.info("[Problem4AI][Startup] trigger delayed full scan (+2s)")
-            cache.performFullScan()
-        }, 2000)
-        retryAlarm.addRequest({
-            LOG.info("[Problem4AI][Startup] trigger delayed full scan (+6s)")
-            cache.performFullScan()
-        }, 6000)
 
-        // 索引完成后再扫一次，补齐语义级错误
-        com.intellij.openapi.project.DumbService.getInstance(project).runWhenSmart {
-            LOG.info("[Problem4AI][Startup] trigger smart-mode full scan")
-            cache.performFullScan()
-        }
+        // 启动阶段只保留一次延迟扫描，避免项目刚打开时重复全量扫描拖慢 IDE。
+        retryAlarm.addRequest({
+            com.intellij.openapi.project.DumbService.getInstance(project).runWhenSmart {
+                LOG.info("[Problem4AI][Startup] trigger delayed smart full scan")
+                cache.performFullScan()
+            }
+        }, STARTUP_SCAN_DELAY_MS)
     }
 }

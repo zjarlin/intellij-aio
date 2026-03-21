@@ -4,6 +4,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.util.Alarm
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpHandler
 import com.sun.net.httpserver.HttpServer
@@ -347,8 +348,24 @@ class DiagnosticHttpServer(private val project: Project) {
 }
 
 class DiagnosticHttpInitializer : ProjectActivity {
+    companion object {
+        private val LOG: Logger = Logger.getInstance(DiagnosticHttpInitializer::class.java)
+        private const val STARTUP_HTTP_DELAY_MS = 5000
+    }
+
     override suspend fun execute(project: Project) {
-        val server = DiagnosticHttpServer.getInstance(project)
-        Problem4AiSkillInstaller.installBuiltinSkills(project, server)
+        val startupAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+        startupAlarm.addRequest({
+            if (project.isDisposed) {
+                return@addRequest
+            }
+            runCatching {
+                val server = DiagnosticHttpServer.getInstance(project)
+                Problem4AiSkillInstaller.installBuiltinSkills(project, server)
+                LOG.info("[Problem4AI][Http] delayed startup completed for project=${project.name}")
+            }.onFailure { error ->
+                LOG.warn("[Problem4AI][Http] delayed startup failed for project=${project.name}", error)
+            }
+        }, STARTUP_HTTP_DELAY_MS)
     }
 }

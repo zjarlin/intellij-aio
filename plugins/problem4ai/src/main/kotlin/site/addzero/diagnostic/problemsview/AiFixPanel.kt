@@ -49,7 +49,7 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val problemListModel = DefaultListModel<DiagnosticItem>()
     private val problemList = JBList(problemListModel)
 
-    private val statusLabel = JBLabel("等待扫描开始...")
+    private val statusLabel = JBLabel("等待后台扫描或点击刷新...")
     private val progressLabel = JBLabel("")
 
     private var currentDiagnostics: List<FileDiagnostics> = emptyList()
@@ -197,9 +197,6 @@ class AiFixPanel(private val project: Project) : JPanel(BorderLayout()) {
         LOG.info("[Problem4AI][Panel] listeners registered for project=${project.name}")
         // 初始加载
         loadFromGlobalCache()
-        // 面板初始化时兜底触发一次全量扫描
-        LOG.info("[Problem4AI][Panel] trigger full scan on panel init")
-        collectorService.performFullScan()
     }
 
     private fun setupEditorSelectionSync() {

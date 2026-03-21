@@ -20,11 +20,16 @@ object Problem4AiSkillInstaller {
     fun installBuiltinSkills(project: Project, server: DiagnosticHttpServer) {
         resolveSkillRoots().forEach { skillRoot ->
             runCatching {
-                installSkillDirectory(skillRoot)
-                LOG.info(
-                    "[Problem4AI][Skill] installed builtin skill for project=${project.name} " +
-                        "port=${server.getPort()} at ${skillRoot.resolve(SKILL_FOLDER_NAME)}"
-                )
+                val installed = installSkillDirectory(skillRoot)
+                val skillDir = skillRoot.resolve(SKILL_FOLDER_NAME)
+                if (installed) {
+                    LOG.info(
+                        "[Problem4AI][Skill] installed builtin skill for project=${project.name} " +
+                            "port=${server.getPort()} at $skillDir"
+                    )
+                } else {
+                    LOG.info("[Problem4AI][Skill] skip reinstall existing skill at $skillDir")
+                }
             }.onFailure { error ->
                 LOG.warn("[Problem4AI][Skill] failed to install builtin skill at $skillRoot", error)
             }
@@ -45,8 +50,11 @@ object Problem4AiSkillInstaller {
         ).distinct()
     }
 
-    private fun installSkillDirectory(skillRoot: Path) {
+    private fun installSkillDirectory(skillRoot: Path): Boolean {
         val skillDir = skillRoot.resolve(SKILL_FOLDER_NAME)
+        if (isSkillAlreadyInstalled(skillDir)) {
+            return false
+        }
         Files.createDirectories(skillDir)
 
         RESOURCE_FILES.forEach { relativePath ->
@@ -57,6 +65,13 @@ object Problem4AiSkillInstaller {
             if (targetFile.fileName.toString().endsWith(".py")) {
                 targetFile.toFile().setExecutable(true, false)
             }
+        }
+        return true
+    }
+
+    private fun isSkillAlreadyInstalled(skillDir: Path): Boolean {
+        return RESOURCE_FILES.all { relativePath ->
+            Files.isRegularFile(resolveRelative(skillDir, relativePath))
         }
     }
 

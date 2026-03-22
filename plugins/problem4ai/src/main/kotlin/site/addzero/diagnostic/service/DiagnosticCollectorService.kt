@@ -33,6 +33,7 @@ import site.addzero.diagnostic.config.DiagnosticExclusionConfig
 import site.addzero.diagnostic.core.collectDiagnostics
 import site.addzero.diagnostic.model.FileDiagnostics
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -46,6 +47,10 @@ private class DiagnosticResult(val diagnostics: FileDiagnostics?)
 private data class SourceFileCollectionResult(
     val files: List<VirtualFile>,
     val isTruncated: Boolean
+)
+private data class VfsChangeSnapshot(
+    val file: VirtualFile,
+    val isDelete: Boolean
 )
 
 /**
@@ -78,6 +83,8 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     private val compileTriggeredOnce = AtomicBoolean(false)
     private val debounceAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val fullScanRetryAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    private val vfsChangeAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    private val pendingVfsChanges = ConcurrentLinkedQueue<VfsChangeSnapshot>()
 
     // 进度跟踪
     private val scanProgress = AtomicReference(ScanProgress())
@@ -239,6 +246,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         progressListeners.clear()
         debounceAlarm.dispose()
         fullScanRetryAlarm.dispose()
+        vfsChangeAlarm.dispose()
     }
 
     // ==================== 内部实现 ====================
@@ -320,7 +328,7 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
             object : BulkFileListener {
                 override fun after(events: List<VFileEvent>) {
                     LOG.debug("[Problem4AI][Listener] VFS changes count=${events.size}")
-                    handleVfsChanges(events)
+                    enqueueVfsChanges(events)
                 }
             }
         )
@@ -628,16 +636,51 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
         return if (line >= 0) line + 1 else 1
     }
 
-    private fun handleVfsChanges(events: List<VFileEvent>) {
-        if (events.isEmpty()) return
+    private fun enqueueVfsChanges(events: List<VFileEvent>) {
+        if (events.isEmpty()) {
+            return
+        }
+
+        events.forEach { event ->
+            val file = event.file ?: return@forEach
+            pendingVfsChanges.offer(
+                VfsChangeSnapshot(
+                    file = file,
+                    isDelete = event is VFileDeleteEvent
+                )
+            )
+        }
+
+        vfsChangeAlarm.cancelAllRequests()
+        vfsChangeAlarm.addRequest({
+            if (project.isDisposed) {
+                return@addRequest
+            }
+            drainPendingVfsChanges()
+        }, 150)
+    }
+
+    private fun drainPendingVfsChanges() {
+        val snapshots = mutableListOf<VfsChangeSnapshot>()
+        while (true) {
+            val snapshot = pendingVfsChanges.poll() ?: break
+            snapshots.add(snapshot)
+        }
+        handleVfsChanges(snapshots)
+    }
+
+    private fun handleVfsChanges(events: List<VfsChangeSnapshot>) {
+        if (events.isEmpty()) {
+            return
+        }
 
         var cacheChanged = false
         val changedFiles = LinkedHashSet<VirtualFile>()
 
         events.forEach { event ->
-            val file = event.file ?: return@forEach
+            val file = event.file
 
-            if (event is VFileDeleteEvent || !file.isValid) {
+            if (event.isDelete || !file.isValid) {
                 if (removeFromCache(file)) {
                     cacheChanged = true
                 }

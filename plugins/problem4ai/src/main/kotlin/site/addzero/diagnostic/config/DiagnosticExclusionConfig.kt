@@ -15,6 +15,8 @@ import com.intellij.openapi.vfs.VirtualFile
 class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
     private var state = ExclusionState()
+    @Volatile
+    private var compiledMatchers: List<PathPatternMatcher>? = null
 
     companion object {
         private const val MIN_SCAN_LIMIT = 1
@@ -51,16 +53,17 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
     override fun loadState(state: ExclusionState) {
         this.state = state
+        invalidateMatcherCache()
     }
 
     fun isExcluded(file: VirtualFile): Boolean {
-        if (file.isDirectory) return true
+        if (file.isDirectory) {
+            return true
+        }
 
-        val filePath = file.path
-        val patterns = getEffectivePatterns()
-
-        return patterns.any { pattern ->
-            matchesPattern(filePath, pattern)
+        val filePath = normalizePath(file.path)
+        return getCompiledMatchers().any { matcher ->
+            matcher.matches(filePath)
         }
     }
 
@@ -82,22 +85,26 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
     fun setCustomPatterns(patterns: List<String>) {
         state.customPatterns = patterns.filter { it.isNotBlank() }.distinct()
+        invalidateMatcherCache()
     }
 
     fun addCustomPattern(pattern: String) {
         if (pattern.isNotBlank() && !state.customPatterns.contains(pattern)) {
             state.customPatterns = state.customPatterns + pattern
+            invalidateMatcherCache()
         }
     }
 
     fun removeCustomPattern(pattern: String) {
         state.customPatterns = state.customPatterns.filter { it != pattern }
+        invalidateMatcherCache()
     }
 
     fun isUseDefaultPatterns(): Boolean = state.useDefaultPatterns
 
     fun setUseDefaultPatterns(use: Boolean) {
         state.useDefaultPatterns = use
+        invalidateMatcherCache()
     }
 
     fun getMaxFullScanFiles(): Int {
@@ -166,48 +173,47 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
         existing.addAll(patterns)
         state.customPatterns = existing.toList()
         state.gitignoreLoaded = true
+        invalidateMatcherCache()
     }
 
-    private fun matchesPattern(filePath: String, pattern: String): Boolean {
-        return try {
-            when {
-                filePath == pattern -> true
-                pattern.contains("**") -> matchGlobPattern(filePath, pattern)
-                pattern.contains("*") -> matchGlobPattern(filePath, pattern)
-                pattern.endsWith("/") -> filePath.contains("/${pattern.removeSuffix("/")}/")
-                        || filePath.startsWith("${pattern.removeSuffix("/")}/")
-                else -> filePath.contains(pattern)
-            }
-        } catch (e: Exception) {
-            false
+    private fun invalidateMatcherCache() {
+        compiledMatchers = null
+    }
+
+    private fun getCompiledMatchers(): List<PathPatternMatcher> {
+        compiledMatchers?.let { return it }
+
+        synchronized(this) {
+            compiledMatchers?.let { return it }
+            val matchers = getEffectivePatterns()
+                .mapNotNull { pattern -> createMatcher(pattern) }
+            compiledMatchers = matchers
+            return matchers
         }
     }
 
-    private fun matchGlobPattern(filePath: String, pattern: String): Boolean {
-        val regex = pattern
-            .replace(".**", "PLACEHOLDER_DOTSTAR")
-            .replace("**", "PLACEHOLDER_DOUBLESTAR")
-            .replace("*", "PLACEHOLDER_STAR")
-            .replace("?", "PLACEHOLDER_QUESTION")
-            .replace(".", "\\.")
-            .replace("PLACEHOLDER_DOTSTAR", ".*")
-            .replace("PLACEHOLDER_DOUBLESTAR", ".*")
-            .replace("PLACEHOLDER_STAR", "[^/]*")
-            .replace("PLACEHOLDER_QUESTION", ".")
-            .replace("/", "\\/")
-
-        return try {
-            val fullPattern = if (pattern.startsWith("**/")) {
-                ".*" + regex.removePrefix("\\/")
-            } else if (pattern.startsWith("/")) {
-                regex
-            } else {
-                ".*" + regex
-            }
-            filePath.matches(Regex(fullPattern))
-        } catch (e: Exception) {
-            filePath.contains(pattern.replace("*", "").replace("**", ""))
+    private fun createMatcher(pattern: String): PathPatternMatcher? {
+        val normalizedPattern = normalizePath(pattern).trim()
+        if (normalizedPattern.isBlank()) {
+            return null
         }
+
+        return when {
+            normalizedPattern.contains("**") || normalizedPattern.contains("*") || normalizedPattern.contains("?") -> {
+                GlobPathMatcher(normalizedPattern)
+            }
+            normalizedPattern.endsWith("/") -> {
+                val dirPattern = normalizedPattern.removeSuffix("/")
+                DirectoryPathMatcher(dirPattern)
+            }
+            else -> {
+                ContainsPathMatcher(normalizedPattern)
+            }
+        }
+    }
+
+    private fun normalizePath(value: String): String {
+        return value.replace('\\', '/')
     }
 
     private fun convertGitignorePattern(pattern: String): String {
@@ -222,6 +228,144 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
     private fun normalizeScanLimit(value: Int, defaultValue: Int): Int {
         val normalized = if (value > 0) value else defaultValue
         return normalized.coerceIn(MIN_SCAN_LIMIT, MAX_SCAN_LIMIT)
+    }
+
+    private fun interface PathPatternMatcher {
+        fun matches(filePath: String): Boolean
+    }
+
+    private class ContainsPathMatcher(
+        private val pattern: String
+    ) : PathPatternMatcher {
+        override fun matches(filePath: String): Boolean {
+            return filePath == pattern || filePath.contains(pattern)
+        }
+    }
+
+    private class DirectoryPathMatcher(
+        pattern: String
+    ) : PathPatternMatcher {
+        private val directoryPath = pattern.removeSuffix("/")
+
+        override fun matches(filePath: String): Boolean {
+            return filePath.contains("/$directoryPath/") || filePath.startsWith("$directoryPath/")
+        }
+    }
+
+    private class GlobPathMatcher(
+        pattern: String
+    ) : PathPatternMatcher {
+        private val tokens: List<GlobToken>
+
+        init {
+            val normalizedPattern = pattern.removePrefix("/")
+            val rawTokens = normalizedPattern.split("/")
+                .filter { it.isNotBlank() }
+                .map { segment ->
+                    if (segment == "**") {
+                        GlobToken.DoubleStar
+                    } else {
+                        GlobToken.Segment(segment)
+                    }
+                }
+            tokens = if (pattern.startsWith("/") || rawTokens.firstOrNull() is GlobToken.DoubleStar) {
+                rawTokens
+            } else {
+                listOf(GlobToken.DoubleStar) + rawTokens
+            }
+        }
+
+        override fun matches(filePath: String): Boolean {
+            val pathSegments = filePath.split("/")
+                .filter { it.isNotBlank() }
+            if (tokens.isEmpty()) {
+                return pathSegments.isEmpty()
+            }
+            return matchesFrom(0, 0, pathSegments, HashMap())
+        }
+
+        private fun matchesFrom(
+            tokenIndex: Int,
+            pathIndex: Int,
+            pathSegments: List<String>,
+            memo: MutableMap<Pair<Int, Int>, Boolean>
+        ): Boolean {
+            val key = tokenIndex to pathIndex
+            memo[key]?.let { return it }
+
+            val matched = when {
+                tokenIndex == tokens.size -> pathIndex == pathSegments.size
+                tokens[tokenIndex] === GlobToken.DoubleStar -> {
+                    if (tokenIndex == tokens.lastIndex) {
+                        true
+                    } else {
+                        var nextPathIndex = pathIndex
+                        var found = false
+                        while (nextPathIndex <= pathSegments.size) {
+                            if (matchesFrom(tokenIndex + 1, nextPathIndex, pathSegments, memo)) {
+                                found = true
+                                break
+                            }
+                            nextPathIndex++
+                        }
+                        found
+                    }
+                }
+                pathIndex >= pathSegments.size -> false
+                else -> {
+                    val segmentToken = tokens[tokenIndex] as GlobToken.Segment
+                    segmentToken.matches(pathSegments[pathIndex]) &&
+                        matchesFrom(tokenIndex + 1, pathIndex + 1, pathSegments, memo)
+                }
+            }
+
+            memo[key] = matched
+            return matched
+        }
+    }
+
+    private sealed interface GlobToken {
+        data object DoubleStar : GlobToken
+
+        class Segment(
+            private val glob: String
+        ) : GlobToken {
+            fun matches(segment: String): Boolean {
+                var globIndex = 0
+                var segmentIndex = 0
+                var starIndex = -1
+                var retrySegmentIndex = -1
+
+                while (segmentIndex < segment.length) {
+                    if (globIndex < glob.length && (glob[globIndex] == '?' || glob[globIndex] == segment[segmentIndex])) {
+                        globIndex++
+                        segmentIndex++
+                        continue
+                    }
+
+                    if (globIndex < glob.length && glob[globIndex] == '*') {
+                        starIndex = globIndex
+                        retrySegmentIndex = segmentIndex
+                        globIndex++
+                        continue
+                    }
+
+                    if (starIndex >= 0) {
+                        globIndex = starIndex + 1
+                        retrySegmentIndex++
+                        segmentIndex = retrySegmentIndex
+                        continue
+                    }
+
+                    return false
+                }
+
+                while (globIndex < glob.length && glob[globIndex] == '*') {
+                    globIndex++
+                }
+                return globIndex == glob.length
+            }
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiDocumentManager
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
@@ -19,6 +20,10 @@ class MergeOtherTomlAction : AnAction(
     GradleBuddyBundle.message("action.merge.other.toml.description"),
     null
 ), DumbAware {
+
+    init {
+        syncPresentation()
+    }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
@@ -86,6 +91,16 @@ class MergeOtherTomlAction : AnAction(
     }
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.merge.other.toml.title",
+            "action.merge.other.toml.description"
+        )
     }
 }

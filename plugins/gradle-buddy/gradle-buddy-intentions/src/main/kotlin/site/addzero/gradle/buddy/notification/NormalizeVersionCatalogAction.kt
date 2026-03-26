@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -30,6 +31,10 @@ import java.io.File
  */
 class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
+    init {
+        syncPresentation()
+    }
+
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -40,7 +45,17 @@ class NormalizeVersionCatalogAction : AnAction(), DumbAware {
 
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.normalize.version.catalog.title",
+            "action.normalize.version.catalog.description"
+        )
     }
 
     private fun normalize(project: Project, file: VirtualFile) {

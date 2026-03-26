@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.ide.CopyPasteManager
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import java.awt.datatransfer.StringSelection
 
 /**
@@ -13,11 +14,11 @@ import java.awt.datatransfer.StringSelection
  *
  * Registered in EditorPopupMenu and EditorTabPopupMenu.
  */
-class CopyModuleDependencyAction : AnAction(
-    "(Gradle Buddy) Copy Module Dependency",
-    "Copy implementation(project(\"...\")) for current module to clipboard",
-    null
-) {
+class CopyModuleDependencyAction : AnAction() {
+
+    init {
+        syncPresentation()
+    }
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
@@ -33,11 +34,21 @@ class CopyModuleDependencyAction : AnAction(
     }
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         val modulePath = detectModulePath(e)
         e.presentation.isEnabledAndVisible = modulePath != null && modulePath != ":"
     }
 
     override fun getActionUpdateThread() = com.intellij.openapi.actionSystem.ActionUpdateThread.BGT
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.copy.module.dependency.title",
+            "action.copy.module.dependency.description"
+        )
+    }
 
     /**
      * Detect the Gradle module path for the file in the current action context.

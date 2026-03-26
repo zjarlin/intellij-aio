@@ -3,5 +3,5 @@ plugins {
 }
 
 dependencies {
-//    implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
 }

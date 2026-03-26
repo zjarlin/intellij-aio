@@ -24,6 +24,7 @@ import com.intellij.ui.table.JBTable
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.projectdep.ModulePathDistance
 import java.awt.BorderLayout
@@ -53,9 +54,22 @@ import javax.swing.table.TableCellEditor
  */
 class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
+    init {
+        syncPresentation()
+    }
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         runBatchFix(project)
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.fix.broken.project.references.menu.title",
+            "action.fix.broken.project.references.menu.description"
+        )
     }
 
     private fun runBatchFixFlow(project: Project, basePath: String) {
@@ -148,6 +162,7 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project?.basePath != null
     }
 

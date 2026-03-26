@@ -7,6 +7,7 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import java.io.File
 
 /**
@@ -20,10 +21,24 @@ import java.io.File
  */
 class BuildDirGitIgnoreFixer : AnAction(), DumbAware {
 
+    init {
+        syncPresentation()
+    }
+
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.fix.build.dir.gitignore.title",
+            "action.fix.build.dir.gitignore.description"
+        )
     }
 
     override fun actionPerformed(e: AnActionEvent) {

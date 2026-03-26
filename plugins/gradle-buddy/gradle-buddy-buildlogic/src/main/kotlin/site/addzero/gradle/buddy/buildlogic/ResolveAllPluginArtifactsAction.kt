@@ -13,6 +13,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -22,11 +23,11 @@ import java.io.File
  *
  * 用于一键生成 build-logic 所需的所有插件依赖。
  */
-class ResolveAllPluginArtifactsAction : AnAction(
-    "(Gradle Buddy) Resolve All Plugin Artifacts for Build-Logic",
-    "Scan all plugins in .gradle.kts files and resolve their implementation artifacts to version catalog",
-    null
-) {
+class ResolveAllPluginArtifactsAction : AnAction() {
+
+    init {
+        syncPresentation()
+    }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
@@ -104,7 +105,17 @@ class ResolveAllPluginArtifactsAction : AnAction(
     }
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.resolve.plugin.artifacts.title",
+            "action.resolve.plugin.artifacts.description"
+        )
     }
 
     // ========== 扫描 ==========

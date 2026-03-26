@@ -9,6 +9,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 
 /**
  * 一键迁移 project 依赖到 Maven 依赖
@@ -19,11 +20,11 @@ import com.intellij.openapi.ui.Messages
  * 3. 显示替换清单对话框让用户选择
  * 4. 执行替换
  */
-class MigrateProjectDependenciesAction : AnAction(
-    "(Gradle Buddy) Migrate project() Dependencies to Maven",
-    "Scan project() dependencies and replace them with Maven artifacts",
-    null
-) {
+class MigrateProjectDependenciesAction : AnAction() {
+
+    init {
+        syncPresentation()
+    }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
@@ -138,6 +139,16 @@ class MigrateProjectDependenciesAction : AnAction(
     }
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.migrate.project.dependencies.title",
+            "action.migrate.project.dependencies.description"
+        )
     }
 }

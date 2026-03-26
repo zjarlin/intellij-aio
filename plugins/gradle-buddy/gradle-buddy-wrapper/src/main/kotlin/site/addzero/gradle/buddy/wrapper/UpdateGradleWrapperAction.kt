@@ -10,17 +10,33 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import org.jetbrains.plugins.gradle.settings.GradleSettings
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import java.io.File
 
 /**
  * Tools 菜单操作：更新当前项目所有 gradle-wrapper.properties 的 distributionUrl
  * 为最新版本的腾讯云镜像（或用户选择的镜像）。
  */
-class UpdateGradleWrapperAction : AnAction(
-    "(Gradle Buddy) Update Gradle Wrapper (Mirror)",
-    "Update all gradle-wrapper.properties to latest Gradle version using mirror",
-    null
-) {
+class UpdateGradleWrapperAction : AnAction() {
+
+    init {
+        syncPresentation()
+    }
+
+    override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
+        e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.update.gradle.wrapper.title",
+            "action.update.gradle.wrapper.description"
+        )
+    }
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
 

@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import java.awt.BorderLayout
 import java.awt.Component
@@ -35,6 +36,10 @@ import javax.swing.table.TableCellEditor
  */
 class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
+    init {
+        syncPresentation()
+    }
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
@@ -49,9 +54,19 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         val file = e.getData(CommonDataKeys.VIRTUAL_FILE)
         e.presentation.isEnabledAndVisible =
             e.project != null && file != null && file.name.endsWith(".versions.toml")
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.fix.broken.catalog.references.menu.title",
+            "action.fix.broken.catalog.references.menu.description"
+        )
     }
 
     // ── Data model ──────────────────────────────────────────────────────

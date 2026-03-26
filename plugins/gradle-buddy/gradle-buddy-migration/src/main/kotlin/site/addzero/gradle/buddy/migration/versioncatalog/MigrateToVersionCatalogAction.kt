@@ -14,6 +14,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.util.StringUtils.toCamelCaseByDelimiters
 import site.addzero.gradle.buddy.util.StringUtils.toKebabCase
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
@@ -25,11 +26,11 @@ import java.io.File
  * 扫描项目中所有 .gradle.kts 文件，提取硬编码依赖，
  * 生成/更新 gradle/libs.versions.toml，并替换为 catalog 引用
  */
-class MigrateToVersionCatalogAction : AnAction(
-    "(Gradle Buddy) Migrate Dependencies to Version Catalog",
-    "Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml",
-    null
-) {
+class MigrateToVersionCatalogAction : AnAction() {
+
+    init {
+        syncPresentation()
+    }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
@@ -114,7 +115,17 @@ class MigrateToVersionCatalogAction : AnAction(
     }
 
     override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
         e.presentation.isEnabledAndVisible = e.project != null
+    }
+
+    private fun syncPresentation(presentation: com.intellij.openapi.actionSystem.Presentation? = null) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.migrate.version.catalog.title",
+            "action.migrate.version.catalog.description"
+        )
     }
 }
 

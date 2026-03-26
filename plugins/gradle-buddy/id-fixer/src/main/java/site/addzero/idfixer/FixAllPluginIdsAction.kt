@@ -4,10 +4,12 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.psi.search.GlobalSearchScope
+import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 
 /**
  * Action to fix all plugin IDs in the entire project.
@@ -15,7 +17,16 @@ import com.intellij.psi.search.GlobalSearchScope
  * This action scans all build-logic directories, finds all local precompiled script plugins,
  * and replaces all short plugin ID references with fully qualified IDs throughout the project.
  */
-class FixAllPluginIdsAction : AnAction("(Gradle Buddy) Fix All Build Script Plugin Qualified IDs in Project") {
+class FixAllPluginIdsAction : AnAction() {
+
+    init {
+        syncPresentation(null)
+    }
+
+    override fun update(e: AnActionEvent) {
+        syncPresentation(e.presentation)
+        e.presentation.isEnabledAndVisible = e.project != null
+    }
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
@@ -83,5 +94,14 @@ class FixAllPluginIdsAction : AnAction("(Gradle Buddy) Fix All Build Script Plug
             .getNotificationGroup("Gradle Plugin ID Fixer")
             .createNotification(message, type)
             .notify(project)
+    }
+
+    private fun syncPresentation(presentation: Presentation?) {
+        GradleBuddyActionI18n.sync(
+            this,
+            presentation,
+            "action.fix.all.plugin.ids.title",
+            "action.fix.all.plugin.ids.description"
+        )
     }
 }

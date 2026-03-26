@@ -20,7 +20,7 @@ import com.intellij.openapi.ui.Messages
  * 4. 执行替换
  */
 class MigrateProjectDependenciesAction : AnAction(
-    " Migrate Projects Dependencies then Replacewith Mavencentral Dependencies",
+    "(Gradle Buddy) Migrate project() Dependencies to Maven",
     "Scan project() dependencies and replace them with Maven artifacts",
     null
 ) {

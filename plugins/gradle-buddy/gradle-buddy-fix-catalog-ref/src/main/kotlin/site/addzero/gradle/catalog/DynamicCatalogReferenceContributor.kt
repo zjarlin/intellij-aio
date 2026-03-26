@@ -17,13 +17,16 @@ import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
- * 为 build-logic / buildSrc 中的动态 catalog API 提供 TOML 跳转：
+ * 为 build-logic / buildSrc 中的动态 catalog API 提供 TOML 跳转与重命名：
  * - libs.findLibrary("alias").get()
  * - libs.findPlugin("alias").get()
+ * - libs.findBundle("alias").get()
+ * - libs.findVersion("alias").get()
  */
 class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
 
@@ -64,6 +67,8 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
         val tableName = when (methodName) {
             "findLibrary" -> "libraries"
             "findPlugin" -> "plugins"
+            "findBundle" -> "bundles"
+            "findVersion" -> "versions"
             else -> return null
         }
 
@@ -86,11 +91,14 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
     }
 
     private fun resolveCatalogNameFromVariable(variableName: String, file: KtFile?): String? {
-        if (file == null) return null
+        if (file == null) return variableName
 
         val properties = PsiTreeUtil.collectElementsOfType(file, KtProperty::class.java)
-        val matchingProperty = properties.firstOrNull { it.name == variableName } ?: return null
-        return resolveCatalogNameFromExpression(matchingProperty.initializer)
+        val matchingProperty = properties.firstOrNull { it.name == variableName }
+        if (matchingProperty != null) {
+            return resolveCatalogNameFromExpression(matchingProperty.initializer) ?: variableName
+        }
+        return variableName
     }
 
     private fun resolveCatalogNameFromExpression(expression: KtExpression?): String? {
@@ -112,6 +120,11 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
             return scanner.findEntries(callInfo.catalogName, callInfo.tableName, callInfo.alias)
                 .map { entry -> PsiElementResolveResult(entry.key) }
                 .toTypedArray()
+        }
+
+        override fun handleElementRename(newElementName: String): PsiElement {
+            val newExpression = KtPsiFactory(element.project).createExpression("\"$newElementName\"")
+            return element.replace(newExpression)
         }
 
         override fun getVariants(): Array<Any> = emptyArray()

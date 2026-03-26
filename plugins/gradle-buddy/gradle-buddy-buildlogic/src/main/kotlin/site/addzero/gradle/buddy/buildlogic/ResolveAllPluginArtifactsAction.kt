@@ -23,7 +23,7 @@ import java.io.File
  * 用于一键生成 build-logic 所需的所有插件依赖。
  */
 class ResolveAllPluginArtifactsAction : AnAction(
-    "Resolve All Plugin Artifacts for Build-Logic",
+    "(Gradle Buddy) Resolve All Plugin Artifacts for Build-Logic",
     "Scan all plugins in .gradle.kts files and resolve their implementation artifacts to version catalog",
     null
 ) {

@@ -14,7 +14,7 @@ import java.awt.datatransfer.StringSelection
  * Registered in EditorPopupMenu and EditorTabPopupMenu.
  */
 class CopyModuleDependencyAction : AnAction(
-    "Copy Module Dependency",
+    "(Gradle Buddy) Copy Module Dependency",
     "Copy implementation(project(\"...\")) for current module to clipboard",
     null
 ) {

@@ -18,6 +18,11 @@ object GradleBuddyBundle {
             key
         }
 
+        // 无占位参数时直接返回原文，避免 TOML / JSON 示例里的花括号被 MessageFormat 误解析。
+        if (params.isEmpty()) {
+            return pattern
+        }
+
         return MessageFormat(pattern, currentLocale()).format(params)
     }
 

@@ -21,6 +21,7 @@ import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
+import site.addzero.gradle.buddy.intentions.util.GradleProjectRoots
 
 class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityAction {
 
@@ -47,7 +48,16 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         }
 
         val element = file.findElementAt(editor.caretModel.offset) ?: return false
-        return detectTargetAccessor(project, element) != null
+        if (detectTargetAccessor(project, element) != null) {
+            return true
+        }
+
+        // 这是项目级批量替换意图，不要求光标必须精确落在 projects.xxx 上。
+        return collectFileCandidates(
+            project = project,
+            file = file,
+            modulesByAccessor = ProjectModuleResolver.scanModules(project).associateBy { it.typeSafeAccessor }
+        ).replacements.isNotEmpty()
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -83,19 +93,43 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
     }
 
     private fun detectTargetAccessor(project: Project, element: PsiElement): ResolvedAccessor? {
+        findEnclosingProjectAccessorCall(project, element)?.let { return it }
+
         val expression = element.parentOfType<KtDotQualifiedExpression>(true) ?: return null
         val topExpression = findTopDotExpression(expression)
         return resolveProjectAccessor(project, topExpression)
     }
 
+    private fun findEnclosingProjectAccessorCall(project: Project, element: PsiElement): ResolvedAccessor? {
+        var current: PsiElement? = element
+        while (current != null) {
+            if (current is KtCallExpression) {
+                resolveProjectAccessorFromCall(project, current)?.let { return it }
+            }
+            current = current.parent
+        }
+        return null
+    }
+
+    private fun resolveProjectAccessorFromCall(project: Project, callExpression: KtCallExpression): ResolvedAccessor? {
+        val callee = callExpression.calleeExpression?.text ?: return null
+        if (callee !in DEPENDENCY_CONFIGURATIONS) {
+            return null
+        }
+
+        val argumentExpression = callExpression.valueArguments.singleOrNull()?.getArgumentExpression()
+            as? KtDotQualifiedExpression ?: return null
+        val topExpression = findTopDotExpression(argumentExpression)
+        return resolveProjectAccessor(project, topExpression)
+    }
+
     private fun collectRewritePlan(project: Project): RewritePlan {
-        val basePath = project.basePath ?: return RewritePlan(emptyList(), 0, emptyList())
         val psiManager = PsiManager.getInstance(project)
         val modulesByAccessor = ProjectModuleResolver.scanModules(project).associateBy { it.typeSafeAccessor }
         val filePlans = mutableListOf<FilePlan>()
         val unresolved = mutableListOf<String>()
 
-        for (virtualFile in collectTargetGradleKtsFiles(basePath)) {
+        for (virtualFile in collectTargetGradleKtsFiles(project)) {
             val psiFile = psiManager.findFile(virtualFile) ?: continue
             val fileCandidates = collectFileCandidates(project, psiFile, modulesByAccessor)
             unresolved += fileCandidates.unresolved
@@ -236,25 +270,27 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         )
     }
 
-    private fun collectTargetGradleKtsFiles(basePath: String): List<VirtualFile> {
-        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
+    private fun collectTargetGradleKtsFiles(project: Project): List<VirtualFile> {
         val files = mutableListOf<VirtualFile>()
+        val seen = linkedSetOf<String>()
 
-        VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
-            override fun visitFile(file: VirtualFile): Boolean {
-                if (file.isDirectory) {
-                    if (file.name in SKIP_DIR_NAMES || file.name.startsWith(".")) {
-                        return false
+        for (baseDir in GradleProjectRoots.collectSearchRoots(project)) {
+            VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
+                override fun visitFile(file: VirtualFile): Boolean {
+                    if (file.isDirectory) {
+                        if (file.name in SKIP_DIR_NAMES || file.name.startsWith(".")) {
+                            return false
+                        }
+                        return true
+                    }
+
+                    if (file.name.endsWith(".gradle.kts") && file.name != "settings.gradle.kts" && seen.add(file.path)) {
+                        files += file
                     }
                     return true
                 }
-
-                if (file.name.endsWith(".gradle.kts") && file.name != "settings.gradle.kts") {
-                    files += file
-                }
-                return true
-            }
-        })
+            })
+        }
 
         return files
     }

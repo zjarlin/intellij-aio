@@ -12,6 +12,8 @@ import java.util.regex.Pattern
  */
 class VersionCatalogSorter(private val project: Project) {
 
+    fun organizeContent(content: String): String = sortContent(content)
+
     fun sort(file: VirtualFile) {
         val documentManager = FileDocumentManager.getInstance()
         val document = documentManager.getDocument(file)
@@ -32,12 +34,13 @@ class VersionCatalogSorter(private val project: Project) {
     }
 
     private fun sortContent(content: String): String {
-        val sections = parseSections(content)
+        val repairedContent = repairLibraryAliasAndVersionConflicts(content)
+        val sections = parseSections(repairedContent)
         val sb = StringBuilder()
         val duplicates = mutableListOf<String>()
 
         // Collect all version definitions for resolving version.ref values
-        val versionMap = buildVersionMap(content)
+        val versionMap = buildVersionMap(repairedContent)
 
         sections.forEach { section ->
             val processed = processSection(section, duplicates, versionMap)
@@ -54,6 +57,171 @@ class VersionCatalogSorter(private val project: Project) {
         }
 
         return sb.toString().trimEnd() + "\n"
+    }
+
+    /**
+     * 在真正排序之前，先修复 [libraries] 中的 alias 冲突，以及和之关联的 version.ref。
+     *
+     * 处理目标：
+     * 1. 同一个 alias / accessor 指向多个不同库时，自动为冲突项生成稳定的新 alias
+     * 2. 完全相同坐标的重复 library，优先保留 version.ref 更规范的一条
+     * 3. alias 变更后，若 version.ref 明显是 alias 派生键，则同步修正或补一份新版本键
+     * 4. 若旧版本键已无任何引用，则自动删除
+     */
+    private fun repairLibraryAliasAndVersionConflicts(content: String): String {
+        val lines = content.lines().toMutableList()
+        val versionValues = buildVersionMap(content)
+        val libraryEntries = parseIndexedLibraries(lines, versionValues)
+        if (libraryEntries.isEmpty()) {
+            return content
+        }
+
+        val collisionGroups = libraryEntries
+            .groupBy { toGradleAccessorName(it.alias) }
+            .filter { it.value.size > 1 }
+
+        if (collisionGroups.isEmpty()) {
+            return content
+        }
+
+        val versionEntriesByKey = parseIndexedVersions(lines).associateBy { it.key }.toMutableMap()
+        val versionUsageCounts = countVersionRefUsages(lines).toMutableMap()
+        val removedLibraryLines = mutableSetOf<Int>()
+        val aliasUpdates = mutableMapOf<Int, String>()
+        val versionRefUpdates = mutableMapOf<Int, String>()
+        val versionKeyRenames = mutableMapOf<String, String>()
+        val clonedVersionEntries = linkedMapOf<String, String>()
+        val occupiedAliases = libraryEntries
+            .filter { toGradleAccessorName(it.alias) !in collisionGroups.keys }
+            .map { toGradleAccessorName(it.alias) }
+            .toMutableSet()
+
+        for ((_, rawGroup) in collisionGroups.toSortedMap()) {
+            val dedupedGroup = rawGroup
+                .groupBy { "${it.groupId}:${it.artifactId}:${it.resolvedVersion}" }
+                .values
+                .map { sameCoordinateEntries ->
+                    val winner = selectPreferredDuplicateLibrary(sameCoordinateEntries)
+                    sameCoordinateEntries.filter { it !== winner }.forEach { duplicate ->
+                        removedLibraryLines += duplicate.lineIndex
+                        duplicate.versionRef?.let { refKey ->
+                            versionUsageCounts[refKey] = (versionUsageCounts[refKey] ?: 0) - 1
+                        }
+                    }
+                    winner
+                }
+                .sortedWith(compareBy({ it.alias }, { it.groupId }, { it.artifactId }))
+
+            if (dedupedGroup.isEmpty()) {
+                continue
+            }
+
+            val baseAlias = chooseBaseAliasForCollisionGroup(dedupedGroup)
+            val primary = selectPrimaryAliasOwner(baseAlias, dedupedGroup)
+            val currentAliasesInGroup = dedupedGroup.map { it.alias }.toSet()
+            val baseVersionKey = dedupedGroup.firstOrNull { it.versionRef == baseAlias }?.versionRef
+            val sameResolvedVersion = dedupedGroup.map { it.resolvedVersion }.filter { it.isNotBlank() }.distinct().size == 1
+
+            occupiedAliases += toGradleAccessorName(baseAlias)
+            if (primary.alias != baseAlias) {
+                aliasUpdates[primary.lineIndex] = baseAlias
+            }
+
+            for (entry in dedupedGroup) {
+                if (entry === primary) {
+                    continue
+                }
+                val newAlias = generateUniqueAliasForCollision(
+                    entry = entry,
+                    baseAlias = baseAlias,
+                    occupiedAliases = occupiedAliases
+                )
+                aliasUpdates[entry.lineIndex] = newAlias
+                occupiedAliases += toGradleAccessorName(newAlias)
+            }
+
+            for (entry in dedupedGroup) {
+                val oldRef = entry.versionRef ?: continue
+                val newAlias = aliasUpdates[entry.lineIndex]
+                    ?: if (entry === primary) baseAlias else entry.alias
+
+                val shouldFollowAlias =
+                    oldRef == entry.alias ||
+                        oldRef == baseAlias ||
+                        oldRef in currentAliasesInGroup
+
+                val desiredRef = when {
+                    shouldFollowAlias && oldRef != newAlias -> newAlias
+                    sameResolvedVersion &&
+                        baseVersionKey != null &&
+                        oldRef != baseVersionKey &&
+                        (versionUsageCounts[oldRef] ?: 0) <= 1 -> baseVersionKey
+                    else -> null
+                } ?: continue
+
+                if (desiredRef == oldRef) {
+                    continue
+                }
+
+                val oldVersionValue = versionEntriesByKey[oldRef]?.value ?: continue
+                versionRefUpdates[entry.lineIndex] = desiredRef
+                versionUsageCounts[oldRef] = (versionUsageCounts[oldRef] ?: 0) - 1
+                versionUsageCounts[desiredRef] = (versionUsageCounts[desiredRef] ?: 0) + 1
+
+                if (versionEntriesByKey.containsKey(desiredRef) || clonedVersionEntries.containsKey(desiredRef)) {
+                    continue
+                }
+
+                if ((versionUsageCounts[oldRef] ?: 0) <= 0 && versionKeyRenames[oldRef] == null) {
+                    versionKeyRenames[oldRef] = desiredRef
+                    val oldEntry = versionEntriesByKey.remove(oldRef)
+                    if (oldEntry != null) {
+                        versionEntriesByKey[desiredRef] = oldEntry.copy(key = desiredRef)
+                    }
+                } else {
+                    clonedVersionEntries[desiredRef] = oldVersionValue
+                    versionEntriesByKey[desiredRef] = IndexedVersionEntry(
+                        key = desiredRef,
+                        value = oldVersionValue,
+                        lineIndex = -1
+                    )
+                }
+            }
+        }
+
+        for ((lineIndex, _) in aliasUpdates.toSortedMap()) {
+            lines[lineIndex] = rewriteLibraryAlias(lines[lineIndex], aliasUpdates.getValue(lineIndex))
+        }
+        for ((lineIndex, _) in versionRefUpdates.toSortedMap()) {
+            lines[lineIndex] = rewriteLibraryVersionRef(lines[lineIndex], versionRefUpdates.getValue(lineIndex))
+        }
+
+        for (lineIndex in removedLibraryLines.sortedDescending()) {
+            lines.removeAt(lineIndex)
+        }
+
+        if (versionKeyRenames.isNotEmpty()) {
+            for ((oldKey, newKey) in versionKeyRenames) {
+                val versionEntry = parseIndexedVersions(lines).firstOrNull { it.key == oldKey } ?: continue
+                lines[versionEntry.lineIndex] = rewriteVersionKey(lines[versionEntry.lineIndex], newKey)
+            }
+        }
+
+        val finalUsageCounts = countVersionRefUsages(lines)
+        val removableVersionLines = parseIndexedVersions(lines)
+            .filter { (finalUsageCounts[it.key] ?: 0) <= 0 }
+            .map { it.lineIndex }
+            .sortedDescending()
+
+        for (lineIndex in removableVersionLines) {
+            lines.removeAt(lineIndex)
+        }
+
+        if (clonedVersionEntries.isNotEmpty()) {
+            insertVersionEntries(lines, clonedVersionEntries)
+        }
+
+        return lines.joinToString("\n")
     }
 
     /**
@@ -399,6 +567,289 @@ class VersionCatalogSorter(private val project: Project) {
         return match?.groupValues?.get(1)
     }
 
+    private fun parseIndexedLibraries(lines: List<String>, versionMap: Map<String, String>): List<IndexedLibraryEntry> {
+        val result = mutableListOf<IndexedLibraryEntry>()
+        var inLibraries = false
+
+        for ((index, line) in lines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.matches(Regex("^\\[.+\\]\\s*(#.*)?$"))) {
+                inLibraries = trimmed.matches(Regex("^\\[libraries\\]\\s*(#.*)?$"))
+                continue
+            }
+            if (!inLibraries || trimmed.isBlank() || trimmed.startsWith("#")) {
+                continue
+            }
+
+            val parsed = parseLibraryLine(trimmed) ?: continue
+            result += IndexedLibraryEntry(
+                lineIndex = index,
+                alias = parsed.alias,
+                groupId = parsed.groupId,
+                artifactId = parsed.artifactId,
+                versionRef = parsed.versionRef,
+                directVersion = parsed.directVersion,
+                resolvedVersion = parsed.versionRef?.let { versionMap[it] } ?: parsed.directVersion.orEmpty()
+            )
+        }
+
+        return result
+    }
+
+    private fun parseIndexedVersions(lines: List<String>): List<IndexedVersionEntry> {
+        val result = mutableListOf<IndexedVersionEntry>()
+        var inVersions = false
+
+        for ((index, line) in lines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.matches(Regex("^\\[.+\\]\\s*(#.*)?$"))) {
+                inVersions = trimmed.matches(Regex("^\\[versions\\]\\s*(#.*)?$"))
+                continue
+            }
+            if (!inVersions || trimmed.isBlank() || trimmed.startsWith("#")) {
+                continue
+            }
+
+            val key = trimmed.substringBefore("=").trim()
+            val valueMatch = Regex("""=\s*"([^"]+)"""").find(trimmed) ?: continue
+            result += IndexedVersionEntry(
+                key = key,
+                value = valueMatch.groupValues[1],
+                lineIndex = index
+            )
+        }
+
+        return result
+    }
+
+    private fun parseLibraryLine(line: String): ParsedLibraryLine? {
+        val alias = line.substringBefore("=").trim()
+        if (alias.isEmpty() || alias.startsWith("#")) {
+            return null
+        }
+
+        val groupId: String
+        val artifactId: String
+
+        val moduleMatch = Regex("""module\s*=\s*"([^":]+):([^"]+)"""").find(line)
+        if (moduleMatch != null) {
+            groupId = moduleMatch.groupValues[1]
+            artifactId = moduleMatch.groupValues[2]
+        } else {
+            val groupMatch = Regex("""group\s*=\s*"([^"]+)"""").find(line)
+            val nameMatch = Regex("""\bname\s*=\s*"([^"]+)"""").find(line)
+            if (groupMatch != null && nameMatch != null) {
+                groupId = groupMatch.groupValues[1]
+                artifactId = nameMatch.groupValues[1]
+            } else {
+                val shortMatch = Regex("""=\s*"([^":]+):([^":]+):([^"]+)"""").find(line)
+                if (shortMatch != null) {
+                    groupId = shortMatch.groupValues[1]
+                    artifactId = shortMatch.groupValues[2]
+                } else {
+                    return null
+                }
+            }
+        }
+
+        val versionRef = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(line)?.groupValues?.get(1)
+        val directVersion = Regex("""(?<!\.)\bversion\s*=\s*"([^"]+)"""").find(line)?.groupValues?.get(1)
+
+        return ParsedLibraryLine(
+            alias = alias,
+            groupId = groupId,
+            artifactId = artifactId,
+            versionRef = versionRef,
+            directVersion = directVersion
+        )
+    }
+
+    private fun toKebabCase(value: String): String {
+        return value.replace('.', '-')
+            .replace('_', '-')
+            .replace(Regex("([a-z])([A-Z])"), "$1-$2")
+            .lowercase()
+    }
+
+    private fun countVersionRefUsages(lines: List<String>): Map<String, Int> {
+        val counts = mutableMapOf<String, Int>()
+        for (line in lines) {
+            val ref = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(line)?.groupValues?.get(1) ?: continue
+            counts[ref] = (counts[ref] ?: 0) + 1
+        }
+        return counts
+    }
+
+    private fun selectPreferredDuplicateLibrary(entries: List<IndexedLibraryEntry>): IndexedLibraryEntry {
+        return entries.maxWithOrNull(
+            compareBy<IndexedLibraryEntry> { duplicate ->
+                val aliasLikeScore = when {
+                    duplicate.versionRef == duplicate.alias -> 3
+                    duplicate.versionRef == "${toKebabCase(duplicate.groupId)}-${toKebabCase(duplicate.artifactId)}" -> 2
+                    duplicate.versionRef != null -> 1
+                    else -> 0
+                }
+                aliasLikeScore
+            }.thenByDescending { duplicate ->
+                duplicate.versionRef == duplicate.alias
+            }.thenBy { duplicate ->
+                duplicate.lineIndex
+            }
+        ) ?: entries.first()
+    }
+
+    private fun chooseBaseAliasForCollisionGroup(entries: List<IndexedLibraryEntry>): String {
+        val best = entries.maxWithOrNull(
+            compareBy<IndexedLibraryEntry> { entry ->
+                val canonicalAlias = buildCanonicalAlias(entry)
+                when {
+                    entry.alias == canonicalAlias -> 3
+                    entry.alias == buildCompactAlias(entry) -> 2
+                    else -> 1
+                }
+            }.thenByDescending { entry ->
+                entry.alias.count { it == '-' }
+            }.thenBy { entry ->
+                entry.lineIndex
+            }
+        ) ?: entries.first()
+
+        return when {
+            best.alias == buildCanonicalAlias(best) -> best.alias
+            best.alias == buildCompactAlias(best) -> best.alias
+            else -> buildCanonicalAlias(best)
+        }
+    }
+
+    private fun selectPrimaryAliasOwner(
+        baseAlias: String,
+        entries: List<IndexedLibraryEntry>
+    ): IndexedLibraryEntry {
+        return entries.maxWithOrNull(
+            compareBy<IndexedLibraryEntry> { entry ->
+                when {
+                    entry.alias == baseAlias -> 4
+                    buildCanonicalAlias(entry) == baseAlias -> 3
+                    buildCompactAlias(entry) == baseAlias -> 2
+                    else -> 1
+                }
+            }.thenByDescending { entry ->
+                entry.artifactId.length
+            }.thenBy { entry ->
+                entry.lineIndex
+            }
+        ) ?: entries.first()
+    }
+
+    private fun generateUniqueAliasForCollision(
+        entry: IndexedLibraryEntry,
+        baseAlias: String,
+        occupiedAliases: MutableSet<String>
+    ): String {
+        val groupKebab = toKebabCase(entry.groupId)
+        val artifactKebab = toKebabCase(entry.artifactId)
+        val canonicalAlias = buildCanonicalAlias(entry)
+        val candidates = linkedSetOf<String>()
+
+        if (artifactKebab.startsWith(groupKebab)) {
+            candidates += "$baseAlias-$artifactKebab"
+        }
+        candidates += canonicalAlias
+        candidates += "$baseAlias-$artifactKebab"
+        candidates += buildCompactAlias(entry)
+
+        for (candidate in candidates) {
+            val accessor = toGradleAccessorName(candidate)
+            if (accessor !in occupiedAliases) {
+                return candidate
+            }
+        }
+
+        var suffix = 2
+        while (true) {
+            val fallback = "$canonicalAlias-alt$suffix"
+            val accessor = toGradleAccessorName(fallback)
+            if (accessor !in occupiedAliases) {
+                return fallback
+            }
+            suffix++
+        }
+    }
+
+    private fun buildCanonicalAlias(entry: IndexedLibraryEntry): String {
+        return "${toKebabCase(entry.groupId)}-${toKebabCase(entry.artifactId)}"
+    }
+
+    private fun buildCompactAlias(entry: IndexedLibraryEntry): String {
+        val groupKebab = toKebabCase(entry.groupId)
+        val artifactKebab = toKebabCase(entry.artifactId)
+        return if (artifactKebab.startsWith(groupKebab)) {
+            "$groupKebab-${artifactKebab.substringAfter(groupKebab).trimStart('-')}".trimEnd('-')
+        } else {
+            buildCanonicalAlias(entry)
+        }
+    }
+
+    private fun rewriteLibraryAlias(line: String, newAlias: String): String {
+        val oldAlias = line.substringBefore("=").trim()
+        return line.replaceFirst(oldAlias, newAlias)
+    }
+
+    private fun rewriteLibraryVersionRef(line: String, newVersionRef: String): String {
+        return line.replace(
+            Regex("""version\.ref\s*=\s*"([^"]+)""""),
+            """version.ref = "$newVersionRef""""
+        )
+    }
+
+    private fun rewriteVersionKey(line: String, newKey: String): String {
+        val oldKey = line.substringBefore("=").trim()
+        return line.replaceFirst(oldKey, newKey)
+    }
+
+    private fun insertVersionEntries(lines: MutableList<String>, newEntries: Map<String, String>) {
+        if (newEntries.isEmpty()) {
+            return
+        }
+
+        var versionsHeaderIndex = -1
+        var insertIndex = lines.size
+        for ((index, line) in lines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.matches(Regex("^\\[versions\\]\\s*(#.*)?$"))) {
+                versionsHeaderIndex = index
+                insertIndex = index + 1
+                continue
+            }
+            if (versionsHeaderIndex >= 0 && index > versionsHeaderIndex && trimmed.matches(Regex("^\\[.+\\]\\s*(#.*)?$"))) {
+                insertIndex = index
+                break
+            }
+            if (versionsHeaderIndex >= 0) {
+                insertIndex = index + 1
+            }
+        }
+
+        if (versionsHeaderIndex < 0) {
+            val block = buildList {
+                add("[versions]")
+                newEntries.toSortedMap().forEach { (key, value) ->
+                    add("""$key = "$value"""")
+                }
+            }
+            if (lines.isNotEmpty() && lines.last().isNotBlank()) {
+                lines.add("")
+            }
+            lines.addAll(block)
+            return
+        }
+
+        val block = newEntries.toSortedMap().map { (key, value) ->
+            """$key = "$value""""
+        }
+        lines.addAll(insertIndex, block)
+    }
+
     private fun createGroupHeader(group: String): String {
         val targetWidth = 70
         val label = " $group "
@@ -427,4 +878,25 @@ class VersionCatalogSorter(private val project: Project) {
     data class RawEntry(val line: String, val comments: List<String>)
     data class BundleEntry(val key: String, val allLines: List<String>, val comments: List<String>)
     data class ParsedLibrary(val entry: RawEntry, val key: String, val group: String, val name: String, val resolvedVersion: String)
+    data class ParsedLibraryLine(
+        val alias: String,
+        val groupId: String,
+        val artifactId: String,
+        val versionRef: String?,
+        val directVersion: String?
+    )
+    data class IndexedLibraryEntry(
+        val lineIndex: Int,
+        val alias: String,
+        val groupId: String,
+        val artifactId: String,
+        val versionRef: String?,
+        val directVersion: String?,
+        val resolvedVersion: String
+    )
+    data class IndexedVersionEntry(
+        val key: String,
+        val value: String,
+        val lineIndex: Int
+    )
 }

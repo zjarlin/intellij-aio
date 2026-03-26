@@ -20,8 +20,10 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtExpression
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.catalog.VersionCatalogDependencyHelper
+import site.addzero.gradle.buddy.intentions.util.GradleProjectRoots
 
 /**
  * 将 Gradle Kotlin DSL 中基于 `libs.xxx` / `libs.plugins.xxx` 的引用，
@@ -49,8 +51,9 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
             return false
         }
 
-        val element = file.findElementAt(editor.caretModel.offset) ?: return false
-        return detectTargetCatalogAccessor(project, element) != null
+        // 这是项目级批量意图，不要求光标必须精确落在 libs.xxx 上。
+        // 只要当前文件里存在可替换的 catalog accessor，也允许用户触发。
+        return collectFileCandidates(project, file).replacements.isNotEmpty()
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -86,18 +89,42 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
     }
 
     private fun detectTargetCatalogAccessor(project: Project, element: PsiElement): ResolvedAccessor? {
+        findEnclosingCatalogCall(project, element)?.let { return it }
+
         val expression = element.parentOfType<KtDotQualifiedExpression>(true) ?: return null
         val topExpression = findTopDotExpression(expression)
-        return resolveCatalogAccessor(project, topExpression)
+        return resolveCatalogAccessor(project, topExpression.text, topExpression)
+    }
+
+    private fun findEnclosingCatalogCall(project: Project, element: PsiElement): ResolvedAccessor? {
+        var current: PsiElement? = element
+        while (current != null) {
+            if (current is KtCallExpression) {
+                resolveCatalogAccessorFromCall(project, current)?.let { return it }
+            }
+            current = current.parent
+        }
+        return null
+    }
+
+    private fun resolveCatalogAccessorFromCall(project: Project, callExpression: KtCallExpression): ResolvedAccessor? {
+        val callee = callExpression.calleeExpression?.text ?: return null
+        val argumentExpression = callExpression.valueArguments.singleOrNull()?.getArgumentExpression() ?: return null
+        val accessorText = extractPlainCatalogAccessor(argumentExpression) ?: return null
+
+        return when {
+            callee in DEPENDENCY_CONFIGURATIONS -> resolveCatalogAccessor(project, accessorText, argumentExpression)
+            callee == "alias" && isInsidePluginsBlock(callExpression) -> resolveCatalogAccessor(project, accessorText, argumentExpression)
+            else -> null
+        }
     }
 
     private fun collectRewritePlan(project: Project): RewritePlan {
-        val basePath = project.basePath ?: return RewritePlan(emptyList(), 0, emptyList())
         val psiManager = PsiManager.getInstance(project)
         val filePlans = mutableListOf<FilePlan>()
         val unresolved = mutableListOf<String>()
 
-        for (virtualFile in collectTargetGradleKtsFiles(basePath)) {
+        for (virtualFile in collectTargetGradleKtsFiles(project)) {
             val psiFile = psiManager.findFile(virtualFile) ?: continue
             val fileCandidates = collectFileCandidates(project, psiFile)
             unresolved += fileCandidates.unresolved
@@ -135,59 +162,140 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
     }
 
     private fun collectFileCandidates(project: Project, file: PsiFile): FileCandidates {
-        val topExpressions = PsiTreeUtil.collectElementsOfType(file, KtDotQualifiedExpression::class.java)
-            .map { findTopDotExpression(it) }
-            .distinctBy { it.textRange.startOffset to it.textRange.endOffset }
-
         val replacements = mutableListOf<Replacement>()
         val unresolved = mutableListOf<String>()
+        val seenRanges = linkedSetOf<Pair<Int, Int>>()
 
-        for (expression in topExpressions) {
-            val candidate = classifyCatalogAccessor(expression) ?: continue
-            val resolved = resolveCatalogAccessor(project, expression)
+        val callExpressions = PsiTreeUtil.collectElementsOfType(file, KtCallExpression::class.java)
+            .distinctBy { it.textRange.startOffset to it.textRange.endOffset }
+
+        for (callExpression in callExpressions) {
+            val candidate = classifyCatalogAccessor(callExpression) ?: continue
+            val resolved = resolveCatalogAccessor(project, candidate.accessor, candidate.expression)
             if (resolved == null) {
                 unresolved += "${file.name}: ${candidate.displayText}"
                 continue
             }
 
-            replacements += Replacement(
-                range = expression.textRange,
-                catalogKey = resolved.catalogKey,
-                kind = resolved.kind,
-                newText = ""
-            )
+            val range = candidate.expression.textRange
+            if (seenRanges.add(range.startOffset to range.endOffset)) {
+                replacements += Replacement(
+                    range = range,
+                    catalogKey = resolved.catalogKey,
+                    kind = resolved.kind,
+                    newText = ""
+                )
+            }
         }
 
-        return FileCandidates(replacements, unresolved)
+        // 兜底：部分 Gradle Kotlin DSL 场景下 PSI 结构不稳定，但源码文本仍然是确定的。
+        // 这里补一轮基于文本的扫描，确保强类型 libs.xxx / alias(libs.plugins.xxx) 不会漏掉。
+        val fileText = file.text
+        for (match in DEPENDENCY_LIBS_CALL_REGEX.findAll(fileText)) {
+            val accessorText = match.groupValues[2]
+            val accessor = accessorText.removePrefix("libs.")
+            if (!isSupportedLibraryAccessor(accessor)) {
+                continue
+            }
+
+            val resolved = resolveCatalogAccessor(project, accessor, CatalogEntryKind.LIBRARY, accessorText)
+            if (resolved == null) {
+                unresolved += "${file.name}: $accessorText"
+                continue
+            }
+
+            val group = match.groups[2] ?: continue
+            val range = TextRange(group.range.first, group.range.last + 1)
+            if (seenRanges.add(range.startOffset to range.endOffset)) {
+                replacements += Replacement(
+                    range = range,
+                    catalogKey = resolved.catalogKey,
+                    kind = resolved.kind,
+                    newText = ""
+                )
+            }
+        }
+
+        for (match in PLUGIN_ALIAS_REGEX.findAll(fileText)) {
+            val accessorText = match.groupValues[1]
+            val accessor = accessorText.removePrefix("libs.")
+            if (!isSupportedPluginAccessor(accessor)) {
+                continue
+            }
+
+            val resolved = resolveCatalogAccessor(project, accessor, CatalogEntryKind.PLUGIN, accessorText)
+            if (resolved == null) {
+                unresolved += "${file.name}: $accessorText"
+                continue
+            }
+
+            val group = match.groups[1] ?: continue
+            val range = TextRange(group.range.first, group.range.last + 1)
+            if (seenRanges.add(range.startOffset to range.endOffset)) {
+                replacements += Replacement(
+                    range = range,
+                    catalogKey = resolved.catalogKey,
+                    kind = resolved.kind,
+                    newText = ""
+                )
+            }
+        }
+
+        return FileCandidates(replacements.sortedBy { it.range.startOffset }, unresolved.distinct())
     }
 
-    private fun resolveCatalogAccessor(project: Project, expression: KtDotQualifiedExpression): ResolvedAccessor? {
-        val candidate = classifyCatalogAccessor(expression) ?: return null
+    private fun resolveCatalogAccessor(
+        project: Project,
+        accessor: String,
+        expression: PsiElement
+    ): ResolvedAccessor? {
+        val candidate = classifyCatalogAccessor(accessor, expression) ?: return null
+        return resolveCatalogAccessor(project, candidate.accessor, candidate.kind, candidate.displayText)
+    }
 
-        return when (candidate.kind) {
+    private fun resolveCatalogAccessor(
+        project: Project,
+        accessor: String,
+        kind: CatalogEntryKind,
+        displayText: String
+    ): ResolvedAccessor? {
+        return when (kind) {
             CatalogEntryKind.LIBRARY -> {
-                val resolved = VersionCatalogDependencyHelper.findCatalogDependencyByAccessor(project, candidate.accessor)
+                val resolved = VersionCatalogDependencyHelper.findCatalogDependencyByAccessor(project, accessor)
                     ?: return null
-                ResolvedAccessor(candidate.kind, resolved.second.key, candidate.displayText)
+                ResolvedAccessor(kind, resolved.second.key, displayText)
             }
 
             CatalogEntryKind.PLUGIN -> {
-                val pluginAccessor = candidate.accessor.removePrefix("plugins.")
+                val pluginAccessor = accessor.removePrefix("plugins.")
                 val resolved = VersionCatalogDependencyHelper.findCatalogPluginByAccessor(project, pluginAccessor)
                     ?: return null
-                ResolvedAccessor(candidate.kind, resolved.second.key, candidate.displayText)
+                ResolvedAccessor(kind, resolved.second.key, displayText)
             }
         }
     }
 
-    private fun classifyCatalogAccessor(expression: KtDotQualifiedExpression): CatalogAccessorCandidate? {
-        val accessor = extractPlainCatalogAccessor(expression) ?: return null
+    private fun classifyCatalogAccessor(callExpression: KtCallExpression): CatalogAccessorCandidate? {
+        val callee = callExpression.calleeExpression?.text ?: return null
+        val argumentExpression = callExpression.valueArguments.singleOrNull()?.getArgumentExpression() ?: return null
+        val accessor = extractPlainCatalogAccessor(argumentExpression) ?: return null
+
+        return when {
+            callee in DEPENDENCY_CONFIGURATIONS -> classifyCatalogAccessor(accessor, argumentExpression)
+            callee == "alias" && isInsidePluginsBlock(callExpression) -> classifyCatalogAccessor(accessor, argumentExpression)
+            else -> null
+        }
+    }
+
+    private fun classifyCatalogAccessor(accessor: String, expression: PsiElement): CatalogAccessorCandidate? {
+        val displayText = "libs.$accessor"
 
         if (isSupportedLibraryAccessor(accessor) && isInsideDependencyConfiguration(expression)) {
             return CatalogAccessorCandidate(
                 kind = CatalogEntryKind.LIBRARY,
                 accessor = accessor,
-                displayText = "libs.$accessor"
+                displayText = displayText,
+                expression = expression
             )
         }
 
@@ -195,7 +303,8 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
             return CatalogAccessorCandidate(
                 kind = CatalogEntryKind.PLUGIN,
                 accessor = accessor,
-                displayText = "libs.$accessor"
+                displayText = displayText,
+                expression = expression
             )
         }
 
@@ -314,25 +423,27 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         )
     }
 
-    private fun collectTargetGradleKtsFiles(basePath: String): List<VirtualFile> {
-        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
+    private fun collectTargetGradleKtsFiles(project: Project): List<VirtualFile> {
         val files = mutableListOf<VirtualFile>()
+        val seen = linkedSetOf<String>()
 
-        VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
-            override fun visitFile(file: VirtualFile): Boolean {
-                if (file.isDirectory) {
-                    if (file.name in SKIP_DIR_NAMES || file.name.startsWith(".")) {
-                        return false
+        for (baseDir in GradleProjectRoots.collectSearchRoots(project)) {
+            VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
+                override fun visitFile(file: VirtualFile): Boolean {
+                    if (file.isDirectory) {
+                        if (file.name in SKIP_DIR_NAMES || file.name.startsWith(".")) {
+                            return false
+                        }
+                        return true
+                    }
+
+                    if (file.name.endsWith(".gradle.kts") && file.name != "settings.gradle.kts" && seen.add(file.path)) {
+                        files += file
                     }
                     return true
                 }
-
-                if (file.name.endsWith(".gradle.kts") && file.name != "settings.gradle.kts") {
-                    files += file
-                }
-                return true
-            }
-        })
+            })
+        }
 
         return files
     }
@@ -344,7 +455,7 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         return current
     }
 
-    private fun extractPlainCatalogAccessor(expression: KtDotQualifiedExpression): String? {
+    private fun extractPlainCatalogAccessor(expression: KtExpression): String? {
         val text = expression.text.trim()
         val match = PLAIN_LIBS_ACCESSOR_REGEX.matchEntire(text) ?: return null
         return match.groupValues[1]
@@ -367,7 +478,7 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         return !accessor.contains(".javaClass")
     }
 
-    private fun isInsideDependencyConfiguration(expression: KtDotQualifiedExpression): Boolean {
+    private fun isInsideDependencyConfiguration(expression: PsiElement): Boolean {
         var current: PsiElement? = expression.parent
         while (current != null) {
             if (current is KtCallExpression) {
@@ -381,7 +492,7 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         return false
     }
 
-    private fun isInsidePluginAlias(expression: KtDotQualifiedExpression): Boolean {
+    private fun isInsidePluginAlias(expression: PsiElement): Boolean {
         var current: PsiElement? = expression.parent
         while (current != null) {
             if (current is KtCallExpression && current.calleeExpression?.text == "alias") {
@@ -517,7 +628,8 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
     private data class CatalogAccessorCandidate(
         val kind: CatalogEntryKind,
         val accessor: String,
-        val displayText: String
+        val displayText: String,
+        val expression: PsiElement
     )
 
     private data class ResolvedAccessor(
@@ -559,6 +671,11 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
             "debugImplementation", "releaseImplementation",
             "kapt", "ksp", "annotationProcessor", "lintChecks"
         )
+
+        private val DEPENDENCY_LIBS_CALL_REGEX = Regex(
+            """\b(${DEPENDENCY_CONFIGURATIONS.joinToString("|")})\s*\(\s*(libs\.[A-Za-z0-9_.]+)\s*\)"""
+        )
+        private val PLUGIN_ALIAS_REGEX = Regex("""\balias\s*\(\s*(libs\.plugins\.[A-Za-z0-9_.]+)\s*\)""")
 
         private val SKIP_DIR_NAMES = setOf(
             "build", "out", ".gradle", ".idea", "node_modules", "target", ".git"

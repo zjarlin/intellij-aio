@@ -26,7 +26,7 @@ import java.io.File
  * 生成/更新 gradle/libs.versions.toml，并替换为 catalog 引用
  */
 class MigrateToVersionCatalogAction : AnAction(
-    "Migrate Dependencies to Version Catalog",
+    "(Gradle Buddy) Migrate Dependencies to Version Catalog",
     "Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml",
     null
 ) {

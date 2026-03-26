@@ -17,7 +17,7 @@ import java.io.File
  * 为最新版本的腾讯云镜像（或用户选择的镜像）。
  */
 class UpdateGradleWrapperAction : AnAction(
-    "Update Gradle Wrapper (Mirror)",
+    "(Gradle Buddy) Update Gradle Wrapper (Mirror)",
     "Update all gradle-wrapper.properties to latest Gradle version using mirror",
     null
 ) {

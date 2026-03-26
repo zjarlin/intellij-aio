@@ -35,35 +35,41 @@
     <!-- Fix all plugin IDs in the project -->
     <action id="site.addzero.idfixer.FixAllPluginIdsAction"
             class="site.addzero.idfixer.FixAllPluginIdsAction"
-            text="Fix All Build Script Plugin  Qualified IDs in Project"
+            text="(Gradle Buddy) Fix All Build Script Plugin Qualified IDs in Project"
             description="Scans all build-logic directories and fixes all plugin ID references to use fully qualified names.">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
 
     <!-- Version Catalog Floating Toolbar -->
     <group id="GradleBuddy.VersionCatalogFloatingToolbarGroup"
-           text="Version Catalog"
+           text="(Gradle Buddy) Version Catalog"
            popup="false"/>
 
     <action id="GradleBuddy.OrganizeVersionCatalog"
             class="site.addzero.gradle.buddy.notification.OrganizeVersionCatalogAction"
-            text="Organize"
+            text="(Gradle Buddy) Organize"
             description="Sort and de-duplicate the version catalog"
             icon="/icons/gradleBannerIcon.svg">
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="first"/>
     </action>
 
+    <action id="GradleBuddy.MergeOtherToml"
+            class="site.addzero.gradle.buddy.notification.MergeOtherTomlAction"
+            icon="AllIcons.Actions.Merge">
+      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.OrganizeVersionCatalog"/>
+    </action>
+
     <action id="GradleBuddy.NormalizeVersionCatalog"
             class="site.addzero.gradle.buddy.notification.NormalizeVersionCatalogAction"
-            text="Normalize"
+            text="(Gradle Buddy) Normalize"
             description="Normalize aliases and version.ref to use artifactId in kebab-case"
             icon="AllIcons.Actions.RefactoringBulb">
-      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.OrganizeVersionCatalog"/>
+      <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.MergeOtherToml"/>
     </action>
 
     <action id="GradleBuddy.FixBrokenCatalogReferences"
             class="site.addzero.gradle.buddy.notification.FixBrokenCatalogReferencesAction"
-            text="Fix Broken References"
+            text="(Gradle Buddy) Fix Broken References"
             description="Scan all .gradle.kts files and fix broken version catalog references"
             icon="AllIcons.Actions.QuickfixBulb">
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.NormalizeVersionCatalog"/>
@@ -72,14 +78,14 @@
 
     <action id="GradleBuddy.FixBrokenProjectReferences"
             class="site.addzero.gradle.buddy.notification.FixBrokenProjectReferencesAction"
-            text="Fix Broken Project References"
+            text="(Gradle Buddy) Fix Broken Project References"
             description="Scan all .gradle.kts files and fix broken project() references"
             icon="AllIcons.Actions.QuickfixBulb">
     </action>
 
     <action id="GradleBuddy.DismissVersionCatalogToolbar"
             class="site.addzero.gradle.buddy.notification.DismissVersionCatalogToolbarAction"
-            text="Don't Remind"
+            text="(Gradle Buddy) Don't Remind"
             description="Hide the version catalog floating toolbar"
             icon="AllIcons.Actions.Close">
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="last"/>
@@ -88,7 +94,7 @@
     <!-- Copy Module Dependency to clipboard (context menu) -->
     <action id="GradleBuddy.CopyModuleDependency"
             class="site.addzero.gradle.buddy.intentions.projectdep.CopyModuleDependencyAction"
-            text="Copy Module Dependency"
+            text="(Gradle Buddy) Copy Module Dependency"
             description="Copy implementation(project(&quot;...&quot;)) for current module to clipboard">
       <add-to-group group-id="EditorPopupMenu" anchor="last"/>
       <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
@@ -97,7 +103,7 @@
     <!-- Migration: Replace project() dependencies with Maven artifacts -->
     <action id="GradleBuddy.MigrateProjectDependencies"
             class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
-            text="Migrate project() Dependencies to Maven"
+            text="(Gradle Buddy) Migrate project() Dependencies to Maven"
             description="Scan project() dependencies and replace them with Maven artifacts">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
@@ -106,7 +112,7 @@
     <!-- Migration: Migrate hardcoded dependencies to Version Catalog -->
     <action id="GradleBuddy.MigrateToVersionCatalog"
             class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
-            text="Migrate Dependencies to Version Catalog"
+            text="(Gradle Buddy) Migrate Dependencies to Version Catalog"
             description="Scan all .gradle.kts files and migrate hardcoded dependencies to libs.versions.toml">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
@@ -115,7 +121,7 @@
     <!-- Build-Logic: Resolve all plugin implementation artifacts -->
     <action id="GradleBuddy.ResolveAllPluginArtifacts"
             class="site.addzero.gradle.buddy.buildlogic.ResolveAllPluginArtifactsAction"
-            text="Resolve All Plugin Artifacts for Build-Logic"
+            text="(Gradle Buddy) Resolve All Plugin Artifacts for Build-Logic"
             description="Scan all plugins in .gradle.kts files and resolve their implementation artifacts to version catalog">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
@@ -124,14 +130,14 @@
     <!-- Gradle Wrapper: Update all wrapper properties to latest version -->
     <action id="GradleBuddy.UpdateGradleWrapper"
             class="site.addzero.gradle.buddy.wrapper.UpdateGradleWrapperAction"
-            text="Update Gradle Wrapper (Mirror)"
+            text="(Gradle Buddy) Update Gradle Wrapper (Mirror)"
             description="Update all gradle-wrapper.properties to latest Gradle version using mirror">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
 
     <!-- Favorite Tasks Floating Toolbar (shown on .gradle.kts / .gradle files) -->
     <group id="GradleBuddy.FavoriteTasksToolbarGroup"
-           text="Favorite Tasks"
+           text="(Gradle Buddy) Favorite Tasks"
            popup="false"/>
 
     <action id="GradleBuddy.FavoriteTask.clean"
@@ -198,7 +204,7 @@
     <!-- Git Build Dir Fixer: scan and fix .gitignore for build directories -->
     <action id="GradleBuddy.FixBuildDirGitIgnore"
             class="site.addzero.gradle.buddy.gitfixer.BuildDirGitIgnoreFixer"
-            text="Fix Build Dir in Git (.gitignore)"
+            text="(Gradle Buddy) Fix Build Dir in Git (.gitignore)"
             description="Scan all build/ directories and ensure they are covered by .gitignore, clean git index if needed"
             icon="AllIcons.Actions.QuickfixBulb">
       <add-to-group group-id="ToolsMenu" anchor="last"/>

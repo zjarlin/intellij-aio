@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
+import site.addzero.gradle.buddy.intentions.util.GradleProjectRoots
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 
 object VersionCatalogDependencyHelper {
@@ -346,16 +347,20 @@ object VersionCatalogDependencyHelper {
     }
 
     private fun findVersionCatalogFiles(project: Project): List<VirtualFile> {
-        val basePath = project.basePath ?: return emptyList()
-        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
         val result = mutableListOf<VirtualFile>()
-        scanForCatalogs(baseDir, result, 0, 6)
+        val seen = linkedSetOf<String>()
+
+        for (rootDir in GradleProjectRoots.collectSearchRoots(project)) {
+            scanForCatalogs(rootDir, result, seen, 0, 8)
+        }
+
         return result
     }
 
     private fun scanForCatalogs(
         dir: VirtualFile,
         result: MutableList<VirtualFile>,
+        seen: MutableSet<String>,
         depth: Int,
         maxDepth: Int
     ) {
@@ -368,7 +373,7 @@ object VersionCatalogDependencyHelper {
         if (gradleDir != null && gradleDir.isDirectory) {
             gradleDir.children.forEach { file ->
                 if (!file.isDirectory && file.name.endsWith(".versions.toml")) {
-                    if (!result.contains(file)) {
+                    if (seen.add(file.path)) {
                         result.add(file)
                     }
                 }
@@ -377,7 +382,7 @@ object VersionCatalogDependencyHelper {
 
         dir.children.forEach { child ->
             if (child.isDirectory) {
-                scanForCatalogs(child, result, depth + 1, maxDepth)
+                scanForCatalogs(child, result, seen, depth + 1, maxDepth)
             }
         }
     }

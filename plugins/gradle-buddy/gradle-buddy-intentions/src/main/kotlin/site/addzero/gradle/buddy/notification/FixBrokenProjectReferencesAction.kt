@@ -24,6 +24,7 @@ import com.intellij.ui.table.JBTable
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.projectdep.ModulePathDistance
 import java.awt.BorderLayout
 import java.awt.Component
@@ -58,7 +59,12 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
     }
 
     private fun runBatchFixFlow(project: Project, basePath: String) {
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Scanning broken project references...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("action.fix.broken.project.references.scan.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -79,7 +85,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
                 ApplicationManager.getApplication().invokeLater {
                     if (merged.isEmpty()) {
-                        Messages.showInfoMessage(project, "所有 project 引用均有效。", "Fix Broken Project References")
+                        Messages.showInfoMessage(
+                            project,
+                            GradleBuddyBundle.message("action.fix.broken.project.references.none.content"),
+                            GradleBuddyBundle.message("action.fix.broken.project.references.title")
+                        )
                         return@invokeLater
                     }
 
@@ -88,7 +98,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
 
                     val chosenFixes = dialog.getSelectedFixes()
                     if (chosenFixes.isEmpty()) {
-                        Messages.showInfoMessage(project, "未选择任何修复项。", "Fix Broken Project References")
+                        Messages.showInfoMessage(
+                            project,
+                            GradleBuddyBundle.message("action.fix.broken.project.references.none.selected.content"),
+                            GradleBuddyBundle.message("action.fix.broken.project.references.title")
+                        )
                         return@invokeLater
                     }
 
@@ -97,12 +111,35 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
                     val unfixableGroups = dialog.getUnfixableGroupsCount()
 
                     val summary = buildString {
-                        appendLine("已修复: $fixedCount 处")
-                        if (skippedGroups > 0) appendLine("已跳过: $skippedGroups 组")
-                        if (unfixableGroups > 0) appendLine("无候选: $unfixableGroups 组")
+                        appendLine(
+                            GradleBuddyBundle.message(
+                                "action.fix.broken.project.references.summary.fixed",
+                                fixedCount
+                            )
+                        )
+                        if (skippedGroups > 0) {
+                            appendLine(
+                                GradleBuddyBundle.message(
+                                    "action.fix.broken.project.references.summary.skipped",
+                                    skippedGroups
+                                )
+                            )
+                        }
+                        if (unfixableGroups > 0) {
+                            appendLine(
+                                GradleBuddyBundle.message(
+                                    "action.fix.broken.project.references.summary.unfixable",
+                                    unfixableGroups
+                                )
+                            )
+                        }
                     }.trim()
 
-                    Messages.showInfoMessage(project, summary, "Fix Broken Project References")
+                    Messages.showInfoMessage(
+                        project,
+                        summary,
+                        GradleBuddyBundle.message("action.fix.broken.project.references.title")
+                    )
                 }
             }
         })
@@ -244,7 +281,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
         var fixed = 0
         val docManager = FileDocumentManager.getInstance()
 
-        WriteCommandAction.runWriteCommandAction(project, "Fix Broken Project References", null, {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("action.fix.broken.project.references.command"),
+            null,
+            {
             val psiDocManager = com.intellij.psi.PsiDocumentManager.getInstance(project)
             val byFile = fixes.groupBy { it.first.ktsFile }
             for ((ktsFile, fileFixes) in byFile) {
@@ -284,9 +325,9 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
         }
 
         init {
-            title = "修复断裂的 project 引用"
-            setOKButtonText("Apply")
-            setCancelButtonText("Cancel")
+            title = GradleBuddyBundle.message("action.fix.broken.project.references.dialog.title")
+            setOKButtonText(GradleBuddyBundle.message("common.button.apply"))
+            setCancelButtonText(GradleBuddyBundle.message("common.button.cancel"))
             init()
         }
 
@@ -296,9 +337,21 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
             val unfixable = rows.count { it.candidates.isEmpty() }
             val totalOccurrences = rows.sumOf { it.occurrenceCount }
             val info = buildString {
-                append("发现 ${rows.size} 组断裂引用，共 $totalOccurrences 处。")
-                if (unfixable > 0) append(" 其中 $unfixable 组无候选（显示为 —）。")
-                append(" 可在“替换为”列选择候选或跳过。")
+                append(
+                    GradleBuddyBundle.message(
+                        "action.fix.broken.project.references.dialog.info",
+                        rows.size,
+                        totalOccurrences,
+                        if (unfixable > 0) {
+                            GradleBuddyBundle.message(
+                                "action.fix.broken.project.references.dialog.info.unfixable",
+                                unfixable
+                            )
+                        } else {
+                            ""
+                        }
+                    )
+                )
             }
             panel.add(JLabel(info), BorderLayout.NORTH)
 
@@ -338,7 +391,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
         }
 
         private inner class RefTableModel : AbstractTableModel() {
-            private val colNames = arrayOf("涉及文件", "替换前", "替换后")
+            private val colNames = arrayOf(
+                GradleBuddyBundle.message("action.fix.broken.project.references.table.files"),
+                GradleBuddyBundle.message("action.fix.broken.project.references.table.before"),
+                GradleBuddyBundle.message("action.fix.broken.project.references.table.after")
+            )
             override fun getRowCount() = rows.size
             override fun getColumnCount() = 3
             override fun getColumnName(col: Int) = colNames[col]
@@ -375,11 +432,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
             ): Component {
                 val ref = rows[row]
                 val display = if (ref.candidates.isEmpty()) {
-                    "— (无候选)"
+                    GradleBuddyBundle.message("common.choice.no.candidate")
                 } else {
                     val sel = selections[row]
                     if (sel == null) {
-                        "— (跳过)"
+                        GradleBuddyBundle.message("common.choice.skip")
                     } else {
                         "project(\"$sel\")"
                     }
@@ -418,7 +475,11 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
                             cellHasFocus: Boolean
                         ): Component {
                             val raw = value as? String ?: SKIP_ITEM
-                            val display = if (raw == SKIP_ITEM) "— (跳过)" else "project(\"$raw\")"
+                            val display = if (raw == SKIP_ITEM) {
+                                GradleBuddyBundle.message("common.choice.skip")
+                            } else {
+                                "project(\"$raw\")"
+                            }
                             return super.getListCellRendererComponent(list, display, index, isSelected, cellHasFocus)
                         }
                     }
@@ -429,7 +490,7 @@ class FixBrokenProjectReferencesAction : AnAction(), DumbAware {
         }
 
         companion object {
-            private const val SKIP_ITEM = "— Skip"
+            private const val SKIP_ITEM = "__SKIP__"
         }
     }
 

@@ -296,6 +296,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert Gradle Kotlin DSL catalog accessors to findLibrary()/findPlugin() -->
+    <intentionAction order="NORMAL">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogAccessorToFindLibraryIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Create bundle from selected catalog dependencies -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
@@ -321,6 +328,13 @@
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.projectdep.FixProjectDependencyPathIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Convert type-safe project accessors to project(":...") -->
+    <intentionAction order="NORMAL">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.GradleKtsProjectAccessorToProjectIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 
@@ -377,6 +391,16 @@
             enabledByDefault="true"
             level="WARNING"
             implementationClass="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactInspection"/>
+
+    <!-- Reference: dynamic version catalog API strings jump to TOML -->
+    <psi.referenceContributor
+            language="kotlin"
+            implementation="site.addzero.gradle.catalog.DynamicCatalogReferenceContributor"/>
+
+    <!-- Reference: project(":path") strings jump to target module build.gradle.kts -->
+    <psi.referenceContributor
+            language="kotlin"
+            implementation="site.addzero.gradle.buddy.intentions.projectdep.ProjectDependencyReferenceContributor"/>
 
     <!-- Completion: Gradle Kotlin Script dependencies (order=FIRST 确保置顶) -->
     <completion.contributor language="kotlin" order="FIRST"

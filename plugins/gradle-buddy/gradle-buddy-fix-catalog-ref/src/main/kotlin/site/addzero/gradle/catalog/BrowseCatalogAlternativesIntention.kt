@@ -10,6 +10,7 @@ import com.intellij.openapi.ui.popup.PopupStep
 import com.intellij.openapi.ui.popup.util.BaseListPopupStep
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.psi.KtFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * 浏览版本目录的其他候选项
@@ -23,14 +24,14 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
     override fun getText(): String {
         val count = cachedCandidates?.size ?: 0
         return if (count > 0) {
-            "(Gradle buddy) Browse catalog alternatives ($count candidates)"
+            GradleBuddyBundle.message("intention.browse.catalog.alternatives.with.count", count)
         } else {
-            "(Gradle buddy) Browse catalog alternatives"
+            GradleBuddyBundle.message("intention.browse.catalog.alternatives")
         }
     }
 
@@ -98,15 +99,15 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val dotExpression = CatalogExpressionUtils.findTargetDotExpression(element, catalogName, currentReference) ?: return
 
         val popup = JBPopupFactory.getInstance().createListPopup(
-            object : BaseListPopupStep<CandidateItem>("浏览版本目录引用", candidates) {
+            object : BaseListPopupStep<CandidateItem>(GradleBuddyBundle.message("intention.browse.catalog.alternatives.popup.title"), candidates) {
                 override fun getTextFor(value: CandidateItem): String {
                     val percentage = String.format("%.0f", value.score * 100)
                     val tokens = if (value.matchedTokens.isNotEmpty()) {
-                        " (匹配: ${value.matchedTokens.take(3).joinToString(", ")}${if (value.matchedTokens.size > 3) "..." else ""})"
+                        " ${GradleBuddyBundle.message("intention.browse.catalog.alternatives.popup.match", value.matchedTokens.take(3).joinToString(", ") + if (value.matchedTokens.size > 3) "..." else "")}"
                     } else {
                         ""
                     }
-                    val current = if (value.isCurrent) " ✓ 当前" else ""
+                    val current = if (value.isCurrent) GradleBuddyBundle.message("intention.browse.catalog.alternatives.popup.current") else ""
                     return "${value.catalogName}.${value.alias} [$percentage%]$tokens$current"
                 }
 

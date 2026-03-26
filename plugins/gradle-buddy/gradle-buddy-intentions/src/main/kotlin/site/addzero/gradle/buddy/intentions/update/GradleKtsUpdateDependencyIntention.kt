@@ -14,6 +14,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
@@ -28,14 +29,16 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Update dependency to latest version"
+    override fun getText(): String = GradleBuddyBundle.message("intention.update.dependency.latest")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("从 Maven Central 获取最新版本并更新 Gradle KTS 依赖。")
+        return IntentionPreviewInfo.Html(
+            GradleBuddyBundle.message("intention.update.dependency.latest.preview")
+        )
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -54,7 +57,12 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
         val element = file.findElementAt(offset) ?: return
 
         val dependencyInfo = detectGradleKtsDependency(element) ?: return
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "正在获取最新版本...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("intention.update.dependency.latest.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -77,8 +85,11 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
                         }
                         Messages.showWarningDialog(
                             project,
-                            "无法找到 $identifier 的最新版本",
-                            "更新失败"
+                            GradleBuddyBundle.message(
+                                "intention.update.dependency.latest.not.found.content",
+                                identifier
+                            ),
+                            GradleBuddyBundle.message("intention.update.dependency.latest.not.found.title")
                         )
                         return@invokeLater
                     }
@@ -86,8 +97,11 @@ class GradleKtsUpdateDependencyIntention : IntentionAction, PriorityAction {
                     if (latestVersion == dependencyInfo.currentVersion) {
                         Messages.showInfoMessage(
                             project,
-                            "已经是最新版本: $latestVersion",
-                            "无需更新"
+                            GradleBuddyBundle.message(
+                                "intention.update.dependency.latest.no.change.content",
+                                latestVersion
+                            ),
+                            GradleBuddyBundle.message("intention.update.dependency.latest.no.change.title")
                         )
                         return@invokeLater
                     }

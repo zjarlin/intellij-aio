@@ -12,6 +12,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.*
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * 修复 plugins {} 块中截断/错误的 id("...") 插件引用。
@@ -32,15 +33,15 @@ class ConvertPluginIdToAliasIntention : IntentionAction, PriorityAction {
     private var cachedCandidates: List<CandidateItem>? = null
 
     override fun getPriority() = PriorityAction.Priority.HIGH
-    override fun getFamilyName() = "Gradle Buddy"
+    override fun getFamilyName() = GradleBuddyBundle.message("common.family.gradle.buddy")
     override fun startInWriteAction() = false
 
     override fun getText(): String {
         val n = cachedCandidates?.size ?: 0
         return if (n > 0) {
-            "(Gradle Buddy) Select correct catalog reference ($n candidates)"
+            GradleBuddyBundle.message("intention.convert.plugin.id.to.alias.with.count", n)
         } else {
-            "(Gradle Buddy) Select correct catalog reference"
+            GradleBuddyBundle.message("intention.convert.plugin.id.to.alias")
         }
     }
 
@@ -87,7 +88,7 @@ class ConvertPluginIdToAliasIntention : IntentionAction, PriorityAction {
         }
 
         val popup = JBPopupFactory.getInstance().createListPopup(
-            object : BaseListPopupStep<CandidateItem>("选择正确的插件引用", candidates) {
+            object : BaseListPopupStep<CandidateItem>(GradleBuddyBundle.message("intention.convert.plugin.id.to.alias.popup.title"), candidates) {
                 override fun getTextFor(value: CandidateItem): String {
                     val pct = String.format("%.0f", value.score * 100)
                     val tokens = value.tomlPluginId

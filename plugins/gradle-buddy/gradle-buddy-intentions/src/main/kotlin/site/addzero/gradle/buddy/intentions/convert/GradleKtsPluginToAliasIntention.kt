@@ -12,6 +12,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -35,14 +36,14 @@ class GradleKtsPluginToAliasIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Convert plugin to catalog alias"
+    override fun getText(): String = GradleBuddyBundle.message("intention.plugin.to.alias")
 
     override fun startInWriteAction(): Boolean = true
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("将硬编码插件声明转换为使用版本目录 alias 并合并到 libs.versions.toml。")
+        return IntentionPreviewInfo.Html(GradleBuddyBundle.message("intention.plugin.to.alias.preview"))
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {

@@ -11,6 +11,7 @@ import com.intellij.openapi.ui.popup.util.BaseListPopupStep
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.psi.KtFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * 选择版本目录引用的意图操作组
@@ -22,14 +23,14 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
     override fun getText(): String {
         val error = cachedError
         return if (error != null && error.suggestedAliases.isNotEmpty()) {
-            "(Gradle buddy) Select correct catalog reference (${error.suggestedAliases.size} candidates)"
+            GradleBuddyBundle.message("intention.select.catalog.reference.with.count", error.suggestedAliases.size)
         } else {
-            "(Gradle buddy) Select correct catalog reference"
+            GradleBuddyBundle.message("intention.select.catalog.reference")
         }
     }
 
@@ -85,11 +86,11 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         }
 
         val popup = JBPopupFactory.getInstance().createListPopup(
-            object : BaseListPopupStep<CandidateItem>("选择版本目录引用", candidates) {
+            object : BaseListPopupStep<CandidateItem>(GradleBuddyBundle.message("intention.select.catalog.reference.popup.title"), candidates) {
                 override fun getTextFor(value: CandidateItem): String {
                     val percentage = String.format("%.0f", value.score * 100)
                     val tokens = if (value.matchedTokens.isNotEmpty()) {
-                        " (匹配: ${value.matchedTokens.take(3).joinToString(", ")}${if (value.matchedTokens.size > 3) "..." else ""})"
+                        " ${GradleBuddyBundle.message("intention.select.catalog.reference.popup.match", value.matchedTokens.take(3).joinToString(", ") + if (value.matchedTokens.size > 3) "..." else "")}"
                     } else {
                         ""
                     }

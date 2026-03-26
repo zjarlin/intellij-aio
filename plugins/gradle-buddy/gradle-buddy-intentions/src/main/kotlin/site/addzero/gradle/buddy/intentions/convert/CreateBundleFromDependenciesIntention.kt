@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -23,12 +24,14 @@ import java.io.File
 class CreateBundleFromDependenciesIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
-    override fun getFamilyName(): String = "Gradle Buddy"
-    override fun getText(): String = "(Gradle Buddy) Create bundle from selected dependencies"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
+    override fun getText(): String = GradleBuddyBundle.message("intention.create.bundle.from.dependencies")
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("将选中的版本目录依赖合并为 [bundles] 条目。")
+        return IntentionPreviewInfo.Html(
+            GradleBuddyBundle.message("intention.create.bundle.from.dependencies.preview")
+        )
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -46,8 +49,9 @@ class CreateBundleFromDependenciesIntention : IntentionAction, PriorityAction {
 
         val bundleName = Messages.showInputDialog(
             project,
-            "Bundle 包含 ${refs.size} 个库:\n${refs.joinToString("\n") { "  • ${it.alias}" }}",
-            "创建 Bundle",
+            GradleBuddyBundle.message("intention.create.bundle.from.dependencies.input.message") + "\n\n" +
+                refs.joinToString("\n") { "  • ${it.alias}" },
+            GradleBuddyBundle.message("intention.create.bundle.from.dependencies.input.title"),
             null,
             suggestedName,
             null
@@ -57,7 +61,11 @@ class CreateBundleFromDependenciesIntention : IntentionAction, PriorityAction {
 
         val configuration = refs.first().configuration
 
-        WriteCommandAction.runWriteCommandAction(project, "Create Bundle: $bundleName", null, {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("intention.create.bundle.from.dependencies.command", bundleName),
+            null,
+            {
             val document = editor.document
             val catalogFile = GradleBuddySettingsService.getInstance(project).resolveVersionCatalogFile(project)
             if (catalogFile.exists()) {

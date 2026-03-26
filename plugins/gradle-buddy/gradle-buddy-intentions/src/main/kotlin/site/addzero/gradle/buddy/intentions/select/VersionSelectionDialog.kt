@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.JComponent
@@ -21,6 +22,8 @@ class VersionSelectionDialog(
 
     init {
         title = titleText
+        setOKButtonText(GradleBuddyBundle.message("common.button.select"))
+        setCancelButtonText(GradleBuddyBundle.message("common.button.cancel"))
         versionList.setListData(versions.toTypedArray())
         val initialIndex = currentVersion?.let { versions.indexOf(it) } ?: -1
         versionList.selectedIndex = if (initialIndex >= 0) initialIndex else 0

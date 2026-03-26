@@ -7,6 +7,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * 一键将 [libraries] 中所有 `module = "group:artifact"` 短格式
@@ -24,15 +25,15 @@ class VersionCatalogModuleToGroupNameIntention : IntentionAction, PriorityAction
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Convert all module= to group= name="
+    override fun getText(): String = GradleBuddyBundle.message("intention.version.catalog.module.to.group.name")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
         return IntentionPreviewInfo.Html(
-            """Converts all <code>module = "group:artifact"</code> declarations in [libraries] to <code>group = "...", name = "..."</code> format."""
+            GradleBuddyBundle.message("intention.version.catalog.module.to.group.name.preview")
         )
     }
 
@@ -51,7 +52,11 @@ class VersionCatalogModuleToGroupNameIntention : IntentionAction, PriorityAction
         val newText = convertAllModuleToGroupName(text)
         if (newText == text) return
 
-        WriteCommandAction.runWriteCommandAction(project, "Convert module= to group= name=", null, {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("intention.version.catalog.module.to.group.name.command"),
+            null,
+            {
             document.replaceString(0, document.textLength, newText)
         })
     }

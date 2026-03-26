@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.catalog.CatalogReferenceError
 
 /**
@@ -27,7 +28,7 @@ class WrongFormatFixStrategy : CatalogFixStrategy {
         if (error !is CatalogReferenceError.WrongFormat) return null
 
         return object : LocalQuickFix {
-            override fun getFamilyName(): String = "修复版本目录引用格式"
+            override fun getFamilyName(): String = GradleBuddyBundle.message("fix.wrong.format")
 
             override fun getName(): String {
                 return "替换为 '${error.catalogName}.${error.correctReference}'"

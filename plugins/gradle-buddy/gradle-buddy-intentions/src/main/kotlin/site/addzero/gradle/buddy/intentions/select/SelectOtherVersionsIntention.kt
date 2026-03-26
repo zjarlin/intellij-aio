@@ -13,6 +13,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.catalog.VersionCatalogDependencyHelper
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
@@ -20,9 +21,9 @@ class SelectOtherVersionsIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Select other versions"
+    override fun getText(): String = GradleBuddyBundle.message("intention.select.other.versions")
 
     override fun startInWriteAction(): Boolean = false
 
@@ -79,7 +80,12 @@ class SelectOtherVersionsIntention : IntentionAction, PriorityAction {
         currentVersion: String,
         onSelected: (String) -> Unit
     ) {
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching versions...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("intention.select.other.versions.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -95,15 +101,19 @@ class SelectOtherVersionsIntention : IntentionAction, PriorityAction {
                     if (allVersions.isEmpty()) {
                         Messages.showWarningDialog(
                             project,
-                            "Could not load versions for $groupId:$artifactId",
-                            "Select Version Failed"
+                            GradleBuddyBundle.message(
+                                "dialog.select.version.load.failed.content",
+                                groupId,
+                                artifactId
+                            ),
+                            GradleBuddyBundle.message("dialog.select.version.load.failed.title")
                         )
                         return@invokeLater
                     }
 
                     val dialog = VersionSelectionDialog(
                         project,
-                        "Select Version - $groupId:$artifactId",
+                        GradleBuddyBundle.message("dialog.select.version.title", groupId, artifactId),
                         allVersions,
                         currentVersion
                     )

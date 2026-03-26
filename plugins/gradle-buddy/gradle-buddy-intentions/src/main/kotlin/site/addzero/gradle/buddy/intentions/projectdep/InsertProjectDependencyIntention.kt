@@ -14,6 +14,7 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileVisitor
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * Alt+Enter intention: insert `implementation(project(":nearby:module"))` inside a `dependencies {}` block.
@@ -25,14 +26,14 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Insert project dependency"
+    override fun getText(): String = GradleBuddyBundle.message("intention.insert.project.dependency")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("选择临近模块并插入 implementation(project(\"...\")) 依赖声明。按目录树距离排序。")
+        return IntentionPreviewInfo.Html(GradleBuddyBundle.message("intention.insert.project.dependency.preview"))
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -59,7 +60,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
         }.sortedBy { it.distance }
 
         // Show popup with search enabled
-        val step = object : BaseListPopupStep<ModuleCandidate>("Select Project Dependency", sorted) {
+        val step = object : BaseListPopupStep<ModuleCandidate>(GradleBuddyBundle.message("intention.insert.project.dependency.popup.title"), sorted) {
             override fun getTextFor(value: ModuleCandidate): String {
                 val shortName = value.path.substringAfterLast(':')
                 return "$shortName [↕${value.distance}]  ${value.path}"
@@ -99,7 +100,7 @@ class InsertProjectDependencyIntention : IntentionAction, PriorityAction {
 
         val textToInsert = "\n$indent$depLine"
 
-        WriteCommandAction.writeCommandAction(project).withName("Insert Project Dependency").run<Throwable> {
+        WriteCommandAction.writeCommandAction(project).withName(GradleBuddyBundle.message("intention.insert.project.dependency.command")).run<Throwable> {
             document.insertString(lineEndOffset, textToInsert)
             editor.caretModel.moveToOffset(lineEndOffset + textToInsert.length)
         }

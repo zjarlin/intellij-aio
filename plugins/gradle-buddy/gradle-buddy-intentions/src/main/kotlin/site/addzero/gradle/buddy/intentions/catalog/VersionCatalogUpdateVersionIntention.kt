@@ -14,6 +14,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
@@ -32,14 +33,16 @@ class VersionCatalogUpdateVersionIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Update version variable to latest"
+    override fun getText(): String = GradleBuddyBundle.message("intention.version.catalog.update.version.latest")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Fetches the latest version from Maven Central and updates the version variable in [versions] section.")
+        return IntentionPreviewInfo.Html(
+            GradleBuddyBundle.message("intention.version.catalog.update.version.latest.preview")
+        )
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -65,7 +68,12 @@ class VersionCatalogUpdateVersionIntention : IntentionAction, PriorityAction {
 
         val versionInfo = detectVersionVariable(element, file.text) ?: return
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching latest version...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("intention.version.catalog.update.version.latest.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -76,8 +84,11 @@ class VersionCatalogUpdateVersionIntention : IntentionAction, PriorityAction {
                     ApplicationManager.getApplication().invokeLater {
                         Messages.showWarningDialog(
                             project,
-                            "No dependencies found using version variable '${versionInfo.versionKey}'",
-                            "Update Failed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.version.latest.no.dependencies.content",
+                                versionInfo.versionKey
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.update.version.latest.no.dependencies.title")
                         )
                     }
                     return
@@ -93,8 +104,12 @@ class VersionCatalogUpdateVersionIntention : IntentionAction, PriorityAction {
                     if (latestVersion == null) {
                         Messages.showWarningDialog(
                             project,
-                            "Could not find latest version for ${firstDep.groupId}:${firstDep.artifactId}",
-                            "Update Failed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.version.latest.not.found.content",
+                                firstDep.groupId,
+                                firstDep.artifactId
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.update.version.latest.not.found.title")
                         )
                         return@invokeLater
                     }
@@ -102,20 +117,42 @@ class VersionCatalogUpdateVersionIntention : IntentionAction, PriorityAction {
                     if (latestVersion == versionInfo.currentVersion) {
                         Messages.showInfoMessage(
                             project,
-                            "Already at latest version: $latestVersion\n\nUsed by ${dependencies.size} dependencies:\n${dependencies.take(5).joinToString("\n") { "- ${it.key}" }}${if (dependencies.size > 5) "\n..." else ""}",
-                            "No Update Needed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.version.latest.no.change.content",
+                                latestVersion,
+                                dependencies.size,
+                                dependencies.take(5).joinToString("\n") { "- ${it.key}" } +
+                                    if (dependencies.size > 5) "\n..." else ""
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.update.version.latest.no.change.title")
                         )
                         return@invokeLater
                     }
 
                     // 显示确认对话框
                     val dependencyList = dependencies.take(10).joinToString("\n") { "- ${it.key}" } +
-                        if (dependencies.size > 10) "\n... and ${dependencies.size - 10} more" else ""
+                        if (dependencies.size > 10) {
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.version.latest.more",
+                                dependencies.size - 10
+                            )
+                        } else {
+                            ""
+                        }
 
                     val result = Messages.showYesNoDialog(
                         project,
-                        "Update version '${versionInfo.versionKey}' from ${versionInfo.currentVersion} to $latestVersion?\n\nThis will affect ${dependencies.size} dependencies:\n$dependencyList",
-                        "Confirm Version Update",
+                        GradleBuddyBundle.message(
+                            "intention.version.catalog.update.version.latest.confirm.content",
+                            versionInfo.versionKey,
+                            versionInfo.currentVersion,
+                            latestVersion,
+                            dependencies.size,
+                            dependencyList
+                        ),
+                        GradleBuddyBundle.message("intention.version.catalog.update.version.latest.confirm.title"),
+                        GradleBuddyBundle.message("common.button.update"),
+                        GradleBuddyBundle.message("common.button.cancel"),
                         Messages.getQuestionIcon()
                     )
 

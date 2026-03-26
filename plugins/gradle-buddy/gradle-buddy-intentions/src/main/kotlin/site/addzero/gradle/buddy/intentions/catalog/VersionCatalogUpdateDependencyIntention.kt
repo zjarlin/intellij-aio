@@ -14,6 +14,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
 /**
@@ -31,44 +32,35 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Update dependency to latest version"
+    override fun getText(): String = GradleBuddyBundle.message("intention.version.catalog.update.dependency.latest")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("Fetches the latest version from Maven Central and updates the version catalog dependency.")
+        return IntentionPreviewInfo.Html(
+            GradleBuddyBundle.message("intention.version.catalog.update.dependency.latest.preview")
+        )
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
-        // 检查是否为 TOML 文件且在 gradle 目录下（支持任意名称的 version catalog）
-        println("[VersionCatalogUpdate] Checking file: ${file.name}")
-
         if (!file.name.endsWith(".toml")) {
-            println("[VersionCatalogUpdate] Not a TOML file")
             return false
         }
 
         val virtualFile = file.virtualFile
         if (virtualFile != null) {
             val path = virtualFile.path
-            println("[VersionCatalogUpdate] File path: $path")
             // 检查是否在 gradle/ 目录下（支持 gradle/libs.versions.toml 或其他位置）
             if (!path.contains("/gradle/")) {
-                println("[VersionCatalogUpdate] Path does not contain /gradle/")
                 return false
             }
         }
 
         val offset = editor?.caretModel?.offset ?: 0
         val element = file.findElementAt(offset) ?: return false
-        println("[VersionCatalogUpdate] Element at cursor: ${element.text}")
-
-        val dependency = detectCatalogDependency(element)
-        println("[VersionCatalogUpdate] Detected dependency: $dependency")
-
-        return dependency != null
+        return detectCatalogDependency(element) != null
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -78,7 +70,12 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
 
         val dependencyInfo = detectCatalogDependency(element) ?: return
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching latest version...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("intention.version.catalog.update.dependency.latest.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -90,8 +87,12 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
                     if (latestVersion == null) {
                         Messages.showWarningDialog(
                             project,
-                            "Could not find latest version for ${dependencyInfo.groupId}:${dependencyInfo.artifactId}",
-                            "Update Failed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.dependency.latest.not.found.content",
+                                dependencyInfo.groupId,
+                                dependencyInfo.artifactId
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.update.dependency.latest.not.found.title")
                         )
                         return@invokeLater
                     }
@@ -99,8 +100,11 @@ class VersionCatalogUpdateDependencyIntention : IntentionAction, PriorityAction 
                     if (latestVersion == dependencyInfo.currentVersion) {
                         Messages.showInfoMessage(
                             project,
-                            "Already at latest version: $latestVersion",
-                            "No Update Needed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.update.dependency.latest.no.change.content",
+                                latestVersion
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.update.dependency.latest.no.change.title")
                         )
                         return@invokeLater
                     }

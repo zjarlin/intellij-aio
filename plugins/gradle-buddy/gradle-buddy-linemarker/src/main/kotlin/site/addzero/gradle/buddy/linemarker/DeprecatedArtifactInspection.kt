@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.toml.lang.psi.TomlFile
 import org.toml.lang.psi.TomlKeyValue
 import org.toml.lang.psi.TomlTable
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 
 /**
@@ -23,11 +24,11 @@ import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
  */
 class DeprecatedArtifactInspection : LocalInspectionTool() {
 
-    override fun getDisplayName(): String = "已弃用的版本目录依赖"
+    override fun getDisplayName(): String = GradleBuddyBundle.message("inspection.deprecated.catalog.artifact.name")
     override fun getShortName(): String = "DeprecatedCatalogArtifact"
     override fun getGroupDisplayName(): String = "Gradle"
     override fun getStaticDescription(): String =
-        "检查 .gradle.kts 中引用的版本目录依赖是否已被标记为弃用"
+        GradleBuddyBundle.message("inspection.deprecated.catalog.artifact.description")
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file.virtualFile ?: return PsiElementVisitor.EMPTY_VISITOR

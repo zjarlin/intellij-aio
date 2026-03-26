@@ -22,6 +22,11 @@ object VersionCatalogDependencyHelper {
         val lineStartOffset: Int
     )
 
+    data class CatalogPluginInfo(
+        val key: String,
+        val pluginId: String
+    )
+
     fun detectCatalogDependencyAt(element: PsiElement): CatalogDependencyInfo? {
         val file = element.containingFile ?: return null
         val document = file.viewProvider.document ?: return null
@@ -66,6 +71,22 @@ object VersionCatalogDependencyHelper {
         return null
     }
 
+    fun findCatalogPluginByAccessor(project: Project, accessor: String): Pair<PsiFile, CatalogPluginInfo>? {
+        val configuredFile = resolveConfiguredCatalogFile(project)
+            ?.let { PsiManager.getInstance(project).findFile(it) }
+        val configuredResult = configuredFile?.let { findPluginInCatalogFile(it, accessor) }
+        if (configuredResult != null) return configuredResult
+
+        val catalogFiles = findVersionCatalogFiles(project)
+            .mapNotNull { PsiManager.getInstance(project).findFile(it) }
+        for (catalogFile in catalogFiles) {
+            val result = findPluginInCatalogFile(catalogFile, accessor)
+            if (result != null) return result
+        }
+
+        return null
+    }
+
     private fun findInCatalogFile(
         catalogFile: PsiFile,
         accessor: String
@@ -94,6 +115,40 @@ object VersionCatalogDependencyHelper {
                 }
             }
             offset += line.length + 1
+        }
+
+        return null
+    }
+
+    private fun findPluginInCatalogFile(
+        catalogFile: PsiFile,
+        accessor: String
+    ): Pair<PsiFile, CatalogPluginInfo>? {
+        val document = catalogFile.viewProvider.document ?: return null
+        val lines = document.text.split('\n')
+        var inPlugins = false
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                inPlugins = trimmed == "[plugins]"
+                continue
+            }
+
+            if (!inPlugins || trimmed.isEmpty() || trimmed.startsWith("#")) {
+                continue
+            }
+
+            val key = trimmed.substringBefore("=").trim().trim('"', '\'')
+            if (key.isEmpty() || !accessorMatchesKey(accessor, key)) {
+                continue
+            }
+
+            val pluginId = extractPluginId(trimmed)
+            return catalogFile to CatalogPluginInfo(
+                key = key,
+                pluginId = pluginId.orEmpty()
+            )
         }
 
         return null
@@ -257,8 +312,32 @@ object VersionCatalogDependencyHelper {
 
     private fun accessorMatchesKey(accessor: String, key: String): Boolean {
         if (accessor == key) return true
-        val normalized = key.replace('-', '.').replace('_', '.')
-        return accessor == normalized
+        return canonicalizeAccessor(accessor) == canonicalizeAccessor(key)
+    }
+
+    private fun canonicalizeAccessor(value: String): List<String> {
+        return value
+            .replace('-', '.')
+            .replace('_', '.')
+            .split('.')
+            .flatMap { segment ->
+                segment
+                    .replace(Regex("([a-z0-9])([A-Z])"), "$1.$2")
+                    .split('.')
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { it.lowercase() }
+    }
+
+    private fun extractPluginId(lineText: String): String? {
+        val inlineIdMatch = Regex("\\bid\\s*=\\s*\"([^\"]+)\"").find(lineText)
+        if (inlineIdMatch != null) {
+            return inlineIdMatch.groupValues[1]
+        }
+
+        val shortFormatMatch = Regex("""=\s*"([^":]+)(?::[^"]+)?"\s*(#.*)?$""").find(lineText)
+        return shortFormatMatch?.groupValues?.get(1)
     }
 
     private fun resolveConfiguredCatalogFile(project: Project): VirtualFile? {

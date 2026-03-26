@@ -3,8 +3,8 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
     intellijPlatform {
         bundledPlugin("org.jetbrains.plugins.gradle")
     }
 }
-

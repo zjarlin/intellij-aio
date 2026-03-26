@@ -14,6 +14,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -31,14 +32,14 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Convert dependency to version catalog (TOML)"
+    override fun getText(): String = GradleBuddyBundle.message("intention.hardcoded.dependency.to.toml")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("将硬编码依赖转换为使用版本目录引用并合并到 libs.versions.toml。")
+        return IntentionPreviewInfo.Html(GradleBuddyBundle.message("intention.hardcoded.dependency.to.toml.preview"))
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -85,7 +86,11 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
         } else {
             // 有匹配的版本条目，弹出选择对话框
             val newVersionKey = generateVersionKey(dependencyInfo.groupId, dependencyInfo.artifactId)
-            val createNewLabel = "✚ 创建新版本变量: $newVersionKey = \"${dependencyInfo.version}\""
+            val createNewLabel = GradleBuddyBundle.message(
+                "intention.hardcoded.dependency.to.toml.version.create.new",
+                newVersionKey,
+                dependencyInfo.version
+            )
             val items = matchingVersionEntries.map { (key, ver) -> "$key = \"$ver\"" } + createNewLabel
 
             if (editor == null) {
@@ -98,8 +103,14 @@ class GradleKtsHardcodedDependencyToTomlIntention : IntentionAction, PriorityAct
 
             JBPopupFactory.getInstance()
                 .createPopupChooserBuilder(items)
-                .setTitle("选择版本引用 (version.ref)")
-                .setAdText("检测到 ${matchingVersionEntries.size} 个已有版本定义匹配 \"${dependencyInfo.version}\"")
+                .setTitle(GradleBuddyBundle.message("intention.hardcoded.dependency.to.toml.version.popup.title"))
+                .setAdText(
+                    GradleBuddyBundle.message(
+                        "intention.hardcoded.dependency.to.toml.version.popup.ad",
+                        matchingVersionEntries.size,
+                        dependencyInfo.version
+                    )
+                )
                 .setItemChosenCallback { chosen ->
                     val selectedVersionKey = if (chosen == createNewLabel) {
                         null // 创建新的

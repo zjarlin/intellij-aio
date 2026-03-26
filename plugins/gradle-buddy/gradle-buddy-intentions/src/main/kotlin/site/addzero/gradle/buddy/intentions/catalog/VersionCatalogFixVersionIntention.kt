@@ -12,6 +12,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.select.VersionSelectionDialog
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
@@ -33,15 +34,15 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Fix version - create own version ref"
+    override fun getText(): String = GradleBuddyBundle.message("intention.version.catalog.fix.version")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
         return IntentionPreviewInfo.Html(
-            "Creates a dedicated version variable for this artifact (from Maven Central) and updates the version.ref to point to it."
+            GradleBuddyBundle.message("intention.version.catalog.fix.version.preview")
         )
     }
 
@@ -96,7 +97,12 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
         }
 
         // 需要从 Maven Central 获取版本并让用户选择
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Fetching versions from Maven Central...", true) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(
+                project,
+                GradleBuddyBundle.message("intention.version.catalog.fix.version.task"),
+                true
+            ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
 
@@ -111,15 +117,19 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
                     if (versions.isEmpty()) {
                         Messages.showWarningDialog(
                             project,
-                            "Could not fetch versions for ${dep.groupId}:${dep.artifactId}",
-                            "Fix Version Failed"
+                            GradleBuddyBundle.message(
+                                "intention.version.catalog.fix.version.load.failed.content",
+                                dep.groupId,
+                                dep.artifactId
+                            ),
+                            GradleBuddyBundle.message("intention.version.catalog.fix.version.load.failed.title")
                         )
                         return@invokeLater
                     }
 
                     val dialog = VersionSelectionDialog(
                         project,
-                        "Select Version - ${dep.groupId}:${dep.artifactId}",
+                        GradleBuddyBundle.message("dialog.select.version.title", dep.groupId, dep.artifactId),
                         versions,
                         dep.currentVersion
                     )

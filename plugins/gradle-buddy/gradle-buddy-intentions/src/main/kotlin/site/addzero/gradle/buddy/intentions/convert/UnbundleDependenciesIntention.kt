@@ -7,6 +7,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 
 /**
@@ -20,12 +21,14 @@ import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 class UnbundleDependenciesIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
-    override fun getFamilyName(): String = "Gradle Buddy"
-    override fun getText(): String = "(Gradle Buddy) Expand bundle to individual dependencies"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
+    override fun getText(): String = GradleBuddyBundle.message("intention.unbundle.dependencies")
     override fun startInWriteAction(): Boolean = true
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("将 bundle 引用展开为多行独立的版本目录依赖。")
+        return IntentionPreviewInfo.Html(
+            GradleBuddyBundle.message("intention.unbundle.dependencies.preview")
+        )
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -56,7 +59,11 @@ class UnbundleDependenciesIntention : IntentionAction, PriorityAction {
             "$indent${ref.configuration}(libs.$accessor)"
         }
 
-        WriteCommandAction.runWriteCommandAction(project, "Expand Bundle: ${ref.bundleName}", null, {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("intention.unbundle.dependencies.command", ref.bundleName),
+            null,
+            {
             document.replaceString(lineStart, lineEnd, expanded)
         })
     }

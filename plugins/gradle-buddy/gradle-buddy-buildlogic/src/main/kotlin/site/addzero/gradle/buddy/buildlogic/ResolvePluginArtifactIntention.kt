@@ -16,6 +16,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
@@ -31,16 +32,15 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
-    override fun getFamilyName(): String = "Gradle Buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) Resolve plugin artifact for build-logic"
+    override fun getText(): String = GradleBuddyBundle.message("intention.resolve.plugin.artifact")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
         return IntentionPreviewInfo.Html(
-            "通过 Plugin Marker Artifact 解析插件的真实实现工件坐标，" +
-            "写入 libs.versions.toml，用于 build-logic / buildSrc 中引入。"
+            GradleBuddyBundle.message("intention.resolve.plugin.artifact.preview")
         )
     }
 
@@ -70,7 +70,7 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
         // 网络请求放后台线程
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project,
-            "Resolving plugin artifact for '${pluginInfo.id}'...",
+            GradleBuddyBundle.message("intention.resolve.plugin.artifact.task.resolve", pluginInfo.id),
             true
         ) {
             override fun run(indicator: ProgressIndicator) {
@@ -81,19 +81,21 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
                 if (pluginInfo.version != null) {
                     version = pluginInfo.version
                 } else {
-                    indicator.text = "Querying latest version for '${pluginInfo.id}'..."
+                    indicator.text = GradleBuddyBundle.message(
+                        "intention.resolve.plugin.artifact.task.query.latest",
+                        pluginInfo.id
+                    )
                     val latestVersion = PluginMarkerResolver.resolveLatestVersion(pluginInfo.id)
                     if (latestVersion == null) {
                         // 查不到最新版本，让用户手动输入工件坐标或版本号
                         ApplicationManager.getApplication().invokeLater {
                             val input = Messages.showInputDialog(
                                 project,
-                                "无法自动获取插件 '${pluginInfo.id}' 的最新版本。\n\n" +
-                                "请手动输入预编译工件坐标（build-logic script plugin artifact）：\n" +
-                                "格式: group:artifact:version\n" +
-                                "示例: org.graalvm.buildtools:native-gradle-plugin:0.10.4\n\n" +
-                                "也可以只输入版本号，将通过 Plugin Marker 自动解析。",
-                                "Input Plugin Artifact",
+                                GradleBuddyBundle.message(
+                                    "intention.resolve.plugin.artifact.input.latest.missing.content",
+                                    pluginInfo.id
+                                ),
+                                GradleBuddyBundle.message("intention.resolve.plugin.artifact.input.title"),
                                 null
                             )
                             if (!input.isNullOrBlank()) {
@@ -105,7 +107,7 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
                     version = latestVersion
                 }
 
-                indicator.text = "Querying Plugin Marker POM..."
+                indicator.text = GradleBuddyBundle.message("intention.resolve.plugin.artifact.task.query.marker")
                 val resolved = PluginMarkerResolver.resolve(pluginInfo.id, version)
 
                 ApplicationManager.getApplication().invokeLater {
@@ -113,15 +115,12 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
                         // Marker 解析失败，也让用户手动输入
                         val input = Messages.showInputDialog(
                             project,
-                            "无法通过 Plugin Marker 解析插件 '${pluginInfo.id}:$version' 的实现工件。\n\n" +
-                            "可能原因：\n" +
-                            "• 该插件未发布 Plugin Marker Artifact\n" +
-                            "• 该插件托管在私有仓库\n" +
-                            "• 网络连接问题\n\n" +
-                            "请手动输入预编译工件坐标：\n" +
-                            "格式: group:artifact:version\n" +
-                            "示例: org.graalvm.buildtools:native-gradle-plugin:0.10.4",
-                            "Input Plugin Artifact",
+                            GradleBuddyBundle.message(
+                                "intention.resolve.plugin.artifact.input.marker.failed.content",
+                                pluginInfo.id,
+                                version
+                            ),
+                            GradleBuddyBundle.message("intention.resolve.plugin.artifact.input.title"),
                             null
                         )
                         if (!input.isNullOrBlank()) {
@@ -159,12 +158,16 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
             val version = input.trim()
             ProgressManager.getInstance().run(object : Task.Backgroundable(
                 project,
-                "Resolving plugin artifact for '${pluginInfo.id}:$version'...",
+                GradleBuddyBundle.message(
+                    "intention.resolve.plugin.artifact.task.resolve.with.version",
+                    pluginInfo.id,
+                    version
+                ),
                 true
             ) {
                 override fun run(indicator: ProgressIndicator) {
                     indicator.isIndeterminate = true
-                    indicator.text = "Querying Plugin Marker POM..."
+                    indicator.text = GradleBuddyBundle.message("intention.resolve.plugin.artifact.task.query.marker")
 
                     val resolved = PluginMarkerResolver.resolve(pluginInfo.id, version)
 
@@ -172,8 +175,12 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
                         if (resolved == null) {
                             Messages.showWarningDialog(
                                 project,
-                                "无法解析插件 '${pluginInfo.id}:$version' 的实现工件。",
-                                "Plugin Artifact Not Found"
+                                GradleBuddyBundle.message(
+                                    "intention.resolve.plugin.artifact.not.found.content",
+                                    pluginInfo.id,
+                                    version
+                                ),
+                                GradleBuddyBundle.message("intention.resolve.plugin.artifact.not.found.title")
                             )
                             return@invokeLater
                         }
@@ -253,7 +260,11 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
         val alias = generateAlias(resolved)
         val versionRef = generateVersionRef(resolved)
 
-        WriteCommandAction.runWriteCommandAction(project, "Add plugin artifact to version catalog", null, Runnable {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("intention.resolve.plugin.artifact.command"),
+            null,
+            Runnable {
             val catalogDir = catalogFile.parentFile
             if (!catalogDir.exists()) catalogDir.mkdirs()
 
@@ -268,18 +279,26 @@ class ResolvePluginArtifactIntention : IntentionAction, PriorityAction {
 
         // 显示结果
         val ktsAccessor = alias.replace("-", ".")
+        val resultMessage = buildString {
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.header"))
+            appendLine()
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.plugin.id", pluginInfo.id))
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.version", pluginInfo.version))
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.coordinate", resolved.coordinate))
+            appendLine()
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.added.to", catalogFile.path))
+            appendLine("  [versions] $versionRef = \"${resolved.version}\"")
+            appendLine(
+                "  [libraries] $alias = { group = \"${resolved.groupId}\", name = \"${resolved.artifactId}\", version.ref = \"$versionRef\" }"
+            )
+            appendLine()
+            appendLine(GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.usage"))
+            appendLine("  implementation(libs.$ktsAccessor)")
+        }
         Messages.showInfoMessage(
             project,
-            "已解析插件实现工件并写入版本目录：\n\n" +
-            "插件 ID: ${pluginInfo.id}\n" +
-            "版本: ${pluginInfo.version}\n" +
-            "实现工件: ${resolved.coordinate}\n\n" +
-            "已添加到 ${catalogFile.path}:\n" +
-            "  [versions] $versionRef = \"${resolved.version}\"\n" +
-            "  [libraries] $alias = { group = \"${resolved.groupId}\", name = \"${resolved.artifactId}\", version.ref = \"$versionRef\" }\n\n" +
-            "在 buildSrc / build-logic 中使用：\n" +
-            "  implementation(libs.$ktsAccessor)",
-            "Plugin Artifact Resolved"
+            resultMessage,
+            GradleBuddyBundle.message("intention.resolve.plugin.artifact.result.title")
         )
     }
 

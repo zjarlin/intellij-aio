@@ -1,0 +1,15 @@
+<html>
+
+<body>
+  扫描整个项目下的 Gradle Kotlin DSL 脚本，
+  将依赖中的 <code>libs.xxx</code> 和插件块中的
+  <code>alias(libs.plugins.xxx)</code> 批量替换为
+  <code>findLibrary("alias").get()</code> /
+  <code>findPlugin("alias").get()</code>。
+  <br /><br />
+  如果脚本中还没有 <code>versionCatalogs.named("libs")</code> 对应的变量，
+  会自动补充；若文件里仍有其他生成的 <code>libs.*</code> 用法，为避免遮蔽冲突，
+  会自动改用备用变量名。
+</body>
+
+</html>

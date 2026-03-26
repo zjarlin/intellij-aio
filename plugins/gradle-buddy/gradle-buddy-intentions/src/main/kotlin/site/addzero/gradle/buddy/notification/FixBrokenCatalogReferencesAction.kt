@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Dimension
@@ -144,7 +145,11 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         }
 
         if (allBroken.isEmpty()) {
-            Messages.showInfoMessage(project, "所有版本目录引用均有效，无需修复。", "Fix Broken References")
+            Messages.showInfoMessage(
+                project,
+                GradleBuddyBundle.message("action.fix.broken.catalog.references.none.content"),
+                GradleBuddyBundle.message("action.fix.broken.catalog.references.title")
+            )
             return
         }
 
@@ -187,7 +192,11 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
     ): Int {
         if (fixes.isEmpty()) return 0
         var count = 0
-        WriteCommandAction.runWriteCommandAction(project, "Fix Broken Catalog References", null, {
+        WriteCommandAction.runWriteCommandAction(
+            project,
+            GradleBuddyBundle.message("action.fix.broken.catalog.references.command"),
+            null,
+            {
             val docManager = FileDocumentManager.getInstance()
             val psiDocManager = PsiDocumentManager.getInstance(project)
             val byFile = fixes.groupBy { it.first.ktsFile }
@@ -220,15 +229,37 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
     private fun showSummary(project: Project, autoFixed: Int, manualFixed: Int, unfixable: List<BrokenRef>) {
         val sb = StringBuilder()
-        if (autoFixed > 0) sb.appendLine("自动修复: $autoFixed 处")
-        if (manualFixed > 0) sb.appendLine("手动选择修复: $manualFixed 处")
-        if (unfixable.isNotEmpty()) {
-            sb.appendLine("无法修复 (未找到候选): ${unfixable.size} 处")
-            for (b in unfixable.take(10)) sb.appendLine("  • ${b.ktsFile.name}: ${b.fullMatch}")
-            if (unfixable.size > 10) sb.appendLine("  ... 及其他 ${unfixable.size - 10} 处")
+        if (autoFixed > 0) {
+            sb.appendLine(GradleBuddyBundle.message("action.fix.broken.catalog.references.summary.auto", autoFixed))
         }
-        if (autoFixed == 0 && manualFixed == 0 && unfixable.isEmpty()) sb.append("所有引用均有效。")
-        Messages.showInfoMessage(project, sb.toString().trim(), "Fix Broken References")
+        if (manualFixed > 0) {
+            sb.appendLine(GradleBuddyBundle.message("action.fix.broken.catalog.references.summary.manual", manualFixed))
+        }
+        if (unfixable.isNotEmpty()) {
+            sb.appendLine(
+                GradleBuddyBundle.message(
+                    "action.fix.broken.catalog.references.summary.unfixable",
+                    unfixable.size
+                )
+            )
+            for (b in unfixable.take(10)) sb.appendLine("  • ${b.ktsFile.name}: ${b.fullMatch}")
+            if (unfixable.size > 10) {
+                sb.appendLine(
+                    GradleBuddyBundle.message(
+                        "action.fix.broken.catalog.references.summary.more",
+                        unfixable.size - 10
+                    )
+                )
+            }
+        }
+        if (autoFixed == 0 && manualFixed == 0 && unfixable.isEmpty()) {
+            sb.append(GradleBuddyBundle.message("action.fix.broken.catalog.references.summary.none"))
+        }
+        Messages.showInfoMessage(
+            project,
+            sb.toString().trim(),
+            GradleBuddyBundle.message("action.fix.broken.catalog.references.title")
+        )
     }
 
     // ── Table Dialog ────────────────────────────────────────────────────
@@ -260,9 +291,9 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         }
 
         init {
-            title = "修复断裂的版本目录引用"
-            setOKButtonText("Apply")
-            setCancelButtonText("Cancel")
+            title = GradleBuddyBundle.message("action.fix.broken.catalog.references.dialog.title")
+            setOKButtonText(GradleBuddyBundle.message("common.button.apply"))
+            setCancelButtonText(GradleBuddyBundle.message("common.button.cancel"))
             init()
         }
 
@@ -270,14 +301,31 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             val panel = JPanel(BorderLayout(0, 8))
 
             val info = buildString {
-                if (autoFixedCount > 0) append("已自动修复 $autoFixedCount 处唯一匹配。")
+                if (autoFixedCount > 0) {
+                    append(
+                        GradleBuddyBundle.message(
+                            "action.fix.broken.catalog.references.dialog.info.auto",
+                            autoFixedCount
+                        )
+                    )
+                }
                 if (ambiguous.isNotEmpty()) {
                     if (isNotEmpty()) append(" ")
-                    append("以下 ${ambiguous.size} 种断裂引用有多个候选，请选择正确的替换。")
+                    append(
+                        GradleBuddyBundle.message(
+                            "action.fix.broken.catalog.references.dialog.info.ambiguous",
+                            ambiguous.size
+                        )
+                    )
                 }
                 if (unfixable.isNotEmpty()) {
                     if (isNotEmpty()) append(" ")
-                    append("另有 ${unfixable.size} 种无候选项（标记为 —）。")
+                    append(
+                        GradleBuddyBundle.message(
+                            "action.fix.broken.catalog.references.dialog.info.unfixable",
+                            unfixable.size
+                        )
+                    )
                 }
             }
             panel.add(JLabel(info), BorderLayout.NORTH)
@@ -311,7 +359,11 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         }
 
         private inner class RefTableModel : AbstractTableModel() {
-            private val colNames = arrayOf("涉及文件", "断裂引用", "替换为")
+            private val colNames = arrayOf(
+                GradleBuddyBundle.message("action.fix.broken.catalog.references.table.files"),
+                GradleBuddyBundle.message("action.fix.broken.catalog.references.table.broken"),
+                GradleBuddyBundle.message("action.fix.broken.catalog.references.table.replace")
+            )
             override fun getRowCount() = rows.size
             override fun getColumnCount() = 3
             override fun getColumnName(col: Int) = colNames[col]
@@ -345,7 +397,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             ): Component {
                 val ref = rows[row]
                 val display = if (ref.candidates.isEmpty()) {
-                    "— (无候选)"
+                    GradleBuddyBundle.message("common.choice.no.candidate")
                 } else {
                     val sel = selections[row] ?: ref.candidates[0]
                     // 预览时也防止双 catalogName

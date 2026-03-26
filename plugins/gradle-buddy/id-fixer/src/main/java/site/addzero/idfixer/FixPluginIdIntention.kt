@@ -14,6 +14,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.*
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 
 /**
  * Intention action that fixes plugin ID references to use fully qualified names.
@@ -22,8 +23,8 @@ import org.jetbrains.kotlin.psi.*
  */
 class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
-    override fun getText(): String = "(Gradle Buddy) Fix build script reference"
-    override fun getFamilyName(): String = "Gradle Plugin ID"
+    override fun getText(): String = GradleBuddyBundle.message("intention.fix.plugin.id")
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.plugin.id")
 
     /**
      * Generates a preview for the intention action without performing write actions.
@@ -86,7 +87,7 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
         val pluginInfos = findPluginInfos(project, pluginId)
         if (pluginInfos.isEmpty()) {
-            showNotification(project, "No matching build script candidates found", NotificationType.INFORMATION)
+            showNotification(project, GradleBuddyBundle.message("intention.fix.plugin.id.no.candidates"), NotificationType.INFORMATION)
             return
         }
 
@@ -103,7 +104,7 @@ class FixPluginIdIntention : PsiElementBaseIntentionAction(), IntentionAction {
 
             val popup = JBPopupFactory.getInstance()
                 .createPopupChooserBuilder(candidates)
-                .setTitle("Select build script reference")
+                .setTitle(GradleBuddyBundle.message("intention.fix.plugin.id.popup.title"))
                 .setRenderer(SimpleListCellRenderer.create("") { candidate ->
                     "${candidate.info.fullyQualifiedId}  (${candidate.relativePath})"
                 })

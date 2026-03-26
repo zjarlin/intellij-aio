@@ -24,6 +24,7 @@ import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.notification.FixBrokenProjectReferencesAction
 
 /**
@@ -37,14 +38,14 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
-    override fun getFamilyName(): String = "Gradle buddy"
+    override fun getFamilyName(): String = GradleBuddyBundle.message("common.family.gradle.buddy")
 
-    override fun getText(): String = "(Gradle Buddy) 自动修复 project 引用（单条/批量）"
+    override fun getText(): String = GradleBuddyBundle.message("intention.fix.project.dependency.path")
 
     override fun startInWriteAction(): Boolean = false
 
     override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
-        return IntentionPreviewInfo.Html("自动修复 project 引用：若仅当前一处异常则单条修复；若检测到其他异常则进入批量修复。")
+        return IntentionPreviewInfo.Html(GradleBuddyBundle.message("intention.fix.project.dependency.path.preview"))
     }
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
@@ -89,7 +90,12 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
             .toList()
 
         if (matched.isEmpty()) {
-            notify(project, "No matching module", "Cannot find module named \"$leafName\" in this project.", NotificationType.WARNING)
+            notify(
+                project,
+                GradleBuddyBundle.message("intention.fix.project.dependency.path.no.match.title"),
+                GradleBuddyBundle.message("intention.fix.project.dependency.path.no.match.content", leafName),
+                NotificationType.WARNING
+            )
             return
         }
 
@@ -106,7 +112,7 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
             return
         }
 
-        val step = object : BaseListPopupStep<ModuleCandidate>("Select Correct Module Path", candidates) {
+        val step = object : BaseListPopupStep<ModuleCandidate>(GradleBuddyBundle.message("intention.fix.project.dependency.path.popup.title"), candidates) {
             override fun getTextFor(value: ModuleCandidate): String {
                 return if (currentModulePath != null) {
                     "${value.path.substringAfterLast(':')} [↕${value.distance}]  ${value.path}"
@@ -141,7 +147,7 @@ class FixProjectDependencyPathIntention : IntentionAction, PriorityAction {
         val range = element.textRange
 
         WriteCommandAction.writeCommandAction(project)
-            .withName("Fix Project Dependency Path")
+            .withName(GradleBuddyBundle.message("intention.fix.project.dependency.path.command"))
             .run<Throwable> {
                 document.replaceString(range.startOffset, range.endOffset, "\"$newPath\"")
                 PsiDocumentManager.getInstance(project).commitDocument(document)

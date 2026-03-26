@@ -229,6 +229,20 @@ class CatalogReferenceScanner(private val project: Project) {
         return result
     }
 
+    fun findEntries(catalogName: String, tableName: String, key: String): List<TomlKeyValue> {
+        val result = mutableListOf<TomlKeyValue>()
+
+        val tomlFiles = findVersionCatalogFiles()
+        for (virtualFile in tomlFiles) {
+            if (getCatalogName(virtualFile) != catalogName) {
+                continue
+            }
+            result += findEntriesInFile(virtualFile, tableName, key)
+        }
+
+        return result
+    }
+
     /**
      * 从 TOML 文件中提取 [plugins] 的 pluginId → accessor 映射
      */
@@ -290,6 +304,49 @@ class CatalogReferenceScanner(private val project: Project) {
         }
 
         return null
+    }
+
+    private fun findEntriesInFile(file: VirtualFile, tableName: String, key: String): List<TomlKeyValue> {
+        val matches = mutableListOf<TomlKeyValue>()
+        val psiFile = PsiManager.getInstance(project).findFile(file) as? TomlFile ?: return emptyList()
+
+        psiFile.children.forEach { element ->
+            if (element !is TomlTable || element.header.key?.text != tableName) {
+                return@forEach
+            }
+
+            element.entries.forEach { entry ->
+                if (catalogKeyMatches(key, entry.key.text)) {
+                    matches += entry
+                }
+            }
+        }
+
+        return matches
+    }
+
+    private fun catalogKeyMatches(requestedKey: String, tomlKey: String): Boolean {
+        val requested = requestedKey.trim('"', '\'')
+        val actual = tomlKey.trim('"', '\'')
+        if (requested == actual) return true
+
+        return canonicalizeKey(requested) == canonicalizeKey(actual)
+    }
+
+    private fun canonicalizeKey(key: String): List<String> {
+        return key
+            .trim('"', '\'')
+            .replace('-', '.')
+            .replace('_', '.')
+            .split('.')
+            .flatMap { segment ->
+                segment
+                    .replace(Regex("([a-z0-9])([A-Z])"), "$1.$2")
+                    .split('.')
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { it.lowercase() }
     }
 
     /**

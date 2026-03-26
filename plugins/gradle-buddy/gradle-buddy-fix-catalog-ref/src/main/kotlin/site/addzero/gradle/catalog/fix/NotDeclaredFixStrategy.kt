@@ -4,6 +4,7 @@ import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.catalog.CatalogReferenceError
 
 /**
@@ -52,7 +53,7 @@ class NotDeclaredFixStrategy : CatalogFixStrategy {
         private val error: CatalogReferenceError.NotDeclared
     ) : LocalQuickFix {
 
-        override fun getFamilyName(): String = "添加到版本目录"
+        override fun getFamilyName(): String = GradleBuddyBundle.message("fix.not.declared.add.to.catalog")
 
         override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
             val message = buildString {

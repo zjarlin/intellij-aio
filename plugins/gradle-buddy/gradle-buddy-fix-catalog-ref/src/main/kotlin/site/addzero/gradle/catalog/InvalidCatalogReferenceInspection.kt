@@ -6,6 +6,7 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
 
 /**
@@ -13,14 +14,14 @@ import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
  */
 class InvalidCatalogReferenceInspection : LocalInspectionTool() {
 
-    override fun getDisplayName(): String = "无效的版本目录引用"
+    override fun getDisplayName(): String = GradleBuddyBundle.message("inspection.invalid.catalog.reference.name")
 
     override fun getShortName(): String = "InvalidCatalogReference"
 
     override fun getGroupDisplayName(): String = "Gradle"
 
     override fun getStaticDescription(): String? {
-        return "检查 Gradle 版本目录引用是否有效，包括格式错误和未声明的依赖"
+        return GradleBuddyBundle.message("inspection.invalid.catalog.reference.description")
     }
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

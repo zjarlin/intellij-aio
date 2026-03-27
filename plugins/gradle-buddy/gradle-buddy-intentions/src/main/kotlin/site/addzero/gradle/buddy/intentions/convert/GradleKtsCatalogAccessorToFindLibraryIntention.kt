@@ -26,8 +26,10 @@ import site.addzero.gradle.buddy.intentions.catalog.VersionCatalogDependencyHelp
 import site.addzero.gradle.buddy.intentions.util.GradleProjectRoots
 
 /**
- * 将 Gradle Kotlin DSL 中基于 `libs.xxx` / `libs.plugins.xxx` 的引用，
- * 批量替换为 `findLibrary("alias").get()` / `findPlugin("alias").get()`。
+ * 将 Gradle Kotlin DSL 中依赖里的 `libs.xxx` 强类型访问器，
+ * 批量替换为 `findLibrary("alias").get()`。
+ *
+ * plugins {} 块中的 `alias(libs.plugins.xxx)` 暂不转换。
  */
 class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, PriorityAction {
 
@@ -51,9 +53,19 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
             return false
         }
 
-        // 这是项目级批量意图，不要求光标必须精确落在 libs.xxx 上。
-        // 只要当前文件里存在可替换的 catalog accessor，也允许用户触发。
-        return collectFileCandidates(project, file).replacements.isNotEmpty()
+        val element = file.findElementAt(editor.caretModel.offset)
+        if (element != null && detectCatalogAccessorCandidate(element) != null) {
+            return true
+        }
+
+        val fileCandidates = collectFileCandidates(project, file)
+        if (fileCandidates.replacements.isNotEmpty()) {
+            return true
+        }
+
+        // 兜底：即使当前还没成功解析到 catalog key，也先把意图展示出来，
+        // 让用户能触发批量扫描，并在后续弹窗里看到更明确的结果或错误提示。
+        return containsCatalogAccessorText(file.text)
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -96,11 +108,31 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         return resolveCatalogAccessor(project, topExpression.text, topExpression)
     }
 
+    private fun detectCatalogAccessorCandidate(element: PsiElement): CatalogAccessorCandidate? {
+        findEnclosingCatalogCallCandidate(element)?.let { return it }
+
+        val expression = element.parentOfType<KtDotQualifiedExpression>(true) ?: return null
+        val topExpression = findTopDotExpression(expression)
+        val accessor = extractPlainCatalogAccessor(topExpression) ?: return null
+        return classifyCatalogAccessor(accessor, topExpression)
+    }
+
     private fun findEnclosingCatalogCall(project: Project, element: PsiElement): ResolvedAccessor? {
         var current: PsiElement? = element
         while (current != null) {
             if (current is KtCallExpression) {
                 resolveCatalogAccessorFromCall(project, current)?.let { return it }
+            }
+            current = current.parent
+        }
+        return null
+    }
+
+    private fun findEnclosingCatalogCallCandidate(element: PsiElement): CatalogAccessorCandidate? {
+        var current: PsiElement? = element
+        while (current != null) {
+            if (current is KtCallExpression) {
+                classifyCatalogAccessor(current)?.let { return it }
             }
             current = current.parent
         }
@@ -114,7 +146,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
 
         return when {
             callee in DEPENDENCY_CONFIGURATIONS -> resolveCatalogAccessor(project, accessorText, argumentExpression)
-            callee == "alias" && isInsidePluginsBlock(callExpression) -> resolveCatalogAccessor(project, accessorText, argumentExpression)
             else -> null
         }
     }
@@ -189,7 +220,7 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         }
 
         // 兜底：部分 Gradle Kotlin DSL 场景下 PSI 结构不稳定，但源码文本仍然是确定的。
-        // 这里补一轮基于文本的扫描，确保强类型 libs.xxx / alias(libs.plugins.xxx) 不会漏掉。
+        // 这里补一轮基于文本的扫描，确保强类型 libs.xxx 不会漏掉。
         val fileText = file.text
         for (match in DEPENDENCY_LIBS_CALL_REGEX.findAll(fileText)) {
             val accessorText = match.groupValues[2]
@@ -205,31 +236,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
             }
 
             val group = match.groups[2] ?: continue
-            val range = TextRange(group.range.first, group.range.last + 1)
-            if (seenRanges.add(range.startOffset to range.endOffset)) {
-                replacements += Replacement(
-                    range = range,
-                    catalogKey = resolved.catalogKey,
-                    kind = resolved.kind,
-                    newText = ""
-                )
-            }
-        }
-
-        for (match in PLUGIN_ALIAS_REGEX.findAll(fileText)) {
-            val accessorText = match.groupValues[1]
-            val accessor = accessorText.removePrefix("libs.")
-            if (!isSupportedPluginAccessor(accessor)) {
-                continue
-            }
-
-            val resolved = resolveCatalogAccessor(project, accessor, CatalogEntryKind.PLUGIN, accessorText)
-            if (resolved == null) {
-                unresolved += "${file.name}: $accessorText"
-                continue
-            }
-
-            val group = match.groups[1] ?: continue
             val range = TextRange(group.range.first, group.range.last + 1)
             if (seenRanges.add(range.startOffset to range.endOffset)) {
                 replacements += Replacement(
@@ -282,7 +288,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
 
         return when {
             callee in DEPENDENCY_CONFIGURATIONS -> classifyCatalogAccessor(accessor, argumentExpression)
-            callee == "alias" && isInsidePluginsBlock(callExpression) -> classifyCatalogAccessor(accessor, argumentExpression)
             else -> null
         }
     }
@@ -293,15 +298,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         if (isSupportedLibraryAccessor(accessor) && isInsideDependencyConfiguration(expression)) {
             return CatalogAccessorCandidate(
                 kind = CatalogEntryKind.LIBRARY,
-                accessor = accessor,
-                displayText = displayText,
-                expression = expression
-            )
-        }
-
-        if (isSupportedPluginAccessor(accessor) && isInsidePluginAlias(expression)) {
-            return CatalogAccessorCandidate(
-                kind = CatalogEntryKind.PLUGIN,
                 accessor = accessor,
                 displayText = displayText,
                 expression = expression
@@ -478,6 +474,13 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         return !accessor.contains(".javaClass")
     }
 
+    private fun containsCatalogAccessorText(text: String): Boolean {
+        return DEPENDENCY_LIBS_CALL_REGEX.findAll(text).any { match ->
+            val accessor = match.groupValues[2].removePrefix("libs.")
+            isSupportedLibraryAccessor(accessor)
+        }
+    }
+
     private fun isInsideDependencyConfiguration(expression: PsiElement): Boolean {
         var current: PsiElement? = expression.parent
         while (current != null) {
@@ -486,28 +489,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
                 if (callee in DEPENDENCY_CONFIGURATIONS) {
                     return true
                 }
-            }
-            current = current.parent
-        }
-        return false
-    }
-
-    private fun isInsidePluginAlias(expression: PsiElement): Boolean {
-        var current: PsiElement? = expression.parent
-        while (current != null) {
-            if (current is KtCallExpression && current.calleeExpression?.text == "alias") {
-                return isInsidePluginsBlock(current)
-            }
-            current = current.parent
-        }
-        return false
-    }
-
-    private fun isInsidePluginsBlock(element: PsiElement): Boolean {
-        var current: PsiElement? = element
-        while (current != null) {
-            if (current is KtCallExpression && current.calleeExpression?.text == "plugins") {
-                return true
             }
             current = current.parent
         }
@@ -675,8 +656,6 @@ class GradleKtsCatalogAccessorToFindLibraryIntention : IntentionAction, Priority
         private val DEPENDENCY_LIBS_CALL_REGEX = Regex(
             """\b(${DEPENDENCY_CONFIGURATIONS.joinToString("|")})\s*\(\s*(libs\.[A-Za-z0-9_.]+)\s*\)"""
         )
-        private val PLUGIN_ALIAS_REGEX = Regex("""\balias\s*\(\s*(libs\.plugins\.[A-Za-z0-9_.]+)\s*\)""")
-
         private val SKIP_DIR_NAMES = setOf(
             "build", "out", ".gradle", ".idea", "node_modules", "target", ".git"
         )

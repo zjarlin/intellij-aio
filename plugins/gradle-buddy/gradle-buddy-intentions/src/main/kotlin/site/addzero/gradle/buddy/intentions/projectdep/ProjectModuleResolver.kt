@@ -1,10 +1,10 @@
 package site.addzero.gradle.buddy.intentions.projectdep
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileVisitor
+import site.addzero.gradle.buddy.intentions.util.GradleProjectRoots
 
 object ProjectModuleResolver {
 
@@ -24,40 +24,42 @@ object ProjectModuleResolver {
     }
 
     fun scanModules(project: Project): List<ModuleInfo> {
-        val basePath = project.basePath ?: return emptyList()
-        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
         val modules = mutableListOf<ModuleInfo>()
+        val seenBuildFiles = linkedSetOf<String>()
 
-        VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
-            override fun visitFile(file: VirtualFile): Boolean {
-                if (!file.isDirectory) {
+        for (baseDir in GradleProjectRoots.collectSearchRoots(project)) {
+            val basePath = baseDir.path
+            VfsUtilCore.visitChildrenRecursively(baseDir, object : VirtualFileVisitor<Void>() {
+                override fun visitFile(file: VirtualFile): Boolean {
+                    if (!file.isDirectory) {
+                        return true
+                    }
+
+                    val name = file.name
+                    if (name.startsWith(".") || name in SKIP_DIRS) {
+                        return false
+                    }
+                    if (file != baseDir && hasSettingsFile(file)) {
+                        return false
+                    }
+
+                    val buildFile = findBuildFile(file)
+                    if (buildFile != null && seenBuildFiles.add(buildFile.path)) {
+                        val rel = file.path.removePrefix(basePath).trimStart('/')
+                        val modulePath = if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
+                        if (modulePath != ":") {
+                            modules += ModuleInfo(
+                                path = modulePath,
+                                buildFile = buildFile,
+                                typeSafeAccessor = modulePathToTypeSafeAccessor(modulePath)
+                            )
+                        }
+                    }
+
                     return true
                 }
-
-                val name = file.name
-                if (name.startsWith(".") || name in SKIP_DIRS) {
-                    return false
-                }
-                if (file != baseDir && hasSettingsFile(file)) {
-                    return false
-                }
-
-                val buildFile = findBuildFile(file)
-                if (buildFile != null) {
-                    val rel = file.path.removePrefix(basePath).trimStart('/')
-                    val modulePath = if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
-                    if (modulePath != ":") {
-                        modules += ModuleInfo(
-                            path = modulePath,
-                            buildFile = buildFile,
-                            typeSafeAccessor = modulePathToTypeSafeAccessor(modulePath)
-                        )
-                    }
-                }
-
-                return true
-            }
-        })
+            })
+        }
 
         return modules
     }

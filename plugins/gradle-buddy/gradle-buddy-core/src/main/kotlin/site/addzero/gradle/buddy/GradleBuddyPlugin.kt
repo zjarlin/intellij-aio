@@ -4,10 +4,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.wm.WindowManager
+import site.addzero.gradle.buddy.i18n.GradleBuddyRegisteredActionI18n
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 
 class GradleBuddyPlugin : ProjectActivity {
     override suspend fun execute(project: Project) {
+        GradleBuddyRegisteredActionI18n.refreshAll()
+
         // 检查是否为 Gradle 项目并显示加载指示器
         if (isGradleProject(project) && !isGradleProjectLoaded(project)) {
             showGradleLoadIndicator(project)

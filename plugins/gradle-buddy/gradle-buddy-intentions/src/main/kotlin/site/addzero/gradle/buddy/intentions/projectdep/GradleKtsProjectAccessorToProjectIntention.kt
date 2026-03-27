@@ -53,11 +53,18 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         }
 
         // 这是项目级批量替换意图，不要求光标必须精确落在 projects.xxx 上。
-        return collectFileCandidates(
+        if (collectFileCandidates(
             project = project,
             file = file,
             modulesByAccessor = ProjectModuleResolver.scanModules(project).associateBy { it.typeSafeAccessor }
         ).replacements.isNotEmpty()
+        ) {
+            return true
+        }
+
+        // 兜底：部分 Kotlin DSL 场景下 PSI 不稳定，但源码里已经明确出现了 projects.xxx。
+        // 先把意图展示出来，后续再做整项目扫描与解析。
+        return containsProjectAccessorText(file.text)
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile) {
@@ -112,8 +119,7 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
     }
 
     private fun resolveProjectAccessorFromCall(project: Project, callExpression: KtCallExpression): ResolvedAccessor? {
-        val callee = callExpression.calleeExpression?.text ?: return null
-        if (callee !in DEPENDENCY_CONFIGURATIONS) {
+        if (!isDependencyLikeCall(callExpression)) {
             return null
         }
 
@@ -156,6 +162,7 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         file: PsiFile,
         modulesByAccessor: Map<String, ProjectModuleResolver.ModuleInfo>
     ): FileCandidates {
+        val seenRanges = linkedSetOf<Pair<Int, Int>>()
         val topExpressions = PsiTreeUtil.collectElementsOfType(file, KtDotQualifiedExpression::class.java)
             .map { findTopDotExpression(it) }
             .distinctBy { it.textRange.startOffset to it.textRange.endOffset }
@@ -171,11 +178,40 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
                 continue
             }
 
-            replacements += Replacement(
-                range = expression.textRange,
-                modulePath = modulePath,
-                newText = """project("$modulePath")"""
-            )
+            val range = expression.textRange
+            if (seenRanges.add(range.startOffset to range.endOffset)) {
+                replacements += Replacement(
+                    range = range,
+                    modulePath = modulePath,
+                    newText = """project("$modulePath")"""
+                )
+            }
+        }
+
+        // 兜底：某些 Gradle Kotlin DSL 结构下，PSI 不会稳定地把 projects.xxx 暴露为可用的 dot expression。
+        // 这里直接补一轮文本扫描，确保像 ksp(projects.xxx)、testAnnotationProcessor(projects.xxx) 这类写法不会漏。
+        for (match in PROJECT_ACCESSOR_CALL_REGEX.findAll(file.text)) {
+            val callName = match.groupValues[1]
+            if (!looksLikeDependencyCallName(callName)) {
+                continue
+            }
+
+            val accessor = match.groupValues[2]
+            val modulePath = modulesByAccessor[accessor]?.path ?: ProjectModuleResolver.findByTypeSafeAccessor(project, accessor)?.path
+            if (modulePath == null) {
+                unresolved += "${file.name}: $accessor"
+                continue
+            }
+
+            val accessorGroup = match.groups[2] ?: continue
+            val range = TextRange(accessorGroup.range.first, accessorGroup.range.last + 1)
+            if (seenRanges.add(range.startOffset to range.endOffset)) {
+                replacements += Replacement(
+                    range = range,
+                    modulePath = modulePath,
+                    newText = """project("$modulePath")"""
+                )
+            }
         }
 
         return FileCandidates(replacements, unresolved)
@@ -195,7 +231,7 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         if (!PROJECTS_ACCESSOR_REGEX.matches(text)) {
             return null
         }
-        if (!isInsideDependencyConfiguration(expression)) {
+        if (!isInsideDependencyLikeCall(expression)) {
             return null
         }
         return text
@@ -303,18 +339,71 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         return current
     }
 
-    private fun isInsideDependencyConfiguration(expression: KtDotQualifiedExpression): Boolean {
+    private fun isInsideDependencyLikeCall(expression: KtDotQualifiedExpression): Boolean {
         var current: PsiElement? = expression.parent
         while (current != null) {
             if (current is KtCallExpression) {
-                val callee = current.calleeExpression?.text
-                if (callee in DEPENDENCY_CONFIGURATIONS) {
+                val argumentExpression = current.valueArguments.singleOrNull()?.getArgumentExpression()
+                if (argumentExpression == expression && isDependencyLikeCall(current)) {
                     return true
                 }
             }
             current = current.parent
         }
         return false
+    }
+
+    /**
+     * 兼容所有写在 dependencies {} 里的依赖配置调用，而不只是一小撮固定名称。
+     *
+     * 例如:
+     * - implementation(...)
+     * - testAnnotationProcessor(...)
+     * - customSourceSetImplementation(...)
+     *
+     * 只要它位于 dependencies {} 块中，且有单个参数，就视为依赖声明。
+     */
+    private fun isDependencyLikeCall(callExpression: KtCallExpression): Boolean {
+        if (callExpression.valueArguments.size != 1) {
+            return false
+        }
+
+        val callee = callExpression.calleeExpression?.text
+        if (callee in DEPENDENCY_CONFIGURATIONS) {
+            return true
+        }
+
+        return isInsideDependenciesBlock(callExpression)
+    }
+
+    private fun isInsideDependenciesBlock(element: PsiElement): Boolean {
+        var current: PsiElement? = element
+        while (current != null) {
+            if (current is KtCallExpression && current.calleeExpression?.text == "dependencies") {
+                return true
+            }
+            current = current.parent
+        }
+        return false
+    }
+
+    private fun looksLikeDependencyCallName(callName: String): Boolean {
+        if (callName in DEPENDENCY_CONFIGURATIONS) {
+            return true
+        }
+        return callName.startsWith("ksp") ||
+            callName.startsWith("kapt") ||
+            callName.endsWith("Implementation") ||
+            callName.endsWith("Api") ||
+            callName.endsWith("CompileOnly") ||
+            callName.endsWith("RuntimeOnly") ||
+            callName.endsWith("Processor") ||
+            callName.endsWith("Ksp") ||
+            callName.endsWith("Kapt")
+    }
+
+    private fun containsProjectAccessorText(text: String): Boolean {
+        return PROJECT_ACCESSOR_CALL_REGEX.containsMatchIn(text)
     }
 
     private data class ResolvedAccessor(
@@ -359,6 +448,9 @@ class GradleKtsProjectAccessorToProjectIntention : IntentionAction, PriorityActi
         )
 
         private val PROJECTS_ACCESSOR_REGEX = Regex("""^projects\.[A-Za-z0-9_.]+$""")
+        private val PROJECT_ACCESSOR_CALL_REGEX = Regex(
+            """([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(projects\.[A-Za-z0-9_.]+)\s*\)"""
+        )
 
         private const val MAX_UNRESOLVED_SAMPLES = 5
     }

@@ -43,6 +43,25 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
                 }
             }
         )
+        registrar.registerReferenceProvider(
+            PlatformPatterns.psiElement(KtLiteralStringTemplateEntry::class.java),
+            object : PsiReferenceProvider() {
+                override fun getReferencesByElement(element: PsiElement, context: ProcessingContext): Array<PsiReference> {
+                    val literalEntry = element as? KtLiteralStringTemplateEntry ?: return PsiReference.EMPTY_ARRAY
+                    val stringExpression = literalEntry.parent as? KtStringTemplateExpression ?: return PsiReference.EMPTY_ARRAY
+                    val alias = extractLiteralString(stringExpression) ?: return PsiReference.EMPTY_ARRAY
+                    val callInfo = resolveDynamicCatalogCall(stringExpression, alias) ?: return PsiReference.EMPTY_ARRAY
+
+                    return arrayOf(
+                        DynamicCatalogLiteralEntryReference(
+                            literalEntry = literalEntry,
+                            stringExpression = stringExpression,
+                            callInfo = callInfo
+                        )
+                    )
+                }
+            }
+        )
     }
 
     private fun extractLiteralString(expression: KtStringTemplateExpression): String? {
@@ -118,13 +137,38 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
         override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {
             val scanner = CatalogReferenceScanner(element.project)
             return scanner.findEntries(callInfo.catalogName, callInfo.tableName, callInfo.alias)
-                .map { entry -> PsiElementResolveResult(entry.key) }
+                .map { entry -> PsiElementResolveResult(entry) }
                 .toTypedArray()
         }
 
         override fun handleElementRename(newElementName: String): PsiElement {
             val newExpression = KtPsiFactory(element.project).createExpression("\"$newElementName\"")
             return element.replace(newExpression)
+        }
+
+        override fun getVariants(): Array<Any> = emptyArray()
+    }
+
+    private class DynamicCatalogLiteralEntryReference(
+        literalEntry: KtLiteralStringTemplateEntry,
+        private val stringExpression: KtStringTemplateExpression,
+        private val callInfo: DynamicCatalogCallInfo
+    ) : PsiPolyVariantReferenceBase<KtLiteralStringTemplateEntry>(
+        literalEntry,
+        TextRange(0, literalEntry.textLength),
+        true
+    ) {
+
+        override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {
+            val scanner = CatalogReferenceScanner(element.project)
+            return scanner.findEntries(callInfo.catalogName, callInfo.tableName, callInfo.alias)
+                .map { entry -> PsiElementResolveResult(entry) }
+                .toTypedArray()
+        }
+
+        override fun handleElementRename(newElementName: String): PsiElement {
+            val newExpression = KtPsiFactory(element.project).createExpression("\"$newElementName\"")
+            return stringExpression.replace(newExpression)
         }
 
         override fun getVariants(): Array<Any> = emptyArray()

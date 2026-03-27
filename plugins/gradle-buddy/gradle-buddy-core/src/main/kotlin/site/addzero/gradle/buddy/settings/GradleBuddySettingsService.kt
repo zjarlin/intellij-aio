@@ -120,7 +120,16 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
      * @return 找到的第一个存在的 catalog File，或基于最佳猜测的 File（可能不存在）
      */
     fun resolveVersionCatalogFile(project: Project): File {
-        val catalogRelPath = getVersionCatalogPath()
+        val catalogRelPath = getVersionCatalogPath().trim()
+        if (catalogRelPath.isBlank()) {
+            return File(DEFAULT_VERSION_CATALOG_PATH)
+        }
+
+        val configuredFile = File(catalogRelPath)
+        if (configuredFile.isAbsolute) {
+            return configuredFile
+        }
+
         // 优先用 GradleSettings 获取真实的 Gradle root
         try {
             val gradleSettings = GradleSettings.getInstance(project)
@@ -131,14 +140,44 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
             }
             // 没有找到已存在的，返回第一个 root 的路径（用于创建新文件）
             if (rootPaths.isNotEmpty()) {
+                val ancestorCandidate = findCatalogFileInAncestors(project.basePath, catalogRelPath)
+                if (ancestorCandidate != null) {
+                    return ancestorCandidate
+                }
                 return File(rootPaths.first(), catalogRelPath)
             }
         } catch (_: Throwable) {
             // GradleSettings 不可用时 fallback
         }
+
+        val ancestorCandidate = findCatalogFileInAncestors(project.basePath, catalogRelPath)
+        if (ancestorCandidate != null) {
+            return ancestorCandidate
+        }
+
         // fallback: basePath
         val basePath = project.basePath ?: return File(catalogRelPath)
         return File(basePath, catalogRelPath)
+    }
+
+    /**
+     * 子目录方式打开项目时，catalog 往往位于上层仓库根目录。
+     * 这里按设置中的相对路径一路向上探测，命中已存在文件就直接返回。
+     */
+    private fun findCatalogFileInAncestors(basePath: String?, catalogRelPath: String): File? {
+        var current = basePath?.let(::File)?.absoluteFile ?: return null
+        var depth = 0
+
+        while (depth < MAX_ANCESTOR_DEPTH) {
+            val candidate = File(current, catalogRelPath)
+            if (candidate.exists()) {
+                return candidate
+            }
+            current = current.parentFile ?: break
+            depth++
+        }
+
+        return null
     }
 
     companion object {
@@ -158,6 +197,7 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         )
 
         const val DEFAULT_VERSION_CATALOG_PATH = "gradle/libs.versions.toml"
+        private const val MAX_ANCESTOR_DEPTH = 8
 
         fun getInstance(project: Project): GradleBuddySettingsService = project.service()
     }

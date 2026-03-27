@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.i18n.GradleBuddyLanguage
+import site.addzero.gradle.buddy.i18n.GradleBuddyRegisteredActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyUiSettingsService
 import site.addzero.gradle.buddy.notification.VersionCatalogNotificationSettings
 import javax.swing.DefaultComboBoxModel
@@ -169,7 +170,12 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         GradleBuddySettingsService.getInstance(project).setAutoUpdateWrapper(autoUpdate)
 
         val language = languageCombo?.selectedItem as? GradleBuddyLanguage ?: GradleBuddyLanguage.ZH
-        GradleBuddyUiSettingsService.getInstance().setLanguage(language)
+        val uiSettings = GradleBuddyUiSettingsService.getInstance()
+        val oldLanguage = uiSettings.getLanguage()
+        uiSettings.setLanguage(language)
+        if (language != oldLanguage) {
+            GradleBuddyRegisteredActionI18n.refreshAll()
+        }
     }
 
     override fun reset() {

@@ -55,7 +55,7 @@
 
     <action id="GradleBuddy.MergeOtherToml"
             class="site.addzero.gradle.buddy.notification.MergeOtherTomlAction"
-            icon="AllIcons.Actions.Merge">
+            icon="/icons/mergeOtherToml.svg">
       <add-to-group group-id="GradleBuddy.VersionCatalogFloatingToolbarGroup" anchor="after" relative-to-action="GradleBuddy.OrganizeVersionCatalog"/>
     </action>
 
@@ -303,7 +303,7 @@
     </intentionAction>
 
     <!-- Intention: Convert Gradle Kotlin DSL catalog accessors to findLibrary()/findPlugin() -->
-    <intentionAction order="NORMAL">
+    <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogAccessorToFindLibraryIntention</className>
       <category>Gradle Buddy</category>
@@ -317,7 +317,7 @@
     </intentionAction>
 
     <!-- Intention: Expand bundle to individual dependencies -->
-    <intentionAction order="NORMAL">
+    <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.UnbundleDependenciesIntention</className>
       <category>Gradle Buddy</category>
@@ -338,7 +338,7 @@
     </intentionAction>
 
     <!-- Intention: Convert type-safe project accessors to project(":...") -->
-    <intentionAction order="NORMAL">
+    <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.projectdep.GradleKtsProjectAccessorToProjectIntention</className>
       <category>Gradle Buddy</category>
@@ -346,6 +346,7 @@
 
     <!-- Intention: Fix plugin ID to use fully qualified name -->
     <intentionAction order="FIRST">
+      <language>kotlin</language>
       <className>site.addzero.idfixer.FixPluginIdIntention</className>
       <category>Gradle Plugin ID</category>
     </intentionAction>
@@ -358,7 +359,7 @@
     </intentionAction>
 
     <!-- Intention: Browse catalog alternatives (even for valid references) -->
-    <intentionAction order="NORMAL">
+    <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.catalog.BrowseCatalogAlternativesIntention</className>
       <category>Gradle Buddy</category>
@@ -424,10 +425,6 @@
     <applicationService serviceImplementation="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactService"/>
 
     <!-- Maven Search Services (from gradle-buddy-search module) -->
-    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.settings.MavenSearchSettings"/>
-    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.cache.SearchResultCacheService"/>
-    <applicationService serviceImplementation="site.addzero.gradle.buddy.search.history.SearchHistoryService"/>
-
     <!-- Search Everywhere Contributor (Maven Dependencies tab in Shift+Shift) -->
     <searchEverywhereContributor
       implementation="site.addzero.gradle.buddy.search.MavenDependencySearchContributorFactory"/>

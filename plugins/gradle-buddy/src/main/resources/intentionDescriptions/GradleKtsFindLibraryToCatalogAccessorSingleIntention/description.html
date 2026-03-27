@@ -1,0 +1,15 @@
+<html>
+
+<body>
+  仅将当前光标所在的 <code>libs.findLibrary("alias").get()</code>
+  还原为 <code>libs.xxx</code> 形式的强类型访问器。
+  <br /><br />
+  会校验该 alias 是否真实存在于 <code>libs</code> 版本目录中，
+  无法解析时不会显示这个单条意图。
+  <br /><br />
+  如果文件里存在 <code>val libs = versionCatalogs.named("libs")</code>，
+  为避免遮蔽生成的 <code>libs.*</code> 访问器，会自动删除该声明，
+  或在仍有其他动态 API 调用时重命名为备用变量。
+</body>
+
+</html>

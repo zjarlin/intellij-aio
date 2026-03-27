@@ -1,0 +1,16 @@
+<html>
+
+<body>
+  扫描整个项目下的 Gradle Kotlin DSL 脚本，
+  将依赖中的 <code>libs.findLibrary("alias").get()</code>
+  批量还原为 <code>libs.xxx</code> 形式的强类型访问器。
+  <br /><br />
+  仅处理 <code>libs</code> 版本目录下、能够在版本目录中解析到的 library alias。
+  无法解析的条目会跳过，并在确认弹窗中提示。
+  <br /><br />
+  如果脚本中存在 <code>val libs = versionCatalogs.named("libs")</code>，
+  为避免遮蔽生成的 <code>libs.*</code> 访问器，会自动删除该声明，
+  或在文件中仍有其他动态 API 调用时自动重命名为备用变量。
+</body>
+
+</html>

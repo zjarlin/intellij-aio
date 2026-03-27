@@ -1,0 +1,15 @@
+<html>
+
+<body>
+  仅将当前光标所在的 <code>libs.xxx</code>
+  强类型依赖访问器替换为 <code>findLibrary("alias").get()</code>。
+  <br /><br />
+  只处理依赖配置中的 library accessor，不处理插件块里的
+  <code>alias(libs.plugins.xxx)</code>。
+  <br /><br />
+  如果脚本中还没有 <code>versionCatalogs.named("libs")</code> 对应变量，
+  会自动补充；若文件里仍有其他生成的 <code>libs.*</code> 用法，
+  为避免遮蔽冲突，会自动改用备用变量名。
+</body>
+
+</html>

@@ -305,7 +305,28 @@
     <!-- Intention: Convert Gradle Kotlin DSL catalog accessors to findLibrary()/findPlugin() -->
     <intentionAction>
       <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogAccessorToFindLibrarySingleIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Convert Gradle Kotlin DSL catalog accessors to findLibrary() in batch -->
+    <intentionAction>
+      <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCatalogAccessorToFindLibraryIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Convert dynamic findLibrary() calls back to typed catalog accessors -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsFindLibraryToCatalogAccessorSingleIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Convert dynamic findLibrary() calls back to typed catalog accessors in batch -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsFindLibraryToCatalogAccessorIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 
@@ -403,6 +424,10 @@
     <psi.referenceContributor
             language="kotlin"
             implementation="site.addzero.gradle.catalog.DynamicCatalogReferenceContributor"/>
+
+    <!-- Rename: dynamic version catalog API strings delegate Shift+F6 to the TOML key -->
+    <renameHandler implementation="site.addzero.gradle.catalog.DynamicCatalogRenameHandler"/>
+    <renamePsiElementProcessor implementation="site.addzero.gradle.catalog.DynamicCatalogRenamePsiElementProcessor"/>
 
     <!-- Reference: project(":path") strings jump to target module build.gradle.kts -->
     <psi.referenceContributor

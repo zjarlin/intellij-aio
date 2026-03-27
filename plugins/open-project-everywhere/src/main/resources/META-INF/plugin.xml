@@ -1,0 +1,38 @@
+<idea-plugin>
+    <id>site.addzero.open-project-everywhere</id>
+    <name>Open Project Everywhere</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <resource-bundle>messages.OpenProjectEverywhereBundle</resource-bundle>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+    <depends>org.jetbrains.plugins.github</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+            serviceImplementation="site.addzero.openprojecteverywhere.settings.OpenProjectEverywhereSettings"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            instance="site.addzero.openprojecteverywhere.settings.OpenProjectEverywhereConfigurable"
+            id="site.addzero.openprojecteverywhere.settings"
+            bundle="messages.OpenProjectEverywhereBundle"
+            key="settings.display.name"/>
+
+        <notificationGroup
+            id="OpenProjectEverywhereNotifications"
+            displayType="BALLOON"
+            bundle="messages.OpenProjectEverywhereBundle"
+            key="notification.group.name"/>
+
+        <searchEverywhereContributor
+            implementation="site.addzero.openprojecteverywhere.search.OpenProjectEverywhereContributorFactory"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="Git4Idea">
+        <GitHttpAuthDataProvider
+            id="OpenProjectEverywhere"
+            implementation="site.addzero.openprojecteverywhere.git.OpenProjectEverywhereGitHttpAuthDataProvider"/>
+    </extensions>
+</idea-plugin>

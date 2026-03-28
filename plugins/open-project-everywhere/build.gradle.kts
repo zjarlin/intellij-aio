@@ -11,11 +11,11 @@ dependencies {
     implementation(libs.com.squareup.okhttp3.okhttp)
 }
 
-intellijPlatform {
-    autoReload.set(false)
+//intellijPlatform {
+//    autoReload.set(false)
 
-    pluginConfiguration {
-        id = "site.addzero.open-project-everywhere"
-        name = "Open Project Everywhere"
-    }
-}
+//    pluginConfiguration {
+//        id = "site.addzero.open-project-everywhere"
+//        name = "Open Project Everywhere"
+//    }
+//}

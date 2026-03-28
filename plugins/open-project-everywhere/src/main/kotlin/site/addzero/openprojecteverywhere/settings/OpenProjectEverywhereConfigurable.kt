@@ -1,19 +1,27 @@
 package site.addzero.openprojecteverywhere.settings
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import org.jetbrains.plugins.github.authentication.AuthorizationType
+import org.jetbrains.plugins.github.api.GithubServerPath
+import org.jetbrains.plugins.github.authentication.GHAccountsUtil
+import org.jetbrains.plugins.github.authentication.GHLoginSource
 import site.addzero.openprojecteverywhere.OpenProjectEverywhereBundle
 import site.addzero.openprojecteverywhere.service.OpenProjectEverywhereSearchService
 import java.net.URI
+import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -24,11 +32,11 @@ class OpenProjectEverywhereConfigurable : Configurable {
         get() = OpenProjectEverywhereSettings.getInstance()
 
     private val localEnabledCheckBox = JBCheckBox(OpenProjectEverywhereBundle.message("settings.local.enabled"))
-    private val localRootField = TextFieldWithBrowseButton()
+    private val localRootsModel = DefaultListModel<String>()
+    private val localRootsList = JBList(localRootsModel)
 
     private val githubEnabledCheckBox = JBCheckBox(OpenProjectEverywhereBundle.message("settings.provider.enabled"))
-    private val githubAuthModeCombo = ComboBox(AuthMode.entries.toTypedArray())
-    private val githubUsernameField = JBTextField()
+    private val githubAuthModeCombo = ComboBox(arrayOf(AuthMode.TOKEN))
     private val githubSecretField = JBPasswordField()
 
     private val gitlabEnabledCheckBox = JBCheckBox(OpenProjectEverywhereBundle.message("settings.provider.enabled"))
@@ -66,20 +74,19 @@ class OpenProjectEverywhereConfigurable : Configurable {
     override fun getDisplayName(): String = OpenProjectEverywhereBundle.message("settings.display.name")
 
     override fun createComponent(): JComponent {
-        localRootField.addBrowseFolderListener(
-            OpenProjectEverywhereBundle.message("settings.local.root"),
-            OpenProjectEverywhereBundle.message("settings.local.root.comment"),
-            null,
-            FileChooserDescriptorFactory.createSingleFolderDescriptor()
-        )
-
         val panel = panel {
             group(OpenProjectEverywhereBundle.message("settings.section.local")) {
                 row {
                     cell(localEnabledCheckBox)
                 }
                 row(OpenProjectEverywhereBundle.message("settings.local.root")) {
-                    cell(localRootField)
+                    val decorator = ToolbarDecorator.createDecorator(localRootsList)
+                        .disableUpDownActions()
+                        .setAddAction { addLocalRoot() }
+                        .setRemoveAction { removeSelectedLocalRoot() }
+                        .createPanel()
+
+                    cell(decorator)
                         .align(AlignX.FILL)
                         .comment(OpenProjectEverywhereBundle.message("settings.local.root.comment"))
                 }
@@ -93,11 +100,15 @@ class OpenProjectEverywhereConfigurable : Configurable {
                     cell(githubAuthModeCombo)
                         .comment(OpenProjectEverywhereBundle.message("settings.github.comment"))
                 }
-                row(OpenProjectEverywhereBundle.message("settings.username")) {
-                    cell(githubUsernameField).align(AlignX.FILL)
-                }
                 row(OpenProjectEverywhereBundle.message("settings.secret")) {
-                    cell(githubSecretField).align(AlignX.FILL)
+                    cell(githubSecretField)
+                        .align(AlignX.FILL)
+                        .comment(OpenProjectEverywhereBundle.message("settings.github.token.comment"))
+                }
+                row {
+                    button(OpenProjectEverywhereBundle.message("settings.github.login")) {
+                        openGithubIdeLogin()
+                    }
                 }
             }
 
@@ -189,10 +200,9 @@ class OpenProjectEverywhereConfigurable : Configurable {
 
     override fun isModified(): Boolean {
         return localEnabledCheckBox.isSelected != settings.localProjectsEnabled ||
-            localRootField.text.trim() != settings.localProjectsRoot ||
+            localRoots() != settings.localProjectsRoots ||
             githubEnabledCheckBox.isSelected != settings.githubEnabled ||
             githubAuthModeCombo.selectedItem != settings.githubAuthMode ||
-            githubUsernameField.text.trim() != settings.githubUsername ||
             (githubSecretDirty && String(githubSecretField.password) != githubStoredSecret) ||
             gitlabEnabledCheckBox.isSelected != settings.gitlabEnabled ||
             gitlabBaseUrlField.text.trim() != settings.gitlabBaseUrl ||
@@ -219,11 +229,10 @@ class OpenProjectEverywhereConfigurable : Configurable {
         validateSettings()
 
         settings.localProjectsEnabled = localEnabledCheckBox.isSelected
-        settings.localProjectsRoot = localRootField.text.trim()
+        settings.localProjectsRoots = localRoots()
 
         settings.githubEnabled = githubEnabledCheckBox.isSelected
         settings.githubAuthMode = githubAuthModeCombo.selectedItem as? AuthMode ?: AuthMode.TOKEN
-        settings.githubUsername = githubUsernameField.text.trim()
         if (githubSecretDirty) {
             settings.setGithubSecret(String(githubSecretField.password))
             githubStoredSecret = String(githubSecretField.password)
@@ -268,11 +277,10 @@ class OpenProjectEverywhereConfigurable : Configurable {
 
     override fun reset() {
         localEnabledCheckBox.isSelected = settings.localProjectsEnabled
-        localRootField.text = settings.localProjectsRoot
+        resetLocalRoots(settings.localProjectsRoots)
 
         githubEnabledCheckBox.isSelected = settings.githubEnabled
         githubAuthModeCombo.selectedItem = settings.githubAuthMode
-        githubUsernameField.text = settings.githubUsername
         githubSecretDirty = false
         githubSecretField.text = githubStoredSecret
 
@@ -305,7 +313,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
     }
 
     private fun validateSettings() {
-        if (localEnabledCheckBox.isSelected && localRootField.text.trim().isEmpty()) {
+        if (localEnabledCheckBox.isSelected && localRoots().isEmpty()) {
             throw ConfigurationException(OpenProjectEverywhereBundle.message("settings.validation.localRoot"))
         }
 
@@ -339,11 +347,10 @@ class OpenProjectEverywhereConfigurable : Configurable {
     }
 
     private fun updateEnabledStates() {
-        localRootField.isEnabled = localEnabledCheckBox.isSelected
+        localRootsList.isEnabled = localEnabledCheckBox.isSelected
 
         val githubEnabled = githubEnabledCheckBox.isSelected
-        githubAuthModeCombo.isEnabled = githubEnabled
-        githubUsernameField.isEnabled = githubEnabled && githubAuthModeCombo.selectedItem == AuthMode.USERNAME_PASSWORD
+        githubAuthModeCombo.isEnabled = false
         githubSecretField.isEnabled = githubEnabled
 
         val gitlabEnabled = gitlabEnabledCheckBox.isSelected
@@ -396,6 +403,62 @@ class OpenProjectEverywhereConfigurable : Configurable {
                     }
                 } finally {
                     hydratingSecrets = false
+                }
+            }
+        }
+    }
+
+    private fun openGithubIdeLogin() {
+        settings.setGithubSecret("")
+        githubStoredSecret = ""
+        githubSecretDirty = false
+        githubSecretField.text = ""
+        val effectiveProject = ProjectManager.getInstance().openProjects.firstOrNull()
+            ?: ProjectManager.getInstance().defaultProject
+        GHAccountsUtil.requestNewAccount(
+            GithubServerPath.DEFAULT_SERVER,
+            null,
+            effectiveProject,
+            null,
+            AuthorizationType.OAUTH,
+            GHLoginSource.SETTINGS
+        )
+        OpenProjectEverywhereSearchService.getInstance().invalidateCaches()
+    }
+
+    private fun addLocalRoot() {
+        val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
+        val chosen = FileChooser.chooseFile(descriptor, null, null) ?: return
+        val path = chosen.path.trim()
+        if (path.isBlank()) {
+            return
+        }
+        if ((0 until localRootsModel.size()).any { localRootsModel.getElementAt(it) == path }) {
+            return
+        }
+        localRootsModel.addElement(path)
+    }
+
+    private fun removeSelectedLocalRoot() {
+        val selectedIndex = localRootsList.selectedIndex
+        if (selectedIndex >= 0) {
+            localRootsModel.remove(selectedIndex)
+        }
+    }
+
+    private fun resetLocalRoots(roots: List<String>) {
+        localRootsModel.clear()
+        roots.forEach { root ->
+            localRootsModel.addElement(root)
+        }
+    }
+
+    private fun localRoots(): List<String> {
+        return buildList {
+            for (index in 0 until localRootsModel.size()) {
+                val value = localRootsModel.get(index).trim()
+                if (value.isNotBlank() && value !in this) {
+                    add(value)
                 }
             }
         }

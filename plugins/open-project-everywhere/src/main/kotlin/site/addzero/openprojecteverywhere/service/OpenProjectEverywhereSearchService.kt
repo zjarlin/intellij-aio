@@ -112,11 +112,13 @@ class OpenProjectEverywhereSearchService {
             )
         }
 
-        val root = localProjectsRootPath()
-        if (remoteItems.isEmpty() && localItems.isEmpty() && settings.localProjectsEnabled && localContext.projects.isEmpty() && (root == null || !root.exists())) {
+        val roots = localProjectsRootPaths()
+        if (remoteItems.isEmpty() && localItems.isEmpty() && settings.localProjectsEnabled && localContext.projects.isEmpty() &&
+            roots.isNotEmpty() && roots.none { it.exists() && it.isDirectory() }
+        ) {
             hints += SearchItem.Hint(
                 title = OpenProjectEverywhereBundle.message("search.hint.localRootMissing"),
-                description = settings.localProjectsRoot,
+                description = settings.localProjectsRoots.joinToString(),
                 action = HintAction.OPEN_SETTINGS,
                 isError = true
             )
@@ -231,7 +233,7 @@ class OpenProjectEverywhereSearchService {
     }
 
     private fun hasAnyConfiguredOwnSource(project: Project?): Boolean {
-        val localReady = settings.localProjectsEnabled && (localProjectsRootPath()?.exists() == true)
+        val localReady = settings.localProjectsEnabled && localProjectsRootPaths().any { it.exists() && it.isDirectory() }
         val remoteReady = configuredRemoteHosts(project).any { it.isConfiguredForOwnSearch() }
         return localReady || remoteReady
     }
@@ -258,7 +260,8 @@ class OpenProjectEverywhereSearchService {
         val projects = loadLocalProjects(indicator)
         return LocalProjectContext(
             projects = projects,
-            byRelativePath = projects.associateBy { it.relativePath.lowercase() },
+            primaryRoot = localProjectsRootPaths().firstOrNull(),
+            byRelativePath = projects.groupBy { it.relativePath.lowercase() },
             byName = projects.groupBy { it.name.lowercase() }
         )
     }
@@ -289,23 +292,30 @@ class OpenProjectEverywhereSearchService {
     }
 
     private fun loadLocalProjects(indicator: ProgressIndicator): List<LocalProject> {
-        val root = localProjectsRootPath()
-        if (!settings.localProjectsEnabled || root == null || !root.exists()) {
+        val roots = localProjectsRootPaths()
+        if (!settings.localProjectsEnabled || roots.isEmpty()) {
             return emptyList()
         }
 
-        localCache.getIfFresh(30_000L)?.takeIf { it.key == root.toString() }?.value?.let {
+        val cacheKey = roots.joinToString("|") { it.toString() }
+        localCache.getIfFresh(30_000L)?.takeIf { it.key == cacheKey }?.value?.let {
             return it
         }
 
         indicator.checkCanceled()
-        val scanned = scanLocalProjects(root, maxDepth = 4)
-        localCache.store(root.toString(), scanned)
+        val scanned = roots
+            .filter { it.exists() && it.isDirectory() }
+            .flatMap { root -> scanLocalProjects(root, maxDepth = 4) }
+            .distinctBy { it.path.toString() }
+            .sortedBy { it.path.toString().lowercase() }
+        localCache.store(cacheKey, scanned)
         return scanned
     }
 
-    private fun localProjectsRootPath(): Path? {
-        return runCatching { Paths.get(settings.localProjectsRoot) }.getOrNull()
+    private fun localProjectsRootPaths(): List<Path> {
+        return settings.localProjectsRoots.mapNotNull { root ->
+            runCatching { Paths.get(root) }.getOrNull()
+        }
     }
 
     private fun scanLocalProjects(root: Path, maxDepth: Int): List<LocalProject> {
@@ -328,6 +338,7 @@ class OpenProjectEverywhereSearchService {
             if (current != root && looksLikeProjectRoot(current)) {
                 result += LocalProject(
                     name = current.name,
+                    root = root,
                     path = current,
                     relativePath = normalizeRelativePath(root.relativize(current).toString())
                 )
@@ -662,13 +673,24 @@ class OpenProjectEverywhereSearchService {
 
     private fun buildProviderHint(config: RemoteHostConfiguration, error: Throwable): SearchItem.Hint {
         val providerName = config.displayNameForMessages()
+        val githubAuthFailure = config.kind == ProviderKind.GITHUB &&
+            error is RemoteApiException &&
+            (error.kind == RemoteApiFailureKind.AUTH || error.kind == RemoteApiFailureKind.FORBIDDEN)
         val title = when (error) {
             is RemoteApiException -> when (error.kind) {
                 RemoteApiFailureKind.AUTH ->
-                    OpenProjectEverywhereBundle.message("search.hint.providerAuth", providerName)
+                    if (githubAuthFailure) {
+                        OpenProjectEverywhereBundle.message("search.hint.githubAuth")
+                    } else {
+                        OpenProjectEverywhereBundle.message("search.hint.providerAuth", providerName)
+                    }
 
                 RemoteApiFailureKind.FORBIDDEN ->
-                    OpenProjectEverywhereBundle.message("search.hint.providerForbidden", providerName)
+                    if (githubAuthFailure) {
+                        OpenProjectEverywhereBundle.message("search.hint.githubForbidden")
+                    } else {
+                        OpenProjectEverywhereBundle.message("search.hint.providerForbidden", providerName)
+                    }
 
                 RemoteApiFailureKind.NOT_FOUND ->
                     OpenProjectEverywhereBundle.message("search.hint.providerNotFound", providerName)
@@ -695,19 +717,25 @@ class OpenProjectEverywhereSearchService {
 
         return SearchItem.Hint(
             title = title,
-            description = null,
+            description = if (githubAuthFailure) {
+                OpenProjectEverywhereBundle.message("search.hint.githubAuth.description")
+            } else {
+                null
+            },
             action = providerHintAction(config, error),
             isError = true
         )
     }
 
     private fun providerHintAction(config: RemoteHostConfiguration, error: Throwable): HintAction {
-        val isIdeGithubAuthIssue = config.kind == ProviderKind.GITHUB &&
+        val isGithubAuthIssue = config.kind == ProviderKind.GITHUB &&
             config.credentialsSource == CredentialsSource.IDE_GITHUB &&
             error is RemoteApiException &&
             (error.kind == RemoteApiFailureKind.AUTH || error.kind == RemoteApiFailureKind.FORBIDDEN)
 
-        return if (isIdeGithubAuthIssue) {
+        return if (isGithubAuthIssue || config.kind == ProviderKind.GITHUB && error is RemoteApiException &&
+            (error.kind == RemoteApiFailureKind.AUTH || error.kind == RemoteApiFailureKind.FORBIDDEN)
+        ) {
             HintAction.OPEN_GITHUB_SETTINGS
         } else {
             HintAction.OPEN_SETTINGS
@@ -959,18 +987,30 @@ class OpenProjectEverywhereSearchService {
 
     private data class LocalProject(
         val name: String,
+        val root: Path,
         val path: Path,
         val relativePath: String
     )
 
     private data class LocalProjectContext(
         val projects: List<LocalProject>,
-        val byRelativePath: Map<String, LocalProject>,
+        val primaryRoot: Path?,
+        val byRelativePath: Map<String, List<LocalProject>>,
         val byName: Map<String, List<LocalProject>>
     ) {
         fun findLocalPath(repo: RemoteRepository): String? {
-            byRelativePath[repo.cloneRelativePath.lowercase()]?.let { return it.path.toString() }
-            return byName[repo.name.lowercase()]?.singleOrNull()?.path?.toString()
+            selectPreferredMatch(byRelativePath[repo.cloneRelativePath.lowercase()])?.let { return it.path.toString() }
+            return selectPreferredMatch(byName[repo.name.lowercase()])?.path?.toString()
+        }
+
+        private fun selectPreferredMatch(candidates: List<LocalProject>?): LocalProject? {
+            if (candidates.isNullOrEmpty()) {
+                return null
+            }
+            if (candidates.size == 1) {
+                return candidates.first()
+            }
+            return candidates.firstOrNull { it.root == primaryRoot } ?: candidates.first()
         }
     }
 

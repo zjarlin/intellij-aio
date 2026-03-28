@@ -18,19 +18,34 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
     override fun getState(): OpenProjectEverywhereState = state
 
     override fun loadState(loadedState: OpenProjectEverywhereState) {
+        if (loadedState.githubAuthMode == AuthMode.USERNAME_PASSWORD.name) {
+            setGithubSecret("")
+        }
+        val migratedLocalRoots = normalizeLocalProjectsRoots(
+            loadedState.localProjectsRoots + loadedState.localProjectsRoot
+        )
         state = loadedState.copy(
-            localProjectsRoot = loadedState.localProjectsRoot.ifBlank {
-                OpenProjectEverywhereDefaults.defaultLocalProjectsRoot()
-            },
+            localProjectsRoot = migratedLocalRoots.first(),
+            localProjectsRoots = migratedLocalRoots.toMutableList(),
+            githubAuthMode = AuthMode.TOKEN.name,
+            githubUsername = "",
             gitlabBaseUrl = loadedState.gitlabBaseUrl.ifBlank { "https://gitlab.com" },
             giteeBaseUrl = loadedState.giteeBaseUrl.ifBlank { "https://gitee.com" }
         )
     }
 
     var localProjectsRoot: String
-        get() = state.localProjectsRoot
+        get() = localProjectsRoots.first()
         set(value) {
-            state.localProjectsRoot = value.trim()
+            localProjectsRoots = listOf(value)
+        }
+
+    var localProjectsRoots: List<String>
+        get() = normalizeLocalProjectsRoots(state.localProjectsRoots)
+        set(value) {
+            val normalized = normalizeLocalProjectsRoots(value)
+            state.localProjectsRoots = normalized.toMutableList()
+            state.localProjectsRoot = normalized.first()
         }
 
     var localProjectsEnabled: Boolean
@@ -46,15 +61,15 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
         }
 
     var githubAuthMode: AuthMode
-        get() = AuthMode.fromValue(state.githubAuthMode)
+        get() = AuthMode.TOKEN
         set(value) {
-            state.githubAuthMode = value.name
+            state.githubAuthMode = AuthMode.TOKEN.name
         }
 
     var githubUsername: String
-        get() = state.githubUsername
+        get() = ""
         set(value) {
-            state.githubUsername = value.trim()
+            state.githubUsername = ""
         }
 
     var gitlabEnabled: Boolean
@@ -171,8 +186,8 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
             displayName = "GitHub",
             kind = ProviderKind.GITHUB,
             baseUrl = "https://github.com",
-            authMode = githubAuthMode,
-            username = githubUsername,
+            authMode = AuthMode.TOKEN,
+            username = "",
             secret = githubSecret()
         )
     }
@@ -231,6 +246,16 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
     }
 
     companion object {
+        private fun normalizeLocalProjectsRoots(values: List<String>): List<String> {
+            return values
+                .asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .toList()
+                .ifEmpty { listOf(OpenProjectEverywhereDefaults.defaultLocalProjectsRoot()) }
+        }
+
         fun getInstance(): OpenProjectEverywhereSettings {
             return ApplicationManager.getApplication().getService(OpenProjectEverywhereSettings::class.java)
         }

@@ -64,6 +64,15 @@ class RunFavoriteTaskAction : AnAction {
             taskNames = listOf(fullTaskName)
         }
 
+        if (resolved == "runIde") {
+            GradleRunConfigurationSupport.ensureRunConfigurationAndExecute(
+                project = project,
+                configurationName = fullTaskName,
+                taskSettings = settings
+            )
+            return
+        }
+
         ExternalSystemUtil.runTask(
             settings,
             DefaultRunExecutor.EXECUTOR_ID,

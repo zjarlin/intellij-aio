@@ -1,9 +1,9 @@
 plugins {
-  id("site.addzero.buildlogic.intellij.intellij-platform")
+    id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 dependencies {
-  implementation(libs.site.addzero.tool.api.maven)
+    implementation(libs.site.addzero.tool.api.maven)
 
-  implementation(project(":plugins:maven-buddy-core"))
+    implementation(project(":plugins:maven-buddy:maven-buddy-core"))
 }
 

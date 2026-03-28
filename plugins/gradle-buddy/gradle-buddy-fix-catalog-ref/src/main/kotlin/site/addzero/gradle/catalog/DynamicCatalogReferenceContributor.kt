@@ -1,5 +1,6 @@
 package site.addzero.gradle.catalog
 
+import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.PsiElement
@@ -79,7 +80,12 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
             return element.replace(newExpression)
         }
 
-        override fun getVariants(): Array<Any> = emptyArray()
+        override fun getVariants(): Array<Any> {
+            if (element.entries.isNotEmpty()) {
+                return emptyArray()
+            }
+            return buildLookupVariants(element.project, callInfo)
+        }
     }
 
     private class DynamicCatalogLiteralEntryReference(
@@ -104,7 +110,27 @@ class DynamicCatalogReferenceContributor : PsiReferenceContributor() {
             return stringExpression.replace(newExpression)
         }
 
-        override fun getVariants(): Array<Any> = emptyArray()
+        override fun getVariants(): Array<Any> {
+            return buildLookupVariants(element.project, callInfo)
+        }
+    }
+
+    private companion object {
+        fun buildLookupVariants(
+            project: com.intellij.openapi.project.Project,
+            callInfo: DynamicCatalogCallInfo
+        ): Array<Any> {
+            val displayType = DynamicCatalogReferenceSupport.tableDisplayName(callInfo.tableName)
+            return DynamicCatalogReferenceSupport
+                .loadAvailableAliases(project, callInfo)
+                .sorted()
+                .map { alias ->
+                    LookupElementBuilder.create(alias)
+                        .withPresentableText(alias)
+                        .withTypeText(displayType, true)
+                }
+                .toTypedArray()
+        }
     }
 
     private typealias DynamicCatalogCallInfo = DynamicCatalogReferenceSupport.DynamicCatalogCallInfo

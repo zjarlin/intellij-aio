@@ -1,5 +1,6 @@
 package site.addzero.gradle.catalog
 
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiReference
@@ -10,6 +11,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.toml.lang.psi.TomlKeyValue
 
@@ -18,8 +20,7 @@ internal object DynamicCatalogReferenceSupport {
     fun resolveTargetEntry(element: PsiElement): TomlKeyValue? {
         resolveFromReferences(element)?.let { return it }
 
-        val stringExpression = PsiTreeUtil.getParentOfType(element, KtStringTemplateExpression::class.java, false)
-            ?: return null
+        val stringExpression = findTargetStringExpression(element) ?: return null
         return resolveTargetEntry(stringExpression)
     }
 
@@ -44,8 +45,13 @@ internal object DynamicCatalogReferenceSupport {
             .firstOrNull()
     }
 
+    fun resolveDynamicCatalogCall(element: PsiElement): DynamicCatalogCallInfo? {
+        val stringExpression = findTargetStringExpression(element) ?: return null
+        return resolveDynamicCatalogCall(stringExpression)
+    }
+
     fun resolveDynamicCatalogCall(stringExpression: KtStringTemplateExpression): DynamicCatalogCallInfo? {
-        val alias = extractLiteralString(stringExpression) ?: return null
+        val alias = extractLiteralString(stringExpression, allowBlank = true) ?: return null
         val callExpression = PsiTreeUtil.getParentOfType(stringExpression, KtCallExpression::class.java) ?: return null
         if (callExpression.valueArguments.singleOrNull()?.getArgumentExpression() != stringExpression) {
             return null
@@ -71,13 +77,122 @@ internal object DynamicCatalogReferenceSupport {
         )
     }
 
-    fun extractLiteralString(expression: KtStringTemplateExpression): String? {
-        if (expression.entries.isEmpty()) return null
+    fun detectCatalogReferenceError(project: Project, element: PsiElement): CatalogReferenceError? {
+        val stringExpression = findTargetStringExpression(element) ?: return null
+        return detectCatalogReferenceError(project, stringExpression)
+    }
+
+    fun detectCatalogReferenceError(project: Project, stringExpression: KtStringTemplateExpression): CatalogReferenceError? {
+        val callInfo = resolveDynamicCatalogCall(stringExpression) ?: return null
+        if (callInfo.alias.isBlank()) {
+            return null
+        }
+        val availableAliases = loadAvailableAliases(project, callInfo)
+        if (availableAliases.isEmpty()) {
+            return null
+        }
+        if (callInfo.alias in availableAliases) {
+            return null
+        }
+
+        val correctReference = findCorrectAliasFormat(callInfo.alias, availableAliases)
+        return if (correctReference != null) {
+            CatalogReferenceError.WrongFormat(
+                catalogName = callInfo.catalogName,
+                invalidReference = callInfo.alias,
+                correctReference = correctReference,
+                availableAliases = availableAliases
+            )
+        } else {
+            val matcher = AliasSimilarityMatcher()
+            CatalogReferenceError.NotDeclared(
+                catalogName = callInfo.catalogName,
+                invalidReference = callInfo.alias,
+                availableAliases = availableAliases,
+                suggestedAliases = matcher.findSimilarAliases(callInfo.alias, availableAliases)
+            )
+        }
+    }
+
+    fun loadAvailableAliases(project: Project, callInfo: DynamicCatalogCallInfo): Set<String> {
+        return CatalogReferenceScanner(project)
+            .scanCatalogTableAliases(callInfo.catalogName, callInfo.tableName)
+    }
+
+    fun findTargetStringExpression(element: PsiElement): KtStringTemplateExpression? {
+        return PsiTreeUtil.getParentOfType(element, KtStringTemplateExpression::class.java, false)
+            ?.takeIf { resolveDynamicCatalogCall(it) != null }
+    }
+
+    fun findTargetStringExpression(
+        element: PsiElement,
+        catalogName: String,
+        alias: String,
+        tableName: String? = null
+    ): KtStringTemplateExpression? {
+        val stringExpression = findTargetStringExpression(element) ?: return null
+        val callInfo = resolveDynamicCatalogCall(stringExpression) ?: return null
+        if (callInfo.catalogName != catalogName) {
+            return null
+        }
+        if (callInfo.alias != alias) {
+            return null
+        }
+        if (tableName != null && callInfo.tableName != tableName) {
+            return null
+        }
+        return stringExpression
+    }
+
+    fun replaceStringExpression(
+        project: Project,
+        stringExpression: KtStringTemplateExpression,
+        newAlias: String
+    ) {
+        val newExpression = KtPsiFactory(project).createExpression("\"$newAlias\"")
+        stringExpression.replace(newExpression)
+    }
+
+    fun extractLiteralString(expression: KtStringTemplateExpression, allowBlank: Boolean = false): String? {
+        if (expression.entries.isEmpty()) {
+            return if (allowBlank) "" else null
+        }
         if (expression.entries.any { it !is KtLiteralStringTemplateEntry }) return null
-        return expression.entries
+        val text = expression.entries
             .filterIsInstance<KtLiteralStringTemplateEntry>()
             .joinToString(separator = "") { it.text }
-            .takeIf { it.isNotBlank() }
+        return if (allowBlank || text.isNotBlank()) text else null
+    }
+
+    fun tableDisplayName(tableName: String): String {
+        return when (tableName) {
+            "libraries" -> "library"
+            "plugins" -> "plugin"
+            "bundles" -> "bundle"
+            "versions" -> "version"
+            else -> tableName
+        }
+    }
+
+    private fun findCorrectAliasFormat(invalidReference: String, availableAliases: Set<String>): String? {
+        val normalized = canonicalizeAliasKey(invalidReference)
+        return availableAliases.firstOrNull { canonicalizeAliasKey(it) == normalized }
+    }
+
+    private fun canonicalizeAliasKey(key: String): String {
+        return key
+            .trim('"', '\'')
+            .replace('-', '.')
+            .replace('_', '.')
+            .split('.')
+            .flatMap { segment ->
+                segment
+                    .replace(Regex("([a-z0-9])([A-Z])"), "$1.$2")
+                    .split('.')
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(separator = ".") { it.lowercase() }
     }
 
     private fun resolveFromReferences(element: PsiElement): TomlKeyValue? {

@@ -8,10 +8,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.components.service
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
+import site.addzero.gradle.sleep.GradleModuleSleepService
 import site.addzero.gradle.sleep.util.StringUtils.toKebabCase
 import java.io.File
 
@@ -701,6 +703,7 @@ object OnDemandModuleLoader {
         val (validModules, excludedModules) = partitionModules(validation.validModules)
         val success = applyOnDemandLoading(project, validation.validModules, syncAfter = true)
         return if (success) {
+            project.service<GradleModuleSleepService>().updateFocusedModules(validation.validModules)
             LoadResult.Success(validModules, excludedModules)
         } else {
             LoadResult.Failed("Failed to apply settings")

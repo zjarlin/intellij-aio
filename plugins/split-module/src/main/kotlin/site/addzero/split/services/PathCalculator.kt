@@ -1,12 +1,14 @@
 package site.addzero.split.services
 
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import java.io.File
 
 /**
  * 路径计算工具类
  */
 object PathCalculator {
+
+    private val sourceRootMarkers = setOf("kotlin", "java", "resources")
 
     /**
      * 计算同级目录路径
@@ -50,5 +52,88 @@ object PathCalculator {
      */
     fun generateDefaultModuleName(sourceModuleName: String): String {
         return "${sourceModuleName}1"
+    }
+
+    /**
+     * 根据选中包推导默认模块名称
+     * 例如：compose-native-component + ext -> compose-native-component-ext
+     */
+    fun generateDefaultModuleName(
+        sourceModuleName: String,
+        sourceModule: VirtualFile,
+        selectedFiles: List<VirtualFile>
+    ): String {
+        val leafPackageName = resolveSelectedLeafPackageName(sourceModule, selectedFiles)
+        if (leafPackageName == null) {
+            return generateDefaultModuleName(sourceModuleName)
+        }
+
+        return "$sourceModuleName-$leafPackageName"
+    }
+
+    private fun resolveSelectedLeafPackageName(
+        sourceModule: VirtualFile,
+        selectedFiles: List<VirtualFile>
+    ): String? {
+        val selectionDirs = selectedFiles
+            .mapNotNull { selectedFile ->
+                if (selectedFile.isDirectory) {
+                    selectedFile
+                } else {
+                    selectedFile.parent
+                }
+            }
+            .distinctBy { it.path }
+
+        if (selectionDirs.isEmpty()) {
+            return null
+        }
+
+        val leafPackageNames = selectionDirs
+            .mapNotNull { selectedDir ->
+                extractLeafPackageName(sourceModule, selectedDir)
+            }
+            .distinct()
+
+        if (leafPackageNames.size != 1) {
+            return null
+        }
+
+        return leafPackageNames.single()
+    }
+
+    private fun extractLeafPackageName(sourceModule: VirtualFile, selectedDir: VirtualFile): String? {
+        if (!selectedDir.path.startsWith(sourceModule.path)) {
+            return null
+        }
+
+        val relativePath = selectedDir.path
+            .removePrefix(sourceModule.path)
+            .trimStart('/', File.separatorChar)
+
+        if (relativePath.isBlank()) {
+            return null
+        }
+
+        val pathSegments = relativePath
+            .split('/', '\\')
+            .filter { it.isNotBlank() }
+
+        if (pathSegments.isEmpty()) {
+            return null
+        }
+
+        val sourceRootIndex = pathSegments.indexOfLast { segment ->
+            segment in sourceRootMarkers
+        }
+
+        if (sourceRootIndex == -1 || sourceRootIndex >= pathSegments.lastIndex) {
+            return null
+        }
+
+        val leafPackageName = pathSegments.last()
+        return leafPackageName.takeIf { candidate ->
+            isValidModuleName(candidate)
+        }
     }
 }

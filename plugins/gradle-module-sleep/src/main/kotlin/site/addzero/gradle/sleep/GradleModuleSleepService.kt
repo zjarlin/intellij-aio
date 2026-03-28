@@ -5,11 +5,13 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ide.projectView.ProjectView
 import com.intellij.util.messages.MessageBusConnection
 import site.addzero.gradle.sleep.loader.OnDemandModuleLoader
 import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
@@ -35,6 +37,11 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
     // 当前已加载的模块集合
     private val loadedModules = ConcurrentHashMap.newKeySet<String>()
+
+    // 当前 Project View 应聚焦显示的模块集合
+    private val focusedModules = ConcurrentHashMap.newKeySet<String>()
+    @Volatile
+    private var projectViewFocusActive = false
 
     // 检查间隔（毫秒）
     private val CHECK_INTERVAL = 30_000L // 30秒
@@ -88,6 +95,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
                 loadedModules.add(modulePath)
             }
         }
+        updateFocusedModules(computeActiveModulesForFocus())
     }
 
     private fun handleFileOpened(file: VirtualFile) {
@@ -101,6 +109,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
         if (!loadedModules.contains(modulePath) && modulePath != ":") {
             logger.info("Module opened: $modulePath, scheduling load...")
             loadedModules.add(modulePath)
+            updateFocusedModules(computeActiveModulesForFocus())
             scheduleModuleSync()
         }
     }
@@ -170,6 +179,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
             val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
             if (success) {
+                updateFocusedModules(activeModules)
                 logger.info("Synced ${activeModules.size} active modules")
                 showNotification("Modules Loaded", "Loaded modules: ${activeModules.joinToString(", ")}")
             }
@@ -224,8 +234,13 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
             ApplicationManager.getApplication().invokeLater {
                 val remainingModules = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet() + protectedModules)
                 if (remainingModules.isNotEmpty()) {
-                    OnDemandModuleLoader.applyOnDemandLoading(project, remainingModules, syncAfter = true)
-                    showNotification("Modules Released", "Released: ${modulesToRelease.joinToString(", ")}")
+                    val success = OnDemandModuleLoader.applyOnDemandLoading(project, remainingModules, syncAfter = true)
+                    if (success) {
+                        updateFocusedModules(remainingModules)
+                        showNotification("Modules Released", "Released: ${modulesToRelease.joinToString(", ")}")
+                    }
+                } else {
+                    clearFocusedModules()
                 }
             }
         }
@@ -254,14 +269,49 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
             }
             // 同步清理 openFileModules 中指向已失效模块的条目
             openFileModules.entries.removeIf { (_, mod) -> stale.contains(mod) }
+            updateFocusedModules(computeActiveModulesForFocus())
         }
     }
 
     fun restoreAllModules() {
         OnDemandModuleLoader.restoreAllModules(project, syncAfter = true)
+        clearFocusedModules()
     }
 
     fun getLoadedModules(): Set<String> = loadedModules.toSet()
+
+    fun getFocusedModules(): Set<String> {
+        if (!isFeatureAvailable()) {
+            return emptySet()
+        }
+        val settings = ModuleSleepSettingsService.getInstance(project)
+        if (!settings.isProjectViewFocusEnabled() || !projectViewFocusActive) {
+            return emptySet()
+        }
+        return focusedModules.toSet()
+    }
+
+    fun updateFocusedModules(modules: Set<String>) {
+        val validatedModules = OnDemandModuleLoader.validateExistingModules(project, modules).validModules
+        projectViewFocusActive = validatedModules.isNotEmpty()
+        focusedModules.clear()
+        focusedModules.addAll(validatedModules)
+        refreshProjectView()
+    }
+
+    fun clearFocusedModules() {
+        projectViewFocusActive = false
+        focusedModules.clear()
+        refreshProjectView()
+    }
+
+    fun refreshProjectView() {
+        ApplicationManager.getApplication().invokeLater {
+            if (!project.isDisposed) {
+                ProjectView.getInstance(project).refresh()
+            }
+        }
+    }
 
     /**
      * 检查自动睡眠是否生效
@@ -346,5 +396,14 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
         moduleLastAccessTime.clear()
         openFileModules.clear()
         loadedModules.clear()
+        projectViewFocusActive = false
+        focusedModules.clear()
+    }
+
+    private fun computeActiveModulesForFocus(): Set<String> {
+        val settings = ModuleSleepSettingsService.getInstance(project)
+        val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+        val candidates = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet() + manualModules)
+        return OnDemandModuleLoader.validateExistingModules(project, candidates).validModules
     }
 }

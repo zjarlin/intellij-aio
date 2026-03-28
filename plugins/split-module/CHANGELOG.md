@@ -30,6 +30,10 @@ All notable changes to the Split Module plugin will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- The default module name now prefers `{source-module}-{selected-leaf-package}` when the selection resolves to a single leaf package, and falls back to `{source-module}1` otherwise.
+- Existing target modules are now merged in place, and conflicting files or paths are resolved interactively one by one with overwrite or skip decisions.
+
 ### Planned
 - Dependency analysis and optimization
 - Batch module splitting

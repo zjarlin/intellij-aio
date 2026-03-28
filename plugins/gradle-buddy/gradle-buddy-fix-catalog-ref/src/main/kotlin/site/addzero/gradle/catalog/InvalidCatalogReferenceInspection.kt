@@ -5,6 +5,7 @@ import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.catalog.fix.CatalogFixStrategyFactory
@@ -59,6 +60,30 @@ class InvalidCatalogReferenceInspection : LocalInspectionTool() {
                 val strategy = CatalogFixStrategyFactory.getStrategy(error) ?: return
 
                 val fix = strategy.createFix(project, error)
+                if (fix == null) {
+                    holder.registerProblem(
+                        expression,
+                        strategy.getFixDescription(error),
+                        ProblemHighlightType.WARNING
+                    )
+                } else {
+                    holder.registerProblem(
+                        expression,
+                        strategy.getFixDescription(error),
+                        ProblemHighlightType.WARNING,
+                        fix
+                    )
+                }
+            }
+
+            override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
+                super.visitStringTemplateExpression(expression)
+
+                val project = holder.project
+                val error = DynamicCatalogReferenceSupport.detectCatalogReferenceError(project, expression) ?: return
+                val strategy = CatalogFixStrategyFactory.getStrategy(error) ?: return
+                val fix = strategy.createFix(project, error)
+
                 if (fix == null) {
                     holder.registerProblem(
                         expression,

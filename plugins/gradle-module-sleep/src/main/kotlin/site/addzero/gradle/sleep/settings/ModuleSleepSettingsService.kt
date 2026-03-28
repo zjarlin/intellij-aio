@@ -16,7 +16,8 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
         var autoSleepEnabled: Boolean? = null, // null = auto-detect based on module count
         var floatingToolbarEnabled: Boolean = true,
         var floatingToolbarCollapsed: Boolean = false, // 工具条是否折叠
-        var manualFolderNames: String = ""
+        var manualFolderNames: String = "",
+        var projectViewFocusEnabled: Boolean = true
     )
 
     private var myState = State()
@@ -71,6 +72,12 @@ class ModuleSleepSettingsService : PersistentStateComponent<ModuleSleepSettingsS
 
     fun setFloatingToolbarCollapsed(collapsed: Boolean) {
         myState.floatingToolbarCollapsed = collapsed
+    }
+
+    fun isProjectViewFocusEnabled(): Boolean = myState.projectViewFocusEnabled
+
+    fun setProjectViewFocusEnabled(enabled: Boolean) {
+        myState.projectViewFocusEnabled = enabled
     }
 
     companion object {

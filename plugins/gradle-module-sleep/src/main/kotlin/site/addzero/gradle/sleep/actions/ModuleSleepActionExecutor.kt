@@ -16,6 +16,24 @@ import site.addzero.gradle.sleep.settings.ModuleSleepSettingsService
  */
 object ModuleSleepActionExecutor {
 
+  fun focusManualFolders(project: Project, manualFolderNamesRaw: String? = null) {
+    if (!isFeatureAvailable(project)) return
+
+    val settings = ModuleSleepSettingsService.getInstance(project)
+    if (manualFolderNamesRaw != null) {
+      settings.setManualFolderNames(manualFolderNamesRaw)
+    }
+
+    val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
+    if (manualModules.isEmpty()) {
+      project.service<GradleModuleSleepService>().clearFocusedModules()
+      return
+    }
+
+    val focusedModules = OnDemandModuleLoader.expandModulesWithDependencies(project, manualModules)
+    project.service<GradleModuleSleepService>().updateFocusedModules(focusedModules)
+  }
+
   fun loadOnlyOpenTabs(project: Project, manualFolderNamesRaw: String? = null) {
     if (!isFeatureAvailable(project)) return
     val settings = ModuleSleepSettingsService.getInstance(project)
@@ -71,6 +89,7 @@ object ModuleSleepActionExecutor {
     if (!isFeatureAvailable(project)) return
     val success = OnDemandModuleLoader.restoreAllModules(project, syncAfter = true)
     if (success) {
+      project.service<GradleModuleSleepService>().clearFocusedModules()
       notify(
         project,
         "All Modules Restored",
@@ -225,6 +244,7 @@ object ModuleSleepActionExecutor {
     val (validModules, excludedModules) = OnDemandModuleLoader.partitionModules(validation.validModules)
     val success = OnDemandModuleLoader.applyOnDemandLoading(project, validation.validModules, syncAfter = true)
     return if (success) {
+      project.service<GradleModuleSleepService>().updateFocusedModules(validation.validModules)
       LoadResult.Success(validModules, excludedModules)
     } else {
       LoadResult.Failed("Failed to apply settings")

@@ -2,10 +2,12 @@ package site.addzero.gradle.sleep.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.components.service
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.ThreeStateCheckBox
+import site.addzero.gradle.sleep.GradleModuleSleepService
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JSlider
@@ -14,6 +16,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
 
     private var autoSleepCheckBox: ThreeStateCheckBox? = null
     private var floatingToolbarCheckBox: com.intellij.ui.components.JBCheckBox? = null
+    private var projectViewFocusCheckBox: com.intellij.ui.components.JBCheckBox? = null
     private var idleTimeoutSlider: JSlider? = null
     private var manualFoldersField: JBTextField? = null
     private var mainPanel: JPanel? = null
@@ -26,6 +29,10 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
 
         floatingToolbarCheckBox = com.intellij.ui.components.JBCheckBox("Show floating toolbar").apply {
+            isSelected = true
+        }
+
+        projectViewFocusCheckBox = com.intellij.ui.components.JBCheckBox("Temporarily hide unrelated modules in Project View").apply {
             isSelected = true
         }
 
@@ -45,6 +52,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             .addVerticalGap(10)
             .addComponent(autoSleepCheckBox!!)
             .addComponent(floatingToolbarCheckBox!!)
+            .addComponent(projectViewFocusCheckBox!!)
             .addLabeledComponent("Module idle timeout (minutes):", idleTimeoutSlider!!)
             .addLabeledComponent("Root module folders:", manualFoldersField!!)
             .addComponentFillVertically(JPanel(), 0)
@@ -63,6 +71,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
         return currentAutoSleep != settings.getAutoSleepEnabled() ||
                floatingToolbarCheckBox?.isSelected != settings.isFloatingToolbarEnabled() ||
+               projectViewFocusCheckBox?.isSelected != settings.isProjectViewFocusEnabled() ||
                idleTimeoutSlider?.value != settings.getModuleIdleTimeoutMinutes() ||
                manualFoldersField?.text != settings.getManualFolderNamesRaw()
     }
@@ -76,8 +85,10 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
         }
         settings.setAutoSleepEnabled(autoSleep)
         settings.setFloatingToolbarEnabled(floatingToolbarCheckBox?.isSelected ?: true)
+        settings.setProjectViewFocusEnabled(projectViewFocusCheckBox?.isSelected ?: true)
         settings.setModuleIdleTimeoutMinutes(idleTimeoutSlider?.value ?: 5)
         settings.setManualFolderNames(manualFoldersField?.text ?: "")
+        project.service<GradleModuleSleepService>().refreshProjectView()
     }
 
     override fun reset() {
@@ -88,6 +99,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
             null -> ThreeStateCheckBox.State.DONT_CARE
         }
         floatingToolbarCheckBox?.isSelected = settings.isFloatingToolbarEnabled()
+        projectViewFocusCheckBox?.isSelected = settings.isProjectViewFocusEnabled()
         idleTimeoutSlider?.value = settings.getModuleIdleTimeoutMinutes()
         manualFoldersField?.text = settings.getManualFolderNamesRaw()
     }
@@ -95,6 +107,7 @@ class ModuleSleepSettingsConfigurable(private val project: Project) : Configurab
     override fun disposeUIResources() {
         autoSleepCheckBox = null
         floatingToolbarCheckBox = null
+        projectViewFocusCheckBox = null
         idleTimeoutSlider = null
         manualFoldersField = null
         mainPanel = null

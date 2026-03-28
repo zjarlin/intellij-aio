@@ -20,6 +20,7 @@ import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
 
     private var cachedError: CatalogReferenceError.NotDeclared? = null
+    private var cachedDynamicCallInfo: DynamicCatalogCallInfo? = null
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.HIGH
 
@@ -37,6 +38,9 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
     override fun startInWriteAction(): Boolean = false
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
+        cachedError = null
+        cachedDynamicCallInfo = null
+
         if (file !is KtFile) return false
         if (!file.name.endsWith(".gradle.kts")) return false
         if (editor == null) return false
@@ -49,10 +53,15 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         if (error !is CatalogReferenceError.NotDeclared) return false
         if (error.suggestedAliases.isEmpty()) return false
 
-        val filteredAliases = CatalogExpressionUtils.filterCandidatesForReference(error.invalidReference, error.suggestedAliases)
+        val filteredAliases = if (DynamicCatalogReferenceSupport.resolveDynamicCatalogCall(element) != null) {
+            error.suggestedAliases
+        } else {
+            CatalogExpressionUtils.filterCandidatesForReference(error.invalidReference, error.suggestedAliases)
+        }
         if (filteredAliases.isEmpty()) return false
 
         cachedError = error.copy(suggestedAliases = filteredAliases)
+        cachedDynamicCallInfo = DynamicCatalogReferenceSupport.resolveDynamicCatalogCall(element)
         return true
     }
 
@@ -64,7 +73,22 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return
 
-        val dotExpression = CatalogExpressionUtils.findTargetDotExpression(element, error.catalogName, error.invalidReference) ?: return
+        val dynamicCallInfo = cachedDynamicCallInfo
+        val dynamicStringExpression = dynamicCallInfo?.let {
+            DynamicCatalogReferenceSupport.findTargetStringExpression(
+                element = element,
+                catalogName = error.catalogName,
+                alias = error.invalidReference,
+                tableName = it.tableName
+            )
+        }
+        val dotExpression = if (dynamicStringExpression == null) {
+            CatalogExpressionUtils.findTargetDotExpression(element, error.catalogName, error.invalidReference)
+        } else {
+            null
+        }
+        if (dynamicStringExpression == null && dotExpression == null) return
+        val resolvedDotExpression = dotExpression
 
         val candidates = error.suggestedAliases.map { result ->
             CandidateItem(
@@ -72,7 +96,8 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
                 score = result.score,
                 matchedTokens = result.matchedTokens,
                 catalogName = error.catalogName,
-                oldReference = error.invalidReference
+                oldReference = error.invalidReference,
+                isDynamic = dynamicStringExpression != null
             )
         }
 
@@ -80,7 +105,11 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         if (candidates.size == 1) {
             val c = candidates[0]
             WriteCommandAction.runWriteCommandAction(project) {
-                CatalogExpressionUtils.replaceDotExpression(project, dotExpression, c.catalogName, c.alias)
+                if (dynamicStringExpression != null) {
+                    DynamicCatalogReferenceSupport.replaceStringExpression(project, dynamicStringExpression, c.alias)
+                } else {
+                    CatalogExpressionUtils.replaceDotExpression(project, resolvedDotExpression ?: return@runWriteCommandAction, c.catalogName, c.alias)
+                }
             }
             return
         }
@@ -94,18 +123,31 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
                     } else {
                         ""
                     }
-                    return "${value.catalogName}.${value.alias} [$percentage%]$tokens"
+                    val label = if (value.isDynamic) {
+                        "\"${value.alias}\""
+                    } else {
+                        "${value.catalogName}.${value.alias}"
+                    }
+                    return "$label [$percentage%]$tokens"
                 }
 
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
                     if (selectedValue != null && finalChoice) {
                         WriteCommandAction.runWriteCommandAction(project) {
-                            CatalogExpressionUtils.replaceDotExpression(
-                                project,
-                                dotExpression,
-                                selectedValue.catalogName,
-                                selectedValue.alias
-                            )
+                            if (dynamicStringExpression != null) {
+                                DynamicCatalogReferenceSupport.replaceStringExpression(
+                                    project,
+                                    dynamicStringExpression,
+                                    selectedValue.alias
+                                )
+                            } else {
+                                CatalogExpressionUtils.replaceDotExpression(
+                                    project,
+                                    resolvedDotExpression ?: return@runWriteCommandAction,
+                                    selectedValue.catalogName,
+                                    selectedValue.alias
+                                )
+                            }
                         }
                     }
                     return FINAL_CHOICE
@@ -117,6 +159,8 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
     }
 
     private fun detectCatalogReferenceError(project: Project, element: PsiElement): CatalogReferenceError? {
+        DynamicCatalogReferenceSupport.detectCatalogReferenceError(project, element)?.let { return it }
+
         val dotExpression = CatalogExpressionUtils.findTopDotExpression(element) ?: return null
 
         if (!CatalogExpressionUtils.isCatalogReference(dotExpression)) {
@@ -146,6 +190,9 @@ class SelectCatalogReferenceIntentionGroup : IntentionAction, PriorityAction {
         val score: Double,
         val matchedTokens: List<String>,
         val catalogName: String,
-        val oldReference: String
+        val oldReference: String,
+        val isDynamic: Boolean
     )
+
+    private typealias DynamicCatalogCallInfo = DynamicCatalogReferenceSupport.DynamicCatalogCallInfo
 }

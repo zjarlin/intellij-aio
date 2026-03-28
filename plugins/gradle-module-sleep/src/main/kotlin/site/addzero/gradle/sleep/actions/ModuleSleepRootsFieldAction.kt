@@ -61,7 +61,12 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
         .getData(CommonDataKeys.PROJECT) ?: return@addActionListener
       val raw = field.text
       ModuleSleepSettingsService.getInstance(project).setManualFolderNames(raw)
+      if (raw.isBlank()) {
+        project.service<GradleModuleSleepService>().clearFocusedModules()
+        return@addActionListener
+      }
       ModuleSleepActionExecutor.loadOnlyOpenTabs(project, raw)
+      ModuleSleepActionExecutor.focusManualFolders(project, raw)
     }
 
     field.document.addDocumentListener(object : DocumentAdapter() {
@@ -69,6 +74,11 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
         val project = DataManager.getInstance().getDataContext(field)
           .getData(CommonDataKeys.PROJECT) ?: return
         ModuleSleepSettingsService.getInstance(project).setManualFolderNames(field.text)
+        if (field.text.isBlank()) {
+          project.service<GradleModuleSleepService>().clearFocusedModules()
+        } else {
+          ModuleSleepActionExecutor.focusManualFolders(project, field.text)
+        }
       }
     })
 
@@ -77,6 +87,11 @@ class ModuleSleepRootsFieldAction : AnAction(), CustomComponentAction, DumbAware
         val project = DataManager.getInstance().getDataContext(field)
           .getData(CommonDataKeys.PROJECT) ?: return
         ModuleSleepSettingsService.getInstance(project).setManualFolderNames(field.text)
+        if (field.text.isBlank()) {
+          project.service<GradleModuleSleepService>().clearFocusedModules()
+        } else {
+          ModuleSleepActionExecutor.focusManualFolders(project, field.text)
+        }
       }
     })
 

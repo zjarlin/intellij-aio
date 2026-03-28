@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.catalog.CatalogReferenceError
+import site.addzero.gradle.catalog.DynamicCatalogReferenceSupport
 
 /**
  * 修复引用格式错误的策略
@@ -31,17 +32,28 @@ class WrongFormatFixStrategy : CatalogFixStrategy {
             override fun getFamilyName(): String = GradleBuddyBundle.message("fix.wrong.format")
 
             override fun getName(): String {
-                return "替换为 '${error.catalogName}.${error.correctReference}'"
+                return "替换为 '${error.correctReference}'"
             }
 
             override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
                 WriteCommandAction.runWriteCommandAction(project) {
-                    replaceAllOccurrences(
-                        project,
-                        error.catalogName,
-                        error.invalidReference,
-                        error.correctReference
-                    )
+                    val dynamicCallInfo = DynamicCatalogReferenceSupport.resolveDynamicCatalogCall(descriptor.psiElement)
+                    if (dynamicCallInfo != null) {
+                        replaceAllDynamicOccurrences(
+                            project = project,
+                            catalogName = dynamicCallInfo.catalogName,
+                            tableName = dynamicCallInfo.tableName,
+                            oldReference = error.invalidReference,
+                            newReference = error.correctReference
+                        )
+                    } else {
+                        replaceAllAccessorOccurrences(
+                            project = project,
+                            catalogName = error.catalogName,
+                            oldReference = error.invalidReference,
+                            newReference = error.correctReference
+                        )
+                    }
                 }
             }
         }
@@ -52,10 +64,7 @@ class WrongFormatFixStrategy : CatalogFixStrategy {
         return "引用格式错误: '${error.invalidReference}' 应该是 '${error.correctReference}'"
     }
 
-    /**
-     * 在整个项目中替换所有相同的错误引用
-     */
-    private fun replaceAllOccurrences(
+    private fun replaceAllAccessorOccurrences(
         project: Project,
         catalogName: String,
         oldReference: String,
@@ -87,6 +96,36 @@ class WrongFormatFixStrategy : CatalogFixStrategy {
             for (expr in expressions) {
                 val newExpr = factory.createExpression(newFullReference)
                 expr.replace(newExpr)
+            }
+        }
+    }
+
+    private fun replaceAllDynamicOccurrences(
+        project: Project,
+        catalogName: String,
+        tableName: String,
+        oldReference: String,
+        newReference: String
+    ) {
+        val kotlinFiles = FileTypeIndex.getFiles(
+            KotlinFileType.INSTANCE,
+            GlobalSearchScope.projectScope(project)
+        )
+
+        val psiManager = com.intellij.psi.PsiManager.getInstance(project)
+        for (virtualFile in kotlinFiles) {
+            if (!virtualFile.name.endsWith(".gradle.kts")) continue
+
+            val psiFile = psiManager.findFile(virtualFile) as? KtFile ?: continue
+            val stringExpressions = psiFile.collectDescendantsOfType<org.jetbrains.kotlin.psi.KtStringTemplateExpression> { expression ->
+                val callInfo = DynamicCatalogReferenceSupport.resolveDynamicCatalogCall(expression) ?: return@collectDescendantsOfType false
+                callInfo.catalogName == catalogName &&
+                    callInfo.tableName == tableName &&
+                    callInfo.alias == oldReference
+            }
+
+            for (expression in stringExpressions) {
+                DynamicCatalogReferenceSupport.replaceStringExpression(project, expression, newReference)
             }
         }
     }

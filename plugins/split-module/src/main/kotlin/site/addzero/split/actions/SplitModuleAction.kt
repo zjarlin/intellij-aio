@@ -30,7 +30,11 @@ class SplitModuleAction : AnAction() {
     val sourceModule = findSourceModule(project, selectedFiles.toList()) ?: return
 
     // 生成默认模块名称
-    val defaultName = PathCalculator.generateDefaultModuleName(sourceModule.name)
+    val defaultName = PathCalculator.generateDefaultModuleName(
+      sourceModuleName = sourceModule.name,
+      sourceModule = sourceModule,
+      selectedFiles = selectedFiles.toList()
+    )
 
     // 显示输入对话框
     val dialog = ModuleNameDialog(project, defaultName)

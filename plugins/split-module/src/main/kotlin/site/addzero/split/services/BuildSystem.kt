@@ -1,6 +1,5 @@
 package site.addzero.split.services
 
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import java.io.File
 
@@ -26,7 +25,7 @@ interface BuildSystem {
 }
 
 /**
- * Gradle Kotlin DSL (build.gradle.kts)
+ * Gradle Kotlin DSL 构建系统
  */
 class GradleKotlinBuildSystem : BuildSystem {
     override val buildFileName: String = "build.gradle.kts"
@@ -34,6 +33,10 @@ class GradleKotlinBuildSystem : BuildSystem {
     override fun copyAndAdjustBuildFile(sourceModule: VirtualFile, newModuleDir: File, newModuleName: String) {
         val buildFile = sourceModule.findChild(buildFileName)!!
         val targetBuildFile = File(newModuleDir, buildFileName)
+        if (targetBuildFile.exists()) {
+            return
+        }
+
         buildFile.inputStream.use { input ->
             targetBuildFile.outputStream().use { output ->
                 input.copyTo(output)
@@ -47,7 +50,9 @@ class GradleKotlinBuildSystem : BuildSystem {
         val dependencyStatement = "    implementation(project(\"$gradlePath\"))"
 
         var content = String(buildFile.contentsToByteArray())
-        if (content.contains("project(\"$gradlePath\")")) return
+        if (content.contains("project(\"$gradlePath\")")) {
+            return
+        }
 
         val dependenciesBlockRegex = Regex("dependencies\\s*\\{([^}]*?)\\}", RegexOption.DOT_MATCHES_ALL)
         val match = dependenciesBlockRegex.find(content)
@@ -64,7 +69,7 @@ class GradleKotlinBuildSystem : BuildSystem {
 }
 
 /**
- * Gradle Groovy DSL (build.gradle)
+ * Gradle Groovy DSL 构建系统
  */
 class GradleGroovyBuildSystem : BuildSystem {
     override val buildFileName: String = "build.gradle"
@@ -72,6 +77,10 @@ class GradleGroovyBuildSystem : BuildSystem {
     override fun copyAndAdjustBuildFile(sourceModule: VirtualFile, newModuleDir: File, newModuleName: String) {
         val buildFile = sourceModule.findChild(buildFileName)!!
         val targetBuildFile = File(newModuleDir, buildFileName)
+        if (targetBuildFile.exists()) {
+            return
+        }
+
         buildFile.inputStream.use { input ->
             targetBuildFile.outputStream().use { output ->
                 input.copyTo(output)
@@ -85,7 +94,9 @@ class GradleGroovyBuildSystem : BuildSystem {
         val dependencyStatement = "    implementation project('$gradlePath')"
 
         var content = String(buildFile.contentsToByteArray())
-        if (content.contains("project('$gradlePath')") || content.contains("project(\"$gradlePath\")")) return
+        if (content.contains("project('$gradlePath')") || content.contains("project(\"$gradlePath\")")) {
+            return
+        }
 
         val dependenciesBlockRegex = Regex("dependencies\\s*\\{([^}]*?)\\}", RegexOption.DOT_MATCHES_ALL)
         val match = dependenciesBlockRegex.find(content)
@@ -102,19 +113,23 @@ class GradleGroovyBuildSystem : BuildSystem {
 }
 
 /**
- * Maven (pom.xml)
+ * Maven 构建系统
  */
 class MavenBuildSystem : BuildSystem {
     override val buildFileName: String = "pom.xml"
 
     override fun copyAndAdjustBuildFile(sourceModule: VirtualFile, newModuleDir: File, newModuleName: String) {
+        val targetPomFile = File(newModuleDir, buildFileName)
+        if (targetPomFile.exists()) {
+            return
+        }
+
         val pomFile = sourceModule.findChild(buildFileName)!!
         var content = String(pomFile.contentsToByteArray())
 
-        // Update artifactId to new module name
+        // 将 artifactId 调整为新模块名
         content = content.replace(Regex("<artifactId>.*?</artifactId>"), "<artifactId>$newModuleName</artifactId>")
 
-        val targetPomFile = File(newModuleDir, buildFileName)
         targetPomFile.writeText(content)
     }
 
@@ -122,7 +137,7 @@ class MavenBuildSystem : BuildSystem {
         val pomFile = sourceModule.findChild(buildFileName)!!
         var content = String(pomFile.contentsToByteArray())
 
-        // Extract groupId and version from source pom
+        // 从源 pom 中提取 groupId 和 version
         val groupIdMatch = Regex("<groupId>(.*?)</groupId>").find(content)
         val versionMatch = Regex("<version>(.*?)</version>").find(content)
         val groupId = groupIdMatch?.groupValues?.get(1) ?: "unknown"
@@ -136,7 +151,9 @@ class MavenBuildSystem : BuildSystem {
             <version>$version</version>
         </dependency>"""
 
-        if (content.contains("<artifactId>$artifactId</artifactId>")) return
+        if (content.contains("<artifactId>$artifactId</artifactId>")) {
+            return
+        }
 
         val dependenciesBlockRegex = Regex("<dependencies>\\s*(.*?)\\s*</dependencies>", RegexOption.DOT_MATCHES_ALL)
         val match = dependenciesBlockRegex.find(content)
@@ -146,7 +163,7 @@ class MavenBuildSystem : BuildSystem {
             val newBlockContent = blockContent + "\n$dependencyStatement"
             content = content.replace(match.value, "<dependencies>\n$newBlockContent\n    </dependencies>")
         } else {
-            // Find project closing tag
+            // 找到 project 结束标签并补充依赖块
             content = content.replace("</project>", "    <dependencies>\n$dependencyStatement\n    </dependencies>\n</project>")
         }
         pomFile.setBinaryContent(content.toByteArray())

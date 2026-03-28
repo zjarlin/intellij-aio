@@ -229,6 +229,20 @@ class CatalogReferenceScanner(private val project: Project) {
         return result
     }
 
+    fun scanCatalogTableAliases(catalogName: String, tableName: String): Set<String> {
+        val aliases = linkedSetOf<String>()
+
+        val tomlFiles = findVersionCatalogFiles()
+        for (virtualFile in tomlFiles) {
+            if (getCatalogName(virtualFile) != catalogName) {
+                continue
+            }
+            aliases += extractTableAliases(virtualFile, tableName)
+        }
+
+        return aliases
+    }
+
     fun findEntries(catalogName: String, tableName: String, key: String): List<TomlKeyValue> {
         val result = mutableListOf<TomlKeyValue>()
 
@@ -323,6 +337,25 @@ class CatalogReferenceScanner(private val project: Project) {
         }
 
         return matches
+    }
+
+    private fun extractTableAliases(file: VirtualFile, tableName: String): Set<String> {
+        val aliases = linkedSetOf<String>()
+        val psiFile = PsiManager.getInstance(project).findFile(file) as? TomlFile ?: return emptySet()
+
+        psiFile.children.forEach { element ->
+            if (element !is TomlTable || element.header.key?.text != tableName) {
+                return@forEach
+            }
+
+            element.entries.forEach { entry ->
+                if (entry is TomlKeyValue) {
+                    aliases += entry.key.text.trim('"', '\'')
+                }
+            }
+        }
+
+        return aliases
     }
 
     private fun catalogKeyMatches(requestedKey: String, tomlKey: String): Boolean {

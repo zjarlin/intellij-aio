@@ -33,6 +33,9 @@
         <!-- Floating toolbar -->
         <editorFloatingToolbarProvider implementation="site.addzero.gradle.sleep.ModuleSleepFloatingToolbarProvider"/>
 
+        <!-- Project view filtering -->
+        <treeStructureProvider implementation="site.addzero.gradle.sleep.ModuleSleepTreeStructureProvider"/>
+
         <!-- Settings -->
         <projectConfigurable
             parentId="tools"

@@ -21,6 +21,7 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
     private var cachedCandidates: List<CandidateItem>? = null
     private var cachedCatalogName: String? = null
     private var cachedCurrentReference: String? = null
+    private var cachedDynamicCallInfo: DynamicCatalogCallInfo? = null
 
     override fun getPriority(): PriorityAction.Priority = PriorityAction.Priority.NORMAL
 
@@ -38,6 +39,11 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
     override fun startInWriteAction(): Boolean = false
 
     override fun isAvailable(project: Project, editor: Editor?, file: PsiFile): Boolean {
+        cachedCandidates = null
+        cachedCatalogName = null
+        cachedCurrentReference = null
+        cachedDynamicCallInfo = null
+
         if (file !is KtFile) return false
         if (!file.name.endsWith(".gradle.kts")) return false
         if (editor == null) return false
@@ -45,28 +51,43 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return false
 
-        val dotExpression = CatalogExpressionUtils.findTopDotExpression(element) ?: return false
+        val dynamicCallInfo = DynamicCatalogReferenceSupport.resolveDynamicCatalogCall(element)
+        val (catalogName, reference, availableAliases) = if (dynamicCallInfo != null) {
+            Triple(
+                dynamicCallInfo.catalogName,
+                dynamicCallInfo.alias,
+                DynamicCatalogReferenceSupport.loadAvailableAliases(project, dynamicCallInfo)
+            )
+        } else {
+            val dotExpression = CatalogExpressionUtils.findTopDotExpression(element) ?: return false
 
-        if (!CatalogExpressionUtils.isCatalogReference(dotExpression)) {
-            return false
+            if (!CatalogExpressionUtils.isCatalogReference(dotExpression)) {
+                return false
+            }
+
+            if (CatalogExpressionUtils.containsMethodCall(dotExpression)) {
+                return false
+            }
+
+            val (resolvedCatalogName, resolvedReference) =
+                CatalogExpressionUtils.extractCatalogReference(dotExpression) ?: return false
+
+            val scanner = CatalogReferenceScanner(project)
+            val catalogs = scanner.scanAllCatalogs()
+            val resolvedAliases = catalogs[resolvedCatalogName] ?: return false
+
+            Triple(resolvedCatalogName, resolvedReference, resolvedAliases)
         }
-
-        if (CatalogExpressionUtils.containsMethodCall(dotExpression)) {
-            return false
-        }
-
-        val (catalogName, reference) = CatalogExpressionUtils.extractCatalogReference(dotExpression) ?: return false
-
-        val scanner = CatalogReferenceScanner(project)
-        val catalogs = scanner.scanAllCatalogs()
-
-        val availableAliases = catalogs[catalogName] ?: return false
 
         val matcher = AliasSimilarityMatcher()
-        val suggestedAliases = CatalogExpressionUtils.filterCandidatesForReference(
-            reference,
+        val suggestedAliases = if (dynamicCallInfo != null) {
             matcher.findSimilarAliases(reference, availableAliases)
-        )
+        } else {
+            CatalogExpressionUtils.filterCandidatesForReference(
+                reference,
+                matcher.findSimilarAliases(reference, availableAliases)
+            )
+        }
 
         if (suggestedAliases.isEmpty()) return false
 
@@ -77,11 +98,13 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
                 matchedTokens = result.matchedTokens,
                 catalogName = catalogName,
                 oldReference = reference,
-                isCurrent = result.alias == reference
+                isCurrent = result.alias == reference,
+                isDynamic = dynamicCallInfo != null
             )
         }
         cachedCatalogName = catalogName
         cachedCurrentReference = reference
+        cachedDynamicCallInfo = dynamicCallInfo
 
         return true
     }
@@ -96,7 +119,22 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val offset = editor.caretModel.offset
         val element = file.findElementAt(offset) ?: return
 
-        val dotExpression = CatalogExpressionUtils.findTargetDotExpression(element, catalogName, currentReference) ?: return
+        val dynamicCallInfo = cachedDynamicCallInfo
+        val dynamicStringExpression = dynamicCallInfo?.let {
+            DynamicCatalogReferenceSupport.findTargetStringExpression(
+                element = element,
+                catalogName = catalogName,
+                alias = currentReference,
+                tableName = it.tableName
+            )
+        }
+        val dotExpression = if (dynamicStringExpression == null) {
+            CatalogExpressionUtils.findTargetDotExpression(element, catalogName, currentReference)
+        } else {
+            null
+        }
+        if (dynamicStringExpression == null && dotExpression == null) return
+        val resolvedDotExpression = dotExpression
 
         val popup = JBPopupFactory.getInstance().createListPopup(
             object : BaseListPopupStep<CandidateItem>(GradleBuddyBundle.message("intention.browse.catalog.alternatives.popup.title"), candidates) {
@@ -108,18 +146,31 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
                         ""
                     }
                     val current = if (value.isCurrent) GradleBuddyBundle.message("intention.browse.catalog.alternatives.popup.current") else ""
-                    return "${value.catalogName}.${value.alias} [$percentage%]$tokens$current"
+                    val label = if (value.isDynamic) {
+                        "\"${value.alias}\""
+                    } else {
+                        "${value.catalogName}.${value.alias}"
+                    }
+                    return "$label [$percentage%]$tokens$current"
                 }
 
                 override fun onChosen(selectedValue: CandidateItem?, finalChoice: Boolean): PopupStep<*>? {
                     if (selectedValue != null && finalChoice && !selectedValue.isCurrent) {
                         WriteCommandAction.runWriteCommandAction(project) {
-                            CatalogExpressionUtils.replaceDotExpression(
-                                project,
-                                dotExpression,
-                                selectedValue.catalogName,
-                                selectedValue.alias
-                            )
+                            if (dynamicStringExpression != null) {
+                                DynamicCatalogReferenceSupport.replaceStringExpression(
+                                    project,
+                                    dynamicStringExpression,
+                                    selectedValue.alias
+                                )
+                            } else {
+                                CatalogExpressionUtils.replaceDotExpression(
+                                    project,
+                                    resolvedDotExpression ?: return@runWriteCommandAction,
+                                    selectedValue.catalogName,
+                                    selectedValue.alias
+                                )
+                            }
                         }
                     }
                     return FINAL_CHOICE
@@ -136,6 +187,9 @@ class BrowseCatalogAlternativesIntention : IntentionAction, PriorityAction {
         val matchedTokens: List<String>,
         val catalogName: String,
         val oldReference: String,
-        val isCurrent: Boolean
+        val isCurrent: Boolean,
+        val isDynamic: Boolean
     )
+
+    private typealias DynamicCatalogCallInfo = DynamicCatalogReferenceSupport.DynamicCatalogCallInfo
 }

@@ -8,6 +8,8 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
@@ -31,6 +33,7 @@ import org.jetbrains.plugins.github.authentication.AuthorizationType
 import org.jetbrains.plugins.github.api.GithubServerPath
 import org.jetbrains.plugins.github.authentication.GHAccountsUtil
 import org.jetbrains.plugins.github.authentication.GHLoginSource
+import site.addzero.openprojecteverywhere.OpenProjectEverywhereIcons
 import site.addzero.openprojecteverywhere.OpenProjectEverywhereBundle
 import site.addzero.openprojecteverywhere.service.OpenProjectEverywhereSearchService
 import site.addzero.openprojecteverywhere.settings.OpenProjectEverywhereConfigurable
@@ -241,10 +244,11 @@ class OpenProjectEverywhereContributor(
         cloneUrl: String,
         targetParent: File
     ) {
-        val suggestedName = suggestDirectoryName(item, targetParent)
+        val selectedParent = chooseCloneParentDirectory(targetParent) ?: return
+        val suggestedName = suggestDirectoryName(item, selectedParent)
         val directoryName = Messages.showInputDialog(
             project,
-            OpenProjectEverywhereBundle.message("dialog.clone.rename.message", targetParent.absolutePath),
+            OpenProjectEverywhereBundle.message("dialog.clone.rename.message", selectedParent.absolutePath),
             OpenProjectEverywhereBundle.message("dialog.clone.rename.title"),
             Messages.getQuestionIcon(),
             suggestedName,
@@ -272,7 +276,7 @@ class OpenProjectEverywhereContributor(
                     if (INVALID_DIRECTORY_NAME_CHARS.containsMatchIn(candidate)) {
                         return OpenProjectEverywhereBundle.message("dialog.clone.rename.error.invalid")
                     }
-                    if (File(targetParent, candidate).exists()) {
+                    if (File(selectedParent, candidate).exists()) {
                         return OpenProjectEverywhereBundle.message("dialog.clone.rename.error.exists")
                     }
                     return null
@@ -281,13 +285,24 @@ class OpenProjectEverywhereContributor(
         )?.trim()
             ?: return
 
-        cloneIntoDirectory(item, cloneUrl, targetParent, directoryName)
+        cloneIntoDirectory(item, cloneUrl, selectedParent, directoryName)
+    }
+
+    private fun chooseCloneParentDirectory(initialParent: File): File? {
+        val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
+            title = OpenProjectEverywhereBundle.message("dialog.clone.parent.title")
+            description = OpenProjectEverywhereBundle.message("dialog.clone.parent.description")
+        }
+        val initialSelection = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(initialParent)
+        val selected = FileChooser.chooseFile(descriptor, project, initialSelection) ?: return null
+        return File(selected.path)
     }
 
     private fun suggestDirectoryName(item: SearchItem.Project, targetParent: File): String {
         val qualifier = sanitizeDirectoryName(item.titleQualifier.orEmpty())
             .takeIf { it.isNotBlank() && !it.equals(item.directoryName, ignoreCase = true) }
         val candidates = buildList {
+            add(item.directoryName)
             if (qualifier != null) {
                 add("${item.directoryName}-$qualifier")
             }
@@ -450,7 +465,7 @@ class OpenProjectEverywhereContributor(
     private inner class ScopeToggleAction(
         private val scope: SearchScope,
         private val onChanged: Runnable
-    ) : com.intellij.openapi.actionSystem.ToggleAction(scope.actionName(settings)), DumbAware {
+    ) : com.intellij.openapi.actionSystem.ToggleAction(scope.actionName(settings), null, scope.icon()), DumbAware {
 
         override fun isSelected(e: AnActionEvent): Boolean = selectedScope == scope
 
@@ -460,6 +475,7 @@ class OpenProjectEverywhereContributor(
             }
             selectedScope = scope
             templatePresentation.text = scope.actionName(settings)
+            templatePresentation.icon = scope.icon()
             ApplicationManager.getApplication().invokeLater {
                 if (selectedScope == scope) {
                     onChanged.run()
@@ -470,6 +486,7 @@ class OpenProjectEverywhereContributor(
         override fun update(e: AnActionEvent) {
             super.update(e)
             e.presentation.text = scope.actionName(settings)
+            e.presentation.icon = scope.icon()
         }
     }
 }
@@ -545,12 +562,6 @@ private class OpenProjectEverywhereRenderer : ListCellRenderer<SearchItem> {
     }
 
     private fun projectIcon(kind: SearchResultKind): Icon {
-        return when (kind) {
-            SearchResultKind.LOCAL -> com.intellij.icons.AllIcons.Nodes.Folder
-            SearchResultKind.GITHUB,
-            SearchResultKind.GITLAB,
-            SearchResultKind.GITEE,
-            SearchResultKind.CUSTOM -> com.intellij.icons.AllIcons.Actions.CheckOut
-        }
+        return OpenProjectEverywhereIcons.resultIcon(kind)
     }
 }

@@ -1,6 +1,4 @@
-# Open Project Everywhere
-
-Search and open repositories directly from Search Everywhere.
+# Open Project Everywhere Search and open repositories directly from Search Everywhere.
 
 ## Features
 

@@ -1,7 +1,9 @@
 package site.addzero.openprojecteverywhere.search
 
+import site.addzero.openprojecteverywhere.OpenProjectEverywhereIcons
 import site.addzero.openprojecteverywhere.OpenProjectEverywhereBundle
 import site.addzero.openprojecteverywhere.settings.OpenProjectEverywhereSettings
+import javax.swing.Icon
 
 enum class SearchScope(
     private val actionNameKey: String
@@ -29,5 +31,9 @@ enum class SearchScope(
             CUSTOM_PUBLIC -> OpenProjectEverywhereBundle.message(actionNameKey, displayName(settings))
             else -> OpenProjectEverywhereBundle.message(actionNameKey)
         }
+    }
+
+    fun icon(): Icon {
+        return OpenProjectEverywhereIcons.scopeIcon(this)
     }
 }

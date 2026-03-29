@@ -1,36 +1,43 @@
 import org.gradle.api.tasks.bundling.Zip
+import org.gradle.api.tasks.testing.Test
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
-group = "site.addzero"
-
-base {
-    archivesName.set("kcloud")
-}
 
 dependencies {
     implementation(libs.org.xerial.sqlite.jdbc.v3)
-}
 
-intellijPlatform {
-    pluginConfiguration {
-        id = "site.addzero.kcloud"
-        name = "kcloud"
+    intellijPlatform {
+        testFramework(TestFrameworkType.Platform)
     }
+
+    testImplementation("junit:junit:4.13.2")
 }
 
-tasks.named<Zip>("buildPlugin") {
-    archiveBaseName.set("kcloud")
-}
+//intellijPlatform {
+//    pluginConfiguration {
+//        id = "site.addzero.kcloud"
+//        name = "kcloud"
+//    }
+//}
 
-listOf(
-    "buildSearchableOptions",
-    "prepareJarSearchableOptions",
-    "jarSearchableOptions",
-).forEach { taskName ->
-    tasks.named(taskName) {
-        enabled = false
-    }
-}
+//tasks.named<Zip>("buildPlugin") {
+//    archiveBaseName.set("kcloud")
+//}
+
+//listOf(
+//    "buildSearchableOptions",
+//    "prepareJarSearchableOptions",
+//    "jarSearchableOptions",
+//).forEach { taskName ->
+//    tasks.named(taskName) {
+//        enabled = false
+//    }
+//}
+//
+//tasks.named<Test>("test") {
+//    useJUnit()
+//}

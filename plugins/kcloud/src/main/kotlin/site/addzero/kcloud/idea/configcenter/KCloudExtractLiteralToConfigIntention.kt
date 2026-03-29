@@ -7,7 +7,6 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.ui.components.JBTextArea
@@ -310,31 +309,4 @@ private class KCloudExtractLiteralDialog(
             enabled = true,
         )
     }
-}
-
-private fun String.toLiteralStringValue(): String? {
-    return when {
-        startsWith("\"\"\"") && endsWith("\"\"\"") && length >= 6 -> removePrefix("\"\"\"").removeSuffix("\"\"\"")
-        startsWith("\"") && endsWith("\"") && length >= 2 -> StringUtil.unescapeStringCharacters(substring(1, length - 1))
-        else -> null
-    }
-}
-
-private fun PsiFile.isJvmKotlinFile(): Boolean {
-    val virtualPath = virtualFile?.path.orEmpty()
-    if (!name.endsWith(".kt")) {
-        return false
-    }
-    val blockedMarkers = listOf(
-        "/src/commonMain/",
-        "/src/commonTest/",
-        "/src/js",
-        "/src/ios",
-        "/src/wasm",
-        "/src/linux",
-        "/src/macos",
-        "/src/mingw",
-        "/src/native",
-    )
-    return blockedMarkers.none { marker -> virtualPath.contains(marker) }
 }

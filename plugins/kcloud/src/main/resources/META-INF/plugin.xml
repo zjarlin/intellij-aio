@@ -35,6 +35,12 @@
             <className>site.addzero.kcloud.idea.configcenter.KCloudExtractLiteralToConfigIntention</className>
             <category>kcloud</category>
         </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.kcloud.idea.configcenter.KCloudReplaceLocalEndpointIntention</className>
+            <category>kcloud</category>
+        </intentionAction>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

@@ -2,6 +2,19 @@
 ---
 ## 功能特性
 
+### 🆕 近期更新 (2026.03.29)
+- **动态 Version Catalog 引用支持**：`libs.findLibrary("...").get()`、`findPlugin`、`findBundle`、`findVersion` 现在具备更完整的 IDE 支持
+  - 引号内智能补全，支持用点号输入匹配 kebab-case alias（如 `site.addzero.ks` → `site-addzero-ksp-support`）
+  - 跳转到 TOML、引用解析、重命名联动、断裂引用 inspection 与 Alt+Enter 修复
+  - `Fix Broken References` 项目级批量修复新增动态调用扫描，替换时只修改引号中的 alias
+- **runIde 一键运行接入 IDEA Run Configuration**：悬浮工具条中的 `runIde` 会自动创建或复用运行配置，并出现在 IDEA 右上角运行/调试下拉列表中
+- **Project 依赖修复增强**：补充断裂 `project(":path")` / 项目依赖路径修复与插入意图，降低多模块改名后的手工修复成本
+
+### 🆕 近期更新 (2026.03.28)
+- **插件界面国际化**：Gradle Buddy 支持中英文界面切换，默认中文，可在 `Settings → Tools → Gradle Buddy` 中切换语言
+- **设置页与版本目录路径解析优化**：统一从设置中读取 `libs.versions.toml` 路径，兼容多模块和自定义 catalog 场景
+- **Build 目录 Git 修复工具**：新增修复 `build/` 未正确忽略、以及清理已被 Git 跟踪的 build 产物入口
+
 ### 🆕 近期更新 (2026.02.18)
 - **内置搜索模块**：maven-buddy 的搜索/缓存/历史功能已迁移到 gradle-buddy 内部（`gradle-buddy-search` 子模块），安装 gradle-buddy 即可使用智能依赖补全，无需额外安装 maven-buddy
 - **插件验证修复**：彻底消除 `Package 'site.addzero.maven' is not found` 错误，删除 MavenBuddyBridge 反射层
@@ -91,8 +104,8 @@
 | Update dependency to latest version | 查询最新版本并替换 | 依赖与插件版本 |
 | Convert dependency to version catalog format (TOML) | 硬编码依赖转为 TOML 引用 | 硬编码依赖 |
 | Convert catalog reference to hardcoded dependency | `libs.xxx.yyy` 转硬编码 | 版本目录引用 |
-| Select correct catalog reference | 智能修复无效引用 | 版本目录引用 |
-| Browse catalog alternatives | 浏览并切换候选项 | 版本目录引用 |
+| Select correct catalog reference | 智能修复无效引用 | 版本目录引用（含 `libs.xxx` 与 `libs.findLibrary("...")`） |
+| Browse catalog alternatives | 浏览并切换候选项 | 版本目录引用（含动态 `findLibrary`/`findPlugin` 调用） |
 | Select other versions | 选择指定版本并替换 | 硬编码依赖、版本目录引用 |
 | Insert project dependency | 选择临近模块并插入 project 依赖 | dependencies 块 |
 | Resolve plugin artifact for build-logic | 解析插件实现对应的预编译工件写入 TOML | plugins 块中的 `id("xxx")` |
@@ -175,6 +188,7 @@ plugins {
 
 - **痛点**：版本目录引用写错了，但不知道 TOML 中正确的引用是什么。
 - **解决**：使用智能相似度匹配，显示所有可能的候选项，按匹配度排序。
+- **支持范围**：除了 `libs.xxx.yyy`，也支持 `libs.findLibrary("alias").get()`、`findPlugin("alias")` 等动态版本目录调用。
 
 *示例*:
 ```kotlin
@@ -192,6 +206,7 @@ implementation(libs.com.google.devtools.ksp.gradle.plugin)
 - 🎯 **智能匹配**：使用多因子评分算法（完全匹配 50%、集合相似度 30%、顺序相似度 20%）
 - 📊 **显示所有候选项**：不限制数量，显示所有有关键词匹配的别名
 - 🔍 **光标位置无关**：无论光标在 `gradle`、`plugin` 还是 `ksp` 上，都能提取完整的 token 列表
+- 🧵 **动态字符串支持**：在 `libs.findLibrary("...")` 的引号内同样支持补全、跳转、重命名与修复
 - 📈 **匹配度显示**：每个候选项显示匹配百分比和匹配的关键词
 - 🌐 **多模块支持**：递归扫描所有模块的 TOML 文件
 

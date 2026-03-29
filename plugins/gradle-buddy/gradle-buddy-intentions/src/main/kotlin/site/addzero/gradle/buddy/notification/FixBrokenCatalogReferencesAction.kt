@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
+import site.addzero.gradle.catalog.AliasSimilarityMatcher
 import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import java.awt.BorderLayout
@@ -71,26 +72,48 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
     // ── Data model ──────────────────────────────────────────────────────
 
+    private enum class BrokenRefKind {
+        TYPED_ACCESSOR,
+        DYNAMIC_ALIAS
+    }
+
     /** 单个文件中的一处断裂引用 */
     private data class BrokenRef(
+        val kind: BrokenRefKind,
+        val tableName: String?,
         val ktsFile: VirtualFile,
         val fullMatch: String,
-        val refAccessor: String,
+        val refValue: String,
         val matchRange: IntRange,
         val candidates: List<String>
-    )
+    ) {
+        fun mergeKey(): String = listOf(kind.name, tableName.orEmpty(), refValue).joinToString("::")
+
+        fun displayText(catalogName: String): String {
+            return when (kind) {
+                BrokenRefKind.TYPED_ACCESSOR -> "$catalogName.$refValue"
+                BrokenRefKind.DYNAMIC_ALIAS -> "$catalogName.${FixBrokenCatalogReferencesAction.tableMethodName(tableName)}(\"$refValue\")"
+            }
+        }
+    }
 
     /**
-     * 按 refAccessor 归并后的断裂引用组。
+     * 按引用类型 + 表 + refValue 归并后的断裂引用组。
      * 同一个断裂表达式在多个文件中出现时，只在表格中显示一行。
      */
     private data class MergedBrokenRef(
-        val refAccessor: String,
+        val kind: BrokenRefKind,
+        val tableName: String?,
+        val refValue: String,
         val candidates: List<String>,
         val occurrences: List<BrokenRef>
     ) {
         val fileNames: String
             get() = occurrences.map { it.ktsFile.name }.distinct().joinToString(", ")
+
+        fun displayText(catalogName: String): String {
+            return occurrences.first().displayText(catalogName)
+        }
     }
 
     // ── Core logic ──────────────────────────────────────────────────────
@@ -102,6 +125,12 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
         val versionAliases = parseSectionAliases(lines, VERSIONS_HEADER_REGEX)
         val bundleAliases = parseSectionAliases(lines, BUNDLES_HEADER_REGEX)
+        val aliasesByTable = mapOf(
+            "libraries" to libraryAliases.toSet(),
+            "plugins" to pluginAliases.toSet(),
+            "versions" to versionAliases.toSet(),
+            "bundles" to bundleAliases.toSet()
+        )
 
         val accessorToAlias = mutableMapOf<String, String>()
         for (alias in libraryAliases) accessorToAlias[aliasToAccessor(alias)] = alias
@@ -126,12 +155,16 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         }
 
         val catalogRefPattern = Regex("""(?<!\w)${Regex.escape(catalogName)}\.([a-zA-Z0-9_.]+)""")
+        val dynamicCatalogRefPattern = Regex(
+            """(?<!\w)${Regex.escape(catalogName)}\s*\.\s*(findLibrary|findBundle|findPlugin|findVersion)\s*\(\s*"([^"\r\n]*)"\s*\)"""
+        )
 
         // Phase 1: Collect broken references
         val allBroken = mutableListOf<BrokenRef>()
         for (ktsFile in ktsFiles) {
             val doc = FileDocumentManager.getInstance().getDocument(ktsFile) ?: continue
             val text = doc.text
+
             for (match in catalogRefPattern.findAll(text)) {
                 val rawAccessor = match.groupValues[1]
                 // Skip false positives (reflection chains, dynamic API calls, catalog declarations)
@@ -155,7 +188,41 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                 // 则过滤掉 versions.xxx 候选项，避免出现 libs.versions.xxx 的错误替换
                 val candidates = filterCandidatesForLibraryRef(refAccessor, rawCandidates)
 
-                allBroken.add(BrokenRef(ktsFile, match.value, refAccessor, match.range, candidates))
+                allBroken.add(
+                    BrokenRef(
+                        kind = BrokenRefKind.TYPED_ACCESSOR,
+                        tableName = null,
+                        ktsFile = ktsFile,
+                        fullMatch = match.value,
+                        refValue = refAccessor,
+                        matchRange = match.range,
+                        candidates = candidates
+                    )
+                )
+            }
+
+            for (match in dynamicCatalogRefPattern.findAll(text)) {
+                val methodName = match.groupValues[1]
+                val brokenAlias = match.groupValues[2]
+                val tableName = DYNAMIC_METHOD_TO_TABLE[methodName] ?: continue
+                val availableAliases = aliasesByTable[tableName].orEmpty()
+                if (brokenAlias.isBlank() || brokenAlias in availableAliases) {
+                    continue
+                }
+
+                val aliasRange = match.groups[2]?.range ?: continue
+                val candidates = findDynamicCandidates(brokenAlias, availableAliases)
+                allBroken.add(
+                    BrokenRef(
+                        kind = BrokenRefKind.DYNAMIC_ALIAS,
+                        tableName = tableName,
+                        ktsFile = ktsFile,
+                        fullMatch = match.value,
+                        refValue = brokenAlias,
+                        matchRange = aliasRange,
+                        candidates = candidates
+                    )
+                )
             }
         }
 
@@ -168,11 +235,12 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             return
         }
 
-        // 按 refAccessor 归并：同一个断裂表达式只显示一行
-        val merged = allBroken.groupBy { it.refAccessor }.map { (accessor, refs) ->
+        // 按引用类型 + 表 + 值归并：同一个断裂表达式只显示一行
+        val merged = allBroken.groupBy { it.mergeKey() }.map { (_, refs) ->
+            val first = refs.first()
             // 所有出现处的候选项取并集（通常一样，但保险起见）
             val allCandidates = refs.flatMap { it.candidates }.distinct()
-            MergedBrokenRef(accessor, allCandidates, refs)
+            MergedBrokenRef(first.kind, first.tableName, first.refValue, allCandidates, refs)
         }
 
         val autoFixable = merged.filter { it.candidates.size == 1 }
@@ -219,16 +287,21 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                 val doc = docManager.getDocument(ktsFile) ?: continue
                 var text = doc.text
                 for ((broken, chosenAccessor) in fileFixes.sortedByDescending { it.first.matchRange.first }) {
-                    // 防止双重 catalogName（如 libs.libs.xxx）
-                    val cleanAccessor = if (chosenAccessor.startsWith("$catalogName.")) {
-                        chosenAccessor.removePrefix("$catalogName.")
-                    } else {
-                        chosenAccessor
+                    val replacement = when (broken.kind) {
+                        BrokenRefKind.TYPED_ACCESSOR -> {
+                            // 防止双重 catalogName（如 libs.libs.xxx）
+                            val cleanAccessor = if (chosenAccessor.startsWith("$catalogName.")) {
+                                chosenAccessor.removePrefix("$catalogName.")
+                            } else {
+                                chosenAccessor
+                            }
+                            "$catalogName.$cleanAccessor"
+                        }
+                        BrokenRefKind.DYNAMIC_ALIAS -> chosenAccessor
                     }
-                    val fullNew = "$catalogName.$cleanAccessor"
                     if (broken.matchRange.last < text.length) {
-                        text = text.substring(0, broken.matchRange.first) + fullNew +
-                                text.substring(broken.matchRange.last + 1)
+                        text = text.substring(0, broken.matchRange.first) + replacement +
+                            text.substring(broken.matchRange.last + 1)
                         count++
                     }
                 }
@@ -387,7 +460,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                 val ref = rows[row]
                 return when (col) {
                     0 -> ref.fileNames
-                    1 -> "$catalogName.${ref.refAccessor}"
+                    1 -> ref.displayText(catalogName)
                     2 -> selections[row] ?: "—"
                     else -> ""
                 }
@@ -399,7 +472,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
             override fun setValueAt(value: Any?, row: Int, col: Int) {
                 if (col == 2 && value is String && value != "—") {
-                    selections[row] = value
+                    selections[row] = normalizeSelectionValue(rows[row], value)
                     fireTableCellUpdated(row, col)
                 }
             }
@@ -415,9 +488,7 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
                     GradleBuddyBundle.message("common.choice.no.candidate")
                 } else {
                     val sel = selections[row] ?: ref.candidates[0]
-                    // 预览时也防止双 catalogName
-                    val clean = if (sel.startsWith("$catalogName.")) sel else "$catalogName.$sel"
-                    clean
+                    buildCandidatePreview(catalogName, ref, sel)
                 }
                 return super.getTableCellRendererComponent(table, display, isSelected, hasFocus, row, col)
             }
@@ -436,16 +507,13 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             ): Component {
                 currentRow = row
                 val ref = rows[row]
-                // 下拉菜单显示完整引用，但内部存储不带 catalogName 前缀的 accessor
                 val items = ref.candidates.map { candidate ->
-                    val clean = if (candidate.startsWith("$catalogName.")) candidate else "$catalogName.$candidate"
-                    clean
+                    buildCandidatePreview(catalogName, ref, candidate)
                 }.toTypedArray()
                 combo = JComboBox(items).apply {
                     val current = selections[row]
                     if (current != null) {
-                        val display = if (current.startsWith("$catalogName.")) current else "$catalogName.$current"
-                        selectedItem = display
+                        selectedItem = buildCandidatePreview(catalogName, ref, current)
                     }
                 }
                 return combo!!
@@ -453,10 +521,33 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
 
             override fun stopCellEditing(): Boolean {
                 val selected = (combo?.selectedItem as? String) ?: return super.stopCellEditing()
-                // 存储时去掉 catalogName 前缀，确保 applyFixes 不会双拼
-                selections[currentRow] = selected.removePrefix("$catalogName.")
+                val ref = rows.getOrNull(currentRow)
+                selections[currentRow] = ref?.let { normalizeSelectionValue(it, selected) }
                 return super.stopCellEditing()
             }
+        }
+
+        private fun buildCandidatePreview(catalogName: String, ref: MergedBrokenRef, candidate: String): String {
+            return when (ref.kind) {
+                BrokenRefKind.TYPED_ACCESSOR -> {
+                    if (candidate.startsWith("$catalogName.")) candidate else "$catalogName.$candidate"
+                }
+                BrokenRefKind.DYNAMIC_ALIAS -> {
+                    val methodName = FixBrokenCatalogReferencesAction.tableMethodName(ref.tableName)
+                    "$catalogName.$methodName(\"$candidate\")"
+                }
+            }
+        }
+
+        private fun normalizeSelectionValue(ref: MergedBrokenRef, preview: String): String {
+            return when (ref.kind) {
+                BrokenRefKind.TYPED_ACCESSOR -> preview.removePrefix("$catalogName.")
+                BrokenRefKind.DYNAMIC_ALIAS -> extractDynamicAlias(preview)
+            }
+        }
+
+        private fun extractDynamicAlias(preview: String): String {
+            return preview.substringAfter("(\"").substringBefore("\")")
         }
     }
 
@@ -568,6 +659,53 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
         return candidates.toList()
     }
 
+    private fun findDynamicCandidates(
+        brokenAlias: String,
+        availableAliases: Set<String>
+    ): List<String> {
+        if (availableAliases.isEmpty()) {
+            return emptyList()
+        }
+
+        val normalizedToAliases = mutableMapOf<String, MutableList<String>>()
+        val aliasTokensMap = availableAliases.associateWith { tokenizeCanonicalAlias(it) }
+        for (alias in availableAliases) {
+            normalizedToAliases.getOrPut(canonicalizeAliasKey(alias)) { mutableListOf() }.add(alias)
+        }
+
+        val candidates = linkedSetOf<String>()
+        val normalizedBroken = canonicalizeAliasKey(brokenAlias)
+        val variants = listOf(brokenAlias, normalizedBroken).distinct()
+
+        for (variant in variants) {
+            val normalizedVariant = canonicalizeAliasKey(variant)
+            normalizedToAliases[normalizedVariant]?.let { candidates.addAll(it) }
+
+            val refTokens = tokenizeCanonicalAlias(variant)
+            if (refTokens.isEmpty()) {
+                continue
+            }
+
+            aliasTokensMap.entries.filter { (_, tokens) ->
+                tokens.size > refTokens.size && tokens.takeLast(refTokens.size) == refTokens
+            }.forEach { candidates.add(it.key) }
+
+            aliasTokensMap.entries.filter { (_, tokens) ->
+                tokens.size > refTokens.size && isOrderedSubset(refTokens, tokens)
+            }.forEach { candidates.add(it.key) }
+
+            aliasTokensMap.entries.filter { (_, tokens) ->
+                tokens == refTokens
+            }.forEach { candidates.add(it.key) }
+        }
+
+        val matcher = AliasSimilarityMatcher()
+        matcher.findSimilarAliases(normalizedBroken, availableAliases)
+            .mapTo(candidates) { it.alias }
+
+        return candidates.toList()
+    }
+
     private fun isOrderedSubset(sub: List<String>, full: List<String>): Boolean {
         var fi = 0
         for (token in sub) {
@@ -581,6 +719,28 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
     // ── Utility ─────────────────────────────────────────────────────────
 
     private fun aliasToAccessor(alias: String): String = alias.replace('-', '.').replace('_', '.')
+
+    private fun canonicalizeAliasKey(key: String): String {
+        return key
+            .trim('"', '\'')
+            .replace('-', '.')
+            .replace('_', '.')
+            .split('.')
+            .flatMap { segment ->
+                segment
+                    .replace(Regex("([a-z0-9])([A-Z])"), "$1.$2")
+                    .split('.')
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(separator = ".") { it.lowercase() }
+    }
+
+    private fun tokenizeCanonicalAlias(value: String): List<String> {
+        return canonicalizeAliasKey(value)
+            .split('.')
+            .filter { it.isNotEmpty() }
+    }
 
     /**
      * Strip trailing Gradle Provider API method names that get captured by the regex.
@@ -639,6 +799,15 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
             "findLibrary", "findBundle", "findPlugin", "findVersion"
         )
 
+        private val DYNAMIC_METHOD_TO_TABLE = mapOf(
+            "findLibrary" to "libraries",
+            "findPlugin" to "plugins",
+            "findBundle" to "bundles",
+            "findVersion" to "versions"
+        )
+
+        private val TABLE_TO_DYNAMIC_METHOD = DYNAMIC_METHOD_TO_TABLE.entries.associate { (k, v) -> v to k }
+
         /** Gradle Provider API methods that get captured as trailing accessor segments */
         private val PROVIDER_API_METHODS = setOf(
             "get", "getOrNull", "orNull", "asProvider", "map", "flatMap",
@@ -659,6 +828,10 @@ class FixBrokenCatalogReferencesAction : AnAction(), DumbAware {
          */
         fun stripGradleVersionSuffix(reference: String): String {
             return GRADLE_VERSION_SUFFIX.replace(reference, "")
+        }
+
+        private fun tableMethodName(tableName: String?): String {
+            return TABLE_TO_DYNAMIC_METHOD[tableName] ?: "findLibrary"
         }
     }
 }

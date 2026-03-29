@@ -438,6 +438,10 @@
     <completion.contributor language="kotlin" order="FIRST"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.GradleKtsCompletionContributor"/>
 
+    <!-- Completion: dynamic version catalog API strings -->
+    <completion.contributor language="kotlin" order="FIRST"
+                            implementationClass="site.addzero.gradle.catalog.DynamicCatalogCompletionContributor"/>
+
     <!-- Completion: Version Catalog TOML (order=FIRST 确保置顶) -->
     <completion.contributor language="any" order="FIRST"
                             implementationClass="site.addzero.gradle.buddy.intentions.completion.VersionCatalogCompletionContributor"/>

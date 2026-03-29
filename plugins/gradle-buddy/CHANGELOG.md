@@ -2,6 +2,39 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.03.29] - 2026-03-29
+
+### ✨ 新增功能
+- **Version Catalog 动态字符串引用支持**：`libs.findLibrary("...").get()`、`findPlugin("...")`、`findBundle("...")`、`findVersion("...")` 现已具备更完整的 IDE 支持
+  - 引号内智能补全，支持用点号输入匹配 kebab-case alias（如 `site.addzero.ks` → `site-addzero-ksp-support`）
+  - 支持跳转到 TOML、引用解析、rename 联动、断裂引用 inspection 与 Alt+Enter 修复
+  - `Fix Broken References` 项目级批量修复新增动态调用扫描，替换时只更新引号中的 alias，不改动外层 `.get()`
+- **runIde 接入 Run Configuration**：悬浮工具条中的 `runIde` 按钮会自动创建或复用 IntelliJ 运行配置，并出现在 IDE 右上角运行/调试配置列表中
+
+### 🔧 改进
+- **Project 依赖修复链路增强**：补充断裂 `project(":path")` / 项目依赖路径修复与插入意图，降低多模块改名后的手工修复成本
+
+## [2026.03.28] - 2026-03-28
+
+### ✨ 新增功能
+- **插件界面国际化**：Gradle Buddy 支持中英文资源切换，默认中文，可在 `Settings → Tools → Gradle Buddy` 中切换语言
+
+### 🔧 改进
+- **界面文案统一**：动作、通知、设置、对话框文本统一接入资源文件，便于后续继续扩展语言包
+
+## [2026.03.27] - 2026-03-27
+
+### ✨ 新增功能
+- **Gradle Buddy 设置页**：新增设置界面，用于集中管理语言、版本目录路径等插件行为
+
+### 🔧 改进
+- **版本目录路径解析优化**：统一从设置中解析 `libs.versions.toml` 路径，减少多模块和自定义 catalog 场景下的路径误判
+
+## [2026.03.26] - 2026-03-26
+
+### ✨ 新增功能
+- **Fix Build Dir in Git (.gitignore)**：新增修复 `build/` 忽略规则与清理已被 Git 跟踪的 build 产物工具，降低构建产物误入版本库的风险
+
 ## [2026.02.18] - 2026-02-18
 
 ### ✨ 新增功能

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
+  <defs>
+    <linearGradient id="kcloudBgDark" x1="6" y1="4" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D4ED8"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="kcloudArrowDark" x1="21" y1="14" x2="30" y2="23" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDE68A"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="36" height="36" rx="10" fill="url(#kcloudBgDark)"/>
+  <path d="M13.5 26.5H28C30.7614 26.5 33 24.2614 33 21.5C33 18.9158 31.0412 16.7891 28.5242 16.5237C27.6376 13.3408 24.7214 11 21.25 11C18.4168 11 15.9559 12.5601 14.6614 14.8702C11.5143 15.1237 9 17.7584 9 21C9 24.0376 11.4624 26.5 14.5 26.5Z" fill="#E6F2FF"/>
+  <path d="M15 29.5L20.9 14.5H24.4L20.7 24H25.5L17.8 35L19.8 26.8H15Z" fill="url(#kcloudArrowDark)"/>
+</svg>

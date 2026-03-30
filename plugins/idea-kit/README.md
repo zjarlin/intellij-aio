@@ -1,6 +1,6 @@
-# intellij-kit
+# idea-kit packages focused Kotlin cleanup intentions and source-only search defaults for JetBrains IDEs.
 
-intellij-kit is an IntelliJ IDEA plugin that packages focused Kotlin cleanup intentions and inspections.
+
 
 ## Included Rules
 

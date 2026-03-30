@@ -1,0 +1,27 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="kitGrad" x1="6" y1="6" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#kitGrad)" opacity="0.12"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" stroke="url(#kitGrad)" stroke-width="2"/>
+
+  <path d="M13.8 8.8L14.7 10.9L16.8 11.8L14.7 12.7L13.8 14.8L12.9 12.7L10.8 11.8L12.9 10.9L13.8 8.8Z"
+        fill="url(#kitGrad)"/>
+
+  <rect x="8" y="11" width="16" height="18" rx="4" fill="url(#kitGrad)" opacity="0.16"
+        stroke="url(#kitGrad)" stroke-width="1.5"/>
+  <path d="M11.5 16H20.5" stroke="url(#kitGrad)" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M11.5 20H17.5" stroke="url(#kitGrad)" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M11.5 24H15.5" stroke="url(#kitGrad)" stroke-width="1.8" stroke-linecap="round"/>
+
+  <circle cx="24.5" cy="23.5" r="7.5" fill="white" fill-opacity="0.92"
+          stroke="url(#kitGrad)" stroke-width="2"/>
+  <path d="M20.8 20.2H28.2L25.7 22.8V25.1L23.3 26.4V22.8L20.8 20.2Z"
+        fill="url(#kitGrad)" fill-opacity="0.22" stroke="url(#kitGrad)" stroke-width="1.5"
+        stroke-linejoin="round"/>
+  <path d="M29.8 28.8L34 33" stroke="url(#kitGrad)" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

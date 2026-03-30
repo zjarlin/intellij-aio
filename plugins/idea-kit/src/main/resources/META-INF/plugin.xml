@@ -17,7 +17,7 @@
                 displayName="冗余的显式类型声明"
                 groupName="Smart Intentions"
                 enabledByDefault="true"
-                level="WEAK_WARNING"
+                level="WEAK WARNING"
                 implementationClass="site.addzero.smart.intentions.kotlin.redundantexplicittype.SmartRedundantExplicitTypeInspection"/>
     </extensions>
 

@@ -1,11 +1,15 @@
 import org.gradle.api.tasks.bundling.Zip
-import org.gradle.api.tasks.testing.Test
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
 
+group = "site.addzero"
+
+base {
+    archivesName.set("kcloud")
+}
 
 dependencies {
     implementation(libs.org.xerial.sqlite.jdbc.v3)
@@ -15,6 +19,7 @@ dependencies {
     }
 
     testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.1")
 }
 
 //intellijPlatform {
@@ -36,8 +41,4 @@ dependencies {
 //    tasks.named(taskName) {
 //        enabled = false
 //    }
-//}
-//
-//tasks.named<Test>("test") {
-//    useJUnit()
 //}

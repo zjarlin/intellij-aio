@@ -1,6 +1,6 @@
-# kcloud
+# `kcloud` is the initial IDEA plugin version for KCloud.
 
-`kcloud` is the initial IDEA plugin version for KCloud.
+
 
 Current scope in this first IDEA plugin version:
 

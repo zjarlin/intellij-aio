@@ -17,7 +17,7 @@ class KCloudIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        myFixture.launchAction(myFixture.findSingleIntention("替换为 KCloud 本地端点"))
+        invokeIntention("替换为 KCloud 本地端点")
 
         myFixture.checkResult(
             """
@@ -40,7 +40,7 @@ class KCloudIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        myFixture.launchAction(myFixture.findSingleIntention("替换为 KCloud 本地端点"))
+        invokeIntention("替换为 KCloud 本地端点")
 
         myFixture.checkResult(
             """
@@ -79,5 +79,10 @@ class KCloudIntentionsTest : BasePlatformTestCase() {
 
         val actions = myFixture.filterAvailableIntentions("提取到 KCloud 配置中心")
         assertSize(1, actions)
+    }
+
+    private fun invokeIntention(actionText: String) {
+        val action = myFixture.findSingleIntention(actionText)
+        action.invoke(project, myFixture.editor, myFixture.file)
     }
 }

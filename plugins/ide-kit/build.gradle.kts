@@ -7,7 +7,7 @@ plugins {
 }
 
 val pluginId = "site.addzero.smart-intentions"
-val pluginName = "idea-kit"
+val pluginName = "ide-kit"
 
 intellijPlatform {
     pluginConfiguration {
@@ -25,9 +25,9 @@ tasks {
 }
 
 dependencies {
-    implementation(project(":plugins:idea-kit:smart-intentions-core"))
-    implementation(project(":plugins:idea-kit:smart-intentions-find-source-only"))
-    implementation(project(":plugins:idea-kit:smart-intentions-kotlin-redundant-explicit-type"))
+    implementation(project(":plugins:ide-kit:smart-intentions-core"))
+    implementation(project(":plugins:ide-kit:smart-intentions-find-source-only"))
+    implementation(project(":plugins:ide-kit:smart-intentions-kotlin-redundant-explicit-type"))
 }
 
 listOf(

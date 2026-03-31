@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":plugins:idea-kit:smart-intentions-core"))
+    implementation(project(":plugins:ide-kit:smart-intentions-core"))
 
     intellijPlatform {
         bundledPlugin("org.jetbrains.kotlin")

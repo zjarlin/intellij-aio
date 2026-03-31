@@ -1,4 +1,4 @@
-# idea-kit packages focused Kotlin cleanup intentions and source-only search defaults for JetBrains IDEs.
+# ide-kit packages focused Kotlin cleanup intentions and source-only search defaults for JetBrains IDEs.
 
 
 

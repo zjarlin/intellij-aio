@@ -1,5 +1,6 @@
 package site.addzero.smart.intentions.kotlin.redundantexplicittype
 
+import com.intellij.codeHighlighting.HighlightDisplayLevel
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
@@ -9,6 +10,10 @@ import site.addzero.smart.intentions.core.SmartInspectionSupport
 import site.addzero.smart.intentions.core.SmartIntentionsMessages
 
 class SmartRedundantExplicitTypeInspection : LocalInspectionTool() {
+    override fun getDefaultLevel(): HighlightDisplayLevel {
+        return HighlightDisplayLevel.WEAK_WARNING
+    }
+
     override fun getShortName(): String {
         return SmartIntentionsMessages.REDUNDANT_EXPLICIT_TYPE_SHORT_NAME
     }

@@ -1,9 +1,13 @@
 <idea-plugin>
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
     <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <findInProjectExtension implementation="site.addzero.smart.intentions.find.sourceonly.SmartSourceOnlyFindInProjectExtension"/>
+        <projectService serviceImplementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesProjectService"/>
+        <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
+        <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
@@ -23,4 +27,19 @@
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true"/>
     </extensions>
+
+    <actions>
+        <action id="IdeKit.HiddenFiles.Hide"
+                class="site.addzero.smart.intentions.hiddenfiles.actions.HideFilesAction">
+            <add-to-group group-id="ProjectViewPopupMenuModifyGroup" anchor="last"/>
+        </action>
+        <action id="IdeKit.HiddenFiles.Unhide"
+                class="site.addzero.smart.intentions.hiddenfiles.actions.UnhideFilesAction">
+            <add-to-group group-id="ProjectViewPopupMenuModifyGroup" anchor="last"/>
+        </action>
+        <action id="IdeKit.HiddenFiles.ToggleShow"
+                class="site.addzero.smart.intentions.hiddenfiles.actions.ToggleShowHiddenFilesAction">
+            <add-to-group group-id="ProjectViewToolbar" anchor="before" relative-to-action="NewElement"/>
+        </action>
+    </actions>
 </idea-plugin>

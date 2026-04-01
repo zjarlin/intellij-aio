@@ -4,7 +4,7 @@
     <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <findInProjectExtension implementation="site.addzero.smart.intentions.find.sourceonly.SmartSourceOnlyFindInProjectExtension"/>
+        <searchScopesProvider implementation="site.addzero.smart.intentions.find.sourceonly.SmartSourceOnlySearchScopeProvider"/>
         <projectService serviceImplementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesProjectService"/>
         <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
         <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>

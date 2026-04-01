@@ -1,5 +1,6 @@
 package site.addzero.smart.intentions.kotlin.redundantexplicittype
 
+import com.intellij.codeInspection.CleanupLocalInspectionTool
 import com.intellij.codeHighlighting.HighlightDisplayLevel
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
@@ -9,7 +10,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 import site.addzero.smart.intentions.core.SmartInspectionSupport
 import site.addzero.smart.intentions.core.SmartIntentionsMessages
 
-class SmartRedundantExplicitTypeInspection : LocalInspectionTool() {
+class SmartRedundantExplicitTypeInspection : LocalInspectionTool(), CleanupLocalInspectionTool {
     override fun getDefaultLevel(): HighlightDisplayLevel {
         return HighlightDisplayLevel.WEAK_WARNING
     }

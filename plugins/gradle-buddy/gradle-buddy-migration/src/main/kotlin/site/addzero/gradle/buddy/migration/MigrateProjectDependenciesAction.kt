@@ -9,6 +9,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 
 /**
@@ -33,12 +34,12 @@ class MigrateProjectDependenciesAction : AnAction() {
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project,
-            "Scanning Project Dependencies",
+            GradleBuddyBundle.message("action.migrate.project.dependencies.task.scan"),
             true
         ) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = false
-                indicator.text = "Scanning Gradle files..."
+                indicator.text = GradleBuddyBundle.message("action.migrate.project.dependencies.task.scan")
                 indicator.fraction = 0.1
 
                 // 1. 扫描 project 依赖
@@ -48,25 +49,28 @@ class MigrateProjectDependenciesAction : AnAction() {
                     ApplicationManager.getApplication().invokeLater {
                         Messages.showInfoMessage(
                             project,
-                            "No project() dependencies found in Gradle files.",
-                            "No Dependencies Found"
+                            GradleBuddyBundle.message("action.migrate.project.dependencies.none.content"),
+                            GradleBuddyBundle.message("action.migrate.project.dependencies.none.title")
                         )
                     }
                     return
                 }
 
-                indicator.text = "Searching Maven Central for replacements..."
+                indicator.text = GradleBuddyBundle.message("action.migrate.project.dependencies.task.search")
                 indicator.fraction = 0.3
 
                 // 2. 搜索 Maven 替换
-                val candidates = MavenReplacementFinder.findReplacements(dependencies, indicator)
+                val lookup = MavenReplacementFinder.findReplacements(dependencies, indicator)
                 
-                if (candidates.isEmpty()) {
+                if (lookup.replacements.isEmpty() && lookup.publishCommandCandidates.isEmpty()) {
                     ApplicationManager.getApplication().invokeLater {
                         Messages.showInfoMessage(
                             project,
-                            "Found ${dependencies.size} project dependencies, but no matching Maven artifacts were found.",
-                            "No Replacements Found"
+                            GradleBuddyBundle.message(
+                                "action.migrate.project.dependencies.no.matches.content",
+                                dependencies.size
+                            ),
+                            GradleBuddyBundle.message("action.migrate.project.dependencies.no.matches.title")
                         )
                     }
                     return
@@ -76,66 +80,84 @@ class MigrateProjectDependenciesAction : AnAction() {
 
                 // 3. 显示对话框让用户选择
                 ApplicationManager.getApplication().invokeLater {
-                    showMigrationDialog(project, candidates)
+                    showMigrationDialog(project, lookup)
                 }
             }
         })
     }
 
-    private fun showMigrationDialog(project: Project, candidates: List<ReplacementCandidate>) {
-        val dialog = MigrationDialog(project, candidates)
-        
-        if (dialog.showAndGet()) {
-            val selectedReplacements = dialog.getSelectedReplacements()
-            
-            if (selectedReplacements.isEmpty()) {
-                Messages.showInfoMessage(
-                    project,
-                    "No replacements selected.",
-                    "Migration Cancelled"
-                )
-                return
-            }
+    private fun showMigrationDialog(project: Project, lookup: MigrationLookupResult) {
+        val dialog = MigrationDialog(project, lookup.replacements, lookup.publishCommandCandidates)
 
-            // 4. 执行替换
-            ProgressManager.getInstance().run(object : Task.Backgroundable(
-                project,
-                "Replacing Dependencies",
-                false
-            ) {
-                override fun run(indicator: ProgressIndicator) {
-                    indicator.isIndeterminate = true
-                    indicator.text = "Replacing dependencies..."
-
-                    val result = DependencyReplacer.replace(project, selectedReplacements)
-
-                    ApplicationManager.getApplication().invokeLater {
-                        showResult(project, result)
-                    }
-                }
-            })
+        // 没有可替换项时，对话框只承担“发布命令队列”管理职责，不再触发替换流程。
+        if (lookup.replacements.isEmpty()) {
+            dialog.show()
+            return
         }
+
+        if (!dialog.showAndGet()) {
+            return
+        }
+
+        val selectedReplacements = dialog.getSelectedReplacements()
+        if (selectedReplacements.isEmpty()) {
+            Messages.showInfoMessage(
+                project,
+                GradleBuddyBundle.message("action.migrate.project.dependencies.none.selected.content"),
+                GradleBuddyBundle.message("action.migrate.project.dependencies.none.selected.title")
+            )
+            return
+        }
+
+        // 4. 执行替换
+        ProgressManager.getInstance().run(object : Task.Backgroundable(
+            project,
+            GradleBuddyBundle.message("action.migrate.project.dependencies.task.replace"),
+            false
+        ) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = GradleBuddyBundle.message("action.migrate.project.dependencies.task.replace")
+
+                val result = DependencyReplacer.replace(project, selectedReplacements)
+
+                ApplicationManager.getApplication().invokeLater {
+                    showResult(project, result)
+                }
+            }
+        })
     }
 
     private fun showResult(project: Project, result: ReplaceResult) {
         val message = buildString {
-            appendLine("Migration completed!")
+            appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.header"))
             appendLine()
-            appendLine("📊 Summary:")
-            appendLine("  • Dependencies replaced: ${result.totalReplaced}")
-            appendLine("  • Files modified: ${result.modifiedFiles}")
+            appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.summary"))
+            appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.replaced", result.totalReplaced))
+            appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.files", result.modifiedFiles))
             
             if (result.errors.isNotEmpty()) {
                 appendLine()
-                appendLine("⚠️ Errors:")
-                result.errors.take(5).forEach { appendLine("  • $it") }
+                appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.errors"))
+                result.errors.take(5).forEach {
+                    appendLine(GradleBuddyBundle.message("action.migrate.project.dependencies.result.error.item", it))
+                }
                 if (result.errors.size > 5) {
-                    appendLine("  • ... and ${result.errors.size - 5} more")
+                    appendLine(
+                        GradleBuddyBundle.message(
+                            "action.migrate.project.dependencies.result.more.errors",
+                            result.errors.size - 5
+                        )
+                    )
                 }
             }
         }
 
-        Messages.showInfoMessage(project, message, "Migration Complete")
+        Messages.showInfoMessage(
+            project,
+            message,
+            GradleBuddyBundle.message("action.migrate.project.dependencies.result.title")
+        )
     }
 
     override fun update(e: AnActionEvent) {

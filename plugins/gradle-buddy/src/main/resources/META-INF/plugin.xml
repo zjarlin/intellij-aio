@@ -100,6 +100,13 @@
       <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
     </action>
 
+    <action id="GradleBuddy.CopyProjectDependencyAsMaven"
+            class="site.addzero.gradle.buddy.intentions.projectdep.CopyProjectDependencyAsMavenAction"
+            text="(Gradle Buddy) Copy Current Project Dependency as Maven"
+            description="Search Maven Central for the project dependency under caret and copy the selected declaration">
+      <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="GradleBuddy.CopyModuleDependency"/>
+    </action>
+
     <!-- Migration: Replace project() dependencies with Maven artifacts -->
     <action id="GradleBuddy.MigrateProjectDependencies"
             class="site.addzero.gradle.buddy.migration.MigrateProjectDependenciesAction"
@@ -355,6 +362,13 @@
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.projectdep.FixProjectDependencyPathIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Copy the current project()/projects.xxx dependency as a Maven declaration -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.CopyProjectDependencyAsMavenIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

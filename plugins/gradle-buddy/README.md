@@ -381,6 +381,28 @@ implementation(project(":plugins:gradle-buddy:gradle-buddy-core"))
 
 粘贴到另一个模块的 `dependencies {}` 块即可引入。根模块（`:`）时不显示此菜单。
 
+#### Copy Current Project Dependency as Maven（Alt+Enter / 编辑器右键）
+
+当光标停在单个 `project(":...")` 或 `projects.xxx` 依赖上时，可以直接触发「Copy Current Project Dependency as Maven」：
+
+- 自动用当前模块名到 Maven Central 搜索候选工件
+- 只有一个结果时直接复制，多个结果时弹出候选列表供选择
+- 复制结果会保留原始配置名，例如 `implementation(...)`、`api(...)`、`ksp(...)`
+
+例如：
+
+```kotlin
+implementation(project(":lib:ksp:metadata:jimmer-entity-spi"))
+```
+
+可直接复制为：
+
+```kotlin
+implementation("site.addzero:metadata-jimmer-entity-spi:2026.04.01")
+```
+
+适合在正式做全项目迁移前，先对单个依赖做快速替换或粘贴到别处。
+
 #### Insert Project Dependency（Alt+Enter 意图操作）
 
 在 `.gradle.kts` 的 `dependencies {}` 块内按 Alt+Enter，选择「Insert project dependency」：

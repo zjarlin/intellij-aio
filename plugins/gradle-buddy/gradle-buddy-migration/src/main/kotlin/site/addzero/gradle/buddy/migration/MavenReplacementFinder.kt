@@ -11,6 +11,7 @@ import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 object MavenReplacementFinder {
 
     private val logger = Logger.getInstance(MavenReplacementFinder::class.java)
+    private const val DEFAULT_SEARCH_LIMIT = 10
 
     /**
      * 为每个 project 依赖查找可能的 Maven 替换
@@ -37,7 +38,7 @@ object MavenReplacementFinder {
             indicator.text2 = "Searching Maven for: $moduleName"
             
             try {
-                val artifacts = MavenCentralSearchUtil.searchByKeyword(moduleName, 10)
+                val artifacts = searchArtifacts(moduleName)
                 
                 if (artifacts.isNotEmpty()) {
                     candidates.add(ReplacementCandidate(
@@ -73,6 +74,18 @@ object MavenReplacementFinder {
             replacements = candidates,
             publishCommandCandidates = missingPublishCandidates
         )
+    }
+
+    /**
+     * 供单个依赖的复制/迁移动作复用，避免重复实现 Maven Central 搜索逻辑。
+     */
+    fun searchArtifacts(moduleName: String, limit: Int = DEFAULT_SEARCH_LIMIT): List<MavenArtifact> {
+        return try {
+            MavenCentralSearchUtil.searchByKeyword(moduleName, limit)
+        } catch (e: Exception) {
+            logger.warn("Failed to search Maven for module: $moduleName", e)
+            emptyList()
+        }
     }
 }
 

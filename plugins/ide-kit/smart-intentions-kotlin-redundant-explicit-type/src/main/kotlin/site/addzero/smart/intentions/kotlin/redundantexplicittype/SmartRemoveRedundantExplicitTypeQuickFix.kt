@@ -1,15 +1,19 @@
 package site.addzero.smart.intentions.kotlin.redundantexplicittype
 
+import com.intellij.codeInspection.BatchQuickFix
+import com.intellij.codeInspection.CommonProblemDescriptor
+import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.psi.KtProperty
+import site.addzero.smart.intentions.core.SmartPsiWriteSupport
 import site.addzero.smart.intentions.core.SmartIntentionsMessages
 
 class SmartRemoveRedundantExplicitTypeQuickFix(
     property: KtProperty,
-) : LocalQuickFixAndIntentionActionOnPsiElement(property) {
+) : LocalQuickFixAndIntentionActionOnPsiElement(property), BatchQuickFix {
     override fun getText(): String {
         return SmartIntentionsMessages.REMOVE_REDUNDANT_EXPLICIT_TYPE
     }
@@ -19,6 +23,10 @@ class SmartRemoveRedundantExplicitTypeQuickFix(
     }
 
     override fun startInWriteAction(): Boolean {
+        return true
+    }
+
+    override fun availableInBatchMode(): Boolean {
         return true
     }
 
@@ -41,5 +49,24 @@ class SmartRemoveRedundantExplicitTypeQuickFix(
     ) {
         val property = startElement as? KtProperty ?: return
         RedundantExplicitTypeSupport.apply(property)
+    }
+
+    override fun applyFix(
+        project: Project,
+        descriptors: Array<out CommonProblemDescriptor>,
+        psiElementsToIgnore: MutableList<com.intellij.psi.PsiElement>,
+        refreshViews: Runnable?,
+    ) {
+        SmartPsiWriteSupport.runWriteCommand(project, text) {
+            descriptors.asSequence()
+                .filterIsInstance<ProblemDescriptor>()
+                .mapNotNull { descriptor -> descriptor.psiElement.parent as? KtProperty }
+                .distinctBy { property -> property.textRange }
+                .filter { property -> property.isValid && RedundantExplicitTypeSupport.isApplicable(property) }
+                .forEach { property ->
+                    RedundantExplicitTypeSupport.apply(property)
+                }
+        }
+        refreshViews?.run()
     }
 }

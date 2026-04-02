@@ -25,6 +25,9 @@ object ProjectDependencyScanner {
      * @return 找到的所有 project 依赖列表
      */
     fun scan(project: Project): List<ProjectDependencyInfo> {
+        val modules = MigrationModuleResolver.scanModules(project)
+        val modulesByPath = modules.associateBy { it.path }
+        val modulesByAccessor = modules.associateBy { it.typeSafeAccessor }
         val basePath = project.basePath ?: return emptyList()
         val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
         
@@ -39,14 +42,17 @@ object ProjectDependencyScanner {
                 val configType = match.groupValues[1]
                 val modulePath = match.groupValues[2]
                 val moduleName = extractModuleName(modulePath)
+                val moduleInfo = modulesByPath[modulePath]
                 
                 dependencies.add(ProjectDependencyInfo(
                     file = file,
                     configType = configType,
-                    modulePath = modulePath,
+                    rawModulePath = modulePath,
                     moduleName = moduleName,
                     fullMatch = match.value,
-                    range = match.range
+                    range = match.range,
+                    canonicalModulePath = moduleInfo?.path ?: modulePath,
+                    sourceRootPath = moduleInfo?.rootDir?.path
                 ))
             }
             
@@ -55,14 +61,17 @@ object ProjectDependencyScanner {
                 val configType = match.groupValues[1]
                 val projectAccessor = match.groupValues[2] // projects.lib.ksp.common.kspSupport
                 val moduleName = extractModuleNameFromTypeSafeAccessor(projectAccessor)
+                val moduleInfo = modulesByAccessor[projectAccessor]
                 
                 dependencies.add(ProjectDependencyInfo(
                     file = file,
                     configType = configType,
-                    modulePath = projectAccessor,
+                    rawModulePath = projectAccessor,
                     moduleName = moduleName,
                     fullMatch = match.value,
-                    range = match.range
+                    range = match.range,
+                    canonicalModulePath = moduleInfo?.path,
+                    sourceRootPath = moduleInfo?.rootDir?.path
                 ))
             }
         }
@@ -130,8 +139,10 @@ object ProjectDependencyScanner {
 data class ProjectDependencyInfo(
     val file: VirtualFile,
     val configType: String,      // implementation, api, etc.
-    val modulePath: String,      // :module-name 或 :path:to:module
+    val rawModulePath: String,   // :module-name / :path:to:module / projects.xxx
     val moduleName: String,      // 模块名（最后一段）
     val fullMatch: String,       // 完整匹配的文本
-    val range: IntRange          // 在文件中的位置
+    val range: IntRange,         // 在文件中的位置
+    val canonicalModulePath: String?, // 统一后的 Gradle path，如 :lib:tool-koin
+    val sourceRootPath: String?       // 模块所属 Gradle root，便于生成发布命令
 )

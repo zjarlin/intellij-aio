@@ -1,0 +1,29 @@
+<idea-plugin>
+    <idea-version since-build="252"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <editorNotificationProvider
+                implementation="site.addzero.composeblocks.editor.ComposeBlocksEditorNotificationProvider"/>
+        <fileEditorProvider
+                implementation="site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider"/>
+    </extensions>
+
+    <actions>
+        <action id="ComposeBlocks.OpenView"
+                class="site.addzero.composeblocks.actions.OpenComposeBlocksAction"
+                text="Open Compose Blocks View"
+                description="Open the block-based Compose editor"
+                icon="AllIcons.Actions.PreviewDetails">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

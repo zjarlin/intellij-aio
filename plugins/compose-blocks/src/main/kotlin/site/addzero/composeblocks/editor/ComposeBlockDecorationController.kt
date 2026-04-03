@@ -6,12 +6,16 @@ import com.intellij.openapi.editor.colors.EditorFontType
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
+import com.intellij.openapi.editor.markup.LineMarkerRenderer
 import com.intellij.openapi.editor.markup.RangeHighlighter
+import com.intellij.openapi.editor.markup.SeparatorPlacement
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.ui.JBColor
 import site.addzero.composeblocks.model.ComposeBlockKind
 import site.addzero.composeblocks.model.ComposeBlockNode
 import java.awt.Color
+import java.awt.Graphics
+import java.awt.Rectangle
 
 internal class ComposeBlockDecorationController(
     private val document: Document,
@@ -23,6 +27,7 @@ internal class ComposeBlockDecorationController(
         editor: EditorEx,
         selectedNode: ComposeBlockNode?,
         parentNode: ComposeBlockNode?,
+        selectedPath: List<ComposeBlockNode>,
         caretOffset: Int,
     ) {
         clear()
@@ -45,6 +50,11 @@ internal class ComposeBlockDecorationController(
             endOffset = selectedNode.renderRange.endOffset,
             color = backgroundColor(selectedNode.kind, 38),
         )
+        addGuideBars(
+            editor = editor,
+            path = selectedPath,
+            selectedNode = selectedNode,
+        )
 
         addLineBackground(
             editor = editor,
@@ -59,6 +69,12 @@ internal class ComposeBlockDecorationController(
             line = selectedStartLine,
             color = backgroundColor(selectedNode.kind, 68),
         )
+        addBoundaryLine(
+            editor = editor,
+            line = selectedStartLine,
+            color = backgroundColor(selectedNode.kind, 148),
+            placement = SeparatorPlacement.TOP,
+        )
         if (selectedEndLine != selectedStartLine) {
             addLineBackground(
                 editor = editor,
@@ -66,6 +82,12 @@ internal class ComposeBlockDecorationController(
                 color = backgroundColor(selectedNode.kind, 62),
             )
         }
+        addBoundaryLine(
+            editor = editor,
+            line = selectedEndLine,
+            color = backgroundColor(selectedNode.kind, 132),
+            placement = SeparatorPlacement.BOTTOM,
+        )
     }
 
     fun clear() {
@@ -118,6 +140,51 @@ internal class ComposeBlockDecorationController(
         )
     }
 
+    private fun addBoundaryLine(
+        editor: EditorEx,
+        line: Int,
+        color: Color,
+        placement: SeparatorPlacement,
+    ) {
+        val safeLine = line.coerceIn(0, document.lineCount - 1)
+        val lineStartOffset = document.getLineStartOffset(safeLine)
+        val lineEndOffset = document.getLineEndOffset(safeLine)
+        val highlighter = editor.markupModel.addRangeHighlighter(
+            lineStartOffset,
+            lineEndOffset,
+            HighlighterLayer.SELECTION - 8,
+            null,
+            HighlighterTargetArea.LINES_IN_RANGE,
+        )
+        highlighter.lineSeparatorColor = color
+        highlighter.lineSeparatorPlacement = placement
+        highlighters += highlighter
+    }
+
+    private fun addGuideBars(
+        editor: EditorEx,
+        path: List<ComposeBlockNode>,
+        selectedNode: ComposeBlockNode,
+    ) {
+        path.forEachIndexed { index, node ->
+            val highlighter = editor.markupModel.addRangeHighlighter(
+                node.renderRange.startOffset,
+                node.renderRange.endOffset,
+                HighlighterLayer.SELECTION - 12,
+                null,
+                HighlighterTargetArea.LINES_IN_RANGE,
+            )
+            highlighter.lineMarkerRenderer = GuideBarRenderer(
+                editor = editor,
+                depth = index,
+                color = backgroundColor(node.kind, if (node.id == selectedNode.id) 216 else 156),
+                rangeStart = node.renderRange.startOffset,
+                rangeEnd = node.renderRange.endOffset,
+            )
+            highlighters += highlighter
+        }
+    }
+
     private fun backgroundColor(
         kind: ComposeBlockKind,
         alpha: Int,
@@ -129,5 +196,30 @@ internal class ComposeBlockDecorationController(
             ComposeBlockKind.SHELL -> JBColor(Color(175, 132, 60), Color(222, 182, 103))
         }
         return Color(base.red, base.green, base.blue, alpha)
+    }
+
+    private inner class GuideBarRenderer(
+        private val editor: EditorEx,
+        private val depth: Int,
+        private val color: Color,
+        private val rangeStart: Int,
+        private val rangeEnd: Int,
+    ) : LineMarkerRenderer {
+        override fun paint(
+            rawEditor: com.intellij.openapi.editor.Editor,
+            graphics: Graphics,
+            rectangle: Rectangle,
+        ) {
+            val safeEndOffset = (rangeEnd - 1).coerceAtLeast(rangeStart)
+            val startLine = document.getLineNumber(rangeStart)
+            val endLine = document.getLineNumber(safeEndOffset)
+            val startLineOffset = document.getLineStartOffset(startLine)
+            val endLineOffset = document.getLineStartOffset(endLine)
+            val startY = rawEditor.offsetToXY(startLineOffset).y
+            val endY = rawEditor.offsetToXY(endLineOffset).y + rawEditor.lineHeight
+            val x = editor.gutterComponentEx.whitespaceSeparatorOffset + 8 + depth * 10
+            graphics.color = color
+            graphics.fillRoundRect(x, startY + 1, 5, maxOf(rawEditor.lineHeight / 2, endY - startY - 2), 5, 5)
+        }
     }
 }

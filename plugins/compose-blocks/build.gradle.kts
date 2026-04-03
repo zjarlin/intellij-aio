@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
@@ -7,6 +9,15 @@ intellijPlatform {
         id = "site.addzero.compose-blocks"
         name = "Compose Blocks"
     }
+}
+
+dependencies {
+    intellijPlatform {
+        testFramework(TestFrameworkType.Platform)
+    }
+
+    testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.1")
 }
 
 tasks {

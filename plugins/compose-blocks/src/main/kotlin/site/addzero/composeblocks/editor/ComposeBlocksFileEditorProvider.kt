@@ -7,6 +7,7 @@ import com.intellij.openapi.fileEditor.WeighedFileEditorProvider
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import site.addzero.composeblocks.model.ComposeBlocksMode
 
 class ComposeBlocksFileEditorProvider : WeighedFileEditorProvider(), DumbAware {
 
@@ -15,7 +16,12 @@ class ComposeBlocksFileEditorProvider : WeighedFileEditorProvider(), DumbAware {
     }
 
     override fun createEditor(project: Project, file: VirtualFile): FileEditor {
-        return ComposeBlocksFileEditor(project, file)
+        return when (file.composeBlocksMode(project)) {
+            ComposeBlocksMode.BUILDER -> ComposeBlocksBuilderFileEditor(project, file)
+            ComposeBlocksMode.INSPECT,
+            null,
+            -> ComposeBlocksInspectFileEditor(project, file)
+        }
     }
 
     override fun getEditorTypeId(): String {

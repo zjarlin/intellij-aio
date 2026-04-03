@@ -7,6 +7,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import site.addzero.composeblocks.model.ComposeBlockKind
 import site.addzero.composeblocks.model.ComposeBlockNode
 import site.addzero.composeblocks.model.ComposeEditableContainerKind
 
@@ -75,6 +76,9 @@ internal class ComposeBlockMutationService(
 
     fun updateDocComment(node: ComposeBlockNode, rawCommentText: String): Int? {
         val normalizedComment = normalizeComment(rawCommentText)
+        if (normalizedComment == node.commentText.orEmpty()) {
+            return node.navigationOffset
+        }
         return runWriteCommand("Update Compose Block Comment") {
             when {
                 node.commentRange != null && normalizedComment.isBlank() -> {
@@ -164,7 +168,7 @@ internal class ComposeBlockMutationService(
         node: ComposeBlockNode,
         wrapperKind: ComposeEditableContainerKind,
     ): Int? {
-        if (node.kind.name == "ROOT") {
+        if (node.kind == ComposeBlockKind.ROOT) {
             return null
         }
 

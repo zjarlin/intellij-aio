@@ -3,6 +3,7 @@ package site.addzero.composebuddy.designer.ui
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.designer.model.ComposeCanvasNode
 import site.addzero.composebuddy.designer.model.ComposeGeneratedCode
+import site.addzero.composebuddy.designer.model.ComposeDesignerPaletteCatalog
 import site.addzero.composebuddy.designer.model.ComposePaletteItem
 import java.awt.Rectangle
 
@@ -23,6 +24,12 @@ object ComposeDesignerCodeGenerator {
     )
 
     fun generate(nodes: List<ComposeCanvasNode>, functionName: String): ComposeGeneratedCode {
+        val imports = linkedSetOf<String>().apply {
+            addAll(defaultImports)
+            nodes.forEach { node ->
+                ComposeDesignerPaletteCatalog.resolveCustomByFunction(node.customFunctionName)?.imports?.let(::addAll)
+            }
+        }
         val bodyLines = buildList {
             add("@Composable")
             add("fun $functionName() {")
@@ -44,16 +51,9 @@ object ComposeDesignerCodeGenerator {
             add("}")
         }
 
-        val preview = buildString {
-            defaultImports.forEach { appendLine("import $it") }
-            appendLine()
-            append(bodyLines.joinToString("\n"))
-        }.trimEnd()
-
         return ComposeGeneratedCode(
-            imports = defaultImports,
+            imports = imports,
             functionText = bodyLines.joinToString("\n"),
-            previewText = preview,
         )
     }
 
@@ -63,7 +63,8 @@ object ComposeDesignerCodeGenerator {
         parent: ComposeCanvasNode?,
         indent: String,
     ): List<String> {
-        val children = allNodes.filter { it.parentId == node.id }.sortedWith(layoutComparator(node.kind))
+        val effectiveKind = ComposeDesignerLayoutSupport.effectiveKind(node)
+        val children = allNodes.filter { it.parentId == node.id }.sortedWith(layoutComparator(effectiveKind))
         return when (node.kind) {
             ComposePaletteItem.BOX,
             ComposePaletteItem.ROW,
@@ -78,6 +79,7 @@ object ComposeDesignerCodeGenerator {
             )
             ComposePaletteItem.IMAGE -> listOf("$indent${imageCall(node, parent)}")
             ComposePaletteItem.SPACER -> listOf("$indent${spacerCall(node, parent)}")
+            ComposePaletteItem.CUSTOM -> renderCustomNode(node, children, allNodes, parent, indent)
         }
     }
 
@@ -155,12 +157,32 @@ object ComposeDesignerCodeGenerator {
         return "Spacer(modifier = ${modifierFor(node, parent)})"
     }
 
+    private fun renderCustomNode(
+        node: ComposeCanvasNode,
+        children: List<ComposeCanvasNode>,
+        allNodes: List<ComposeCanvasNode>,
+        parent: ComposeCanvasNode?,
+        indent: String,
+    ): List<String> {
+        val modifier = modifierFor(node, parent)
+        val custom = ComposeDesignerPaletteCatalog.resolveCustomByFunction(node.customFunctionName)
+        val childrenText = children.joinToString("\n") { child ->
+            renderNode(child, allNodes, node, "").joinToString("\n")
+        }
+        val template = custom?.template
+            ?.replace("{modifier}", modifier)
+            ?.replace("{children}", childrenText.prependIndent("    ").trimEnd())
+            ?: "${node.customFunctionName ?: "UnknownComposable"}(modifier = $modifier)"
+        return template.lines().map { "$indent$it" }
+    }
+
     private fun modifierFor(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
         val relative = relativeBounds(node.bounds, parent?.bounds)
+        val parentKind = parent?.let(ComposeDesignerLayoutSupport::effectiveKind)
         return when {
-            parent == null || parent.kind == ComposePaletteItem.BOX -> "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).size(${relative.width}.dp, ${relative.height}.dp)"
-            parent.kind == ComposePaletteItem.COLUMN && relative.width >= parent.bounds.width - 48 -> "Modifier.fillMaxWidth().height(${relative.height}.dp)"
-            parent.kind == ComposePaletteItem.ROW && relative.height >= parent.bounds.height - 48 -> "Modifier.width(${relative.width}.dp).fillMaxHeight()"
+            parent == null || parentKind == ComposePaletteItem.BOX -> "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).size(${relative.width}.dp, ${relative.height}.dp)"
+            parentKind == ComposePaletteItem.COLUMN && relative.width >= parent.bounds.width - 48 -> "Modifier.fillMaxWidth().height(${relative.height}.dp)"
+            parentKind == ComposePaletteItem.ROW && relative.height >= parent.bounds.height - 48 -> "Modifier.width(${relative.width}.dp).fillMaxHeight()"
             else -> "Modifier.size(${relative.width}.dp, ${relative.height}.dp)"
         }
     }

@@ -44,6 +44,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.FlattenUsedObjectParametersIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.modifierchain.ModifierChainIntention</className>
             <category>compose-buddy</category>
         </intentionAction>

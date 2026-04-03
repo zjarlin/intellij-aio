@@ -4,6 +4,7 @@ import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.RelatedItemLineMarkerProvider
 import com.intellij.codeInsight.navigation.NavigationGutterIconBuilder
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
@@ -49,7 +50,9 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                         return@forEach
                     }
 
-                    val sourceRef = declaration.docComment?.findSourceReference() ?: return@forEach
+                    val sourceRef = ignoreBrokenPsiOrIndex {
+                        declaration.docComment?.findSourceReference()
+                    } ?: return@forEach
                     val targets = resolveFiles(file.project, sourceRef)
                     if (targets.isEmpty()) {
                         return@forEach
@@ -115,11 +118,13 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
         )
 
         return ContainerUtil.mapNotNull(candidates) { virtualFile ->
-            val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@mapNotNull null
-            if (psiFile.packageFqName.asString() == sourceRef.packageName) {
-                psiFile
-            } else {
-                null
+            ignoreBrokenPsiOrIndex {
+                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@ignoreBrokenPsiOrIndex null
+                if (psiFile.packageFqName.asString() == sourceRef.packageName) {
+                    psiFile
+                } else {
+                    null
+                }
             }
         }
     }
@@ -147,10 +152,12 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
             if (!virtualFile.isGeneratedApiCandidateFor(sourceRef, requiresExactFileName)) {
                 return@mapNotNull null
             }
-            val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@mapNotNull null
-            psiFile.declarations
-                .filterIsInstance<KtClass>()
-                .firstOrNull()
+            ignoreBrokenPsiOrIndex {
+                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@ignoreBrokenPsiOrIndex null
+                psiFile.declarations
+                    .filterIsInstance<KtClass>()
+                    .firstOrNull()
+            }
         }
     }
 }
@@ -237,4 +244,14 @@ private fun VirtualFile.isGeneratedApiCandidateFor(
     }.getOrNull()
 
     return fileSourceRef == sourceRef
+}
+
+private inline fun <T> ignoreBrokenPsiOrIndex(action: () -> T?): T? {
+    return try {
+        action()
+    } catch (exception: ProcessCanceledException) {
+        throw exception
+    } catch (_: Throwable) {
+        null
+    }
 }

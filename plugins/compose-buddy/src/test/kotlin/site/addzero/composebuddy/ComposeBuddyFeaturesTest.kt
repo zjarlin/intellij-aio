@@ -56,6 +56,36 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("val subtitle: String"))
     }
 
+    fun testFlattenUsedObjectParametersIntentionIsAvailableForPropsChains() {
+        myFixture.configureByText(
+            "ShellStatusBar.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+
+            data class ShellStatusBarProps(
+                val currentScene: String,
+                val currentTitle: String,
+                val pageCount: Int,
+                val modifier: Modifier = Modifier,
+            )
+
+            @Composable
+            private fun ShellStatusBar(shellStatusBarProps<caret>: ShellStatusBarProps) {
+                Row(
+                    modifier = shellStatusBarProps.modifier.fillMaxWidth(),
+                ) {
+                    Text(text = "${'$'}{shellStatusBarProps.currentScene} / ${'$'}{shellStatusBarProps.currentTitle}")
+                    Text(text = "${'$'}{shellStatusBarProps.pageCount} pages in this scene")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(Compose Buddy) Flatten used object params into signature")
+        assertTrue(actions.isNotEmpty())
+    }
+
     fun testEffectKeysIntentionAddsCapturedParameterKeys() {
         myFixture.configureByText(
             "Effects.kt",

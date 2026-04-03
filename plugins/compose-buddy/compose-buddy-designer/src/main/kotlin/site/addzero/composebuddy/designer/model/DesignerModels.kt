@@ -11,6 +11,7 @@ enum class ComposePaletteItem {
     ROW,
     COLUMN,
     SPACER,
+    CUSTOM,
 }
 
 data class ComposeCanvasNode(
@@ -18,10 +19,12 @@ data class ComposeCanvasNode(
     val kind: ComposePaletteItem,
     var bounds: Rectangle,
     var parentId: String? = null,
+    var customName: String? = null,
+    var customFunctionName: String? = null,
+    var customLayoutKind: ComposePaletteItem? = null,
 )
 
 data class ComposeGeneratedCode(
     val imports: Set<String>,
     val functionText: String,
-    val previewText: String,
 )

@@ -15,6 +15,7 @@ class ComposeBuddySettingsService : PersistentStateComponent<ComposeBuddySetting
         var preferPropsWrapper: Boolean = true,
         var keepCompatibilityByDefault: Boolean = false,
         var addTemplateParameters: Boolean = true,
+        var designerCustomComponentsDsl: String = "",
     )
 
     private var state = State()

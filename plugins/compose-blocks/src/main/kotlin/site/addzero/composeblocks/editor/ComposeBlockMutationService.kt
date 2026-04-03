@@ -240,12 +240,12 @@ internal class ComposeBlockMutationService(
         }
     }
 
-    fun simplifyContainer(node: ComposeBlockNode): Int? {
+    fun unwrapNode(node: ComposeBlockNode): Int? {
         if (node.children.size > 1) {
             return null
         }
 
-        return runWriteCommand("Simplify Compose Container") {
+        return runWriteCommand("Unwrap Compose Block") {
             when {
                 node.children.isEmpty() -> {
                     val deleteRange = expandWholeLineRange(node.focusRange)

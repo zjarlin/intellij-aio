@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.openapi.ui.Splitter
 import com.intellij.ui.JBColor
+import com.intellij.util.ui.JBFont
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
@@ -46,6 +47,7 @@ import javax.swing.JComponent
 import javax.swing.JMenuItem
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
+import javax.swing.SwingConstants
 import javax.swing.border.CompoundBorder
 import javax.swing.border.LineBorder
 import javax.swing.border.MatteBorder
@@ -243,8 +245,10 @@ class ComposeBlocksInspectFileEditor(
         val accentColor = kindColor(node.kind)
 
         val titleLabel = JBLabel(buildHeaderText(node)).apply {
-            font = font.deriveFont(Font.BOLD.toFloat())
-            foreground = JBColor.foreground()
+            font = JBFont.label().deriveFont(Font.BOLD, 12f)
+            foreground = JBColor(Color(232, 236, 242), Color(232, 236, 242))
+            horizontalAlignment = SwingConstants.LEFT
+            border = JBUI.Borders.empty(0, 0, 0, 8)
         }
 
         val remarkComponent = createCommentComponent(node)
@@ -255,6 +259,8 @@ class ComposeBlocksInspectFileEditor(
             remarkComponent?.let {
                 add(it, BorderLayout.SOUTH)
             }
+            minimumSize = Dimension(96, 18)
+            preferredSize = Dimension(220, if (remarkComponent == null) 18 else 44)
         }
 
         val actionPanel = createActionPanel(node, parent)
@@ -264,6 +270,7 @@ class ComposeBlocksInspectFileEditor(
             if (actionPanel.componentCount > 0) {
                 add(actionPanel, BorderLayout.EAST)
             }
+            border = JBUI.Borders.emptyBottom(8)
         }
 
         val headerContainer = JPanel().apply {
@@ -296,7 +303,7 @@ class ComposeBlocksInspectFileEditor(
         }
 
         if (node.kind == ComposeBlockKind.LEAF) {
-            blockPanel.preferredSize = Dimension(180, 78)
+            blockPanel.preferredSize = Dimension(220, 92)
         }
 
         installSelectionHandler(
@@ -325,6 +332,18 @@ class ComposeBlocksInspectFileEditor(
                     toolTip = "Wrap this block in a layout container",
                 ) { button ->
                     showWrapMenu(button, node)
+                }
+            )
+        }
+
+        if (node.editableContainerKind != null && node.children.size <= 1) {
+            panel.add(
+                createMiniButton(
+                    label = "Unwrap",
+                    toolTip = "Remove this layout container",
+                ) {
+                    val nextOffset = mutationService.unwrapNode(node)
+                    applyMutationResult(nextOffset)
                 }
             )
         }

@@ -133,6 +133,7 @@ class ComposeBlocksBuilderFileEditor(
             add(actionButton("Wrap Row") { wrapSelected(ComposeBlockType.ROW) })
             add(actionButton("Wrap Column") { wrapSelected(ComposeBlockType.COLUMN) })
             add(actionButton("Wrap Box") { wrapSelected(ComposeBlockType.BOX) })
+            add(actionButton("Unwrap") { unwrapSelected() })
             add(actionButton("Move Up") { moveSelected(-1) })
             add(actionButton("Move Down") { moveSelected(1) })
             add(actionButton("Apply Sketch") { applySketchLayout() })
@@ -589,6 +590,20 @@ class ComposeBlocksBuilderFileEditor(
         val wrapperId = nextBlockId()
         applyMutation("Wrap Compose Block", wrapperId) { current ->
             current.copy(root = BlockSpecTreeOps.wrapBlock(current.root, selected.id, wrapperType, seededIdFactory(wrapperId)))
+        }
+    }
+
+    private fun unwrapSelected() {
+        val selected = selectedBlock() ?: return
+        if (!selected.type.supportsChildren || selected.children.size > 1) {
+            return
+        }
+        if (selected.id == managedDocument?.root?.id && selected.children.isEmpty()) {
+            return
+        }
+        val nextSelectionId = selected.children.singleOrNull()?.id ?: selectedParentIdOrRoot()
+        applyMutation("Unwrap Compose Block", nextSelectionId) { current ->
+            current.copy(root = BlockSpecTreeOps.unwrapBlock(current.root, selected.id))
         }
     }
 

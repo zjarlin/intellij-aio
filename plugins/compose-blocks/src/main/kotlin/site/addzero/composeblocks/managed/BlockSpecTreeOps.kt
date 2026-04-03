@@ -141,6 +141,45 @@ object BlockSpecTreeOps {
         return if (changed) root.withChildren(updatedChildren) else root
     }
 
+    fun unwrapBlock(
+        root: BlockSpec,
+        targetId: String,
+    ): BlockSpec {
+        if (root.id == targetId) {
+            return when (root.children.size) {
+                0 -> root
+                1 -> root.children.single()
+                else -> root
+            }
+        }
+
+        val directIndex = root.children.indexOfFirst { it.id == targetId }
+        if (directIndex >= 0) {
+            val target = root.children[directIndex]
+            if (target.children.size > 1) {
+                return root
+            }
+            val updatedChildren = root.children.toMutableList().apply {
+                removeAt(directIndex)
+                when (target.children.size) {
+                    0 -> Unit
+                    1 -> add(directIndex, target.children.single())
+                }
+            }
+            return root.withChildren(updatedChildren)
+        }
+
+        var changed = false
+        val updatedChildren = root.children.map { child ->
+            val updatedChild = unwrapBlock(child, targetId)
+            if (updatedChild !== child) {
+                changed = true
+            }
+            updatedChild
+        }
+        return if (changed) root.withChildren(updatedChildren) else root
+    }
+
     fun duplicateBlock(
         root: BlockSpec,
         targetId: String,

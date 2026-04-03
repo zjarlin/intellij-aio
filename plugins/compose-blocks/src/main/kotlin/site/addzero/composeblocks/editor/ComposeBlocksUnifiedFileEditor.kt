@@ -1,5 +1,6 @@
 package site.addzero.composeblocks.editor
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionToolbar
@@ -20,6 +21,8 @@ import com.intellij.util.ui.JBUI
 import site.addzero.composeblocks.model.ComposeBlocksMode
 import java.awt.BorderLayout
 import java.awt.CardLayout
+import java.awt.FlowLayout
+import javax.swing.Icon
 import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -115,9 +118,10 @@ class ComposeBlocksUnifiedFileEditor(
     }
 
     private fun buildHeader(): JComponent {
-        val rightControls = JPanel(BorderLayout()).apply {
+        val rightControls = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 0)).apply {
             isOpaque = false
-            add(progressiveExpansionCheckBox, BorderLayout.EAST)
+            add(viewToolbar.component)
+            add(progressiveExpansionCheckBox)
         }
 
         return JPanel(BorderLayout(12, 0)).apply {
@@ -125,8 +129,7 @@ class ComposeBlocksUnifiedFileEditor(
                 JBUI.Borders.customLineBottom(JBColor.border()),
                 JBUI.Borders.empty(6, 8),
             )
-            add(viewToolbar.component, BorderLayout.WEST)
-            add(modeHintLabel, BorderLayout.CENTER)
+            add(modeHintLabel, BorderLayout.WEST)
             add(rightControls, BorderLayout.EAST)
         }
     }
@@ -192,7 +195,7 @@ class ComposeBlocksUnifiedFileEditor(
     private inner class ViewSwitchAction(
         private val mode: ComposeBlocksMode,
         text: String,
-    ) : ToggleAction(text) {
+    ) : ToggleAction(text, null, modeIcon(mode)) {
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
 
@@ -221,6 +224,14 @@ class ComposeBlocksUnifiedFileEditor(
 
                 ComposeBlocksMode.BUILDER -> supportsBuilder()
             }
+        }
+    }
+
+    private fun modeIcon(mode: ComposeBlocksMode): Icon {
+        return when (mode) {
+            ComposeBlocksMode.TEXT -> AllIcons.FileTypes.Text
+            ComposeBlocksMode.INSPECT -> AllIcons.Actions.PreviewDetails
+            ComposeBlocksMode.BUILDER -> AllIcons.Toolwindows.ToolWindowPalette
         }
     }
 }

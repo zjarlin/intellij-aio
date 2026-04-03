@@ -22,6 +22,7 @@ intellijPlatform {
 }
 
 dependencies {
+    implementation(project(":plugins:compose-buddy:compose-buddy-blocks"))
     implementation(project(":plugins:compose-buddy:compose-buddy-designer"))
     implementation(project(":plugins:ide-kit:smart-intentions-core"))
 

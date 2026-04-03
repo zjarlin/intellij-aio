@@ -16,7 +16,13 @@
             id="%designer.toolwindow.title"
             anchor="right"
             factoryClass="site.addzero.composebuddy.designer.toolwindow.ComposeDesignerToolWindowFactory"
-            icon="AllIcons.Toolwindows.ToolWindowUIInspector"/>
+            icon="/icons/compose-designer-toolwindow.svg"/>
+
+        <editorNotificationProvider
+            implementation="site.addzero.composeblocks.editor.ComposeBlocksEditorNotificationProvider"/>
+
+        <fileEditorProvider
+            implementation="site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider"/>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
@@ -164,6 +170,46 @@
     </extensions>
 
     <actions>
+        <action
+            id="ComposeBlocks.OpenView"
+            class="site.addzero.composeblocks.actions.OpenComposeBlocksAction"
+            text="Open Compose Blocks"
+            description="Open Compose Blocks Inspect or Builder mode for this file"
+            icon="AllIcons.Actions.PreviewDetails">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewScreen"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksScreenAction"
+            text="New Compose Blocks Screen"
+            description="Create a managed Compose Blocks screen"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewDialog"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksDialogAction"
+            text="New Compose Blocks Dialog"
+            description="Create a managed Compose Blocks dialog"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewPage"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksPageAction"
+            text="New Compose Blocks Page"
+            description="Create a managed Compose Blocks page"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
         <action
             id="ComposeBuddy.NormalizeSignature"
             class="site.addzero.composebuddy.actions.NormalizeComposeSignatureAction"

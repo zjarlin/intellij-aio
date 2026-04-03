@@ -9,10 +9,14 @@ import java.awt.Rectangle
 object ComposeDesignerCodeGenerator {
     private val defaultImports = linkedSetOf(
         "androidx.compose.foundation.Image",
+        "androidx.compose.foundation.background",
         "androidx.compose.foundation.layout.*",
-        "androidx.compose.material.Button",
-        "androidx.compose.material.Text",
+        "androidx.compose.foundation.shape.RoundedCornerShape",
+        "androidx.compose.material3.Button",
+        "androidx.compose.material3.Text",
         "androidx.compose.runtime.Composable",
+        "androidx.compose.ui.draw.clip",
+        "androidx.compose.ui.graphics.Color",
         "androidx.compose.ui.Modifier",
         "androidx.compose.ui.res.painterResource",
         "androidx.compose.ui.unit.dp",
@@ -22,7 +26,12 @@ object ComposeDesignerCodeGenerator {
         val bodyLines = buildList {
             add("@Composable")
             add("fun $functionName() {")
-            add("    Box(modifier = Modifier.fillMaxSize()) {")
+            add("    Box(")
+            add("        modifier = Modifier")
+            add("            .fillMaxSize()")
+            add("            .background(Color(0xFFF5F5F7))")
+            add("            .padding(24.dp)")
+            add("    ) {")
             val rootChildren = nodes.filter { it.parentId == null }.sortedBy { it.bounds.y * 10_000 + it.bounds.x }
             if (rootChildren.isEmpty()) {
                 add("        // ${ComposeBuddyBundle.message("designer.canvas.empty")}")
@@ -85,7 +94,17 @@ object ComposeDesignerCodeGenerator {
             ComposePaletteItem.COLUMN -> "Column"
             else -> error("Not a container")
         }
-        val lines = mutableListOf("$indent$callName(modifier = ${modifierFor(node, parent, isContainer = true)}) {")
+        val lines = mutableListOf("$indent$callName(")
+        lines += "$indent    modifier = ${modifierFor(node, parent)}"
+        lines += "$indent        .clip(RoundedCornerShape(22.dp))"
+        lines += "$indent        .background(Color(0xFFFFFFFF))"
+        lines += "$indent        .padding(20.dp),"
+        when (node.kind) {
+            ComposePaletteItem.ROW -> lines += "$indent    horizontalArrangement = Arrangement.spacedBy(16.dp),"
+            ComposePaletteItem.COLUMN -> lines += "$indent    verticalArrangement = Arrangement.spacedBy(16.dp),"
+            else -> Unit
+        }
+        lines += "$indent) {"
         if (children.isEmpty()) {
             lines += "$indent}"
             return lines
@@ -136,16 +155,14 @@ object ComposeDesignerCodeGenerator {
         return "Spacer(modifier = ${modifierFor(node, parent)})"
     }
 
-    private fun modifierFor(node: ComposeCanvasNode, parent: ComposeCanvasNode?, isContainer: Boolean = false): String {
+    private fun modifierFor(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
         val relative = relativeBounds(node.bounds, parent?.bounds)
-        val base = when {
-            parent == null || parent.kind == ComposePaletteItem.BOX -> {
-                val size = if (isContainer) "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).size(${relative.width}.dp, ${relative.height}.dp)" else "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).size(${relative.width}.dp, ${relative.height}.dp)"
-                size
-            }
+        return when {
+            parent == null || parent.kind == ComposePaletteItem.BOX -> "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).size(${relative.width}.dp, ${relative.height}.dp)"
+            parent.kind == ComposePaletteItem.COLUMN && relative.width >= parent.bounds.width - 48 -> "Modifier.fillMaxWidth().height(${relative.height}.dp)"
+            parent.kind == ComposePaletteItem.ROW && relative.height >= parent.bounds.height - 48 -> "Modifier.width(${relative.width}.dp).fillMaxHeight()"
             else -> "Modifier.size(${relative.width}.dp, ${relative.height}.dp)"
         }
-        return base
     }
 
     private fun relativeBounds(bounds: Rectangle, parentBounds: Rectangle?): Rectangle {

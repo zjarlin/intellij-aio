@@ -105,8 +105,14 @@ class ComposeDesignerCanvas(
     }
 
     fun addNode(kind: ComposePaletteItem, point: Point) {
-        val bounds = defaultBoundsFor(kind, point)
         val parentId = ComposeDesignerLayoutSupport.assignParentForPoint(nodes, point)
+        val parent = nodes.firstOrNull { it.id == parentId }
+        val bounds = ComposeDesignerLayoutSupport.childBoundsForParent(
+            nodes = nodes,
+            parent = parent,
+            requestedBounds = defaultBoundsFor(kind, point),
+            kind = kind,
+        )
         nodes += ComposeCanvasNode(kind = kind, bounds = bounds, parentId = parentId)
         selectedNodeId = nodes.lastOrNull()?.id
         fireChanged()
@@ -152,7 +158,17 @@ class ComposeDesignerCanvas(
             .filterNot { ComposeDesignerLayoutSupport.isContainer(it.kind) && it.bounds == rect }
         val kind = ComposeDesignerLayoutSupport.inferContainerKind(enclosed)
         val parentId = ComposeDesignerLayoutSupport.assignParentForBounds(nodes, rect)
-        val container = ComposeCanvasNode(kind = kind, bounds = rect, parentId = parentId)
+        val parent = nodes.firstOrNull { it.id == parentId }
+        val container = ComposeCanvasNode(
+            kind = kind,
+            bounds = ComposeDesignerLayoutSupport.childBoundsForParent(
+                nodes = nodes,
+                parent = parent,
+                requestedBounds = rect,
+                kind = kind,
+            ),
+            parentId = parentId,
+        )
         nodes += container
         enclosed.forEach { child ->
             if (child.id != container.id && child.parentId == parentId) {
@@ -164,10 +180,18 @@ class ComposeDesignerCanvas(
 
     private fun reparentSelection() {
         val selected = selectedNode() ?: return
-        if (selected.kind == ComposePaletteItem.ROW || selected.kind == ComposePaletteItem.COLUMN || selected.kind == ComposePaletteItem.BOX) {
-            return
+        val parentId = ComposeDesignerLayoutSupport.assignParentForBounds(nodes, selected.bounds, excludingNodeId = selected.id)
+        selected.parentId = parentId
+        val parent = nodes.firstOrNull { it.id == parentId }
+        if (parent != null) {
+            selected.bounds = ComposeDesignerLayoutSupport.childBoundsForParent(
+                nodes = nodes,
+                parent = parent,
+                requestedBounds = selected.bounds,
+                kind = selected.kind,
+                excludingNodeId = selected.id,
+            )
         }
-        selected.parentId = ComposeDesignerLayoutSupport.assignParentForBounds(nodes, selected.bounds, excludingNodeId = selected.id)
     }
 
     private fun defaultBoundsFor(kind: ComposePaletteItem, point: Point): Rectangle {
@@ -216,12 +240,12 @@ class ComposeDesignerCanvas(
                 else -> JBColor(Color(0xD6, 0xE4, 0xF0), Color(0x35, 0x3B, 0x45))
             }
             g2.color = fillColor
-            g2.fillRoundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 16, 16)
+            g2.fillRoundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 22, 22)
             g2.color = if (isSelected) JBColor(Color(0x1B, 0x4E, 0x8C), Color(0x91, 0xC7, 0xFF)) else JBColor.border()
             g2.stroke = BasicStroke(if (isSelected) 2.5f else 1.5f)
-            g2.drawRoundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 16, 16)
+            g2.drawRoundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 22, 22)
             g2.drawString(nodeLabel(node.kind), node.bounds.x + 12, node.bounds.y + 24)
-            g2.drawString("Modifier.offset(...).size(...)", node.bounds.x + 12, node.bounds.y + 44)
+            g2.drawString("Auto layout • 20dp padding • 22dp radius", node.bounds.x + 12, node.bounds.y + 44)
 
             if (isSelected) {
                 val handle = resizeHandle(node)

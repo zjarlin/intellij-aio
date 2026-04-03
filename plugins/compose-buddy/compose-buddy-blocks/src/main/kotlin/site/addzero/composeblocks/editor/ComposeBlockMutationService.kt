@@ -98,7 +98,7 @@ internal class ComposeBlockMutationService(
                 }
 
                 normalizedComment.isNotBlank() -> {
-                    val insertOffset = document.getLineStartOffset(document.getLineNumber(node.focusRange.startOffset))
+                    val insertOffset = safeLineStartOffsetForOffset(node.focusRange.startOffset)
                     document.insertString(insertOffset, buildInsertedComment(insertOffset, normalizedComment))
                     insertOffset
                 }
@@ -132,8 +132,7 @@ internal class ComposeBlockMutationService(
     }
 
     private fun findLeadingCommentClusterRange(node: ComposeBlockNode): TextRange? {
-        val anchorOffset = node.renderRange.startOffset.coerceIn(0, document.textLength)
-        var line = document.getLineNumber(anchorOffset) - 1
+        var line = safeLineNumberForOffset(node.renderRange.startOffset) - 1
         var startOffset: Int? = null
         var endOffset: Int? = null
         while (line >= 0) {
@@ -539,7 +538,7 @@ internal class ComposeBlockMutationService(
     }
 
     private fun lineIndent(offset: Int): String {
-        val lineNumber = document.getLineNumber(offset.coerceIn(0, document.textLength))
+        val lineNumber = safeLineNumberForOffset(offset)
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)
         val lineText = document.charsSequence.subSequence(lineStart, lineEnd).toString()
@@ -568,7 +567,7 @@ internal class ComposeBlockMutationService(
         insertOffset: Int,
         commentText: String,
     ): String {
-        val lineNumber = document.getLineNumber(insertOffset)
+        val lineNumber = safeLineNumberForOffset(insertOffset)
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)
         val lineText = document.charsSequence.subSequence(lineStart, lineEnd).toString()
@@ -579,8 +578,8 @@ internal class ComposeBlockMutationService(
     private fun expandWholeLineRange(range: TextRange): TextRange {
         val safeStart = range.startOffset.coerceIn(0, document.textLength)
         val safeEnd = range.endOffset.coerceIn(0, document.textLength)
-        val startLine = document.getLineNumber(safeStart)
-        val endLine = document.getLineNumber((safeEnd - 1).coerceAtLeast(safeStart))
+        val startLine = safeLineNumberForOffset(safeStart)
+        val endLine = safeLineNumberForOffset((safeEnd - 1).coerceAtLeast(safeStart))
         val lineStart = document.getLineStartOffset(startLine)
         val lineEnd = document.getLineEndOffset(endLine)
         val before = document.charsSequence.subSequence(lineStart, safeStart)
@@ -595,6 +594,22 @@ internal class ComposeBlockMutationService(
         }
 
         return TextRange(safeStart, safeEnd)
+    }
+
+    private fun safeLineNumberForOffset(offset: Int): Int {
+        if (document.lineCount <= 0) {
+            return 0
+        }
+        if (document.textLength <= 0) {
+            return 0
+        }
+        return document.getLineNumber(
+            offset.coerceIn(0, document.textLength - 1),
+        )
+    }
+
+    private fun safeLineStartOffsetForOffset(offset: Int): Int {
+        return document.getLineStartOffset(safeLineNumberForOffset(offset))
     }
 
     private fun <T> runWriteCommand(

@@ -25,14 +25,20 @@ object ComposeDesignerCodeParser {
             .firstOrNull { it.name == functionName }
             ?: psiFile.declarations.filterIsInstance<KtNamedFunction>().firstOrNull()
             ?: return null
-        val rootCall = function.bodyBlockExpression
+        val rootCalls = function.bodyBlockExpression
             ?.statements
             ?.filterIsInstance<KtCallExpression>()
-            ?.firstOrNull()
-            ?: return null
+            .orEmpty()
+        if (rootCalls.isEmpty()) {
+            return emptyList()
+        }
 
         val nodes = mutableListOf<ComposeCanvasNode>()
-        collectNodes(rootCall, null, nodes)
+        rootCalls.forEach { rootCall ->
+            val node = buildNode(rootCall, null) ?: return@forEach
+            nodes += node
+            collectNodes(rootCall, node.id, nodes)
+        }
         return nodes
     }
 

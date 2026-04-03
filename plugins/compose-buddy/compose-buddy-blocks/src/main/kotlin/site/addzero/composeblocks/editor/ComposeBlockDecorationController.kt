@@ -6,7 +6,6 @@ import com.intellij.openapi.editor.colors.EditorFontType
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
-import com.intellij.openapi.editor.markup.LineMarkerRenderer
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.SeparatorPlacement
 import com.intellij.openapi.editor.markup.TextAttributes
@@ -14,8 +13,6 @@ import com.intellij.ui.JBColor
 import site.addzero.composeblocks.model.ComposeBlockKind
 import site.addzero.composeblocks.model.ComposeBlockNode
 import java.awt.Color
-import java.awt.Graphics
-import java.awt.Rectangle
 
 internal class ComposeBlockDecorationController(
     private val document: Document,
@@ -59,12 +56,18 @@ internal class ComposeBlockDecorationController(
 
         addLineBackground(
             editor = editor,
-            line = document.getLineNumber(caretOffset.coerceIn(0, document.textLength)),
+            line = safeLineNumberForOffset(caretOffset),
             color = backgroundColor(selectedNode.kind, 54),
         )
 
-        val selectedStartLine = document.getLineNumber(selectedNode.renderRange.startOffset)
-        val selectedEndLine = document.getLineNumber((selectedNode.renderRange.endOffset - 1).coerceAtLeast(selectedNode.renderRange.startOffset))
+        val selectedRange = clampRange(
+            startOffset = selectedNode.renderRange.startOffset,
+            endOffset = selectedNode.renderRange.endOffset,
+        ) ?: return
+        val selectedStartLine = safeLineNumberForOffset(selectedRange.first)
+        val selectedEndLine = safeLineNumberForOffset(
+            (selectedRange.second - 1).coerceAtLeast(selectedRange.first),
+        )
         addLineBackground(
             editor = editor,
             line = selectedStartLine,
@@ -115,13 +118,14 @@ internal class ComposeBlockDecorationController(
         endOffset: Int,
         color: Color,
     ) {
-        if (startOffset >= endOffset) {
+        val safeRange = clampRange(startOffset, endOffset) ?: return
+        if (safeRange.first >= safeRange.second) {
             return
         }
 
         highlighters += editor.markupModel.addRangeHighlighter(
-            startOffset,
-            endOffset,
+            safeRange.first,
+            safeRange.second,
             HighlighterLayer.SELECTION - 10,
             TextAttributes().apply {
                 backgroundColor = color
@@ -135,6 +139,9 @@ internal class ComposeBlockDecorationController(
         line: Int,
         color: Color,
     ) {
+        if (document.lineCount <= 0) {
+            return
+        }
         val safeLine = line.coerceIn(0, document.lineCount - 1)
         val startOffset = document.getLineStartOffset(safeLine)
         val endOffset = document.getLineEndOffset(safeLine)
@@ -156,12 +163,10 @@ internal class ComposeBlockDecorationController(
         endOffset: Int,
         color: Color,
     ) {
-        if (startOffset >= endOffset) {
-            return
-        }
+        val safeRange = clampRange(startOffset, endOffset) ?: return
         highlighters += editor.markupModel.addRangeHighlighter(
-            startOffset,
-            endOffset,
+            safeRange.first,
+            safeRange.second,
             HighlighterLayer.SELECTION - 6,
             TextAttributes().apply {
                 backgroundColor = color
@@ -176,6 +181,9 @@ internal class ComposeBlockDecorationController(
         color: Color,
         placement: SeparatorPlacement,
     ) {
+        if (document.lineCount <= 0) {
+            return
+        }
         val safeLine = line.coerceIn(0, document.lineCount - 1)
         val lineStartOffset = document.getLineStartOffset(safeLine)
         val lineEndOffset = document.getLineEndOffset(safeLine)
@@ -196,23 +204,34 @@ internal class ComposeBlockDecorationController(
         path: List<ComposeBlockNode>,
         selectedNode: ComposeBlockNode,
     ) {
-        path.forEachIndexed { index, node ->
-            val highlighter = editor.markupModel.addRangeHighlighter(
-                node.renderRange.startOffset,
-                node.renderRange.endOffset,
-                HighlighterLayer.SELECTION - 12,
-                null,
-                HighlighterTargetArea.LINES_IN_RANGE,
-            )
-            highlighter.lineMarkerRenderer = GuideBarRenderer(
-                editor = editor,
-                depth = index,
-                color = backgroundColor(node.kind, if (node.id == selectedNode.id) 216 else 156),
-                rangeStart = node.renderRange.startOffset,
-                rangeEnd = node.renderRange.endOffset,
-            )
-            highlighters += highlighter
+        return
+    }
+
+    private fun clampRange(
+        startOffset: Int,
+        endOffset: Int,
+    ): Pair<Int, Int>? {
+        if (document.textLength <= 0) {
+            return null
         }
+        val safeStart = startOffset.coerceIn(0, document.textLength)
+        val safeEnd = endOffset.coerceIn(0, document.textLength)
+        if (safeStart >= safeEnd) {
+            return null
+        }
+        return safeStart to safeEnd
+    }
+
+    private fun safeLineNumberForOffset(offset: Int): Int {
+        if (document.lineCount <= 0) {
+            return 0
+        }
+        if (document.textLength <= 0) {
+            return 0
+        }
+        return document.getLineNumber(
+            offset.coerceIn(0, document.textLength - 1),
+        )
     }
 
     private fun backgroundColor(
@@ -228,30 +247,6 @@ internal class ComposeBlockDecorationController(
         return Color(base.red, base.green, base.blue, alpha)
     }
 
-    private inner class GuideBarRenderer(
-        private val editor: EditorEx,
-        private val depth: Int,
-        private val color: Color,
-        private val rangeStart: Int,
-        private val rangeEnd: Int,
-    ) : LineMarkerRenderer {
-        override fun paint(
-            rawEditor: com.intellij.openapi.editor.Editor,
-            graphics: Graphics,
-            rectangle: Rectangle,
-        ) {
-            val safeEndOffset = (rangeEnd - 1).coerceAtLeast(rangeStart)
-            val startLine = document.getLineNumber(rangeStart)
-            val endLine = document.getLineNumber(safeEndOffset)
-            val startLineOffset = document.getLineStartOffset(startLine)
-            val endLineOffset = document.getLineStartOffset(endLine)
-            val startY = rawEditor.offsetToXY(startLineOffset).y
-            val endY = rawEditor.offsetToXY(endLineOffset).y + rawEditor.lineHeight
-            val x = editor.gutterComponentEx.whitespaceSeparatorOffset + 8 + depth * 10
-            graphics.color = color
-            graphics.fillRoundRect(x, startY + 1, 5, maxOf(rawEditor.lineHeight / 2, endY - startY - 2), 5, 5)
-        }
-    }
 }
 
 internal data class ComposeInlineSemanticRange(

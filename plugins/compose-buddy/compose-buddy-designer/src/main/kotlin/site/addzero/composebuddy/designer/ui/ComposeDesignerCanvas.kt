@@ -16,6 +16,7 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.dnd.DnDConstants
@@ -30,6 +31,11 @@ import javax.swing.TransferHandler
 class ComposeDesignerCanvas(
     private val onChanged: (List<ComposeCanvasNode>) -> Unit,
 ) : JComponent(), Disposable {
+    private data class CanvasSnapshot(
+        val nodes: List<ComposeCanvasNode>,
+        val selectedNodeId: String?,
+    )
+
     private enum class ResizeAnchor {
         TOP_LEFT,
         TOP_RIGHT,
@@ -45,9 +51,12 @@ class ComposeDesignerCanvas(
     private var dragOrigin: Point? = null
     private var lastPointer: Point? = null
     private var dragNodeOriginBounds: Rectangle? = null
+    private var operationSnapshot: CanvasSnapshot? = null
     private var resizeAnchor: ResizeAnchor? = null
     private var snapGuides = ComposeDesignerLayoutSupport.SnapGuides()
     private var dropPreview: ComposeDesignerLayoutSupport.DropPreview? = null
+    private val undoStack = ArrayDeque<CanvasSnapshot>()
+    private val redoStack = ArrayDeque<CanvasSnapshot>()
 
     init {
         preferredSize = Dimension(900, 700)
@@ -73,6 +82,14 @@ class ComposeDesignerCanvas(
                         selectionRect = Rectangle(event.point)
                         CanvasOperation.DRAW_SELECTION
                     }
+                }
+                operationSnapshot = when (operation) {
+                    CanvasOperation.MOVE,
+                    CanvasOperation.RESIZE,
+                    CanvasOperation.DRAW_SELECTION,
+                    -> snapshotState()
+
+                    CanvasOperation.IDLE -> null
                 }
                 repaint()
             }
@@ -111,11 +128,11 @@ class ComposeDesignerCanvas(
                 dragOrigin = null
                 lastPointer = null
                 dragNodeOriginBounds = null
+                operationSnapshot = null
                 resizeAnchor = null
                 selectionRect = null
                 snapGuides = ComposeDesignerLayoutSupport.SnapGuides()
                 dropPreview = null
-                fireChanged()
                 repaint()
             }
         }
@@ -128,17 +145,44 @@ class ComposeDesignerCanvas(
                 deleteSelected()
             }
         }
+        val hardDeleteAction = object : AbstractAction() {
+            override fun actionPerformed(event: java.awt.event.ActionEvent?) {
+                deleteSelected(forceDelete = true)
+            }
+        }
+        val undoAction = object : AbstractAction() {
+            override fun actionPerformed(event: java.awt.event.ActionEvent?) {
+                undo()
+            }
+        }
+        val redoAction = object : AbstractAction() {
+            override fun actionPerformed(event: java.awt.event.ActionEvent?) {
+                redo()
+            }
+        }
         getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "compose.designer.delete")
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "compose.designer.delete")
         getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "compose.designer.delete")
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "compose.designer.delete")
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, KeyEvent.SHIFT_DOWN_MASK), "compose.designer.delete.subtree")
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, KeyEvent.SHIFT_DOWN_MASK), "compose.designer.delete.subtree")
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menuShortcutMask()), "compose.designer.undo")
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menuShortcutMask()), "compose.designer.undo")
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menuShortcutMask() or KeyEvent.SHIFT_DOWN_MASK), "compose.designer.redo")
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menuShortcutMask() or KeyEvent.SHIFT_DOWN_MASK), "compose.designer.redo")
+        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, menuShortcutMask()), "compose.designer.redo")
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, menuShortcutMask()), "compose.designer.redo")
         actionMap.put("compose.designer.delete", deleteAction)
+        actionMap.put("compose.designer.delete.subtree", hardDeleteAction)
+        actionMap.put("compose.designer.undo", undoAction)
+        actionMap.put("compose.designer.redo", redoAction)
     }
 
     fun clear() {
+        val before = snapshotState()
         nodes.clear()
         initializeRootCanvas()
-        fireChanged()
+        fireChanged(before)
         repaint()
     }
 
@@ -158,25 +202,41 @@ class ComposeDesignerCanvas(
         initializeRootCanvas()
         nodes += parsedNodes.map { it.copy(bounds = Rectangle(it.bounds), parentId = it.parentId ?: rootNodeId) }
         selectedNodeId = rootNodeId
-        fireChanged()
+        undoStack.clear()
+        redoStack.clear()
+        fireChanged(recordUndo = false)
         repaint()
     }
 
-    fun deleteSelected() {
+    fun deleteSelected(forceDelete: Boolean = false) {
         val selectedId = selectedNodeId ?: return
-        if (selectedId == rootNodeId) {
+        val selected = nodes.firstOrNull { it.id == selectedId } ?: return
+        if (selectedId == rootNodeId || selected.parentId == rootNodeId) {
             return
         }
-        val toDelete = ComposeDesignerLayoutSupport.descendantsOf(nodes, selectedId).map { it.id }.toSet()
-        val parentId = nodes.firstOrNull { it.id == selectedId }?.parentId
-        nodes.removeAll { it.id in toDelete }
-        selectedNodeId = parentId ?: rootNodeId
+        val before = snapshotState()
+        val parentId = selected.parentId
+        val directChildren = nodes
+            .filter { it.parentId == selected.id }
+            .sortedBy { nodes.indexOf(it) }
+        if (!forceDelete && directChildren.isNotEmpty()) {
+            directChildren.forEach { child ->
+                child.parentId = parentId
+            }
+            nodes.removeAll { it.id == selected.id }
+            selectedNodeId = directChildren.lastOrNull()?.id ?: (parentId ?: rootNodeId)
+        } else {
+            val toDelete = ComposeDesignerLayoutSupport.descendantsOf(nodes, selectedId).map { it.id }.toSet()
+            nodes.removeAll { it.id in toDelete }
+            selectedNodeId = parentId ?: rootNodeId
+        }
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, parentId)
-        fireChanged()
+        fireChanged(before)
         repaint()
     }
 
     fun addNode(entry: ComposePaletteEntry, point: Point) {
+        val before = snapshotState()
         val kind = entry.kind
         val parentId = ComposeDesignerLayoutSupport.assignParentForPoint(nodes, point)
         val parent = nodes.firstOrNull { it.id == parentId }
@@ -196,7 +256,7 @@ class ComposeDesignerCanvas(
         )
         selectedNodeId = nodes.lastOrNull()?.id
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, parentId)
-        fireChanged()
+        fireChanged(before)
         repaint()
     }
 
@@ -305,6 +365,7 @@ class ComposeDesignerCanvas(
     private fun createContainerFromSelection() {
         val rect = selectionRect ?: return
         if (rect.width <= 20 || rect.height <= 20) return
+        val before = snapshotState()
         val enclosed = ComposeDesignerLayoutSupport.collectChildrenInRect(nodes, rect)
             .filterNot { ComposeDesignerLayoutSupport.isContainer(it.kind) && it.bounds == rect }
         val kind = ComposeDesignerLayoutSupport.inferContainerKind(enclosed)
@@ -329,10 +390,12 @@ class ComposeDesignerCanvas(
         selectedNodeId = container.id
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, container.id)
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, parentId)
+        fireChanged(before)
     }
 
     private fun reparentSelection() {
         val selected = selectedNode() ?: return
+        val before = operationSnapshot ?: snapshotState()
         val previousParentId = selected.parentId
         val preview = dropPreview ?: ComposeDesignerLayoutSupport.dropPreview(nodes, selected, lastPointer)
         val excludedIds = ComposeDesignerLayoutSupport.descendantsOf(nodes, selected.id).map { it.id }.toSet()
@@ -355,11 +418,14 @@ class ComposeDesignerCanvas(
         }
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, previousParentId)
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, parentId)
+        fireChanged(before)
     }
 
     private fun relayoutSelectedParent() {
         val selected = selectedNode() ?: return
+        val before = operationSnapshot ?: snapshotState()
         ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, selected.parentId)
+        fireChanged(before)
     }
 
     private fun defaultBoundsFor(entry: ComposePaletteEntry, point: Point): Rectangle {
@@ -386,8 +452,74 @@ class ComposeDesignerCanvas(
         return Rectangle(point.x, point.y, width, height)
     }
 
-    private fun fireChanged() {
+    private fun fireChanged(before: CanvasSnapshot) {
+        pushUndo(before)
+        fireChanged(recordUndo = false)
+    }
+
+    private fun fireChanged(recordUndo: Boolean) {
+        if (recordUndo) {
+            pushUndo(snapshotState())
+        }
         onChanged(nodes.map { it.copy(bounds = Rectangle(it.bounds), parentId = it.parentId) })
+    }
+
+    private fun snapshotState(): CanvasSnapshot {
+        return CanvasSnapshot(
+            nodes = nodes.map {
+                it.copy(
+                    bounds = Rectangle(it.bounds),
+                )
+            },
+            selectedNodeId = selectedNodeId,
+        )
+    }
+
+    private fun restoreSnapshot(snapshot: CanvasSnapshot) {
+        nodes.clear()
+        nodes += snapshot.nodes.map {
+            it.copy(
+                bounds = Rectangle(it.bounds),
+            )
+        }
+        selectedNodeId = snapshot.selectedNodeId?.takeIf { selectedId -> nodes.any { it.id == selectedId } } ?: rootNodeId
+        fireChanged(recordUndo = false)
+        repaint()
+    }
+
+    private fun pushUndo(snapshot: CanvasSnapshot) {
+        if (sameState(snapshot, snapshotState())) {
+            return
+        }
+        undoStack.addLast(snapshot)
+        while (undoStack.size > 50) {
+            undoStack.removeFirst()
+        }
+        redoStack.clear()
+    }
+
+    private fun sameState(
+        left: CanvasSnapshot,
+        right: CanvasSnapshot,
+    ): Boolean {
+        return left.selectedNodeId == right.selectedNodeId && left.nodes == right.nodes
+    }
+
+    private fun undo() {
+        val previous = undoStack.removeLastOrNull() ?: return
+        redoStack.addLast(snapshotState())
+        restoreSnapshot(previous)
+    }
+
+    private fun redo() {
+        val next = redoStack.removeLastOrNull() ?: return
+        undoStack.addLast(snapshotState())
+        restoreSnapshot(next)
+    }
+
+    private fun menuShortcutMask(): Int {
+        @Suppress("DEPRECATION")
+        return Toolkit.getDefaultToolkit().menuShortcutKeyMask
     }
 
     override fun paintComponent(graphics: Graphics) {

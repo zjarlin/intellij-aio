@@ -8,14 +8,17 @@ import site.addzero.composebuddy.designer.model.ComposePaletteItem
 import java.awt.Rectangle
 
 object ComposeDesignerCodeGenerator {
-    private val defaultImports = linkedSetOf(
+    private val baseImports = linkedSetOf(
+        "androidx.compose.runtime.Composable",
+    )
+
+    private val layoutImports = linkedSetOf(
         "androidx.compose.foundation.Image",
         "androidx.compose.foundation.background",
         "androidx.compose.foundation.layout.*",
         "androidx.compose.foundation.shape.RoundedCornerShape",
         "androidx.compose.material3.Button",
         "androidx.compose.material3.Text",
-        "androidx.compose.runtime.Composable",
         "androidx.compose.ui.draw.clip",
         "androidx.compose.ui.graphics.Color",
         "androidx.compose.ui.Modifier",
@@ -24,8 +27,20 @@ object ComposeDesignerCodeGenerator {
     )
 
     fun generate(nodes: List<ComposeCanvasNode>, functionName: String): ComposeGeneratedCode {
+        if (nodes.isEmpty()) {
+            return ComposeGeneratedCode(
+                imports = baseImports,
+                functionText = listOf(
+                    "@Composable",
+                    "fun $functionName() {",
+                    "}",
+                ).joinToString("\n"),
+            )
+        }
+
         val imports = linkedSetOf<String>().apply {
-            addAll(defaultImports)
+            addAll(baseImports)
+            addAll(layoutImports)
             nodes.forEach { node ->
                 ComposeDesignerPaletteCatalog.resolveCustomByFunction(node.customFunctionName)?.imports?.let(::addAll)
             }
@@ -33,21 +48,10 @@ object ComposeDesignerCodeGenerator {
         val bodyLines = buildList {
             add("@Composable")
             add("fun $functionName() {")
-            add("    Box(")
-            add("        modifier = Modifier")
-            add("            .fillMaxSize()")
-            add("            .background(Color(0xFFF5F5F7))")
-            add("            .padding(24.dp)")
-            add("    ) {")
             val rootChildren = nodes.filter { it.parentId == null }.sortedBy { it.bounds.y * 10_000 + it.bounds.x }
-            if (rootChildren.isEmpty()) {
-                add("        // ${ComposeBuddyBundle.message("designer.canvas.empty")}")
-            } else {
-                rootChildren.forEach { node ->
-                    addAll(renderNode(node, nodes, parent = null, indent = "        "))
-                }
+            rootChildren.forEach { node ->
+                addAll(renderNode(node, nodes, parent = null, indent = "    "))
             }
-            add("    }")
             add("}")
         }
 

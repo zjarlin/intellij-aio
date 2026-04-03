@@ -23,20 +23,24 @@ import site.addzero.composeblocks.managed.ManagedComposeSourceGenerator
 import site.addzero.composeblocks.model.BlockSpec
 import site.addzero.composeblocks.model.ComposeBlockType
 import site.addzero.composeblocks.model.ManagedComposeDocument
+import site.addzero.composeblocks.model.PropSpec
+import site.addzero.composeblocks.model.RawCodeBlockSpec
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Component
+import java.awt.Cursor
+import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.datatransfer.StringSelection
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.JTree
-import javax.swing.SwingConstants
-import javax.swing.event.TreeSelectionEvent
-import javax.swing.tree.DefaultMutableTreeNode
-import javax.swing.tree.DefaultTreeCellRenderer
-import javax.swing.tree.DefaultTreeModel
-import javax.swing.tree.TreePath
+import javax.swing.JTabbedPane
+import javax.swing.TransferHandler
 
 class ComposeBlocksBuilderFileEditor(
     project: Project,
@@ -58,13 +62,20 @@ class ComposeBlocksBuilderFileEditor(
 
     private val statusLabel = JBLabel("Loading Compose Blocks builder…")
     private val inspectorPanel = JBPanel<JBPanel<*>>(BorderLayout())
-    private val treeRoot = DefaultMutableTreeNode("Compose Blocks")
-    private val treeModel = DefaultTreeModel(treeRoot)
-    private val canvasTree = JTree(treeModel).apply {
-        isRootVisible = true
-        cellRenderer = BlockTreeRenderer()
-        addTreeSelectionListener(::onTreeSelectionChanged)
-    }
+    private val layoutCanvas = ComposeBlocksBuilderCanvasPanel(
+        onSelectBlock = { blockId ->
+            selectedBlockId = blockId
+            renderInspector()
+            renderCanvas()
+        },
+        onInsertIntoContainer = { containerId, blockType ->
+            insertIntoContainer(containerId, blockType)
+        },
+        onFillSlot = { slotId, blockType ->
+            fillSlotWithTemplate(slotId, blockType)
+        },
+    )
+    private val sketchWorkspace = ComposeLayoutSketchWorkspace()
 
     private var managedDocument: ManagedComposeDocument? = null
     private var selectedBlockId: String? = null
@@ -88,7 +99,7 @@ class ComposeBlocksBuilderFileEditor(
         refreshFromDocument()
     }
 
-    override fun getPreferredFocusedComponent(): JComponent = canvasTree
+    override fun getPreferredFocusedComponent(): JComponent = layoutCanvas
 
     override fun dispose() {
         refreshAlarm.cancelAllRequests()
@@ -102,7 +113,10 @@ class ComposeBlocksBuilderFileEditor(
                 val selected = selectedBlock()
                 if (selected != null && selected.id != managedDocument?.root?.id) {
                     applyMutation("Delete Compose Block", selectedParentIdOrRoot()) { current ->
-                        current.copy(root = BlockSpecTreeOps.deleteBlock(current.root, selected.id))
+                        current.copy(
+                            root = BlockSpecTreeOps.deleteBlock(current.root, selected.id),
+                            rawCodeBlocks = current.rawCodeBlocks.filterNot { raw -> raw.id == selected.id },
+                        )
                     }
                 }
             })
@@ -121,7 +135,7 @@ class ComposeBlocksBuilderFileEditor(
             add(actionButton("Wrap Box") { wrapSelected(ComposeBlockType.BOX) })
             add(actionButton("Move Up") { moveSelected(-1) })
             add(actionButton("Move Down") { moveSelected(1) })
-            add(actionButton("Sketch Layout") { sketchLayout() })
+            add(actionButton("Apply Sketch") { applySketchLayout() })
         }
 
         return JBPanel<JBPanel<*>>(BorderLayout()).apply {
@@ -131,7 +145,7 @@ class ComposeBlocksBuilderFileEditor(
             )
             add(actionsPanel, BorderLayout.WEST)
             add(
-                JBLabel("Builder Mode edits managed files only. Use Sketch Layout to draw named slots and generate lambda-based layout skeletons.").apply {
+                JBLabel("Builder Mode uses a component palette, visual canvas, and sketch canvas for named-slot layout work.").apply {
                     foreground = JBColor.GRAY
                 },
                 BorderLayout.CENTER,
@@ -146,36 +160,13 @@ class ComposeBlocksBuilderFileEditor(
                 JBUI.Borders.customLineRight(JBColor.border()),
                 JBUI.Borders.empty(8),
             )
-            add(JBLabel("Palette", SwingConstants.LEFT), BorderLayout.NORTH)
-            add(
-                JBScrollPane(
-                    JBPanel<JBPanel<*>>().apply {
-                        layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                        isOpaque = false
-                        ComposeBlockType.entries
-                            .filterNot { type -> type == ComposeBlockType.SLOT }
-                            .forEach { type ->
-                            add(
-                                JButton(type.displayName).apply {
-                                    alignmentX = Component.LEFT_ALIGNMENT
-                                    maximumSize = java.awt.Dimension(Int.MAX_VALUE, preferredSize.height)
-                                    addActionListener {
-                                        insertPaletteBlock(type)
-                                    }
-                                }
-                            )
-                            add(javax.swing.Box.createVerticalStrut(6))
-                        }
-                    }
-                ),
-                BorderLayout.CENTER,
-            )
+            add(JBLabel("Component Palette"), BorderLayout.NORTH)
+            add(JBScrollPane(buildPaletteList()), BorderLayout.CENTER)
         }
 
-        val canvasPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            border = JBUI.Borders.empty(8)
-            add(JBLabel("Canvas"), BorderLayout.NORTH)
-            add(JBScrollPane(canvasTree), BorderLayout.CENTER)
+        val workspaceTabs = JTabbedPane().apply {
+            addTab("Layout Canvas", JBScrollPane(layoutCanvas))
+            addTab("Sketch Canvas", buildSketchTab())
         }
 
         val previewPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
@@ -189,7 +180,7 @@ class ComposeBlocksBuilderFileEditor(
             add(previewEditor.component, BorderLayout.CENTER)
         }
 
-        val inspectorAndPreview = Splitter(true, 0.42f).apply {
+        val inspectorAndPreview = Splitter(true, 0.46f).apply {
             firstComponent = JBPanel<JBPanel<*>>(BorderLayout()).apply {
                 border = JBUI.Borders.compound(
                     JBUI.Borders.customLineLeft(JBColor.border()),
@@ -208,10 +199,83 @@ class ComposeBlocksBuilderFileEditor(
 
         return Splitter(false, 0.18f).apply {
             firstComponent = palettePanel
-            secondComponent = Splitter(false, 0.4f).apply {
-                firstComponent = canvasPanel
+            secondComponent = Splitter(false, 0.56f).apply {
+                firstComponent = workspaceTabs
                 secondComponent = inspectorAndPreview
             }
+        }
+    }
+
+    private fun buildPaletteList(): JComponent {
+        return JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            ComposeBlockType.entries
+                .filterNot { type -> type == ComposeBlockType.SLOT }
+                .forEach { type ->
+                    add(createPaletteItem(type))
+                    add(javax.swing.Box.createVerticalStrut(8))
+                }
+        }
+    }
+
+    private fun createPaletteItem(type: ComposeBlockType): JComponent {
+        val item = JLabel(type.displayName).apply {
+            isOpaque = true
+            background = JBColor(Color(245, 247, 250), Color(60, 64, 72))
+            border = JBUI.Borders.compound(
+                JBUI.Borders.customLine(JBColor.border(), 1),
+                JBUI.Borders.empty(8, 10),
+            )
+            alignmentX = Component.LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            transferHandler = object : TransferHandler() {
+                override fun createTransferable(component: JComponent): StringSelection {
+                    return StringSelection(type.name)
+                }
+
+                override fun getSourceActions(component: JComponent): Int = TransferHandler.COPY
+            }
+            addMouseListener(object : MouseAdapter() {
+                override fun mousePressed(event: MouseEvent) {
+                    transferHandler.exportAsDrag(this@apply, event, TransferHandler.COPY)
+                }
+
+                override fun mouseClicked(event: MouseEvent) {
+                    if (event.clickCount == 1) {
+                        insertPaletteBlock(type)
+                    }
+                }
+            })
+        }
+        return item
+    }
+
+    private fun buildSketchTab(): JComponent {
+        return JPanel(BorderLayout()).apply {
+            border = JBUI.Borders.empty(8)
+            add(sketchWorkspace, BorderLayout.CENTER)
+            add(
+                JPanel(FlowLayout(FlowLayout.LEFT, 8, 8)).apply {
+                    isOpaque = false
+                    add(
+                        JButton("Apply Sketch to Layout").apply {
+                            addActionListener {
+                                applySketchLayout()
+                            }
+                        }
+                    )
+                    add(
+                        JButton("Clear Sketch").apply {
+                            addActionListener {
+                                sketchWorkspace.clearAllRegions()
+                            }
+                        }
+                    )
+                },
+                BorderLayout.SOUTH,
+            )
         }
     }
 
@@ -230,8 +294,6 @@ class ComposeBlocksBuilderFileEditor(
         val parsed = ManagedComposeDocumentCodec.parseDocument(document.text)
         managedDocument = parsed
         if (parsed == null) {
-            treeRoot.removeAllChildren()
-            treeModel.reload()
             inspectorPanel.removeAll()
             inspectorPanel.add(
                 JBLabel("This file no longer contains Compose Blocks managed metadata. Open it in Inspect Mode or recreate the managed header.").apply {
@@ -241,6 +303,7 @@ class ComposeBlocksBuilderFileEditor(
             )
             inspectorPanel.revalidate()
             inspectorPanel.repaint()
+            layoutCanvas.render(null, null, emptyMap())
             statusLabel.text = "Managed metadata missing"
             return
         }
@@ -251,10 +314,20 @@ class ComposeBlocksBuilderFileEditor(
             ?: parsed.root.id
         pendingSelectionId = null
         selectedBlockId = selectedId
-        rebuildTree(parsed, selectedId)
+        renderCanvas()
         renderInspector()
         applyPreviewFolding(document)
         statusLabel.text = "${parsed.kind.presentableName} builder · ${countBlocks(parsed.root)} blocks · ${parsed.composableName}"
+    }
+
+    private fun renderCanvas() {
+        layoutCanvas.render(
+            document = managedDocument,
+            selectedBlockId = selectedBlockId,
+            slotFillLabels = managedDocument?.rawCodeBlocks
+                ?.associate { raw -> raw.id to raw.note.ifBlank { "Custom" } }
+                .orEmpty(),
+        )
     }
 
     private fun updateNextIdSeed(document: ManagedComposeDocument) {
@@ -267,30 +340,13 @@ class ComposeBlocksBuilderFileEditor(
         nextIdSeed = maxOf(nextIdSeed, maxExisting + 1)
     }
 
-    private fun rebuildTree(document: ManagedComposeDocument, selectionId: String) {
-        treeRoot.userObject = BlockTreeEntry(document.root)
-        treeRoot.removeAllChildren()
-        buildTreeNodes(treeRoot, document.root)
-        treeModel.reload()
-        expandAll(canvasTree)
-        findTreePath(selectionId)?.let(canvasTree::setSelectionPath)
-    }
-
-    private fun buildTreeNodes(parentNode: DefaultMutableTreeNode, block: BlockSpec) {
-        block.children.forEach { child ->
-            val childNode = DefaultMutableTreeNode(BlockTreeEntry(child))
-            parentNode.add(childNode)
-            buildTreeNodes(childNode, child)
-        }
-    }
-
     private fun renderInspector() {
         inspectorPanel.removeAll()
         val currentDocument = managedDocument
         val block = selectedBlock()
         if (currentDocument == null || block == null) {
             inspectorPanel.add(
-                JBLabel("Select a block to edit its note and supported properties.").apply {
+                JBLabel("Select a block on the canvas to edit its note and supported properties.").apply {
                     foreground = JBColor.GRAY
                 },
                 BorderLayout.NORTH,
@@ -312,6 +368,38 @@ class ComposeBlocksBuilderFileEditor(
                 add(labeledField("Slot Name", block.propValue("slotName").orEmpty(), "Update Slot Name") { selectedBlock, newValue ->
                     selectedBlock.upsertProp("slotName", newValue)
                 })
+
+                val currentFill = currentDocument.rawCodeBlocks.firstOrNull { raw -> raw.id == block.id }
+                add(
+                    formRow(
+                        "Default Slot Fill",
+                        JPanel(BorderLayout(8, 0)).apply {
+                            isOpaque = false
+                            add(
+                                JBLabel(currentFill?.note ?: "Empty").apply {
+                                    foreground = if (currentFill == null) {
+                                        JBColor.GRAY
+                                    } else {
+                                        JBColor.namedColor(
+                                            "Label.foreground",
+                                            JBColor(Color(28, 28, 28), Color(226, 226, 226)),
+                                        )
+                                    }
+                                },
+                                BorderLayout.CENTER,
+                            )
+                            add(
+                                JButton("Clear").apply {
+                                    isEnabled = currentFill != null
+                                    addActionListener {
+                                        clearSlotFill(block.id)
+                                    }
+                                },
+                                BorderLayout.EAST,
+                            )
+                        },
+                    )
+                )
             }
 
             if (block.type in setOf(ComposeBlockType.TEXT, ComposeBlockType.BUTTON, ComposeBlockType.IMAGE, ComposeBlockType.TEXT_FIELD)) {
@@ -359,7 +447,7 @@ class ComposeBlocksBuilderFileEditor(
                 selectedBlock.upsertProp("fillMaxHeight", isEnabled.toString().takeIf { isEnabled })
             })
 
-            if (block.type in setOf(ComposeBlockType.COLUMN, ComposeBlockType.ROW, ComposeBlockType.BOX)) {
+            if (block.type in setOf(ComposeBlockType.COLUMN, ComposeBlockType.ROW, ComposeBlockType.BOX, ComposeBlockType.SLOT)) {
                 add(labeledField("Alignment", block.propValue("alignment").orEmpty(), "Update Alignment") { selectedBlock, newValue ->
                     selectedBlock.upsertProp("alignment", newValue)
                 })
@@ -431,17 +519,58 @@ class ComposeBlocksBuilderFileEditor(
         }
     }
 
-    private fun onTreeSelectionChanged(event: TreeSelectionEvent) {
-        val node = event.path?.lastPathComponent as? DefaultMutableTreeNode ?: return
-        val entry = node.userObject as? BlockTreeEntry ?: return
-        selectedBlockId = entry.block.id
-        renderInspector()
-    }
-
     private fun insertPaletteBlock(type: ComposeBlockType) {
+        val selected = selectedBlock()
+        if (selected?.type == ComposeBlockType.SLOT) {
+            fillSlotWithTemplate(selected.id, type)
+            return
+        }
         val newBlock = createDefaultBlock(type)
         applyMutation("Insert ${type.displayName}", newBlock.id) { current ->
             current.copy(root = BlockSpecTreeOps.addNearSelection(current.root, selectedBlockId, newBlock))
+        }
+    }
+
+    private fun insertIntoContainer(
+        containerId: String,
+        type: ComposeBlockType,
+    ) {
+        val newBlock = createDefaultBlock(type)
+        applyMutation("Insert ${type.displayName}", newBlock.id) { current ->
+            current.copy(
+                root = BlockSpecTreeOps.updateBlock(current.root, containerId) { container ->
+                    if (container.type.supportsChildren) {
+                        container.withChildren(container.children + newBlock)
+                    } else {
+                        container
+                    }
+                },
+            )
+        }
+    }
+
+    private fun fillSlotWithTemplate(
+        slotId: String,
+        type: ComposeBlockType,
+    ) {
+        applyMutation("Fill Named Slot", slotId) { current ->
+            current.copy(
+                rawCodeBlocks = current.rawCodeBlocks
+                    .filterNot { raw -> raw.id == slotId }
+                    .plus(
+                        RawCodeBlockSpec(
+                            id = slotId,
+                            note = type.displayName,
+                            source = defaultSlotTemplateSource(type),
+                        )
+                    ),
+            )
+        }
+    }
+
+    private fun clearSlotFill(slotId: String) {
+        applyMutation("Clear Slot Fill", slotId) { current ->
+            current.copy(rawCodeBlocks = current.rawCodeBlocks.filterNot { raw -> raw.id == slotId })
         }
     }
 
@@ -463,16 +592,12 @@ class ComposeBlocksBuilderFileEditor(
         }
     }
 
-    private fun sketchLayout() {
+    private fun applySketchLayout() {
         val current = managedDocument ?: return
-        val dialog = ComposeLayoutSketchDialog(project)
-        if (!dialog.showAndGet()) {
-            return
-        }
         val sketchRoot = ComposeLayoutSketchTreeBuilder.buildRoot(
             rootId = current.root.id,
             rootNote = current.composableName,
-            regions = dialog.regions(),
+            regions = sketchWorkspace.regions(),
             idFactory = { nextBlockId() },
         )
         applyMutation("Sketch Compose Layout", sketchRoot.id) { managed ->
@@ -543,49 +668,105 @@ class ComposeBlocksBuilderFileEditor(
             note = type.displayName,
             props = when (type) {
                 ComposeBlockType.COLUMN -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("fillMaxWidth", "true"),
-                    site.addzero.composeblocks.model.PropSpec("padding", "16.dp"),
+                    PropSpec("fillMaxWidth", "true"),
+                    PropSpec("padding", "16.dp"),
                 )
 
                 ComposeBlockType.ROW -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("fillMaxWidth", "true"),
-                    site.addzero.composeblocks.model.PropSpec("padding", "8.dp"),
-                    site.addzero.composeblocks.model.PropSpec("arrangement", "spacedBy(8.dp)"),
+                    PropSpec("fillMaxWidth", "true"),
+                    PropSpec("padding", "8.dp"),
+                    PropSpec("arrangement", "spacedBy(8.dp)"),
                 )
 
                 ComposeBlockType.BOX -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("fillMaxWidth", "true"),
-                    site.addzero.composeblocks.model.PropSpec("padding", "8.dp"),
+                    PropSpec("fillMaxWidth", "true"),
+                    PropSpec("padding", "8.dp"),
                 )
 
                 ComposeBlockType.SLOT -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("slotName", "slot"),
-                    site.addzero.composeblocks.model.PropSpec("fillMaxWidth", "true"),
+                    PropSpec("slotName", "slot"),
+                    PropSpec("fillMaxWidth", "true"),
                 )
 
                 ComposeBlockType.TEXT -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("text", "Text"),
+                    PropSpec("text", "Text"),
                 )
 
                 ComposeBlockType.BUTTON -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("text", "Button"),
+                    PropSpec("text", "Button"),
                 )
 
                 ComposeBlockType.SPACER -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("size", "16.dp"),
+                    PropSpec("size", "16.dp"),
                 )
 
                 ComposeBlockType.IMAGE -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("text", "Image"),
-                    site.addzero.composeblocks.model.PropSpec("size", "64.dp"),
+                    PropSpec("text", "Image"),
+                    PropSpec("size", "64.dp"),
                 )
 
                 ComposeBlockType.TEXT_FIELD -> listOf(
-                    site.addzero.composeblocks.model.PropSpec("text", "Label"),
-                    site.addzero.composeblocks.model.PropSpec("fillMaxWidth", "true"),
+                    PropSpec("text", "Label"),
+                    PropSpec("fillMaxWidth", "true"),
                 )
             },
         )
+    }
+
+    private fun defaultSlotTemplateSource(type: ComposeBlockType): String {
+        return when (type) {
+            ComposeBlockType.COLUMN -> """
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp)
+                ) {
+                    Text("Column slot")
+                }
+            """.trimIndent()
+
+            ComposeBlockType.ROW -> """
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Row slot")
+                }
+            """.trimIndent()
+
+            ComposeBlockType.BOX -> """
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp)
+                ) {
+                    Text("Box slot")
+                }
+            """.trimIndent()
+
+            ComposeBlockType.TEXT -> """Text("Text")"""
+            ComposeBlockType.BUTTON -> """
+                Button(onClick = { }) {
+                    Text("Button")
+                }
+            """.trimIndent()
+
+            ComposeBlockType.SPACER -> """Spacer(modifier = Modifier.size(16.dp))"""
+            ComposeBlockType.IMAGE -> """
+                Image(
+                    painter = TODO("Provide painter"),
+                    contentDescription = "Image",
+                    modifier = Modifier.size(64.dp),
+                )
+            """.trimIndent()
+
+            ComposeBlockType.TEXT_FIELD -> """
+                TextField(
+                    value = "",
+                    onValueChange = { },
+                    label = { Text("Label") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            """.trimIndent()
+
+            ComposeBlockType.SLOT -> ""
+        }
     }
 
     private fun nextBlockId(): String = "block-${nextIdSeed++}"
@@ -602,61 +783,9 @@ class ComposeBlocksBuilderFileEditor(
         }
     }
 
-    private fun findTreePath(blockId: String): TreePath? {
-        return findTreePath(TreePath(treeRoot), blockId)
-    }
-
-    private fun findTreePath(path: TreePath, blockId: String): TreePath? {
-        val node = path.lastPathComponent as? DefaultMutableTreeNode ?: return null
-        val entry = node.userObject as? BlockTreeEntry
-        if (entry?.block?.id == blockId) {
-            return path
-        }
-        val children = node.children()
-        while (children.hasMoreElements()) {
-            val childNode = children.nextElement() as DefaultMutableTreeNode
-            val childPath = path.pathByAddingChild(childNode)
-            val match = findTreePath(childPath, blockId)
-            if (match != null) {
-                return match
-            }
-        }
-        return null
-    }
-
-    private fun expandAll(tree: JTree) {
-        var row = 0
-        while (row < tree.rowCount) {
-            tree.expandRow(row)
-            row += 1
-        }
-    }
-
     private fun collectBlocks(block: BlockSpec): List<BlockSpec> {
         return listOf(block) + block.children.flatMap(::collectBlocks)
     }
 
     private fun countBlocks(block: BlockSpec): Int = collectBlocks(block).size
-
-    private class BlockTreeEntry(val block: BlockSpec)
-
-    private class BlockTreeRenderer : DefaultTreeCellRenderer() {
-        override fun getTreeCellRendererComponent(
-            tree: JTree,
-            value: Any?,
-            selected: Boolean,
-            expanded: Boolean,
-            leaf: Boolean,
-            row: Int,
-            hasFocus: Boolean,
-        ): Component {
-            val component = super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus)
-            val node = value as? DefaultMutableTreeNode
-            val entry = node?.userObject as? BlockTreeEntry
-            text = entry?.block?.let { block ->
-                "${block.displayTitle} · ${block.type.displayName}"
-            } ?: text
-            return component
-        }
-    }
 }

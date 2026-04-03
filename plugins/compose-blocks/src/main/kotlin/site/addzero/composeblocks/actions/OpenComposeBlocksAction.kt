@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.DumbAwareAction
 import site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider
 import site.addzero.composeblocks.editor.isComposeKotlinFile
+import site.addzero.composeblocks.model.ComposeBlocksMode
 
 class OpenComposeBlocksAction : DumbAwareAction(
     "Open Compose Blocks View",
@@ -20,7 +21,7 @@ class OpenComposeBlocksAction : DumbAwareAction(
             return
         }
 
-        ComposeBlocksFileEditorProvider.openComposeBlocks(project, file)
+        ComposeBlocksFileEditorProvider.openComposeBlocks(project, file, ComposeBlocksMode.INSPECT)
     }
 
     override fun update(event: AnActionEvent) {

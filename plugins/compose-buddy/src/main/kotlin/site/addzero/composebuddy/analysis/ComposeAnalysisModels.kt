@@ -41,3 +41,20 @@ data class ComposeSignatureAnalysisResult(
     val totalParameterCount: Int
         get() = function.valueParameters.size
 }
+
+data class ComposeFlattenProperty(
+    val propertyName: String,
+    val parameterName: String,
+    val typeText: String,
+    val defaultValueText: String? = null,
+)
+
+data class ComposeFlattenObjectParameterCandidate(
+    val parameter: KtParameter,
+    val flattenedProperties: List<ComposeFlattenProperty>,
+)
+
+data class ComposeFlattenObjectParameterAnalysisResult(
+    val function: KtNamedFunction,
+    val candidates: List<ComposeFlattenObjectParameterCandidate>,
+)

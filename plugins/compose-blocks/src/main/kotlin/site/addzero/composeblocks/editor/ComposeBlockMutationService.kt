@@ -76,24 +76,25 @@ internal class ComposeBlockMutationService(
 
     fun updateDocComment(node: ComposeBlockNode, rawCommentText: String): Int? {
         val normalizedComment = normalizeComment(rawCommentText)
-        if (normalizedComment == node.commentText.orEmpty()) {
+        val existingCommentRange = node.commentRange ?: findLeadingCommentClusterRange(node)
+        if (shouldSkipCommentUpdate(node, normalizedComment, existingCommentRange)) {
             return node.navigationOffset
         }
         return runWriteCommand("Update Compose Block Comment") {
             when {
-                node.commentRange != null && normalizedComment.isBlank() -> {
-                    val deleteRange = expandWholeLineRange(node.commentRange)
+                existingCommentRange != null && normalizedComment.isBlank() -> {
+                    val deleteRange = expandWholeLineRange(existingCommentRange)
                     document.deleteString(deleteRange.startOffset, deleteRange.endOffset)
                     deleteRange.startOffset
                 }
 
-                node.commentRange != null -> {
+                existingCommentRange != null -> {
                     document.replaceString(
-                        node.commentRange.startOffset,
-                        node.commentRange.endOffset,
+                        existingCommentRange.startOffset,
+                        existingCommentRange.endOffset,
                         formatDocComment(normalizedComment),
                     )
-                    node.commentRange.startOffset
+                    existingCommentRange.startOffset
                 }
 
                 normalizedComment.isNotBlank() -> {
@@ -107,6 +108,52 @@ internal class ComposeBlockMutationService(
                 }
             }
         }
+    }
+
+    private fun shouldSkipCommentUpdate(
+        node: ComposeBlockNode,
+        normalizedComment: String,
+        existingCommentRange: TextRange?,
+    ): Boolean {
+        if (normalizedComment != node.commentText.orEmpty()) {
+            return false
+        }
+
+        if (existingCommentRange == null) {
+            return normalizedComment.isBlank()
+        }
+
+        if (normalizedComment.isBlank()) {
+            return false
+        }
+
+        val existingSource = document.getText(existingCommentRange).trim()
+        return existingSource == formatDocComment(normalizedComment)
+    }
+
+    private fun findLeadingCommentClusterRange(node: ComposeBlockNode): TextRange? {
+        val anchorOffset = node.renderRange.startOffset.coerceIn(0, document.textLength)
+        var line = document.getLineNumber(anchorOffset) - 1
+        var startOffset: Int? = null
+        var endOffset: Int? = null
+        while (line >= 0) {
+            val lineStart = document.getLineStartOffset(line)
+            val lineEnd = document.getLineEndOffset(line)
+            val trimmed = document.charsSequence.subSequence(lineStart, lineEnd).toString().trim()
+            if (trimmed.startsWith("/*")) {
+                startOffset = lineStart
+                if (endOffset == null) {
+                    endOffset = lineEnd
+                }
+                line -= 1
+                continue
+            }
+            break
+        }
+        if (startOffset == null || endOffset == null) {
+            return null
+        }
+        return TextRange(startOffset, endOffset)
     }
 
     fun insertTemplate(

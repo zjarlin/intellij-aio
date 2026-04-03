@@ -29,6 +29,7 @@ internal class ComposeBlockDecorationController(
         parentNode: ComposeBlockNode?,
         selectedPath: List<ComposeBlockNode>,
         caretOffset: Int,
+        semanticRanges: List<ComposeInlineSemanticRange> = emptyList(),
     ) {
         clear()
         if (selectedNode == null) {
@@ -88,6 +89,15 @@ internal class ComposeBlockDecorationController(
             color = backgroundColor(selectedNode.kind, 132),
             placement = SeparatorPlacement.BOTTOM,
         )
+
+        semanticRanges.forEach { range ->
+            addSemanticRangeBackground(
+                editor = editor,
+                startOffset = range.startOffset,
+                endOffset = range.endOffset,
+                color = range.color,
+            )
+        }
     }
 
     fun clear() {
@@ -135,6 +145,26 @@ internal class ComposeBlockDecorationController(
             TextAttributes().apply {
                 backgroundColor = color
                 fontType = EditorFontType.PLAIN.ordinal
+            },
+            HighlighterTargetArea.EXACT_RANGE,
+        )
+    }
+
+    private fun addSemanticRangeBackground(
+        editor: EditorEx,
+        startOffset: Int,
+        endOffset: Int,
+        color: Color,
+    ) {
+        if (startOffset >= endOffset) {
+            return
+        }
+        highlighters += editor.markupModel.addRangeHighlighter(
+            startOffset,
+            endOffset,
+            HighlighterLayer.SELECTION - 6,
+            TextAttributes().apply {
+                backgroundColor = color
             },
             HighlighterTargetArea.EXACT_RANGE,
         )
@@ -223,3 +253,9 @@ internal class ComposeBlockDecorationController(
         }
     }
 }
+
+internal data class ComposeInlineSemanticRange(
+    val startOffset: Int,
+    val endOffset: Int,
+    val color: Color,
+)

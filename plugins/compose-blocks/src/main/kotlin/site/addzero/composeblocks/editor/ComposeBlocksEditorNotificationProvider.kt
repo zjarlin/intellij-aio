@@ -1,5 +1,6 @@
 package site.addzero.composeblocks.editor
 
+import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.DumbAware
@@ -26,17 +27,21 @@ class ComposeBlocksEditorNotificationProvider : EditorNotificationProvider, Dumb
                 return@Function null
             }
 
-            val mode = file.composeBlocksMode(project) ?: ComposeBlocksMode.INSPECT
+            project.service<ComposeBlocksTextEditorService>().installIfNeeded(file, fileEditor)
+            val mode = file.defaultComposeBlocksMode(project) ?: ComposeBlocksMode.INSPECT
             EditorNotificationPanel(fileEditor, EditorNotificationPanel.Status.Info).apply {
                 text = when (mode) {
                     ComposeBlocksMode.INSPECT ->
-                        "Compose Blocks Inspect Mode keeps blocks and real source in one pane with coupled highlights."
+                        "Open Compose Blocks for a split block browser and live source editor."
 
                     ComposeBlocksMode.BUILDER ->
-                        "Compose Blocks Builder Mode edits this managed file through palette, canvas, and inspector controls."
+                        "Open Compose Blocks Builder for palette, canvas, and named-slot layout editing."
+
+                    ComposeBlocksMode.TEXT ->
+                        "Open Compose Blocks views from the integrated editor toolbar."
                 }
                 createActionLabel("Open Blocks View") {
-                    ComposeBlocksFileEditorProvider.openComposeBlocks(project, file)
+                    ComposeBlocksFileEditorProvider.openComposeBlocks(project, file, ComposeBlocksMode.INSPECT)
                 }
             }
         }

@@ -6,14 +6,18 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtLambdaArgument
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.analysis.ComposeComponentParameterRegistry
+import site.addzero.composebuddy.analysis.ComposeFlattenObjectParameterAnalysisResult
+import site.addzero.composebuddy.analysis.ComposeFlattenObjectParameterCandidate
 import site.addzero.composebuddy.analysis.ComposeForwardedParameter
 import site.addzero.composebuddy.analysis.ComposeParameterSpec
 import site.addzero.composebuddy.analysis.ComposeSignatureAnalysisResult
@@ -24,6 +28,79 @@ import site.addzero.smart.intentions.core.SmartPsiWriteSupport
 class ComposeRefactorEngine(
     private val project: Project,
 ) {
+    fun wrapContainerAsHigherOrder(
+        ownerFunction: KtNamedFunction,
+        containerCall: KtCallExpression,
+        newFunctionName: String,
+    ) {
+        val factory = KtPsiFactory(project)
+        SmartPsiWriteSupport.runWriteCommand(project, ComposeBuddyBundle.message("command.wrap.higher.order.container")) {
+            val containerCallText = renderHigherOrderContainerBody(containerCall)
+            val functionText = buildString {
+                appendLine("@androidx.compose.runtime.Composable")
+                appendLine("private fun $newFunctionName(content: @androidx.compose.runtime.Composable () -> Unit) {")
+                appendLine("    $containerCallText")
+                appendLine("}")
+            }
+            val parent = ownerFunction.parent
+            parent.addBefore(factory.createDeclaration(functionText.trim()), ownerFunction)
+            parent.addBefore(factory.createWhiteSpace("\n\n"), ownerFunction)
+
+            val preservedLambda = containerCall.lambdaArguments.firstOrNull()?.text ?: "{\n}"
+            val replacementCall = factory.createExpression("$newFunctionName $preservedLambda")
+            containerCall.replace(replacementCall)
+        }
+    }
+
+    fun flattenUsedObjectParameters(analysis: ComposeFlattenObjectParameterAnalysisResult) {
+        val function = analysis.function
+        val oldCallSites = collectCallSites(function)
+        val oldParameters = function.valueParameters.toList()
+        val oldParameterOrder = oldParameters.mapNotNull { it.name }
+        val candidateByParameterName = analysis.candidates.associateBy { it.parameter.name }
+        val safeParameterNames = oldCallSites
+            .map { call -> extractArgumentMap(call, oldParameterOrder).keys }
+            .fold(candidateByParameterName.keys) { acc, keys -> acc.intersect(keys) }
+        val safeCandidates = analysis.candidates.filter { candidate ->
+            val name = candidate.parameter.name ?: return@filter false
+            oldCallSites.isEmpty() || name in safeParameterNames
+        }
+        if (safeCandidates.isEmpty()) return
+
+        val flattenedByParameter = safeCandidates.associateBy { it.parameter.name }
+        val factory = KtPsiFactory(project)
+        SmartPsiWriteSupport.runWriteCommand(project, "Flatten Compose object parameters") {
+            replaceFlattenedParameterReferences(function, safeCandidates, factory)
+
+            val newParameters = buildList {
+                oldParameters.forEach { parameter ->
+                    val parameterName = parameter.name ?: return@forEach
+                    val candidate = flattenedByParameter[parameterName]
+                    if (candidate == null) {
+                        add(parameter.text)
+                        return@forEach
+                    }
+                    candidate.flattenedProperties.forEach { property ->
+                        add(renderParameter(property.parameterName, property.typeText, property.defaultValueText))
+                    }
+                }
+            }
+
+            val oldParameterList = function.valueParameterList?.text ?: "()"
+            val updatedFunction = function.replace(
+                factory.createFunction(function.text.replace(oldParameterList, "(${newParameters.joinToString(", ")})"))
+            ) as KtNamedFunction
+
+            updateFlattenedCallSites(
+                oldCallSites = oldCallSites,
+                functionName = updatedFunction.name ?: return@runWriteCommand,
+                oldParameterOrder = oldParameterOrder,
+                oldParameters = oldParameters,
+                flattenedCandidates = safeCandidates,
+            )
+        }
+    }
+
     fun expandWrapperSignature(result: ComposeWrapperAnalysisResult) {
         val function = result.function
         val factory = KtPsiFactory(project)
@@ -322,6 +399,56 @@ class ComposeRefactorEngine(
         }
     }
 
+    private fun replaceFlattenedParameterReferences(
+        function: KtNamedFunction,
+        candidates: List<ComposeFlattenObjectParameterCandidate>,
+        factory: KtPsiFactory,
+    ) {
+        val body = function.bodyExpression ?: return
+        val replacementByAccessor = candidates.flatMap { candidate ->
+            val parameterName = candidate.parameter.name ?: return@flatMap emptyList<Pair<String, String>>()
+            candidate.flattenedProperties.map { property ->
+                "$parameterName.${property.propertyName}" to property.parameterName
+            }
+        }.toMap()
+
+        body.collectDescendantsOfType<KtDotQualifiedExpression>()
+            .sortedByDescending { it.textRange.startOffset }
+            .forEach { expression ->
+                val replacement = replacementByAccessor[expression.text] ?: return@forEach
+                expression.replace(factory.createExpression(replacement))
+            }
+    }
+
+    private fun updateFlattenedCallSites(
+        oldCallSites: List<KtCallExpression>,
+        functionName: String,
+        oldParameterOrder: List<String>,
+        oldParameters: List<KtParameter>,
+        flattenedCandidates: List<ComposeFlattenObjectParameterCandidate>,
+    ) {
+        val flattenedByParameter = flattenedCandidates.associateBy { it.parameter.name }
+        val factory = KtPsiFactory(project)
+        oldCallSites.forEach { call ->
+            val argumentMap = extractArgumentMap(call, oldParameterOrder)
+            val newArguments = buildList {
+                oldParameters.forEach { parameter ->
+                    val parameterName = parameter.name ?: return@forEach
+                    val candidate = flattenedByParameter[parameterName]
+                    if (candidate == null) {
+                        argumentMap[parameterName]?.let { add("$parameterName = $it") }
+                        return@forEach
+                    }
+                    val sourceArgument = argumentMap[parameterName] ?: return@forEach
+                    candidate.flattenedProperties.forEach { property ->
+                        add("${property.parameterName} = ${toReceiverExpression(sourceArgument)}.${property.propertyName}")
+                    }
+                }
+            }
+            call.replace(factory.createExpression("$functionName(${newArguments.joinToString(", ")})"))
+        }
+    }
+
     private fun buildCallText(call: KtCallExpression, arguments: List<String>, lambdaArguments: List<KtLambdaArgument>): String {
         val calleeText = call.calleeExpression?.text ?: return call.text
         val lambdaSuffix = if (lambdaArguments.isEmpty()) "" else lambdaArguments.joinToString(" ") { it.text }
@@ -367,6 +494,21 @@ class ComposeRefactorEngine(
 
     private fun renderParameter(name: String, typeText: String, defaultValueText: String?): String {
         return "$name: $typeText${defaultValueText?.let { " = $it" } ?: ""}"
+    }
+
+    private fun toReceiverExpression(argumentText: String): String {
+        return if (argumentText.matches(Regex("[A-Za-z_][A-Za-z0-9_\\.]*"))) {
+            argumentText
+        } else {
+            "($argumentText)"
+        }
+    }
+
+    private fun renderHigherOrderContainerBody(containerCall: KtCallExpression): String {
+        val callee = containerCall.calleeExpression?.text ?: "Box"
+        val args = containerCall.valueArguments.joinToString(", ") { it.text }
+        val header = "$callee($args)"
+        return "$header { content() }"
     }
 }
 

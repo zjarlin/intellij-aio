@@ -22,7 +22,7 @@ class ComposeBuddyIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val action = myFixture.findSingleIntention("Expand Compose wrapper signature")
+        val action = myFixture.findSingleIntention("(Compose Buddy) Expand Compose wrapper signature")
         action.invoke(project, myFixture.editor, myFixture.file)
 
         val text = myFixture.file.text
@@ -51,7 +51,7 @@ class ComposeBuddyIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val action = myFixture.findSingleIntention("Generate Compose wrapper props")
+        val action = myFixture.findSingleIntention("(Compose Buddy) Generate Compose wrapper props")
         action.invoke(project, myFixture.editor, myFixture.file)
 
         val text = myFixture.file.text
@@ -94,7 +94,7 @@ class ComposeBuddyIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val action = myFixture.findSingleIntention("Normalize Compose signature")
+        val action = myFixture.findSingleIntention("(Compose Buddy) Normalize Compose signature")
         action.invoke(project, myFixture.editor, myFixture.file)
 
         val text = myFixture.file.text
@@ -160,7 +160,7 @@ class ComposeBuddyIntentionsTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val actions = myFixture.filterAvailableIntentions("Normalize Compose signature")
+        val actions = myFixture.filterAvailableIntentions("(Compose Buddy) Normalize Compose signature")
         assertEmpty(actions)
     }
 }

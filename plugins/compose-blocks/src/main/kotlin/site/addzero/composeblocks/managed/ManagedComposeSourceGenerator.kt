@@ -7,7 +7,8 @@ import site.addzero.composeblocks.model.ManagedComposeDocument
 object ManagedComposeSourceGenerator {
 
     fun generate(document: ManagedComposeDocument): String {
-        val slotBindings = collectSlotBindings(document.root)
+        val slotDefaults = document.rawCodeBlocks.associateBy({ raw -> raw.id }, { raw -> raw.source.trim() })
+        val slotBindings = collectSlotBindings(document.root, slotDefaults)
         return buildString {
             append(ManagedComposeDocumentCodec.renderHeader(document))
             append("\n\n")
@@ -53,6 +54,16 @@ object ManagedComposeSourceGenerator {
             builder.append(indent(1))
             builder.append(slotBinding.parameterName)
             builder.append(": @Composable () -> Unit")
+            val defaultSource = slotBinding.defaultSource
+            if (!defaultSource.isNullOrBlank()) {
+                builder.append(" = {\n")
+                defaultSource.lineSequence().forEach { line ->
+                    builder.append(indent(2))
+                    builder.appendLine(line)
+                }
+                builder.append(indent(1))
+                builder.append("}")
+            }
             if (index != slotBindings.lastIndex) {
                 builder.append(',')
             }
@@ -353,7 +364,10 @@ object ManagedComposeSourceGenerator {
             block.propValue("heightFraction")?.isNotBlank() == true
     }
 
-    private fun collectSlotBindings(root: BlockSpec): List<SlotBinding> {
+    private fun collectSlotBindings(
+        root: BlockSpec,
+        slotDefaults: Map<String, String>,
+    ): List<SlotBinding> {
         val usedNames = linkedMapOf<String, Int>()
         return collectBlocks(root)
             .filter { block -> block.type == ComposeBlockType.SLOT }
@@ -368,6 +382,7 @@ object ManagedComposeSourceGenerator {
                 SlotBinding(
                     blockId = slotBlock.id,
                     parameterName = parameterName,
+                    defaultSource = slotDefaults[slotBlock.id],
                 )
             }
     }
@@ -455,5 +470,6 @@ object ManagedComposeSourceGenerator {
     private data class SlotBinding(
         val blockId: String,
         val parameterName: String,
+        val defaultSource: String?,
     )
 }

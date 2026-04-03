@@ -5,6 +5,7 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
@@ -382,6 +383,9 @@ object ComposeBlockTreeBuilder {
 
     private fun findLeadingBlockComment(element: PsiElement): BlockCommentInfo? {
         var current = element.prevSibling
+        var text: String? = null
+        var rangeStart: Int? = null
+        var rangeEnd: Int? = null
         while (current != null) {
             when (current) {
                 is PsiWhiteSpace -> {
@@ -389,21 +393,47 @@ object ComposeBlockTreeBuilder {
                 }
 
                 is PsiComment -> {
-                    if (!current.text.startsWith("/*")) {
+                    if (!isBlockStyleComment(current)) {
                         return null
                     }
-                    return BlockCommentInfo(
-                        text = normalizeBlockComment(current.text),
-                        range = current.textRange,
-                    )
+                    if (text == null) {
+                        text = normalizeBlockComment(current.text)
+                        rangeEnd = current.textRange.endOffset
+                    }
+                    rangeStart = current.textRange.startOffset
+                    current = current.prevSibling
+                }
+
+                is KDoc -> {
+                    if (!isBlockStyleComment(current)) {
+                        return null
+                    }
+                    if (text == null) {
+                        text = normalizeBlockComment(current.text)
+                        rangeEnd = current.textRange.endOffset
+                    }
+                    rangeStart = current.textRange.startOffset
+                    current = current.prevSibling
                 }
 
                 else -> {
-                    return null
+                    break
                 }
             }
         }
-        return null
+
+        if (text == null || rangeStart == null || rangeEnd == null) {
+            return null
+        }
+
+        return BlockCommentInfo(
+            text = text,
+            range = TextRange(rangeStart, rangeEnd),
+        )
+    }
+
+    private fun isBlockStyleComment(element: PsiElement): Boolean {
+        return element.text.startsWith("/*")
     }
 
     private fun normalizeBlockComment(commentText: String): String {

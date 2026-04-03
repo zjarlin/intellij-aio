@@ -10,10 +10,11 @@ import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFileFactory
+import com.intellij.openapi.ui.Splitter
 import com.intellij.ui.JBColor
-import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
@@ -37,7 +38,6 @@ import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import javax.swing.SwingUtilities
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
@@ -73,16 +73,14 @@ class ComposeBlocksInspectFileEditor(
 
     private val blockCanvasPanel = JPanel()
     private val statusLabel = JBLabel("Loading Compose blocks...")
-    private val hintLabel = JBLabel("Single-pane inline editor with source-coupled highlighting.")
-    private val hideShellsCheckBox = JBCheckBox("Hide shell composables", true)
+    private val hintLabel = JBLabel("Split block browser and live source editor.")
 
     private var visibleRoots: List<ComposeBlockNode> = emptyList()
     private var selectedNode: ComposeBlockNode? = null
     private var editingCommentNodeId: String? = null
     private var pendingInlineCommentFocusNodeId: String? = null
-    private var reorderState: ReorderState? = null
+    private var progressiveExpansionEnabled = true
     private var updatingSelectionFromBlocks = false
-    private val slotPresentations = linkedMapOf<SlotTarget, SlotPresentation>()
 
     init {
         Disposer.register(this, decorationController)
@@ -100,9 +98,30 @@ class ComposeBlocksInspectFileEditor(
             border = BorderFactory.createEmptyBorder()
         }
 
+        val sourcePanel = JPanel(BorderLayout()).apply {
+            border = JBUI.Borders.compound(
+                JBUI.Borders.customLineLeft(JBColor.border()),
+                JBUI.Borders.empty(8),
+            )
+            add(
+                JBLabel("Live Compose Source").apply {
+                    foreground = JBColor.GRAY
+                    border = JBUI.Borders.emptyBottom(6)
+                },
+                BorderLayout.NORTH,
+            )
+            add(embeddedEditor.component, BorderLayout.CENTER)
+        }
+
         rootPanel.layout = BorderLayout()
         rootPanel.add(buildToolbar(), BorderLayout.NORTH)
-        rootPanel.add(canvasScrollPane, BorderLayout.CENTER)
+        rootPanel.add(
+            Splitter(false, 0.46f).apply {
+                firstComponent = canvasScrollPane
+                secondComponent = sourcePanel
+            },
+            BorderLayout.CENTER,
+        )
 
         document.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
@@ -116,16 +135,19 @@ class ComposeBlocksInspectFileEditor(
             }
         }, this)
 
-        hideShellsCheckBox.addActionListener {
-            reorderState = null
-            refreshModel()
-        }
-
         refreshModel()
     }
 
     override fun getPreferredFocusedComponent(): JComponent {
         return embeddedEditor.contentComponent
+    }
+
+    fun setProgressiveExpansionEnabled(enabled: Boolean) {
+        if (progressiveExpansionEnabled == enabled) {
+            return
+        }
+        progressiveExpansionEnabled = enabled
+        applyCurrentEditorPresentation(scrollToCaret = false)
     }
 
     override fun dispose() {
@@ -134,18 +156,6 @@ class ComposeBlocksInspectFileEditor(
     }
 
     private fun buildToolbar(): JComponent {
-        val refreshButton = JButton("Refresh").apply {
-            addActionListener {
-                refreshModel()
-            }
-        }
-
-        val leftControls = JPanel(FlowLayout(FlowLayout.LEFT, 8, 6)).apply {
-            isOpaque = false
-            add(refreshButton)
-            add(hideShellsCheckBox)
-        }
-
         hintLabel.foreground = JBColor.GRAY
 
         return JPanel(BorderLayout()).apply {
@@ -153,8 +163,7 @@ class ComposeBlocksInspectFileEditor(
                 JBUI.Borders.customLineBottom(JBColor.border()),
                 JBUI.Borders.empty(4, 8),
             )
-            add(leftControls, BorderLayout.WEST)
-            add(hintLabel, BorderLayout.CENTER)
+            add(hintLabel, BorderLayout.WEST)
             add(statusLabel, BorderLayout.EAST)
         }
     }
@@ -175,19 +184,13 @@ class ComposeBlocksInspectFileEditor(
             return
         }
 
-        visibleRoots = ComposeBlockTreeBuilder.build(ktFile, hideShellsCheckBox.isSelected)
+        visibleRoots = ComposeBlockTreeBuilder.build(ktFile, hideShells = true)
         val allNodes = flattenNodes(visibleRoots)
         if (editingCommentNodeId != null && allNodes.none { it.id == editingCommentNodeId }) {
             editingCommentNodeId = null
-            pendingInlineCommentFocusNodeId = null
         }
-        val currentReorder = reorderState
-        if (currentReorder != null) {
-            val hasContainer = allNodes.any { it.id == currentReorder.containerId }
-            val hasChild = allNodes.any { it.id == currentReorder.childId }
-            if (!hasContainer || !hasChild) {
-                reorderState = null
-            }
+        if (pendingInlineCommentFocusNodeId != null && allNodes.none { it.id == pendingInlineCommentFocusNodeId }) {
+            pendingInlineCommentFocusNodeId = null
         }
 
         selectedNode = findBestSelection(embeddedEditor.caretModel.offset)
@@ -196,9 +199,7 @@ class ComposeBlocksInspectFileEditor(
     }
 
     private fun renderCanvas() {
-        detachEmbeddedEditor()
         blockCanvasPanel.removeAll()
-        slotPresentations.clear()
         if (visibleRoots.isEmpty()) {
             renderEmptyState("No @Composable functions were found in this file.")
             return
@@ -215,13 +216,11 @@ class ComposeBlocksInspectFileEditor(
 
         val totalBlocks = flattenNodes(visibleRoots).size
         statusLabel.text = "Showing $totalBlocks blocks in ${visibleRoots.size} composable functions"
-        refreshSlotPresentations()
         blockCanvasPanel.revalidate()
         blockCanvasPanel.repaint()
     }
 
     private fun renderEmptyState(message: String) {
-        detachEmbeddedEditor()
         blockCanvasPanel.removeAll()
         blockCanvasPanel.add(
             JBLabel(message).apply {
@@ -242,22 +241,20 @@ class ComposeBlocksInspectFileEditor(
         val directParent = selectedParentNode()
         val isDirectParent = directParent?.id == node.id
         val accentColor = kindColor(node.kind)
-        val line = document.getLineNumber(node.navigationOffset.coerceIn(0, document.textLength)).plus(1)
-        val childCountText = if (node.children.isEmpty()) "leaf" else "${node.children.size} children"
 
-        val titleLabel = JBLabel(node.displayTitle).apply {
+        val titleLabel = JBLabel(buildHeaderText(node)).apply {
             font = font.deriveFont(Font.BOLD.toFloat())
+            foreground = JBColor.foreground()
         }
 
-        val metaLabel = JBLabel(buildMetaText(node, line, childCountText)).apply {
-            foreground = JBColor.GRAY
-            border = JBUI.Borders.emptyTop(4)
-        }
+        val remarkComponent = createCommentComponent(node)
 
         val summaryPanel = JPanel(BorderLayout()).apply {
             isOpaque = false
             add(titleLabel, BorderLayout.NORTH)
-            add(metaLabel, BorderLayout.SOUTH)
+            remarkComponent?.let {
+                add(it, BorderLayout.SOUTH)
+            }
         }
 
         val actionPanel = createActionPanel(node, parent)
@@ -274,10 +271,6 @@ class ComposeBlocksInspectFileEditor(
             isOpaque = false
             alignmentX = Component.LEFT_ALIGNMENT
             add(headerPanel)
-            if (editingCommentNodeId == node.id) {
-                add(Box.createVerticalStrut(8))
-                add(createInlineCommentEditor(node))
-            }
         }
 
         val blockPanel = JPanel(BorderLayout(0, 10)).apply {
@@ -298,18 +291,18 @@ class ComposeBlocksInspectFileEditor(
             add(headerContainer, BorderLayout.NORTH)
         }
 
-        val showEditableSlots = isActiveEditableContainer(node)
-        if (node.children.isNotEmpty() || showEditableSlots) {
+        if (node.children.isNotEmpty()) {
             blockPanel.add(createChildrenPanel(node), BorderLayout.CENTER)
         }
 
-        if (isSelected) {
-            blockPanel.add(createInlineEditorHost(), BorderLayout.SOUTH)
-        } else if (node.kind == ComposeBlockKind.LEAF) {
+        if (node.kind == ComposeBlockKind.LEAF) {
             blockPanel.preferredSize = Dimension(180, 78)
         }
 
-        installSelectionHandler(node, blockPanel, headerPanel, titleLabel, metaLabel)
+        installSelectionHandler(
+            node,
+            *listOfNotNull(blockPanel, headerPanel, titleLabel, remarkComponent).toTypedArray(),
+        )
         return blockPanel
     }
 
@@ -321,23 +314,9 @@ class ComposeBlocksInspectFileEditor(
             isOpaque = false
         }
 
-        val activeContainer = activeEditableContainer()
-        if (activeContainer != null && parent != null && activeContainer.id == parent.id) {
-            panel.add(createDragHandleButton(node, parent))
-        }
-
         if (selectedNode?.id != node.id) {
             return panel
         }
-
-        panel.add(
-            createMiniButton(
-                label = if (editingCommentNodeId == node.id) "Commenting" else "Comment",
-                toolTip = "Edit the doc comment shown on this block",
-            ) {
-                startCommentEditing(node)
-            }
-        )
 
         if (node.kind != ComposeBlockKind.ROOT) {
             panel.add(
@@ -346,27 +325,6 @@ class ComposeBlocksInspectFileEditor(
                     toolTip = "Wrap this block in a layout container",
                 ) { button ->
                     showWrapMenu(button, node)
-                }
-            )
-
-            panel.add(
-                createMiniButton(
-                    label = "Layout",
-                    toolTip = "Edit layout arguments and modifier skeleton",
-                ) {
-                    showLayoutDialog(node)
-                }
-            )
-        }
-
-        if (node.editableContainerKind != null && node.children.size <= 1) {
-            panel.add(
-                createMiniButton(
-                    label = if (node.children.isEmpty()) "Delete" else "Unwrap",
-                    toolTip = "Delete empty containers or unwrap single-child containers",
-                ) {
-                    val nextOffset = mutationService.simplifyContainer(node)
-                    applyMutationResult(nextOffset)
                 }
             )
         }
@@ -401,14 +359,6 @@ class ComposeBlocksInspectFileEditor(
         node: ComposeBlockNode,
         horizontal: Boolean,
     ) {
-        val showEditableSlots = isActiveEditableContainer(node)
-        if (showEditableSlots) {
-            panel.add(createInsertSlot(node, 0, horizontal))
-            if (node.children.isNotEmpty()) {
-                addGap(panel, horizontal)
-            }
-        }
-
         node.children.forEachIndexed { index, child ->
             val childComponent = createBlockComponent(child, node).apply {
                 if (horizontal) {
@@ -418,14 +368,8 @@ class ComposeBlocksInspectFileEditor(
                 }
             }
             panel.add(childComponent)
-            if (index != node.children.lastIndex || showEditableSlots) {
+            if (index != node.children.lastIndex) {
                 addGap(panel, horizontal)
-            }
-            if (showEditableSlots) {
-                panel.add(createInsertSlot(node, index + 1, horizontal))
-                if (index != node.children.lastIndex) {
-                    addGap(panel, horizontal)
-                }
             }
         }
     }
@@ -441,78 +385,21 @@ class ComposeBlocksInspectFileEditor(
         }
     }
 
-    private fun createInsertSlot(
-        containerNode: ComposeBlockNode,
-        slotIndex: Int,
-        horizontal: Boolean,
-    ): JComponent {
-        val slotPanel = JPanel(BorderLayout()).apply {
-            isOpaque = true
-            border = CompoundBorder(
-                LineBorder(JBColor.border(), 1, true),
-                JBUI.Borders.empty(6),
-            )
-            preferredSize = if (horizontal) {
-                Dimension(90, 60)
-            } else {
-                Dimension(220, 34)
+    private fun createCommentComponent(node: ComposeBlockNode): JComponent? {
+        if (editingCommentNodeId != node.id) {
+            return null
+        }
+
+        var committed = false
+        fun commitComment(textField: JBTextField) {
+            if (committed) {
+                return
             }
+            committed = true
+            val nextOffset = mutationService.updateDocComment(node, textField.text)
+            applyMutationResult(nextOffset)
         }
 
-        val actionButton = createMiniButton(
-            label = "+",
-            toolTip = "Insert a new block at position ${slotIndex + 1}",
-        ) { button ->
-            val currentReorder = reorderState?.takeIf { it.containerId == containerNode.id }
-            if (currentReorder != null) {
-                val movingNode = containerNode.children.firstOrNull { it.id == currentReorder.childId } ?: return@createMiniButton
-                val nextOffset = mutationService.moveChild(containerNode, movingNode, slotIndex)
-                applyMutationResult(nextOffset)
-            } else {
-                showTemplateMenu(button, containerNode, slotIndex)
-            }
-        }
-
-        slotPanel.add(
-            JPanel(FlowLayout(FlowLayout.CENTER, 0, 0)).apply {
-                isOpaque = false
-                add(actionButton)
-            },
-            BorderLayout.CENTER,
-        )
-        val slotTarget = SlotTarget(
-            containerId = containerNode.id,
-            slotIndex = slotIndex,
-        )
-        slotPanel.putClientProperty(SLOT_TARGET_PROPERTY, slotTarget)
-        actionButton.putClientProperty(SLOT_TARGET_PROPERTY, slotTarget)
-        slotPresentations[slotTarget] = SlotPresentation(
-            panel = slotPanel,
-            button = actionButton,
-            containerKind = containerNode.kind,
-            slotIndex = slotIndex,
-        )
-        return slotPanel
-    }
-
-    private fun createInlineEditorHost(): JComponent {
-        detachEmbeddedEditor()
-        return JPanel(BorderLayout()).apply {
-            isOpaque = false
-            border = JBUI.Borders.emptyTop(8)
-            preferredSize = Dimension(400, 240)
-            add(
-                JBLabel("Live Compose source").apply {
-                    foreground = JBColor.GRAY
-                    border = JBUI.Borders.emptyBottom(6)
-                },
-                BorderLayout.NORTH,
-            )
-            add(embeddedEditor.component, BorderLayout.CENTER)
-        }
-    }
-
-    private fun createInlineCommentEditor(node: ComposeBlockNode): JComponent {
         val textField = JBTextField(node.commentText.orEmpty()).apply {
             toolTipText = "Doc comment for this block. Leave empty to remove it."
             emptyText.text = "Add a doc comment for this block"
@@ -526,13 +413,11 @@ class ComposeBlocksInspectFileEditor(
                 JBUI.Borders.empty(4, 8),
             )
             addActionListener {
-                val nextOffset = mutationService.updateDocComment(node, text)
-                applyMutationResult(nextOffset)
+                commitComment(this)
             }
             addFocusListener(object : FocusAdapter() {
                 override fun focusLost(event: FocusEvent) {
-                    val nextOffset = mutationService.updateDocComment(node, text)
-                    applyMutationResult(nextOffset)
+                    commitComment(this@apply)
                 }
             })
         }
@@ -563,70 +448,6 @@ class ComposeBlocksInspectFileEditor(
         }
     }
 
-    private fun createDragHandleButton(
-        node: ComposeBlockNode,
-        parent: ComposeBlockNode,
-    ): JButton {
-        val button = JButton(moveHandleLabel(parent.axis)).apply {
-            isFocusable = false
-            toolTipText = "Drag to reorder inside ${parent.name}"
-            margin = JBUI.insets(2, 8)
-            cursor = Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
-        }
-
-        val listener = object : MouseAdapter() {
-            override fun mousePressed(event: MouseEvent) {
-                reorderState = ReorderState(
-                    containerId = parent.id,
-                    childId = node.id,
-                    hoveredSlotIndex = null,
-                )
-                refreshSlotPresentations()
-            }
-
-            override fun mouseDragged(event: MouseEvent) {
-                val slotTarget = findSlotTargetFromEvent(event)
-                val currentState = reorderState ?: return
-                if (currentState.containerId != parent.id || currentState.childId != node.id) {
-                    return
-                }
-                val nextState = currentState.copy(
-                    hoveredSlotIndex = slotTarget
-                        ?.takeIf { it.containerId == parent.id }
-                        ?.slotIndex,
-                )
-                if (nextState != currentState) {
-                    reorderState = nextState
-                    refreshSlotPresentations()
-                }
-            }
-
-            override fun mouseReleased(event: MouseEvent) {
-                val currentState = reorderState
-                if (currentState == null || currentState.containerId != parent.id || currentState.childId != node.id) {
-                    return
-                }
-
-                val slotTarget = findSlotTargetFromEvent(event)
-                if (slotTarget != null && slotTarget.containerId == parent.id) {
-                    val movingNode = parent.children.firstOrNull { it.id == node.id }
-                    if (movingNode != null) {
-                        val nextOffset = mutationService.moveChild(parent, movingNode, slotTarget.slotIndex)
-                        applyMutationResult(nextOffset)
-                        return
-                    }
-                }
-
-                reorderState = null
-                refreshSlotPresentations()
-            }
-        }
-
-        button.addMouseListener(listener)
-        button.addMouseMotionListener(listener)
-        return button
-    }
-
     private fun installSelectionHandler(
         node: ComposeBlockNode,
         vararg components: JComponent,
@@ -654,16 +475,12 @@ class ComposeBlocksInspectFileEditor(
         node: ComposeBlockNode,
         focusInlineComment: Boolean = false,
     ) {
-        if (selectedNode?.id != node.id) {
-            reorderState = null
-        }
         selectedNode = node
         if (focusInlineComment) {
             editingCommentNodeId = node.id
             pendingInlineCommentFocusNodeId = node.id
-        } else if (editingCommentNodeId != node.id) {
+        } else {
             editingCommentNodeId = null
-            pendingInlineCommentFocusNodeId = null
         }
         renderCanvas()
         updatingSelectionFromBlocks = true
@@ -700,12 +517,18 @@ class ComposeBlocksInspectFileEditor(
         }
 
         val parentNode = selectedParentNode()
-        val focusWindow = parentNode?.focusRange ?: node.focusRange
         val currentCaretOffset = preferredCaretOffset
             ?: embeddedEditor.caretModel.offset.takeIf { node.focusRange.contains(it) }
             ?: node.navigationOffset
-        val targetOffset = currentCaretOffset.coerceIn(focusWindow.startOffset, focusWindow.endOffset)
-        focusRange(focusWindow, targetOffset, scrollToCaret)
+        val targetOffset = if (progressiveExpansionEnabled) {
+            val focusWindow = parentNode?.focusRange ?: node.focusRange
+            val clampedOffset = currentCaretOffset.coerceIn(focusWindow.startOffset, focusWindow.endOffset)
+            focusRange(focusWindow, clampedOffset, scrollToCaret)
+            clampedOffset
+        } else {
+            revealWholeDocument(currentCaretOffset, scrollToCaret)
+            currentCaretOffset.coerceIn(0, document.textLength)
+        }
         val selectedPath = findNodePath(node.id).orEmpty()
         decorationController.apply(
             editor = embeddedEditor,
@@ -741,30 +564,35 @@ class ComposeBlocksInspectFileEditor(
         }
     }
 
+    private fun revealWholeDocument(
+        navigationOffset: Int,
+        scrollToCaret: Boolean,
+    ) {
+        embeddedEditor.foldingModel.runBatchFoldingOperation {
+            embeddedEditor.foldingModel.allFoldRegions.forEach { region ->
+                embeddedEditor.foldingModel.removeFoldRegion(region)
+            }
+        }
+
+        embeddedEditor.caretModel.moveToOffset(navigationOffset.coerceIn(0, document.textLength))
+        if (scrollToCaret) {
+            embeddedEditor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+        }
+    }
+
     private fun syncSelectionFromCaret() {
         if (updatingSelectionFromBlocks || visibleRoots.isEmpty()) {
             return
         }
 
-        val nextSelection = findBestSelection(embeddedEditor.caretModel.offset) ?: return
-        if (nextSelection.id == selectedNode?.id) {
-            decorationController.apply(
-                editor = embeddedEditor,
-                selectedNode = selectedNode,
-                parentNode = selectedParentNode(),
-                selectedPath = selectedNode?.id?.let(::findNodePath).orEmpty(),
-                caretOffset = embeddedEditor.caretModel.offset,
-            )
-            return
-        }
-
-        selectedNode = nextSelection
-        if (editingCommentNodeId != nextSelection.id) {
-            editingCommentNodeId = null
-            pendingInlineCommentFocusNodeId = null
-        }
-        renderCanvas()
-        applyCurrentEditorPresentation(scrollToCaret = true)
+        val node = selectedNode ?: return
+        decorationController.apply(
+            editor = embeddedEditor,
+            selectedNode = node,
+            parentNode = selectedParentNode(),
+            selectedPath = findNodePath(node.id).orEmpty(),
+            caretOffset = embeddedEditor.caretModel.offset,
+        )
     }
 
     private fun findBestSelection(caretOffset: Int): ComposeBlockNode? {
@@ -817,38 +645,6 @@ class ComposeBlocksInspectFileEditor(
         return path.dropLast(1).lastOrNull()
     }
 
-    private fun activeEditableContainer(): ComposeBlockNode? {
-        val selected = selectedNode ?: return null
-        if (selected.isLowCodeEditable) {
-            return selected
-        }
-        val parentNode = selectedParentNode()
-        return parentNode?.takeIf { it.isLowCodeEditable }
-    }
-
-    private fun isActiveEditableContainer(node: ComposeBlockNode): Boolean {
-        return activeEditableContainer()?.id == node.id
-    }
-
-    private fun showTemplateMenu(
-        invoker: Component,
-        containerNode: ComposeBlockNode,
-        slotIndex: Int,
-    ) {
-        val menu = JPopupMenu()
-        ComposeBlockTemplate.values().forEach { template ->
-            menu.add(
-                JMenuItem(template.label).apply {
-                    addActionListener {
-                        val nextOffset = mutationService.insertTemplate(containerNode, slotIndex, template)
-                        applyMutationResult(nextOffset)
-                    }
-                }
-            )
-        }
-        menu.show(invoker, 0, invoker.height)
-    }
-
     private fun showWrapMenu(
         invoker: Component,
         node: ComposeBlockNode,
@@ -870,23 +666,7 @@ class ComposeBlocksInspectFileEditor(
         menu.show(invoker, 0, invoker.height)
     }
 
-    private fun showLayoutDialog(node: ComposeBlockNode) {
-        val dialog = ComposeBlockLayoutDialog(mutationService.readLayoutProperties(node))
-        if (!dialog.showAndGet()) {
-            return
-        }
-        val nextOffset = mutationService.updateLayoutProperties(node, dialog.properties())
-        applyMutationResult(nextOffset)
-    }
-
-    private fun startCommentEditing(node: ComposeBlockNode) {
-        editingCommentNodeId = node.id
-        pendingInlineCommentFocusNodeId = node.id
-        renderCanvas()
-    }
-
     private fun applyMutationResult(nextOffset: Int?) {
-        reorderState = null
         editingCommentNodeId = null
         pendingInlineCommentFocusNodeId = null
         if (nextOffset != null) {
@@ -902,90 +682,17 @@ class ComposeBlocksInspectFileEditor(
         refreshModel()
     }
 
-    private fun refreshSlotPresentations() {
-        val currentReorder = reorderState
-        slotPresentations.forEach { (slotTarget, presentation) ->
-            val draggingInContainer = currentReorder?.containerId == slotTarget.containerId
-            val isHoveredTarget = draggingInContainer && currentReorder.hoveredSlotIndex == slotTarget.slotIndex
-            presentation.panel.background = when {
-                isHoveredTarget -> blockBackground(presentation.containerKind, 40)
-                draggingInContainer -> JBColor(Color(242, 245, 250), Color(63, 67, 76))
-                else -> JBColor(Color(248, 249, 252), Color(58, 62, 70))
-            }
-            presentation.panel.border = CompoundBorder(
-                LineBorder(
-                    when {
-                        isHoveredTarget -> kindColor(presentation.containerKind)
-                        draggingInContainer -> blockBackground(presentation.containerKind, 120)
-                        else -> JBColor.border()
-                    },
-                    1,
-                    true,
-                ),
-                JBUI.Borders.empty(6),
-            )
-            presentation.button.text = if (isHoveredTarget) "Drop Here" else "+"
-            presentation.button.toolTipText = if (draggingInContainer) {
-                "Release to move the block to position ${presentation.slotIndex + 1}"
-            } else {
-                "Insert a new block at position ${presentation.slotIndex + 1}"
-            }
-        }
-        blockCanvasPanel.repaint()
+    private fun renderCommentText(commentText: String?): String {
+        val text = commentText?.trim().orEmpty()
+        return "<html>${StringUtil.escapeXmlEntities(text)}</html>"
     }
 
-    private fun findSlotTargetFromEvent(event: MouseEvent): SlotTarget? {
-        val canvasPoint = SwingUtilities.convertPoint(event.component, event.point, blockCanvasPanel)
-        val deepest = SwingUtilities.getDeepestComponentAt(blockCanvasPanel, canvasPoint.x, canvasPoint.y)
-        return findSlotTarget(deepest)
-    }
-
-    private fun findSlotTarget(component: Component?): SlotTarget? {
-        var current: Component? = component
-        while (current != null) {
-            if (current is JComponent) {
-                val slotTarget = current.getClientProperty(SLOT_TARGET_PROPERTY) as? SlotTarget
-                if (slotTarget != null) {
-                    return slotTarget
-                }
-            }
-            current = current.parent
+    private fun buildHeaderText(node: ComposeBlockNode): String {
+        val commentText = node.commentText?.trim().orEmpty()
+        if (commentText.isBlank()) {
+            return node.name
         }
-        return null
-    }
-
-    private fun buildMetaText(
-        node: ComposeBlockNode,
-        line: Int,
-        childCountText: String,
-    ): String {
-        val axisText = when (node.axis) {
-            ComposeBlockAxis.VERTICAL -> "Vertical"
-            ComposeBlockAxis.HORIZONTAL -> "Horizontal"
-            ComposeBlockAxis.STACK -> "Stack"
-        }
-
-        val parts = mutableListOf<String>()
-        parts += node.name
-        parts += kindLabel(node.kind)
-        if (node.children.isNotEmpty()) {
-            parts += axisText
-        }
-        if (node.isLowCodeEditable) {
-            parts += "Low-code"
-        }
-        parts += "line $line"
-        parts += childCountText
-        return parts.joinToString(" · ")
-    }
-
-    private fun kindLabel(kind: ComposeBlockKind): String {
-        return when (kind) {
-            ComposeBlockKind.ROOT -> "Function"
-            ComposeBlockKind.CONTAINER -> "Container"
-            ComposeBlockKind.LEAF -> "Leaf"
-            ComposeBlockKind.SHELL -> "Shell"
-        }
+        return "${node.name} · $commentText"
     }
 
     private fun kindColor(kind: ComposeBlockKind): Color {
@@ -1005,21 +712,6 @@ class ComposeBlocksInspectFileEditor(
         return Color(base.red, base.green, base.blue, alpha)
     }
 
-    private fun moveHandleLabel(axis: ComposeBlockAxis): String {
-        return when (axis) {
-            ComposeBlockAxis.HORIZONTAL -> "⇆"
-            ComposeBlockAxis.VERTICAL -> "⇅"
-            ComposeBlockAxis.STACK -> "⛶"
-        }
-    }
-
-    private fun detachEmbeddedEditor() {
-        val parent = embeddedEditor.component.parent as? JComponent ?: return
-        parent.remove(embeddedEditor.component)
-        parent.revalidate()
-        parent.repaint()
-    }
-
     private fun createSnapshotKtFile(): KtFile? {
         return PsiFileFactory.getInstance(project)
             .createFileFromText(
@@ -1029,25 +721,4 @@ class ComposeBlocksInspectFileEditor(
             ) as? KtFile
     }
 
-    private data class ReorderState(
-        val containerId: String,
-        val childId: String,
-        val hoveredSlotIndex: Int?,
-    )
-
-    private data class SlotTarget(
-        val containerId: String,
-        val slotIndex: Int,
-    )
-
-    private data class SlotPresentation(
-        val panel: JPanel,
-        val button: JButton,
-        val containerKind: ComposeBlockKind,
-        val slotIndex: Int,
-    )
-
-    private companion object {
-        const val SLOT_TARGET_PROPERTY = "compose.blocks.slot.target"
-    }
 }

@@ -1,15 +1,24 @@
 package site.addzero.composebuddy.analysis
 
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiClass
+import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.LocalSearchScope
+import com.intellij.psi.search.PsiShortNamesCache
+import com.intellij.psi.search.searches.ReferencesSearch
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
+import org.jetbrains.kotlin.idea.references.mainReference
 import site.addzero.composebuddy.settings.ComposeBuddySettingsService
 
 object ComposeFunctionSupport {
@@ -80,6 +89,40 @@ object ComposeFunctionSupport {
             analysis.statePairs.size >= settings.statePairThreshold
     }
 
+    fun analyzeFlattenableObjectParameters(function: KtNamedFunction): ComposeFlattenObjectParameterAnalysisResult? {
+        if (!isComposable(function)) return null
+        val body = function.bodyExpression ?: return null
+        val candidates = function.valueParameters.mapNotNull { parameter ->
+            if (isCallbackParameter(parameter)) return@mapNotNull null
+            val parameterName = parameter.name ?: return@mapNotNull null
+            val directReferences = collectDirectParameterReferences(body, parameter)
+            if (directReferences.isNotEmpty()) return@mapNotNull null
+
+            val usedPropertyNames = collectUsedPropertyNames(body, parameter)
+            if (usedPropertyNames.isEmpty()) return@mapNotNull null
+
+            val propertyDefinitions = resolveReadableProperties(parameter)
+            if (propertyDefinitions.isEmpty()) return@mapNotNull null
+
+            val flattenedProperties = usedPropertyNames.mapNotNull { propertyName ->
+                val definition = propertyDefinitions[propertyName] ?: return@mapNotNull null
+                ComposeFlattenProperty(
+                    propertyName = propertyName,
+                    parameterName = buildFlattenedParameterName(parameterName, propertyName),
+                    typeText = definition.typeText,
+                    defaultValueText = definition.defaultValueText,
+                )
+            }
+            if (flattenedProperties.isEmpty()) return@mapNotNull null
+            ComposeFlattenObjectParameterCandidate(
+                parameter = parameter,
+                flattenedProperties = flattenedProperties,
+            )
+        }
+        if (candidates.isEmpty()) return null
+        return ComposeFlattenObjectParameterAnalysisResult(function, candidates)
+    }
+
     private fun detectStatePairs(parameters: List<KtParameter>): List<ComposeStatePair> {
         return parameters.mapNotNull { parameter ->
             val name = parameter.name ?: return@mapNotNull null
@@ -118,4 +161,103 @@ object ComposeFunctionSupport {
     private fun isSlotParameter(spec: ComposeParameterSpec): Boolean {
         return spec.typeText.contains("@Composable")
     }
+
+    private fun collectDirectParameterReferences(body: KtExpression, parameter: KtParameter): Set<KtNameReferenceExpression> {
+        return ReferencesSearch.search(parameter, LocalSearchScope(body))
+            .findAll()
+            .mapNotNull { it.element as? KtNameReferenceExpression }
+            .filter { reference ->
+                val parentDot = reference.parent as? KtDotQualifiedExpression
+                parentDot?.receiverExpression != reference
+            }
+            .toSet()
+    }
+
+    private fun collectUsedPropertyNames(body: KtExpression, parameter: KtParameter): List<String> {
+        val ordered = linkedSetOf<String>()
+        ReferencesSearch.search(parameter, LocalSearchScope(body))
+            .findAll()
+            .mapNotNull { it.element as? KtNameReferenceExpression }
+            .forEach { receiver ->
+                val dot = receiver.parent as? KtDotQualifiedExpression ?: return@forEach
+                if (dot.receiverExpression != receiver) return@forEach
+            val selector = dot.selectorExpression as? KtNameReferenceExpression ?: return@forEach
+            ordered += selector.getReferencedName()
+            }
+        return ordered.toList()
+    }
+
+    private fun resolveReadableProperties(parameter: KtParameter): Map<String, ResolvedPropertyDefinition> {
+        val kotlinClass = resolveKtClass(parameter)
+        if (kotlinClass != null) {
+            return resolveFromKtClass(kotlinClass)
+        }
+        val psiClass = resolvePsiClass(parameter)
+        if (psiClass != null) {
+            return resolveFromPsiClass(psiClass)
+        }
+        return emptyMap()
+    }
+
+    private fun resolveKtClass(parameter: KtParameter): KtClass? {
+        val typeReference = parameter.typeReference ?: return null
+        val typeElement = typeReference.typeElement as? KtUserType ?: return null
+        val resolved = typeElement.referenceExpression?.mainReference?.resolve()
+        if (resolved is KtClass) {
+            return resolved
+        }
+        val typeShortName = typeElement.referencedName ?: return null
+        val file = parameter.containingKtFile
+        return file.declarations.filterIsInstance<KtClass>().firstOrNull { it.name == typeShortName }
+    }
+
+    private fun resolvePsiClass(parameter: KtParameter): PsiClass? {
+        val typeText = parameter.typeReference?.text ?: return null
+        val shortName = typeText.substringBefore("<").substringAfterLast(".")
+        if (shortName.isBlank()) return null
+        val project = parameter.project
+        return PsiShortNamesCache.getInstance(project)
+            .getClassesByName(shortName, GlobalSearchScope.projectScope(project))
+            .firstOrNull()
+    }
+
+    private fun resolveFromKtClass(klass: KtClass): Map<String, ResolvedPropertyDefinition> {
+        val properties = linkedMapOf<String, ResolvedPropertyDefinition>()
+        klass.primaryConstructorParameters.forEach { ctorParam ->
+            if (!ctorParam.hasValOrVar()) return@forEach
+            val propertyName = ctorParam.name ?: return@forEach
+            val typeText = ctorParam.typeReference?.text ?: return@forEach
+            properties[propertyName] = ResolvedPropertyDefinition(
+                typeText = typeText,
+                defaultValueText = ctorParam.defaultValue?.text,
+            )
+        }
+        klass.declarations.filterIsInstance<KtProperty>().forEach { property ->
+            val propertyName = property.name ?: return@forEach
+            val typeText = property.typeReference?.text ?: return@forEach
+            properties[propertyName] = ResolvedPropertyDefinition(
+                typeText = typeText,
+                defaultValueText = property.initializer?.text,
+            )
+        }
+        return properties
+    }
+
+    private fun resolveFromPsiClass(klass: PsiClass): Map<String, ResolvedPropertyDefinition> {
+        val properties = linkedMapOf<String, ResolvedPropertyDefinition>()
+        klass.allFields.forEach { field ->
+            val propertyName = field.name ?: return@forEach
+            properties[propertyName] = ResolvedPropertyDefinition(typeText = field.type.presentableText)
+        }
+        return properties
+    }
+
+    private fun buildFlattenedParameterName(parameterName: String, propertyName: String): String {
+        return parameterName + propertyName.replaceFirstChar { it.uppercase() }
+    }
+
+    private data class ResolvedPropertyDefinition(
+        val typeText: String,
+        val defaultValueText: String? = null,
+    )
 }

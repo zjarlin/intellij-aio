@@ -36,6 +36,96 @@
             <category>compose-buddy</category>
         </intentionAction>
 
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.modifierchain.ModifierChainIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.uistate.UiStateIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.events.EventsIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.statehoist.StateHoistIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.uivariant.UiVariantIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.slotextract.SlotExtractIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.effectkeys.EffectKeysIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.sectionsplit.SectionSplitIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.statemapper.StateMapperIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.previewsample.PreviewSampleIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.viewmodelinline.ViewModelInlineIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargfill.CallArgFillIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargextract.CallArgExtractSingleIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargextract.CallArgExtractBatchIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.containerwrap.ContainerWrapIntention</className>
+            <category>compose-buddy</category>
+        </intentionAction>
+
         <localInspection
             language="kotlin"
             shortName="ComposeWrapperInspection"
@@ -51,6 +141,22 @@
             groupName="%plugin.name"
             enabledByDefault="true"
             implementationClass="site.addzero.composebuddy.inspection.ComposeParameterExplosionInspection"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeStabilityInspection"
+            displayName="%inspection.stability.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.features.stability.StabilityInspection"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeEffectKeysInspection"
+            displayName="%inspection.effect.keys.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.features.effectkeys.EffectKeysInspection"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

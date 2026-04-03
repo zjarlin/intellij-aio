@@ -1,7 +1,6 @@
 package site.addzero.composebuddy.designer.ui
 
 import com.intellij.ide.CopyProvider
-import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -26,13 +25,15 @@ import javax.swing.TransferHandler
 class ComposeDesignerPanel(
     private val project: Project,
 ) : JPanel(BorderLayout()), CopyProvider {
+    private val previewFunctionName = "GeneratedComposable"
+
     private val previewArea = JBTextArea().apply {
         isEditable = false
         emptyText.text = ComposeBuddyBundle.message("designer.preview.title")
     }
 
     private val canvas = ComposeDesignerCanvas { nodes ->
-        previewArea.text = ComposeDesignerCodeGenerator.generate(nodes)
+        previewArea.text = ComposeDesignerCodeGenerator.generate(nodes, previewFunctionName).previewText
     }
 
     init {
@@ -81,7 +82,7 @@ class ComposeDesignerPanel(
             secondComponent = right
         }, BorderLayout.CENTER)
 
-        previewArea.text = ComposeDesignerCodeGenerator.generate(emptyList())
+        previewArea.text = ComposeDesignerCodeGenerator.generate(emptyList(), previewFunctionName).previewText
     }
 
     private fun createPalette(): JBList<ComposePaletteItem> {

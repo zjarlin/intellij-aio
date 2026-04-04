@@ -48,16 +48,12 @@ val userName = "zjarlin"
 val retryCount = 3
 ```
 
-这个能力只会在类型推断结果与显式类型语义一致时触发，不会为了“看起来更短”而冒险改写不稳定声明。
-
 如果你想整仓处理，而不是一个个按 `Alt+Enter`：
 
 1. 打开 `Code -> Inspect Code...`
 2. 作用域选择整个项目、模块，或自定义目录
 3. 运行后筛选 `SmartRedundantExplicitType`
 4. 直接执行批量修复
-
-这个流程适合做一次性清理。因为修复结果最终会落到普通代码变更里，所以你可以直接通过 IDE 的提交列表检查改动，不需要插件额外做逐条确认弹窗。
 
 ### 2. 在 Find in Files 里只搜源码
 
@@ -76,8 +72,6 @@ val retryCount = 3
 - `target`
 - `.gradle`
 - `generated`
-
-如果你想搜整个项目，继续用默认 Project scope 即可；如果你只想避开生成文件，就选“源码目录”。
 
 ### 3. 在 Project 视图里隐藏文件或目录
 
@@ -103,7 +97,7 @@ val retryCount = 3
 
 ## 示意截图
 
-下面这张图展示了三个主要入口：Kotlin 的 `Alt+Enter` 清理、`Find in Files` 的“源码目录”范围，以及 Project 视图里的隐藏文件操作。
+下面这张图展示了插件当前文档里提到的主要入口，包括 Kotlin 的 `Alt+Enter` 清理、`Find in Files` 的“源码目录”范围，以及 Project 视图里的隐藏文件操作。
 
 ![ide-kit screenshot](docs/ide-kit-usage-overview.png)
 

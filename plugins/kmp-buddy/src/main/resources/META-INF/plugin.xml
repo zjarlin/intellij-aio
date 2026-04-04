@@ -1,0 +1,241 @@
+<idea-plugin>
+    <resource-bundle>messages.ComposeBuddyBundle</resource-bundle>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="site.addzero.composebuddy.settings.ComposeBuddySettingsService"/>
+
+        <applicationConfigurable
+            parentId="tools"
+            instance="site.addzero.composebuddy.settings.ComposeBuddyConfigurable"
+            id="site.addzero.composebuddy.settings"
+            displayName="%settings.display.name"/>
+
+        <toolWindow
+            id="Compose Designer"
+            anchor="right"
+            factoryClass="site.addzero.composebuddy.designer.toolwindow.ComposeDesignerToolWindowFactory"
+            icon="/icons/compose-designer-toolwindow.svg"/>
+
+        <editorNotificationProvider
+            implementation="site.addzero.composeblocks.editor.ComposeBlocksEditorNotificationProvider"/>
+
+        <fileEditorProvider
+            implementation="site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider"/>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.ExpandWrapperSignatureIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.GenerateWrapperPropsIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.NormalizeComposeSignatureIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.FlattenUsedObjectParametersIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.smart.intentions.koin.redundantdependency.SmartRemoveRedundantKoinDependencyIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.smart.intentions.koin.singlebinds.SmartRemoveProjectSingleBindsIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.modifierchain.ModifierChainIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.uistate.UiStateIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.events.EventsIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.statehoist.StateHoistIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.uivariant.UiVariantIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.slotextract.SlotExtractIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.effectkeys.EffectKeysIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.sectionsplit.SectionSplitIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.statemapper.StateMapperIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.previewsample.PreviewSampleIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.viewmodelinline.ViewModelInlineIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargfill.CallArgFillIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargextract.CallArgExtractSingleIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.callargextract.CallArgExtractBatchIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.containerwrap.ContainerWrapIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeWrapperInspection"
+            displayName="%inspection.wrapper.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.inspection.ComposeWrapperInspection"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeParameterExplosionInspection"
+            displayName="%inspection.explosion.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.inspection.ComposeParameterExplosionInspection"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeStabilityInspection"
+            displayName="%inspection.stability.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.features.stability.StabilityInspection"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="ComposeEffectKeysInspection"
+            displayName="%inspection.effect.keys.display"
+            groupName="%plugin.name"
+            enabledByDefault="true"
+            implementationClass="site.addzero.composebuddy.features.effectkeys.EffectKeysInspection"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <actions>
+        <action
+            id="ComposeBlocks.OpenView"
+            class="site.addzero.composeblocks.actions.OpenComposeBlocksAction"
+            text="Open Compose Blocks"
+            description="Open Compose Blocks Inspect or Builder mode for this file"
+            icon="AllIcons.Actions.PreviewDetails">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewScreen"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksScreenAction"
+            text="New Compose Blocks Screen"
+            description="Create a managed Compose Blocks screen"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewDialog"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksDialogAction"
+            text="New Compose Blocks Dialog"
+            description="Create a managed Compose Blocks dialog"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBlocks.NewPage"
+            class="site.addzero.composeblocks.actions.NewComposeBlocksPageAction"
+            text="New Compose Blocks Page"
+            description="Create a managed Compose Blocks page"
+            icon="AllIcons.FileTypes.UiForm">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.NormalizeSignature"
+            class="site.addzero.composebuddy.actions.NormalizeComposeSignatureAction"
+            text="%intention.normalize.signature"
+            description="%inspection.explosion.description">
+            <add-to-group group-id="RefactoringMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -8,6 +8,7 @@
         <projectService serviceImplementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesProjectService"/>
         <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
         <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>
+        <notificationGroup id="IdeKit Notifications" displayType="BALLOON" isLogByDefault="true"/>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
@@ -30,6 +31,11 @@
     </extensions>
 
     <actions>
+        <action id="IdeKit.RunTarget.LocateCurrent"
+                class="site.addzero.smart.intentions.actions.LocateCurrentRunTargetAction">
+            <add-to-group group-id="GoToMenu" anchor="last"/>
+            <add-to-group group-id="MainToolbarRight" anchor="before" relative-to-action="HelpTopics"/>
+        </action>
         <action id="IdeKit.HiddenFiles.Hide"
                 class="site.addzero.smart.intentions.hiddenfiles.actions.HideFilesAction">
             <add-to-group group-id="ProjectViewPopupMenuModifyGroup" anchor="last"/>

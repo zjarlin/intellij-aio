@@ -1,11 +1,9 @@
 package site.addzero.smart.intentions.koin.singlebinds
 
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.PsiManager
@@ -28,35 +26,36 @@ internal object ProjectSingleBindsSupport {
     }
 
     fun apply(project: Project) {
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "扫描 @Single binds", true) {
-            override fun run(indicator: ProgressIndicator) {
-                val annotations = ReadAction.compute<List<KtAnnotationEntry>, Throwable> {
-                    collectProjectAnnotations(project, indicator)
+        val annotations = ProgressManager.getInstance().runProcessWithProgressSynchronously<List<KtAnnotationEntry>, RuntimeException>(
+            {
+                ReadAction.compute<List<KtAnnotationEntry>, Throwable> {
+                    collectProjectAnnotations(project, ProgressManager.getInstance().progressIndicator)
                 }
-                if (annotations.isEmpty()) {
-                    return
-                }
-                ApplicationManager.getApplication().invokeLater {
-                    SmartPsiWriteSupport.runWriteCommand(project, "删除项目中的 @Single binds") {
-                        annotations.forEach { annotation ->
-                            removeBindsArgument(annotation)
-                        }
-                    }
-                }
+            },
+            "扫描 @Single binds",
+            true,
+            project,
+        )
+        if (annotations.isEmpty()) {
+            return
+        }
+        SmartPsiWriteSupport.runWriteCommand(project, "删除项目中的 @Single binds") {
+            annotations.forEach { annotation ->
+                removeBindsArgument(annotation)
             }
-        })
+        }
     }
 
-    private fun collectProjectAnnotations(project: Project, indicator: ProgressIndicator): List<KtAnnotationEntry> {
+    private fun collectProjectAnnotations(project: Project, indicator: ProgressIndicator?): List<KtAnnotationEntry> {
         val psiManager = PsiManager.getInstance(project)
         val files = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
-        indicator.isIndeterminate = false
+        indicator?.isIndeterminate = false
         val total = files.size.coerceAtLeast(1)
         return files
             .asSequence()
             .mapIndexed { index, virtualFile ->
-                indicator.checkCanceled()
-                indicator.fraction = index.toDouble() / total.toDouble()
+                indicator?.checkCanceled()
+                indicator?.fraction = index.toDouble() / total.toDouble()
                 psiManager.findFile(virtualFile) as? KtFile
             }
             .filterNotNull()

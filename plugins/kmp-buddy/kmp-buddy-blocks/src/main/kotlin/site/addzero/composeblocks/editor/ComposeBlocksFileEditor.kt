@@ -1,5 +1,8 @@
 package site.addzero.composeblocks.editor
 
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.DataSink
+import com.intellij.openapi.actionSystem.UiDataProvider
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
@@ -23,7 +26,7 @@ abstract class ComposeBlocksFileEditorBase(
         "Compose Blocks requires a document-backed file"
     }
 
-    protected val rootPanel = JPanel()
+    protected val rootPanel: JComponent = DataProviderPanel(project, sourceFile)
 
     final override fun getComponent(): JComponent = rootPanel
 
@@ -45,4 +48,15 @@ abstract class ComposeBlocksFileEditorBase(
     }
 
     override fun getCurrentLocation(): FileEditorLocation? = null
+}
+
+private class DataProviderPanel(
+    private val project: Project,
+    private val file: VirtualFile,
+) : JPanel(), UiDataProvider {
+
+    override fun uiDataSnapshot(sink: DataSink) {
+        sink.set(CommonDataKeys.PROJECT, project)
+        sink.set(CommonDataKeys.VIRTUAL_FILE, file)
+    }
 }

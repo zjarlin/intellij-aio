@@ -6,12 +6,13 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="site.addzero.composebuddy.settings.ComposeBuddySettingsService"/>
+        <applicationService serviceImplementation="site.addzero.composeblocks.settings.ComposeBlocksSettingsService"/>
 
         <applicationConfigurable
             parentId="tools"
             instance="site.addzero.composebuddy.settings.ComposeBuddyConfigurable"
             id="site.addzero.composebuddy.settings"
-            displayName="kmp-aio"/>
+            displayName="%settings.display.name"/>
 
         <toolWindow
             id="Compose Designer"

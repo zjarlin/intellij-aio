@@ -11,6 +11,8 @@ import com.intellij.ui.dsl.builder.bindIntText
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
 import site.addzero.composebuddy.ComposeBuddyBundle
+import site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider
+import site.addzero.composeblocks.settings.ComposeBlocksSettingsService
 import site.addzero.composebuddy.designer.model.ComposeDesignerCustomComponent
 import site.addzero.composebuddy.designer.model.ComposeDesignerPaletteCatalog
 import site.addzero.composebuddy.designer.model.ComposePaletteItem
@@ -26,6 +28,7 @@ import javax.swing.event.DocumentListener
 
 class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("settings.display.name")) {
     private val settings = ComposeBuddySettingsService.getInstance().state
+    private val composeBlocksSettings = ComposeBlocksSettingsService.getInstance().state
     private val designerComponentsArea = JBTextArea(settings.designerCustomComponentsDsl).apply {
         lineWrap = false
         rows = 14
@@ -108,6 +111,14 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
             }
         }
 
+        group(ComposeBuddyBundle.message("settings.group.compose.blocks")) {
+            row {
+                checkBox(ComposeBuddyBundle.message("settings.compose.blocks.enable"))
+                    .bindSelected(composeBlocksSettings::enableComposeBlocksEditorByDefault)
+                    .comment(ComposeBuddyBundle.message("settings.compose.blocks.enable.comment"))
+            }
+        }
+
         group(ComposeBuddyBundle.message("settings.group.designer")) {
             row {
                 cell(createStructuredEditor())
@@ -136,7 +147,12 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
         if (validation.errors.isNotEmpty()) {
             throw ConfigurationException(validation.errors.joinToString("\n"))
         }
+        val blocksWasEnabled = composeBlocksSettings.enableComposeBlocksEditorByDefault
         super.apply()
+        composeBlocksSettings.composeBlocksEditorSettingTouched = true
+        if (blocksWasEnabled != composeBlocksSettings.enableComposeBlocksEditorByDefault) {
+            ComposeBlocksFileEditorProvider.handleSettingsChanged()
+        }
     }
 
     private fun createStructuredEditor(): JPanel {
@@ -205,7 +221,7 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
                     label.text = if ((value as? String).isNullOrBlank()) {
                         ComposeBuddyBundle.message("settings.designer.custom.components.none")
                     } else {
-                        value as String
+                        value
                     }
                     return label
                 }

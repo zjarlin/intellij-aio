@@ -16,6 +16,12 @@
             <category>Smart Intentions</category>
         </intentionAction>
 
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.smart.intentions.kotlin.redundantexplicittype.SmartRemoveProjectRedundantExplicitTypeIntention</className>
+            <category>Smart Intentions</category>
+        </intentionAction>
+
         <localInspection
                 language="kotlin"
                 shortName="SmartRedundantExplicitType"

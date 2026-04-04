@@ -1,16 +1,18 @@
 package site.addzero.smart.intentions.koin.singlebinds
 
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.idea.KotlinFileType
-import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.KtValueArgument
@@ -26,23 +28,41 @@ internal object ProjectSingleBindsSupport {
     }
 
     fun apply(project: Project) {
-        val annotations = collectProjectAnnotations(project)
-        if (annotations.isEmpty()) {
-            return
-        }
-        SmartPsiWriteSupport.runWriteCommand(project, "删除项目中的 @Single binds") {
-            annotations.forEach { annotation ->
-                removeBindsArgument(annotation)
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "扫描 @Single binds", true) {
+            override fun run(indicator: ProgressIndicator) {
+                val annotations = ReadAction.compute<List<KtAnnotationEntry>, Throwable> {
+                    collectProjectAnnotations(project, indicator)
+                }
+                if (annotations.isEmpty()) {
+                    return
+                }
+                ApplicationManager.getApplication().invokeLater {
+                    SmartPsiWriteSupport.runWriteCommand(project, "删除项目中的 @Single binds") {
+                        annotations.forEach { annotation ->
+                            removeBindsArgument(annotation)
+                        }
+                    }
+                }
             }
-        }
+        })
     }
 
-    private fun collectProjectAnnotations(project: Project): List<KtAnnotationEntry> {
+    private fun collectProjectAnnotations(project: Project, indicator: ProgressIndicator): List<KtAnnotationEntry> {
         val psiManager = PsiManager.getInstance(project)
-        return FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+        val files = FileTypeIndex.getFiles(KotlinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
+        indicator.isIndeterminate = false
+        val total = files.size.coerceAtLeast(1)
+        return files
             .asSequence()
-            .mapNotNull { virtualFile -> psiManager.findFile(virtualFile) as? KtFile }
-            .flatMap { file -> file.collectDescendantsOfType<KtAnnotationEntry>().asSequence() }
+            .mapIndexed { index, virtualFile ->
+                indicator.checkCanceled()
+                indicator.fraction = index.toDouble() / total.toDouble()
+                psiManager.findFile(virtualFile) as? KtFile
+            }
+            .filterNotNull()
+            .flatMap { file ->
+                file.collectDescendantsOfType<KtAnnotationEntry>().asSequence()
+            }
             .filter { annotation -> isApplicable(annotation) }
             .toList()
     }
@@ -53,12 +73,11 @@ internal object ProjectSingleBindsSupport {
             return true
         }
         val typeElement = typeReference.typeElement as? KtUserType ?: return false
-        val resolved = typeElement.referenceExpression?.mainReference?.resolve()
-        return when (resolved) {
-            is KtClassOrObject -> resolved.fqName?.asString() == KOIN_SINGLE_FQ_NAME
-            is PsiClass -> resolved.qualifiedName == KOIN_SINGLE_FQ_NAME
-            else -> hasDirectKoinSingleImport(annotation.containingKtFile)
+        val shortName = typeElement.referencedName
+        if (shortName != "Single") {
+            return false
         }
+        return hasDirectKoinSingleImport(annotation.containingKtFile)
     }
 
     private fun hasDirectKoinSingleImport(file: KtFile): Boolean {

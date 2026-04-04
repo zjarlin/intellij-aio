@@ -6,10 +6,13 @@ import java.util.UUID
 enum class ComposePaletteItem {
     TEXT,
     BUTTON,
+    ICON,
     IMAGE,
+    CARD,
     BOX,
     ROW,
     COLUMN,
+    DIVIDER,
     SPACER,
     CUSTOM,
 }

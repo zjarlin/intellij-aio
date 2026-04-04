@@ -91,9 +91,12 @@ object ComposeDesignerCodeParser {
             "Box" -> ComposePaletteItem.BOX
             "Row" -> ComposePaletteItem.ROW
             "Column" -> ComposePaletteItem.COLUMN
+            "Card" -> ComposePaletteItem.CARD
             "Text" -> ComposePaletteItem.TEXT
             "Button" -> ComposePaletteItem.BUTTON
+            "IconPlaceholder" -> ComposePaletteItem.ICON
             "Image" -> ComposePaletteItem.IMAGE
+            "HorizontalDivider" -> ComposePaletteItem.DIVIDER
             "Spacer" -> ComposePaletteItem.SPACER
             else -> null
         }
@@ -127,11 +130,14 @@ object ComposeDesignerCodeParser {
         return when (kind) {
             ComposePaletteItem.TEXT -> 160
             ComposePaletteItem.BUTTON -> 180
+            ComposePaletteItem.ICON -> 56
             ComposePaletteItem.IMAGE -> 160
+            ComposePaletteItem.CARD -> 240
             ComposePaletteItem.BOX,
             ComposePaletteItem.ROW,
             ComposePaletteItem.COLUMN,
             -> 220
+            ComposePaletteItem.DIVIDER -> 180
             ComposePaletteItem.SPACER -> 100
             ComposePaletteItem.CUSTOM -> 180
         }
@@ -141,11 +147,14 @@ object ComposeDesignerCodeParser {
         return when (kind) {
             ComposePaletteItem.TEXT -> 48
             ComposePaletteItem.BUTTON -> 56
+            ComposePaletteItem.ICON -> 56
             ComposePaletteItem.IMAGE -> 120
+            ComposePaletteItem.CARD -> 160
             ComposePaletteItem.BOX,
             ComposePaletteItem.ROW,
             ComposePaletteItem.COLUMN,
             -> 120
+            ComposePaletteItem.DIVIDER -> 24
             ComposePaletteItem.SPACER -> 24
             ComposePaletteItem.CUSTOM -> 56
         }

@@ -1,7 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13">
-  <rect x="1" y="1" width="11" height="11" rx="2.4" fill="#40B8FF"/>
-  <rect x="2.2" y="2.2" width="8.6" height="2.1" rx="1.05" fill="#EAF7FF"/>
-  <rect x="2.2" y="5.1" width="3.2" height="5.7" rx="0.9" fill="#EAF7FF"/>
-  <rect x="6" y="5.1" width="4.8" height="2.4" rx="0.9" fill="#7A5CFA"/>
-  <rect x="6" y="8.2" width="4.8" height="2.6" rx="0.9" fill="#EAF7FF"/>
+  <defs>
+    <linearGradient id="twFrame" x1="1" y1="1" x2="12" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4DF3A6"/>
+      <stop offset="0.56" stop-color="#59A0FF"/>
+      <stop offset="1" stop-color="#6E59FF"/>
+    </linearGradient>
+    <linearGradient id="twTop" x1="2.2" y1="3.1" x2="10.8" y2="3.1" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#45E58E"/>
+      <stop offset="1" stop-color="#4FC7C6"/>
+    </linearGradient>
+    <linearGradient id="twRight" x1="9.7" y1="3" x2="9.7" y2="10.7" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#58A0FF"/>
+      <stop offset="1" stop-color="#5572FF"/>
+    </linearGradient>
+    <linearGradient id="twLeft" x1="3.3" y1="3" x2="3.3" y2="10.7" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2ECF85"/>
+      <stop offset="1" stop-color="#123847"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.75" y="0.75" width="11.5" height="11.5" rx="2.6" fill="#1D3359"/>
+  <rect x="0.75" y="0.75" width="11.5" height="11.5" rx="2.6" fill="url(#twFrame)" opacity=".14"/>
+  <rect x="0.75" y="0.75" width="11.5" height="11.5" rx="2.6" fill="none" stroke="url(#twFrame)" stroke-width="1.1"/>
+  <rect x="2.1" y="2.1" width="8.8" height="8.8" rx="1.9" fill="#243C69"/>
+  <path d="M6.5 2.6 10.5 4.9 6.5 7.3 2.5 4.9Z" fill="url(#twTop)"/>
+  <path d="M2.5 4.9v4.2l4 2.3V7.3Z" fill="url(#twLeft)"/>
+  <path d="M10.5 4.9v4.2l-4 2.3V7.3Z" fill="url(#twRight)"/>
+  <path d="M6.5 4.8 8.6 6 6.5 7.2 4.4 6Z" fill="#EAF8FF"/>
 </svg>

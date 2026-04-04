@@ -56,6 +56,17 @@ object ComposeDesignerWritebackSupport {
         if (existingPackage.isNotBlank()) {
             return existingPackage
         }
+        val siblingPackage = targetFile.parent
+            ?.children
+            .orEmpty()
+            .asSequence()
+            .filter { it != targetFile && it.extension == "kt" && it.isValid && !it.isDirectory }
+            .mapNotNull { PsiManager.getInstance(project).findFile(it) as? KtFile }
+            .map { it.packageFqName.asString() }
+            .firstOrNull { it.isNotBlank() }
+        if (!siblingPackage.isNullOrBlank()) {
+            return siblingPackage
+        }
         val packageName = currentContextFile(project)
             ?.let { PsiManager.getInstance(project).findFile(it) as? KtFile }
             ?.packageFqName

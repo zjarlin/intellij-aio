@@ -40,10 +40,13 @@ object ComposeDesignerPaletteCatalog {
         return buildList {
             add(builtin(ComposePaletteItem.TEXT, ComposeBuddyBundle.message("designer.palette.text")))
             add(builtin(ComposePaletteItem.BUTTON, ComposeBuddyBundle.message("designer.palette.button")))
+            add(builtin(ComposePaletteItem.ICON, ComposeBuddyBundle.message("designer.palette.icon")))
             add(builtin(ComposePaletteItem.IMAGE, ComposeBuddyBundle.message("designer.palette.image")))
+            add(builtin(ComposePaletteItem.CARD, ComposeBuddyBundle.message("designer.palette.card")))
             add(builtin(ComposePaletteItem.BOX, ComposeBuddyBundle.message("designer.palette.box")))
             add(builtin(ComposePaletteItem.ROW, ComposeBuddyBundle.message("designer.palette.row")))
             add(builtin(ComposePaletteItem.COLUMN, ComposeBuddyBundle.message("designer.palette.column")))
+            add(builtin(ComposePaletteItem.DIVIDER, ComposeBuddyBundle.message("designer.palette.divider")))
             add(builtin(ComposePaletteItem.SPACER, ComposeBuddyBundle.message("designer.palette.spacer")))
             customComponents().forEach { component ->
                 add(

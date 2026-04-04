@@ -1,24 +1,32 @@
 package site.addzero.composebuddy.designer.ui
 
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBUI
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.designer.model.ComposeCanvasNode
+import site.addzero.composebuddy.designer.model.ComposeDesignerCustomComponent
 import site.addzero.composebuddy.designer.model.ComposeDesignerPaletteCatalog
 import site.addzero.composebuddy.designer.model.ComposePaletteEntry
+import site.addzero.composebuddy.designer.model.ComposePaletteItem
+import site.addzero.composebuddy.settings.ComposeBuddySettingsService
 import java.awt.BorderLayout
 import java.awt.datatransfer.StringSelection
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import javax.swing.JComboBox
 import javax.swing.DefaultListModel
 import javax.swing.DefaultListCellRenderer
 import javax.swing.JToggleButton
@@ -59,6 +67,11 @@ class ComposeDesignerPanel(
             row {
                 label(ComposeBuddyBundle.message("designer.palette.title"))
                     .bold()
+            }
+            row {
+                button(ComposeBuddyBundle.message("settings.designer.custom.components.add")) {
+                    showAddCustomComponentDialog()
+                }
             }
             row(ComposeBuddyBundle.message("designer.preview.function.label")) {
                 cell(paletteFunctionNameField)
@@ -119,6 +132,11 @@ class ComposeDesignerPanel(
             add(JToggleButton(ComposeBuddyBundle.message("designer.toolbar.select.container")).apply {
                 addActionListener {
                     canvas.setContainerSelectionMode(isSelected)
+                }
+            })
+            add(javax.swing.JButton(ComposeBuddyBundle.message("designer.toolbar.arrange")).apply {
+                addActionListener {
+                    canvas.arrangeLayout()
                 }
             })
             add(javax.swing.JButton(ComposeBuddyBundle.message("designer.toolbar.unwrap.box")).apply {
@@ -187,6 +205,25 @@ class ComposeDesignerPanel(
                 // 保留当前选择，避免刷新时拖拽前状态丢失
             }
         }
+    }
+
+    private fun showAddCustomComponentDialog() {
+        val dialog = AddCustomComponentDialog(project)
+        if (!dialog.showAndGet()) {
+            return
+        }
+        val newComponent = dialog.component()
+        val settings = ComposeBuddySettingsService.getInstance().state
+        val existingComponents = ComposeDesignerPaletteCatalog.parseCustomComponents(settings.designerCustomComponentsDsl)
+        val merged = existingComponents + newComponent
+        val validation = ComposeDesignerPaletteCatalog.validateCustomComponents(
+            ComposeDesignerPaletteCatalog.serializeCustomComponents(merged),
+        )
+        if (validation.errors.isNotEmpty()) {
+            throw ConfigurationException(validation.errors.joinToString("\n"))
+        }
+        settings.designerCustomComponentsDsl = ComposeDesignerPaletteCatalog.serializeCustomComponents(merged)
+        refreshPaletteEntries()
     }
 
     private fun syncCanvasToFile(nodes: List<ComposeCanvasNode>) {
@@ -263,5 +300,76 @@ class ComposeDesignerPanel(
 
     override fun dispose() {
         // 无需额外释放资源
+    }
+
+    private class AddCustomComponentDialog(project: Project) : DialogWrapper(project) {
+        private val nameField = JBTextField()
+        private val functionField = JBTextField()
+        private val importsField = JBTextField()
+        private val layoutCombo = JComboBox(arrayOf("", "box", "row", "column"))
+        private val widthField = JBTextField("180")
+        private val heightField = JBTextField("56")
+        private val templateArea = JBTextArea(
+            "CustomComposable(\n    modifier = {modifier},\n)",
+        ).apply {
+            lineWrap = false
+            rows = 8
+        }
+
+        init {
+            title = ComposeBuddyBundle.message("settings.designer.custom.components.add")
+            init()
+        }
+
+        fun component(): ComposeDesignerCustomComponent {
+            return ComposeDesignerCustomComponent(
+                displayName = nameField.text.trim(),
+                functionName = functionField.text.trim(),
+                imports = importsField.text.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                template = templateArea.text.trim(),
+                width = widthField.text.toIntOrNull() ?: 180,
+                height = heightField.text.toIntOrNull() ?: 56,
+                layoutKind = when ((layoutCombo.selectedItem as? String).orEmpty()) {
+                    "box" -> ComposePaletteItem.BOX
+                    "row" -> ComposePaletteItem.ROW
+                    "column" -> ComposePaletteItem.COLUMN
+                    else -> null
+                },
+            )
+        }
+
+        override fun createCenterPanel(): JComponent {
+            return panel {
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.name")) {
+                    cell(nameField).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.function")) {
+                    cell(functionField).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.imports")) {
+                    cell(importsField).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.layout")) {
+                    cell(layoutCombo).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.width")) {
+                    cell(widthField).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.height")) {
+                    cell(heightField).resizableColumn()
+                }
+                row(ComposeBuddyBundle.message("settings.designer.custom.components.template")) {
+                    cell(JBScrollPane(templateArea)).resizableColumn()
+                }
+            }
+        }
+
+        override fun doValidate(): ValidationInfo? {
+            val candidate = component()
+            val validation = ComposeDesignerPaletteCatalog.validateCustomComponents(
+                ComposeDesignerPaletteCatalog.serializeCustomComponents(listOf(candidate)),
+            )
+            return validation.errors.firstOrNull()?.let { ValidationInfo(it) }
+        }
     }
 }

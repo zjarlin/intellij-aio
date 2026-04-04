@@ -81,7 +81,7 @@ class ComposeBlocksInspectFileEditor(
     private var selectedNode: ComposeBlockNode? = null
     private var editingCommentNodeId: String? = null
     private var pendingInlineCommentFocusNodeId: String? = null
-    private var progressiveExpansionEnabled = true
+    private var progressiveExpansionEnabled = false
     private var updatingSelectionFromBlocks = false
 
     init {

@@ -84,7 +84,7 @@ private class ComposeBlocksTextEditorSession(
     private var visibleRoots: List<ComposeBlockNode> = emptyList()
     private var selectedNode: ComposeBlockNode? = null
     private var semanticRanges: List<ComposeInlineSemanticRange> = emptyList()
-    private var progressiveExpansionEnabled = true
+    private var progressiveExpansionEnabled = false
 
     fun install() {
         document.addDocumentListener(

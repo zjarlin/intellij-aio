@@ -11,7 +11,7 @@
             parentId="tools"
             instance="site.addzero.composebuddy.settings.ComposeBuddyConfigurable"
             id="site.addzero.composebuddy.settings"
-            displayName="%settings.display.name"/>
+            displayName="kmp-aio"/>
 
         <toolWindow
             id="Compose Designer"

@@ -13,16 +13,17 @@ object ComposeDesignerCodeGenerator {
     )
 
     private val layoutImports = linkedSetOf(
-        "androidx.compose.foundation.Image",
         "androidx.compose.foundation.background",
         "androidx.compose.foundation.layout.*",
         "androidx.compose.foundation.shape.RoundedCornerShape",
         "androidx.compose.material3.Button",
+        "androidx.compose.material3.Card",
+        "androidx.compose.material3.HorizontalDivider",
         "androidx.compose.material3.Text",
+        "androidx.compose.ui.Alignment",
         "androidx.compose.ui.draw.clip",
         "androidx.compose.ui.graphics.Color",
         "androidx.compose.ui.Modifier",
-        "androidx.compose.ui.res.painterResource",
         "androidx.compose.ui.unit.dp",
     )
 
@@ -53,6 +54,10 @@ object ComposeDesignerCodeGenerator {
                 addAll(renderNode(node, nodes, parent = null, indent = "    "))
             }
             add("}")
+            if (nodes.any { it.kind == ComposePaletteItem.ICON }) {
+                add("")
+                addAll(iconHelper())
+            }
         }
 
         return ComposeGeneratedCode(
@@ -81,7 +86,10 @@ object ComposeDesignerCodeGenerator {
                 "$indent    Text(\"${ComposeBuddyBundle.message("designer.node.button")}\")",
                 "$indent}",
             )
+            ComposePaletteItem.ICON -> listOf("$indent${iconCall(node, parent)}")
             ComposePaletteItem.IMAGE -> listOf("$indent${imageCall(node, parent)}")
+            ComposePaletteItem.CARD -> renderContainer(node, children, allNodes, parent, indent)
+            ComposePaletteItem.DIVIDER -> listOf("$indent${dividerCall(node, parent)}")
             ComposePaletteItem.SPACER -> listOf("$indent${spacerCall(node, parent)}")
             ComposePaletteItem.CUSTOM -> renderCustomNode(node, children, allNodes, parent, indent)
         }
@@ -98,13 +106,18 @@ object ComposeDesignerCodeGenerator {
             ComposePaletteItem.BOX -> "Box"
             ComposePaletteItem.ROW -> "Row"
             ComposePaletteItem.COLUMN -> "Column"
+            ComposePaletteItem.CARD -> "Card"
             else -> error("Not a container")
         }
         val lines = mutableListOf("$indent$callName(")
         lines += "$indent    modifier = ${modifierFor(node, parent)}"
-        lines += "$indent        .clip(RoundedCornerShape(22.dp))"
-        lines += "$indent        .background(Color(0xFFFFFFFF))"
-        lines += "$indent        .padding(20.dp),"
+        if (node.kind == ComposePaletteItem.CARD) {
+            lines += "$indent        .padding(20.dp),"
+        } else {
+            lines += "$indent        .clip(RoundedCornerShape(22.dp))"
+            lines += "$indent        .background(Color(0xFFFFFFFF))"
+            lines += "$indent        .padding(20.dp),"
+        }
         when (node.kind) {
             ComposePaletteItem.ROW -> lines += "$indent    horizontalArrangement = Arrangement.spacedBy(16.dp),"
             ComposePaletteItem.COLUMN -> lines += "$indent    verticalArrangement = Arrangement.spacedBy(16.dp),"
@@ -146,15 +159,30 @@ object ComposeDesignerCodeGenerator {
     }
 
     private fun textCall(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
-        return "Text(text = \"${ComposeBuddyBundle.message("designer.node.text")}\", modifier = ${modifierFor(node, parent)})"
+        return "Text(text = \"${ComposeBuddyBundle.message("designer.node.text")}\", modifier = ${leafModifierFor(node, parent)})"
     }
 
     private fun buttonStart(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
-        return "Button(onClick = { }, modifier = ${modifierFor(node, parent)}) {"
+        return "Button(onClick = { }, modifier = ${leafModifierFor(node, parent)}) {"
+    }
+
+    private fun iconCall(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
+        return "IconPlaceholder(modifier = ${leafModifierFor(node, parent)})"
     }
 
     private fun imageCall(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
-        return "Image(painter = painterResource(\"placeholder.png\"), contentDescription = null, modifier = ${modifierFor(node, parent)})"
+        return "Box(modifier = ${leafModifierFor(node, parent)}.size(96.dp, 96.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFFE9EEF6)))"
+    }
+
+    private fun dividerCall(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
+        val parentKind = parent?.let(ComposeDesignerLayoutSupport::effectiveKind)
+        val relative = relativeBounds(node.bounds, parent?.bounds)
+        val modifier = when (parentKind) {
+            ComposePaletteItem.ROW -> "Modifier.height(${relative.height}.dp)"
+            ComposePaletteItem.COLUMN -> "Modifier.fillMaxWidth()"
+            else -> "Modifier.offset(${relative.x}.dp, ${relative.y}.dp).width(${relative.width}.dp)"
+        }
+        return "HorizontalDivider(modifier = $modifier)"
     }
 
     private fun spacerCall(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
@@ -191,6 +219,15 @@ object ComposeDesignerCodeGenerator {
         }
     }
 
+    private fun leafModifierFor(node: ComposeCanvasNode, parent: ComposeCanvasNode?): String {
+        val relative = relativeBounds(node.bounds, parent?.bounds)
+        val parentKind = parent?.let(ComposeDesignerLayoutSupport::effectiveKind)
+        return when {
+            parent == null || parentKind == ComposePaletteItem.BOX -> "Modifier.offset(${relative.x}.dp, ${relative.y}.dp)"
+            else -> "Modifier"
+        }
+    }
+
     private fun relativeBounds(bounds: Rectangle, parentBounds: Rectangle?): Rectangle {
         if (parentBounds == null) return bounds
         return Rectangle(
@@ -198,6 +235,20 @@ object ComposeDesignerCodeGenerator {
             bounds.y - parentBounds.y,
             bounds.width,
             bounds.height,
+        )
+    }
+
+    private fun iconHelper(): List<String> {
+        return listOf(
+            "@Composable",
+            "private fun IconPlaceholder(modifier: Modifier = Modifier) {",
+            "    Box(",
+            "        modifier = modifier.size(40.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFDCE6F5)),",
+            "        contentAlignment = Alignment.Center,",
+            "    ) {",
+            "        Text(text = \"◎\")",
+            "    }",
+            "}",
         )
     }
 }

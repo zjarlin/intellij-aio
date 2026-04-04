@@ -78,7 +78,9 @@ class ComposeDesignerCanvas(
                 dragOrigin = event.point
                 lastPointer = event.point
                 dragNodeOriginBounds = hitNode?.bounds?.let(::Rectangle)
-                resizeAnchor = hitNode?.let { resizeAnchorAt(it, event.point) }
+                resizeAnchor = hitNode
+                    ?.takeIf(::isResizableNode)
+                    ?.let { resizeAnchorAt(it, event.point) }
                 operation = when {
                     hitNode != null && resizeAnchor != null -> CanvasOperation.RESIZE
                     hitNode != null && hitNode.id != rootNodeId -> CanvasOperation.MOVE
@@ -117,6 +119,7 @@ class ComposeDesignerCanvas(
             override fun mouseMoved(event: MouseEvent) {
                 val selected = selectedNode()
                 cursor = selected
+                    ?.takeIf(::isResizableNode)
                     ?.let { resizeAnchorAt(it, event.point) }
                     ?.let { anchorCursor(it) }
                     ?: Cursor.getDefaultCursor()
@@ -195,6 +198,15 @@ class ComposeDesignerCanvas(
 
     fun setContainerSelectionMode(enabled: Boolean) {
         containerSelectionMode = enabled
+    }
+
+    fun arrangeLayout() {
+        val before = snapshotState()
+        ComposeDesignerLayoutSupport.normalizeFreeLayout(nodes, rootNodeId)
+        ComposeDesignerLayoutSupport.relayoutAutoContainersFrom(nodes, rootNodeId)
+        selectedNodeId = selectedNodeId?.takeIf { selectedId -> nodes.any { it.id == selectedId } } ?: rootNodeId
+        fireChanged(before)
+        repaint()
     }
 
     fun snapshot(): List<ComposeCanvasNode> {
@@ -331,7 +343,16 @@ class ComposeDesignerCanvas(
             originBounds.width,
             originBounds.height,
         )
-        val (snappedBounds, guides) = ComposeDesignerLayoutSupport.snapBounds(nodes, selected, proposed)
+        var (snappedBounds, guides) = ComposeDesignerLayoutSupport.snapBounds(nodes, selected, proposed)
+        val parent = nodes.firstOrNull { it.id == selected.parentId }
+        if (parent == null || ComposeDesignerLayoutSupport.effectiveKind(parent) == ComposePaletteItem.BOX) {
+            snappedBounds = ComposeDesignerLayoutSupport.avoidSiblingOverlap(
+                nodes = nodes,
+                parent = parent,
+                requestedBounds = snappedBounds,
+                excludingNodeId = selected.id,
+            )
+        }
         val dx = snappedBounds.x - selected.bounds.x
         val dy = snappedBounds.y - selected.bounds.y
         snapGuides = guides
@@ -394,7 +415,17 @@ class ComposeDesignerCanvas(
         }
         val parent = nodes.firstOrNull { it.id == selected.parentId }
         selected.bounds = if (parent != null) {
-            ComposeDesignerLayoutSupport.keepInsideParent(resized, parent, selected.kind)
+            val kept = ComposeDesignerLayoutSupport.keepInsideParent(resized, parent, selected.kind)
+            if (ComposeDesignerLayoutSupport.effectiveKind(parent) == ComposePaletteItem.BOX) {
+                ComposeDesignerLayoutSupport.avoidSiblingOverlap(
+                    nodes = nodes,
+                    parent = parent,
+                    requestedBounds = kept,
+                    excludingNodeId = selected.id,
+                )
+            } else {
+                kept
+            }
         } else {
             resized
         }
@@ -471,20 +502,26 @@ class ComposeDesignerCanvas(
         val width = when (entry.kind) {
             ComposePaletteItem.TEXT -> 160
             ComposePaletteItem.BUTTON -> 180
+            ComposePaletteItem.ICON -> 56
             ComposePaletteItem.IMAGE -> 160
+            ComposePaletteItem.CARD -> 240
             ComposePaletteItem.BOX -> 220
             ComposePaletteItem.ROW -> 220
             ComposePaletteItem.COLUMN -> 220
+            ComposePaletteItem.DIVIDER -> 180
             ComposePaletteItem.SPACER -> 100
             ComposePaletteItem.CUSTOM -> entry.customComponent?.width ?: 180
         }
         val height = when (entry.kind) {
             ComposePaletteItem.TEXT -> 48
             ComposePaletteItem.BUTTON -> 56
+            ComposePaletteItem.ICON -> 56
             ComposePaletteItem.IMAGE -> 120
+            ComposePaletteItem.CARD -> 160
             ComposePaletteItem.BOX -> 140
             ComposePaletteItem.ROW -> 120
             ComposePaletteItem.COLUMN -> 120
+            ComposePaletteItem.DIVIDER -> 24
             ComposePaletteItem.SPACER -> 24
             ComposePaletteItem.CUSTOM -> entry.customComponent?.height ?: 56
         }
@@ -594,7 +631,7 @@ class ComposeDesignerCanvas(
             g2.drawString(nodeLabel(node), node.bounds.x + 12, node.bounds.y + 24)
             g2.drawString("${ComposeBuddyBundle.message("designer.canvas.auto")} • 20dp padding • 22dp radius", node.bounds.x + 12, node.bounds.y + 44)
 
-            if (isSelected && node.id != rootNodeId) {
+            if (isSelected && node.id != rootNodeId && isResizableNode(node)) {
                 resizeHandles(node).values.forEach { handle ->
                     g2.fillRect(handle.x, handle.y, handle.width, handle.height)
                 }
@@ -667,13 +704,20 @@ class ComposeDesignerCanvas(
         return when (node.kind) {
             ComposePaletteItem.TEXT -> ComposeBuddyBundle.message("designer.node.text")
             ComposePaletteItem.BUTTON -> ComposeBuddyBundle.message("designer.node.button")
+            ComposePaletteItem.ICON -> ComposeBuddyBundle.message("designer.node.icon")
             ComposePaletteItem.IMAGE -> ComposeBuddyBundle.message("designer.node.image")
+            ComposePaletteItem.CARD -> ComposeBuddyBundle.message("designer.node.card")
             ComposePaletteItem.BOX -> ComposeBuddyBundle.message("designer.node.box")
             ComposePaletteItem.ROW -> ComposeBuddyBundle.message("designer.node.row")
             ComposePaletteItem.COLUMN -> ComposeBuddyBundle.message("designer.node.column")
+            ComposePaletteItem.DIVIDER -> ComposeBuddyBundle.message("designer.node.divider")
             ComposePaletteItem.SPACER -> ComposeBuddyBundle.message("designer.node.spacer")
             ComposePaletteItem.CUSTOM -> node.customName ?: node.customFunctionName ?: ComposeBuddyBundle.message("designer.node.custom")
         }
+    }
+
+    private fun isResizableNode(node: ComposeCanvasNode): Boolean {
+        return ComposeDesignerLayoutSupport.isContainer(node)
     }
 
     private fun drawSnapGuides(g2: Graphics2D) {

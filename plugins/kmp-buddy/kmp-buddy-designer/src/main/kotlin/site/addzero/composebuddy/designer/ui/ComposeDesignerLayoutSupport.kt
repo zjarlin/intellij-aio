@@ -4,14 +4,24 @@ import site.addzero.composebuddy.designer.model.ComposeCanvasNode
 import site.addzero.composebuddy.designer.model.ComposePaletteItem
 import java.awt.Point
 import java.awt.Rectangle
+import kotlin.math.abs
 
 object ComposeDesignerLayoutSupport {
     private const val CONTAINER_INSET = 20
     private const val CONTAINER_GAP = 16
     private const val SNAP_THRESHOLD = 10
+    private const val LEAF_NUDGE_STEP = 12
 
     fun isContainer(kind: ComposePaletteItem): Boolean {
-        return kind == ComposePaletteItem.BOX || kind == ComposePaletteItem.ROW || kind == ComposePaletteItem.COLUMN
+        return when (kind) {
+            ComposePaletteItem.BOX,
+            ComposePaletteItem.ROW,
+            ComposePaletteItem.COLUMN,
+            ComposePaletteItem.CARD,
+            -> true
+
+            else -> false
+        }
     }
 
     fun isContainer(node: ComposeCanvasNode): Boolean {
@@ -19,10 +29,23 @@ object ComposeDesignerLayoutSupport {
     }
 
     fun effectiveKind(node: ComposeCanvasNode): ComposePaletteItem {
-        return if (node.kind == ComposePaletteItem.CUSTOM) {
-            node.customLayoutKind ?: ComposePaletteItem.CUSTOM
-        } else {
-            node.kind
+        return when (node.kind) {
+            ComposePaletteItem.CARD -> ComposePaletteItem.BOX
+            ComposePaletteItem.CUSTOM -> node.customLayoutKind ?: ComposePaletteItem.CUSTOM
+            else -> node.kind
+        }
+    }
+
+    fun usesIntrinsicCanvasFootprint(kind: ComposePaletteItem): Boolean {
+        return when (kind) {
+            ComposePaletteItem.TEXT,
+            ComposePaletteItem.BUTTON,
+            ComposePaletteItem.ICON,
+            ComposePaletteItem.IMAGE,
+            ComposePaletteItem.DIVIDER,
+            -> true
+
+            else -> false
         }
     }
 
@@ -145,7 +168,12 @@ object ComposeDesignerLayoutSupport {
 
             else -> base
         }
-        return keepInsideParent(adjusted, parent, kind)
+        val kept = keepInsideParent(adjusted, parent, kind)
+        return if (effectiveKind(parent) == ComposePaletteItem.BOX) {
+            avoidSiblingOverlap(nodes, parent, kept, excludingNodeId)
+        } else {
+            kept
+        }
     }
 
     fun keepInsideParent(
@@ -178,6 +206,37 @@ object ComposeDesignerLayoutSupport {
         }
     }
 
+    fun avoidSiblingOverlap(
+        nodes: List<ComposeCanvasNode>,
+        parent: ComposeCanvasNode?,
+        requestedBounds: Rectangle,
+        excludingNodeId: String? = null,
+    ): Rectangle {
+        val siblings = nodes.filter { it.parentId == parent?.id && it.id != excludingNodeId }
+        if (siblings.none { it.bounds.intersects(requestedBounds) }) {
+            return requestedBounds
+        }
+        var candidate = Rectangle(requestedBounds)
+        val minX = parent?.bounds?.x?.plus(CONTAINER_INSET) ?: 24
+        val minY = parent?.bounds?.y?.plus(CONTAINER_INSET) ?: 24
+        val maxX = parent?.bounds?.let { (it.x + it.width - candidate.width - CONTAINER_INSET).coerceAtLeast(minX) }
+        val maxY = parent?.bounds?.let { (it.y + it.height - candidate.height - CONTAINER_INSET).coerceAtLeast(minY) }
+        repeat(600) {
+            if (siblings.none { it.bounds.intersects(candidate) }) {
+                return candidate
+            }
+            candidate = Rectangle(candidate.x + LEAF_NUDGE_STEP, candidate.y, candidate.width, candidate.height)
+            if (maxX != null && candidate.x > maxX) {
+                candidate.x = minX
+                candidate.y += LEAF_NUDGE_STEP
+            }
+            if (maxY != null && candidate.y > maxY) {
+                candidate.y = minY
+            }
+        }
+        return candidate
+    }
+
     fun relayoutAutoContainer(
         nodes: List<ComposeCanvasNode>,
         containerId: String?,
@@ -195,32 +254,32 @@ object ComposeDesignerLayoutSupport {
             ComposePaletteItem.ROW -> {
                 var cursorX = container.bounds.x + CONTAINER_INSET
                 children.forEach { child ->
-                    val next = keepInsideParent(
-                        Rectangle(cursorX, container.bounds.y + CONTAINER_INSET, child.bounds.width, child.bounds.height),
-                        container,
-                        child.kind,
+                    child.bounds = Rectangle(
+                        cursorX,
+                        container.bounds.y + CONTAINER_INSET,
+                        child.bounds.width,
+                        child.bounds.height,
                     )
-                    child.bounds = next
-                    cursorX = next.x + next.width + CONTAINER_GAP
+                    cursorX = child.bounds.x + child.bounds.width + CONTAINER_GAP
                 }
-                growContainerToFitChildren(container, children, ComposePaletteItem.ROW)
+                growContainerToFitChildren(nodes, container, children, ComposePaletteItem.ROW)
             }
 
             ComposePaletteItem.COLUMN -> {
                 var cursorY = container.bounds.y + CONTAINER_INSET
                 children.forEach { child ->
-                    val next = keepInsideParent(
-                        Rectangle(container.bounds.x + CONTAINER_INSET, cursorY, child.bounds.width, child.bounds.height),
-                        container,
-                        child.kind,
+                    child.bounds = Rectangle(
+                        container.bounds.x + CONTAINER_INSET,
+                        cursorY,
+                        child.bounds.width,
+                        child.bounds.height,
                     )
-                    child.bounds = next
-                    cursorY = next.y + next.height + CONTAINER_GAP
+                    cursorY = child.bounds.y + child.bounds.height + CONTAINER_GAP
                 }
-                growContainerToFitChildren(container, children, ComposePaletteItem.COLUMN)
+                growContainerToFitChildren(nodes, container, children, ComposePaletteItem.COLUMN)
             }
 
-            ComposePaletteItem.BOX -> growContainerToFitChildren(container, children, ComposePaletteItem.BOX)
+            ComposePaletteItem.BOX -> growContainerToFitChildren(nodes, container, children, ComposePaletteItem.BOX)
             else -> Unit
         }
     }
@@ -233,6 +292,19 @@ object ComposeDesignerLayoutSupport {
         while (currentParentId != null) {
             relayoutAutoContainer(nodes, currentParentId)
             currentParentId = nodes.firstOrNull { it.id == currentParentId }?.parentId
+        }
+    }
+
+    fun normalizeFreeLayout(
+        nodes: MutableList<ComposeCanvasNode>,
+        rootNodeId: String,
+    ) {
+        val targets = nodes
+            .filter { it.id == rootNodeId || effectiveKind(it) == ComposePaletteItem.BOX }
+            .sortedByDescending { depthOf(nodes, it.id) }
+            .map { it.id }
+        targets.forEach { parentId ->
+            normalizeBoxChildren(nodes, parentId, rootNodeId)
         }
     }
 
@@ -301,6 +373,16 @@ object ComposeDesignerLayoutSupport {
             container.y + container.height >= child.y + child.height
     }
 
+    private fun depthOf(nodes: List<ComposeCanvasNode>, nodeId: String): Int {
+        var depth = 0
+        var currentParent = nodes.firstOrNull { it.id == nodeId }?.parentId
+        while (currentParent != null) {
+            depth += 1
+            currentParent = nodes.firstOrNull { it.id == currentParent }?.parentId
+        }
+        return depth
+    }
+
     private fun layoutComparator(kind: ComposePaletteItem): Comparator<ComposeCanvasNode> {
         return when (kind) {
             ComposePaletteItem.ROW -> compareBy<ComposeCanvasNode> { it.bounds.x }.thenBy { it.bounds.y }
@@ -309,7 +391,124 @@ object ComposeDesignerLayoutSupport {
         }
     }
 
+    private fun normalizeBoxChildren(
+        nodes: MutableList<ComposeCanvasNode>,
+        parentId: String,
+        rootNodeId: String,
+    ) {
+        val children = nodes
+            .filter { it.parentId == parentId }
+            .sortedWith(compareBy<ComposeCanvasNode> { it.bounds.y }.thenBy { it.bounds.x })
+        if (children.size < 2) {
+            return
+        }
+        val rowGroups = groupByRows(children)
+        val parent = nodes.firstOrNull { it.id == parentId }
+        val normalizedParentId = if (parentId == rootNodeId) null else parentId
+        if (rowGroups.size == 1) {
+            val group = rowGroups.first()
+            if (shouldWrapAsRow(group)) {
+                wrapChildren(nodes, normalizedParentId, ComposePaletteItem.ROW, group, parent)
+            } else if (shouldWrapAsColumn(group)) {
+                wrapChildren(nodes, normalizedParentId, ComposePaletteItem.COLUMN, group, parent)
+            }
+            return
+        }
+        val column = ComposeCanvasNode(
+            kind = ComposePaletteItem.COLUMN,
+            bounds = boundingRect(children),
+            parentId = normalizedParentId,
+        )
+        nodes += column
+        rowGroups.forEach { group ->
+            if (group.size == 1) {
+                group.first().parentId = column.id
+            } else {
+                val row = ComposeCanvasNode(
+                    kind = ComposePaletteItem.ROW,
+                    bounds = boundingRect(group),
+                    parentId = column.id,
+                )
+                nodes += row
+                group.forEach { child ->
+                    child.parentId = row.id
+                }
+            }
+        }
+        relayoutAutoContainersFrom(nodes, column.id)
+    }
+
+    private fun wrapChildren(
+        nodes: MutableList<ComposeCanvasNode>,
+        parentId: String?,
+        kind: ComposePaletteItem,
+        children: List<ComposeCanvasNode>,
+        originalParent: ComposeCanvasNode?,
+    ) {
+        val container = ComposeCanvasNode(
+            kind = kind,
+            bounds = boundingRect(children),
+            parentId = parentId,
+        )
+        nodes += container
+        children.forEach { child ->
+            child.parentId = container.id
+        }
+        relayoutAutoContainersFrom(nodes, container.id)
+        if (originalParent != null) {
+            relayoutAutoContainersFrom(nodes, originalParent.id)
+        }
+    }
+
+    private fun groupByRows(children: List<ComposeCanvasNode>): List<List<ComposeCanvasNode>> {
+        if (children.isEmpty()) {
+            return emptyList()
+        }
+        val threshold = maxOf(48, children.map { it.bounds.height }.average().toInt() / 2 + CONTAINER_GAP)
+        val groups = mutableListOf<MutableList<ComposeCanvasNode>>()
+        children.sortedBy { it.bounds.y }.forEach { child ->
+            val centerY = child.bounds.y + child.bounds.height / 2
+            val group = groups.firstOrNull { current ->
+                val averageCenterY = current.map { it.bounds.y + it.bounds.height / 2 }.average()
+                abs(centerY - averageCenterY) <= threshold
+            }
+            if (group == null) {
+                groups += mutableListOf(child)
+            } else {
+                group += child
+            }
+        }
+        return groups.map { group -> group.sortedBy { it.bounds.x } }
+    }
+
+    private fun shouldWrapAsRow(children: List<ComposeCanvasNode>): Boolean {
+        if (children.size < 2) {
+            return false
+        }
+        val xSpread = children.maxOf { it.bounds.centerX } - children.minOf { it.bounds.centerX }
+        val ySpread = children.maxOf { it.bounds.centerY } - children.minOf { it.bounds.centerY }
+        return xSpread >= ySpread
+    }
+
+    private fun shouldWrapAsColumn(children: List<ComposeCanvasNode>): Boolean {
+        if (children.size < 2) {
+            return false
+        }
+        val xSpread = children.maxOf { it.bounds.centerX } - children.minOf { it.bounds.centerX }
+        val ySpread = children.maxOf { it.bounds.centerY } - children.minOf { it.bounds.centerY }
+        return ySpread > xSpread
+    }
+
+    private fun boundingRect(nodes: List<ComposeCanvasNode>): Rectangle {
+        val left = nodes.minOf { it.bounds.x }
+        val top = nodes.minOf { it.bounds.y }
+        val right = nodes.maxOf { it.bounds.x + it.bounds.width }
+        val bottom = nodes.maxOf { it.bounds.y + it.bounds.height }
+        return Rectangle(left, top, right - left, bottom - top)
+    }
+
     private fun growContainerToFitChildren(
+        nodes: List<ComposeCanvasNode>,
         container: ComposeCanvasNode,
         children: List<ComposeCanvasNode>,
         layoutKind: ComposePaletteItem,
@@ -357,21 +556,56 @@ object ComposeDesignerLayoutSupport {
         }
         val deltaX = container.bounds.x - adjustedX
         val deltaY = container.bounds.y - adjustedY
-        if (deltaX != 0 || deltaY != 0) {
-            container.bounds = Rectangle(
+        val proposed = if (deltaX != 0 || deltaY != 0) {
+            Rectangle(
                 adjustedX,
                 adjustedY,
                 maxOf(container.bounds.width + deltaX, requiredWidth),
                 maxOf(container.bounds.height + deltaY, requiredHeight),
             )
-            return
+        } else {
+            Rectangle(
+                container.bounds.x,
+                container.bounds.y,
+                maxOf(container.bounds.width, requiredWidth),
+                maxOf(container.bounds.height, requiredHeight),
+            )
         }
-        container.bounds = Rectangle(
-            container.bounds.x,
-            container.bounds.y,
-            maxOf(container.bounds.width, requiredWidth),
-            maxOf(container.bounds.height, requiredHeight),
+        container.bounds = constrainContainerGrowth(nodes, container, proposed)
+    }
+
+    private fun constrainContainerGrowth(
+        nodes: List<ComposeCanvasNode>,
+        container: ComposeCanvasNode,
+        proposed: Rectangle,
+    ): Rectangle {
+        val parent = nodes.firstOrNull { it.id == container.parentId } ?: return proposed
+        var maxRight = parent.bounds.x + parent.bounds.width - CONTAINER_INSET
+        var maxBottom = parent.bounds.y + parent.bounds.height - CONTAINER_INSET
+        if (effectiveKind(parent) == ComposePaletteItem.BOX) {
+            val siblings = nodes.filter { it.parentId == parent.id && it.id != container.id }
+            siblings.forEach { sibling ->
+                if (sibling.bounds.x >= proposed.x && rangesOverlap(proposed.y, proposed.y + proposed.height, sibling.bounds.y, sibling.bounds.y + sibling.bounds.height)) {
+                    maxRight = minOf(maxRight, sibling.bounds.x - CONTAINER_GAP)
+                }
+                if (sibling.bounds.y >= proposed.y && rangesOverlap(proposed.x, proposed.x + proposed.width, sibling.bounds.x, sibling.bounds.x + sibling.bounds.width)) {
+                    maxBottom = minOf(maxBottom, sibling.bounds.y - CONTAINER_GAP)
+                }
+            }
+        }
+        val minWidth = if (isContainer(container)) 180 else 48
+        val constrainedWidth = (maxRight - proposed.x).coerceAtLeast(minWidth)
+        val constrainedHeight = (maxBottom - proposed.y).coerceAtLeast(24)
+        return Rectangle(
+            proposed.x,
+            proposed.y,
+            minOf(proposed.width, constrainedWidth),
+            minOf(proposed.height, constrainedHeight),
         )
+    }
+
+    private fun rangesOverlap(startA: Int, endA: Int, startB: Int, endB: Int): Boolean {
+        return startA < endB && startB < endA
     }
 
     private fun snapAxis(
@@ -429,7 +663,8 @@ object ComposeDesignerLayoutSupport {
             .filter { it.parentId == parent.id && it.id !in excludedIds }
             .sortedWith(layoutComparator(layoutKind))
         if (layoutKind == ComposePaletteItem.ROW) {
-            val index = insertionIndexForRow(siblings, pointer.x)
+            val movingCenterX = movingNode.bounds.x + movingNode.bounds.width / 2
+            val index = insertionIndexForRow(siblings, movingCenterX)
             val previewBounds = previewBoundsForRow(parent, siblings, movingNode, index)
             val x = insertionX(parent, siblings, index)
             return DropPreview(
@@ -439,7 +674,8 @@ object ComposeDesignerLayoutSupport {
             )
         }
         if (layoutKind == ComposePaletteItem.COLUMN) {
-            val index = insertionIndexForColumn(siblings, pointer.y)
+            val movingCenterY = movingNode.bounds.y + movingNode.bounds.height / 2
+            val index = insertionIndexForColumn(siblings, movingCenterY)
             val previewBounds = previewBoundsForColumn(parent, siblings, movingNode, index)
             val y = insertionY(parent, siblings, index)
             return DropPreview(

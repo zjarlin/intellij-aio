@@ -47,7 +47,7 @@ internal fun VirtualFile.setSelectedComposeBlocksMode(mode: ComposeBlocksMode) {
 }
 
 internal fun VirtualFile.isProgressiveExpansionEnabled(): Boolean {
-    return getUserData(PROGRESSIVE_EXPANSION_KEY) ?: true
+    return getUserData(PROGRESSIVE_EXPANSION_KEY) ?: false
 }
 
 internal fun VirtualFile.setProgressiveExpansionEnabled(enabled: Boolean) {

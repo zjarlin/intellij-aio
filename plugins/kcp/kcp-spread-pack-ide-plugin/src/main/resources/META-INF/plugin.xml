@@ -1,0 +1,14 @@
+<idea-plugin>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="site.addzero.kcp.spreadpack.ide.SpreadPackProjectActivity"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+        <kaResolveExtensionProvider
+                implementation="site.addzero.kcp.spreadpack.ide.SpreadPackResolveExtensionProvider"/>
+    </extensions>
+</idea-plugin>

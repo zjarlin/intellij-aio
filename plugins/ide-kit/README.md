@@ -117,6 +117,9 @@ interface S3Config {
 - `target`
 - `.gradle`
 - `generated`
+- `log`
+- `logs`
+- `*.log`
 
 ### 4. 在 Project 视图里隐藏文件或目录
 

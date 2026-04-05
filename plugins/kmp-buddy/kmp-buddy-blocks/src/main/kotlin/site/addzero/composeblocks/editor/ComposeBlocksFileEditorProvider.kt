@@ -6,6 +6,7 @@ import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorPolicy
 import com.intellij.openapi.fileEditor.WeighedFileEditorProvider
+import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -40,6 +41,7 @@ class ComposeBlocksFileEditorProvider : WeighedFileEditorProvider(), DumbAware {
     companion object {
         const val EDITOR_TYPE_ID = "compose-blocks-editor"
         private val FORCE_OPEN_KEY = Key.create<Boolean>("compose.blocks.force.open")
+        private val PREFER_BLOCKS_SELECTION_KEY = Key.create<Boolean>("compose.blocks.prefer.blocks.selection")
 
         fun isEnabledByDefault(): Boolean {
             return ComposeBlocksSettingsService.getInstance().state.enableComposeBlocksEditorByDefault
@@ -57,6 +59,7 @@ class ComposeBlocksFileEditorProvider : WeighedFileEditorProvider(), DumbAware {
         ) {
             val forceOpen = !isEnabledByDefault()
             file.setSelectedComposeBlocksMode(mode)
+            file.putUserData(PREFER_BLOCKS_SELECTION_KEY, true)
             if (forceOpen) {
                 file.putUserData(FORCE_OPEN_KEY, true)
             }
@@ -86,9 +89,25 @@ class ComposeBlocksFileEditorProvider : WeighedFileEditorProvider(), DumbAware {
                     if (forceOpen) {
                         file.putUserData(FORCE_OPEN_KEY, null)
                     }
+                    file.putUserData(PREFER_BLOCKS_SELECTION_KEY, null)
                 },
                 ModalityState.defaultModalityState(),
             )
+        }
+
+        internal fun restoreNativeTextEditorIfNeeded(
+            project: Project,
+            file: VirtualFile,
+            editor: ComposeBlocksUnifiedFileEditor,
+        ) {
+            if (file.getUserData(PREFER_BLOCKS_SELECTION_KEY) == true) {
+                return
+            }
+            val manager = FileEditorManager.getInstance(project)
+            if (manager.getSelectedEditor(file) !== editor) {
+                return
+            }
+            manager.setSelectedEditor(file, TextEditorProvider.getInstance().editorTypeId)
         }
 
         fun handleSettingsChanged() {

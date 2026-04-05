@@ -6,7 +6,7 @@ plugins {
 val libs = versionCatalogs.named("libs")
 
 dependencies {
-    implementation(project(":lib:kcp:transform-overload:kcp-transform-overload-annotations"))
+    implementation("site.addzero:kcp-transform-overload-annotations:2026.03.13")
     testImplementation(libs.findLibrary("junit-junit").get())
 }
 

@@ -8,7 +8,7 @@ group = "site.addzero"
 val libs = versionCatalogs.named("libs")
 
 dependencies {
-    implementation(project(":lib:kcp:spread-pack:kcp-spread-pack-annotations"))
+    implementation("site.addzero:kcp-spread-pack-annotations:2026.04.04")
     testImplementation(libs.findLibrary("junit-junit").get())
 }
 

@@ -95,6 +95,7 @@ class ComposeBlocksUnifiedFileEditor(
 
         applyProgressiveExpansionSetting()
         selectMode(currentMode, requestFocus = false, persist = false)
+        scheduleNativeTextRestoreIfNeeded()
     }
 
     override fun getPreferredFocusedComponent(): JComponent {
@@ -206,6 +207,18 @@ class ComposeBlocksUnifiedFileEditor(
                     return@invokeLater
                 }
                 IdeFocusManager.getInstance(project).requestFocus(target, true)
+            },
+            ModalityState.defaultModalityState(),
+        )
+    }
+
+    private fun scheduleNativeTextRestoreIfNeeded() {
+        ApplicationManager.getApplication().invokeLater(
+            {
+                if (project.isDisposed) {
+                    return@invokeLater
+                }
+                ComposeBlocksFileEditorProvider.restoreNativeTextEditorIfNeeded(project, sourceFile, this)
             },
             ModalityState.defaultModalityState(),
         )

@@ -152,6 +152,12 @@
             <category>kmp-buddy</category>
         </intentionAction>
 
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.MoveFileToSharedSourceSetIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
         <localInspection
             language="kotlin"
             shortName="ComposeWrapperInspection"

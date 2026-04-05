@@ -12,6 +12,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.smart.intentions.kotlin.classtointerface.SmartConvertClassToInterfaceIntention</className>
+            <category>Smart Intentions</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.smart.intentions.kotlin.redundantexplicittype.SmartRemoveRedundantExplicitTypeIntention</className>
             <category>Smart Intentions</category>
         </intentionAction>

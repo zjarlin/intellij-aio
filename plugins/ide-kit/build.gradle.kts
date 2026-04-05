@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":plugins:ide-kit:smart-intentions-core"))
     implementation(project(":plugins:ide-kit:smart-intentions-find-source-only"))
     implementation(project(":plugins:ide-kit:smart-intentions-hidden-files"))
+    implementation(project(":plugins:ide-kit:smart-intentions-kotlin-class-to-interface"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-redundant-explicit-type"))
 }
 

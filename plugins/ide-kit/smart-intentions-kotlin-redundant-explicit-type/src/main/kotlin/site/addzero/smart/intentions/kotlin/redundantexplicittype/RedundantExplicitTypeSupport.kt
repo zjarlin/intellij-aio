@@ -89,7 +89,16 @@ internal object RedundantExplicitTypeSupport {
             )
         } ?: return false
 
-        return when (evaluateApplicabilityWithCopy(property, originalState)) {
+        val copyApplicability = try {
+            evaluateApplicabilityWithCopy(property, originalState)
+        } catch (exception: RuntimeException) {
+            if (!shouldFallbackToNonCopyAnalysis(exception)) {
+                throw exception
+            }
+            CopyApplicability.UNAVAILABLE
+        }
+
+        return when (copyApplicability) {
             CopyApplicability.APPLICABLE -> true
             CopyApplicability.NOT_APPLICABLE -> false
             CopyApplicability.UNAVAILABLE -> evaluateApplicabilityWithoutCopy(property, typeReference)
@@ -162,6 +171,9 @@ internal object RedundantExplicitTypeSupport {
 
     private fun createAnalyzablePropertyCopyWithoutExplicitType(property: KtProperty): KtProperty? {
         val originalFile = property.containingFile as? KtFile ?: return null
+        if (originalFile.context != null) {
+            return null
+        }
         val copiedFile = KtPsiFactory.contextual(originalFile, false).createFile(
             originalFile.name,
             originalFile.text,
@@ -171,6 +183,20 @@ internal object RedundantExplicitTypeSupport {
         val copiedProperty = copiedFile.findElementAt(property.textOffset)?.getNonStrictParentOfType<KtProperty>() ?: return null
         copiedProperty.removeDeclarationTypeReference()
         return copiedProperty
+    }
+
+    internal fun shouldFallbackToNonCopyAnalysis(exception: Throwable): Boolean {
+        if (exception is ProcessCanceledException) {
+            return false
+        }
+
+        return generateSequence(exception) { current -> current.cause }
+            .mapNotNull { current -> current.message }
+            .any { message ->
+                message.contains(
+                    "Dangling file module cannot depend on another dangling file module",
+                )
+            }
     }
 
     private fun KaSession.isStableType(type: KaType): Boolean {

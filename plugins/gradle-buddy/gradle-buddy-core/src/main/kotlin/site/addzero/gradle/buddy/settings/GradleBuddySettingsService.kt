@@ -16,6 +16,11 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     data class State(
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
         var versionCatalogPath: String = DEFAULT_VERSION_CATALOG_PATH,
+        /**
+         * 外部库源码仓库根目录。
+         * 用于把当前仓库里的 project(":lib:...") 映射到另一个源码仓库，并执行发布任务。
+         */
+        var externalLibraryRepoPath: String = DEFAULT_EXTERNAL_LIBRARY_REPO_PATH,
         /** 智能补全时静默 upsert toml：选中后自动写入 toml 并回显 libs.xxx.xxx */
         var silentUpsertToml: Boolean = false,
         /**
@@ -58,6 +63,12 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     // 设置版本目录文件路径
     fun setVersionCatalogPath(path: String) {
         myState.versionCatalogPath = path
+    }
+
+    fun getExternalLibraryRepoPath(): String = myState.externalLibraryRepoPath
+
+    fun setExternalLibraryRepoPath(path: String) {
+        myState.externalLibraryRepoPath = path
     }
 
     // 添加默认任务
@@ -108,6 +119,19 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     fun resetToDefaults() {
         myState.defaultTasks = DEFAULT_TASKS.toMutableList()
         myState.versionCatalogPath = DEFAULT_VERSION_CATALOG_PATH
+        myState.externalLibraryRepoPath = DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
+    }
+
+    fun resolveExternalLibraryRepoRoot(project: Project): File {
+        val rawPath = getExternalLibraryRepoPath().trim().ifBlank { DEFAULT_EXTERNAL_LIBRARY_REPO_PATH }
+        val expandedPath = expandHomeAwarePath(rawPath)
+        val configured = File(expandedPath)
+        if (configured.isAbsolute) {
+            return configured
+        }
+
+        val basePath = project.basePath ?: return configured.absoluteFile
+        return File(basePath, expandedPath).absoluteFile
     }
 
     /**
@@ -180,6 +204,19 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         return null
     }
 
+    private fun expandHomeAwarePath(path: String): String {
+        val home = System.getProperty("user.home").orEmpty()
+        return when {
+            path == "~" -> home
+            path.startsWith("~/") -> home + path.removePrefix("~")
+            path.startsWith("${'$'}HOME/") -> home + "/" + path.removePrefix("${'$'}HOME/")
+            path == "${'$'}HOME" -> home
+            path.startsWith("\${HOME}/") -> home + "/" + path.removePrefix("\${HOME}/")
+            path == "\${HOME}" -> home
+            else -> path
+        }
+    }
+
     companion object {
         val DEFAULT_TASKS = listOf(
             "clean",
@@ -197,6 +234,7 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         )
 
         const val DEFAULT_VERSION_CATALOG_PATH = "gradle/libs.versions.toml"
+        const val DEFAULT_EXTERNAL_LIBRARY_REPO_PATH = "${'$'}HOME/IdeaProjects/addzero-lib"
         private const val MAX_ANCESTOR_DEPTH = 8
 
         fun getInstance(project: Project): GradleBuddySettingsService = project.service()

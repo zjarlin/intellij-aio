@@ -25,6 +25,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
 
     private var tasksTextArea: JBTextArea? = null
     private var catalogPathField: JBTextField? = null
+    private var externalLibraryRepoField: JBTextField? = null
     private var mainPanel: JPanel? = null
     private var catalogBannerCheckbox: JBCheckBox? = null
     private var silentUpsertTomlCheckbox: JBCheckBox? = null
@@ -43,6 +44,10 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
 
         catalogPathField = JBTextField(40).apply {
             toolTipText = GradleBuddyBundle.message("settings.version.catalog.path.tooltip")
+        }
+
+        externalLibraryRepoField = JBTextField(40).apply {
+            toolTipText = GradleBuddyBundle.message("settings.external.library.repo.path.tooltip")
         }
 
         val properties = PropertiesComponent.getInstance(project)
@@ -98,14 +103,20 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
                 catalogPathField?.text = GradleBuddySettingsService.DEFAULT_VERSION_CATALOG_PATH
+                externalLibraryRepoField?.text = GradleBuddySettingsService.DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
             }
         }
 
-        mainPanel = catalogPathField?.let {
+        mainPanel = catalogPathField?.let { catalogField ->
+          val externalRepoField = requireNotNull(externalLibraryRepoField)
           FormBuilder.createFormBuilder()
             .addLabeledComponent(GradleBuddyBundle.message("settings.language.label"), languageCb)
             .addLabeledComponent(GradleBuddyBundle.message("settings.default.tasks.label"), JBScrollPane(tasksTextArea))
-            .addLabeledComponent(GradleBuddyBundle.message("settings.version.catalog.path.label"), it)
+            .addLabeledComponent(GradleBuddyBundle.message("settings.version.catalog.path.label"), catalogField)
+            .addLabeledComponent(
+                GradleBuddyBundle.message("settings.external.library.repo.path.label"),
+                externalRepoField
+            )
             .addComponent(bannerCheckBox as JComponent)
             .addComponent(silentUpsertCheckBox as JComponent)
             .addLabeledComponent(GradleBuddyBundle.message("settings.normalize.dedup.strategy.label"), dedupCombo)
@@ -126,6 +137,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val savedTasks = GradleBuddySettingsService.getInstance(project).getDefaultTasks()
         val currentPath = catalogPathField?.text ?: ""
         val savedPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val currentExternalRepoPath = externalLibraryRepoField?.text ?: ""
+        val savedExternalRepoPath = GradleBuddySettingsService.getInstance(project).getExternalLibraryRepoPath()
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         val savedShowBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
@@ -139,7 +152,15 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val savedAutoUpdate = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
         val language = languageCombo?.selectedItem as? GradleBuddyLanguage ?: GradleBuddyLanguage.ZH
         val savedLanguage = GradleBuddyUiSettingsService.getInstance().getLanguage()
-        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert || dedupStrategy != savedDedupStrategy || mirrorIndex != savedMirrorIndex || autoUpdate != savedAutoUpdate || language != savedLanguage
+        return currentTasks != savedTasks ||
+            currentPath != savedPath ||
+            currentExternalRepoPath != savedExternalRepoPath ||
+            showBanner != savedShowBanner ||
+            silentUpsert != savedSilentUpsert ||
+            dedupStrategy != savedDedupStrategy ||
+            mirrorIndex != savedMirrorIndex ||
+            autoUpdate != savedAutoUpdate ||
+            language != savedLanguage
     }
 
     override fun apply() {
@@ -150,6 +171,13 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         if (path.isNotBlank()) {
             GradleBuddySettingsService.getInstance(project).setVersionCatalogPath(path)
         }
+
+        val externalRepoPath = externalLibraryRepoField?.text?.trim() ?: ""
+        val normalizedExternalRepoPath = externalRepoPath.ifBlank {
+            GradleBuddySettingsService.DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
+        }
+        GradleBuddySettingsService.getInstance(project).setExternalLibraryRepoPath(normalizedExternalRepoPath)
+        externalLibraryRepoField?.text = normalizedExternalRepoPath
 
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         PropertiesComponent.getInstance(project).setValue(
@@ -182,6 +210,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val tasks = GradleBuddySettingsService.getInstance(project).getDefaultTasks()
         tasksTextArea?.text = tasks.joinToString("\n")
         catalogPathField?.text = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        externalLibraryRepoField?.text = GradleBuddySettingsService.getInstance(project).getExternalLibraryRepoPath()
         val showBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         catalogBannerCheckbox?.isSelected = showBanner
@@ -195,6 +224,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
     override fun disposeUIResources() {
         tasksTextArea = null
         catalogPathField = null
+        externalLibraryRepoField = null
         mainPanel = null
         catalogBannerCheckbox = null
         silentUpsertTomlCheckbox = null

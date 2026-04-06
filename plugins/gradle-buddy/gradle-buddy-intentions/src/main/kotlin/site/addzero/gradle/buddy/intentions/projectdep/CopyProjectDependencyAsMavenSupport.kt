@@ -27,7 +27,8 @@ object CopyProjectDependencyAsMavenSupport {
     data class Target(
         val configType: String,
         val moduleName: String,
-        val dependencyText: String
+        val dependencyText: String,
+        val canonicalModulePath: String?
     )
 
     fun findTarget(project: Project, file: PsiFile, offset: Int): Target? {
@@ -148,7 +149,8 @@ object CopyProjectDependencyAsMavenSupport {
         return Target(
             configType = configType,
             moduleName = moduleName,
-            dependencyText = """project("$modulePath")"""
+            dependencyText = """project("$modulePath")""",
+            canonicalModulePath = modulePath
         )
     }
 
@@ -175,7 +177,8 @@ object CopyProjectDependencyAsMavenSupport {
         return Target(
             configType = configType,
             moduleName = moduleName,
-            dependencyText = accessor
+            dependencyText = accessor,
+            canonicalModulePath = modulePath
         )
     }
 

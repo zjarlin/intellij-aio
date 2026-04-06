@@ -72,6 +72,14 @@ object ProjectDependencySourcePublishSupport {
             return null
         }
 
+        target.sourceGradleRootPath
+            ?.takeIf(String::isNotBlank)
+            ?.let(::File)
+            ?.takeIf { it.exists() && it.isDirectory }
+            ?.let { currentRoot ->
+                resolveModuleInRepo(target, modulePath, currentRoot)?.let { return it }
+            }
+
         val settings = GradleBuddySettingsService.getInstance(project)
         val repoRoot = settings.resolveExternalLibraryRepoRoot(project)
         if (!repoRoot.exists() || !repoRoot.isDirectory) {
@@ -87,38 +95,23 @@ object ProjectDependencySourcePublishSupport {
             return null
         }
 
-        val moduleDir = if (modulePath == ":") {
-            repoRoot
-        } else {
-            File(repoRoot, modulePath.trim(':').replace(':', File.separatorChar))
-        }
-
-        val buildFile = findBuildFile(moduleDir)
-        if (buildFile == null) {
+        val externalTarget = resolveModuleInRepo(target, modulePath, repoRoot)
+        if (externalTarget == null) {
+            val expectedDir = buildExpectedModuleDir(repoRoot, modulePath)
             notify(
                 project = project,
                 title = GradleBuddyBundle.message("intention.publish.project.dependency.from.source.missing.module.title"),
                 content = GradleBuddyBundle.message(
                     "intention.publish.project.dependency.from.source.missing.module.content",
                     modulePath,
-                    moduleDir.absolutePath
+                    expectedDir.absolutePath
                 ),
                 type = NotificationType.WARNING
             )
             return null
         }
 
-        val taskName = if (modulePath == ":") "publishToMavenCentral" else "$modulePath:publishToMavenCentral"
-        val command = if (modulePath == ":") "./gradlew publishToMavenCentral" else "./gradlew $modulePath:publishToMavenCentral"
-
-        return PublishTarget(
-            moduleName = target.moduleName,
-            modulePath = modulePath,
-            repoRoot = repoRoot,
-            moduleDir = buildFile.parentFile ?: moduleDir,
-            command = command,
-            taskName = taskName
-        )
+        return externalTarget
     }
 
     private fun showStartedNotification(project: Project, target: PublishTarget) {
@@ -191,6 +184,34 @@ object ProjectDependencySourcePublishSupport {
         }
         val groovy = File(moduleDir, "build.gradle")
         return groovy.takeIf { it.isFile }
+    }
+
+    private fun resolveModuleInRepo(
+        target: CopyProjectDependencyAsMavenSupport.Target,
+        modulePath: String,
+        repoRoot: File
+    ): PublishTarget? {
+        val moduleDir = buildExpectedModuleDir(repoRoot, modulePath)
+        val buildFile = findBuildFile(moduleDir) ?: return null
+        val taskName = if (modulePath == ":") "publishToMavenCentral" else "$modulePath:publishToMavenCentral"
+        val command = if (modulePath == ":") "./gradlew publishToMavenCentral" else "./gradlew $modulePath:publishToMavenCentral"
+
+        return PublishTarget(
+            moduleName = target.moduleName,
+            modulePath = modulePath,
+            repoRoot = repoRoot,
+            moduleDir = buildFile.parentFile ?: moduleDir,
+            command = command,
+            taskName = taskName
+        )
+    }
+
+    private fun buildExpectedModuleDir(repoRoot: File, modulePath: String): File {
+        return if (modulePath == ":") {
+            repoRoot
+        } else {
+            File(repoRoot, modulePath.trim(':').replace(':', File.separatorChar))
+        }
     }
 
     private fun notify(project: Project, title: String, content: String, type: NotificationType) {

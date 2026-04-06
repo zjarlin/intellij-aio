@@ -13,7 +13,7 @@ class SmartGeneratedArtifactExcludePolicy : DirectoryIndexExcludePolicy {
                 VirtualFilePointerManager.getInstance().createDirectoryPointer(
                     url,
                     true,
-                    rootModel.project,
+                    rootModel.module.project,
                     NoOpVirtualFilePointerListener,
                 )
             }

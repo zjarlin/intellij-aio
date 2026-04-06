@@ -28,7 +28,8 @@ object CopyProjectDependencyAsMavenSupport {
         val configType: String,
         val moduleName: String,
         val dependencyText: String,
-        val canonicalModulePath: String?
+        val canonicalModulePath: String?,
+        val sourceGradleRootPath: String?
     )
 
     fun findTarget(project: Project, file: PsiFile, offset: Int): Target? {
@@ -37,9 +38,10 @@ object CopyProjectDependencyAsMavenSupport {
         }
 
         val element = file.findElementAt(offset) ?: return null
+        val anchorFile = file.virtualFile
         return generateSequence(element) { it.parent }
             .filterIsInstance<KtCallExpression>()
-            .firstNotNullOfOrNull { resolveTarget(project, it) }
+            .firstNotNullOfOrNull { resolveTarget(project, it, anchorFile) }
     }
 
     fun execute(project: Project, editor: Editor?, target: Target) {
@@ -122,7 +124,7 @@ object CopyProjectDependencyAsMavenSupport {
         )
     }
 
-    private fun resolveTarget(project: Project, callExpression: KtCallExpression): Target? {
+    private fun resolveTarget(project: Project, callExpression: KtCallExpression, anchorFile: com.intellij.openapi.vfs.VirtualFile?): Target? {
         val configType = callExpression.calleeExpression?.text?.trim().orEmpty()
         if (configType.isBlank() || !isInsideDependenciesBlock(callExpression)) {
             return null
@@ -130,13 +132,18 @@ object CopyProjectDependencyAsMavenSupport {
 
         val argumentExpression = callExpression.valueArguments.singleOrNull()?.getArgumentExpression() ?: return null
         return when (argumentExpression) {
-            is KtCallExpression -> resolveProjectCall(configType, argumentExpression)
-            is KtDotQualifiedExpression -> resolveProjectAccessor(project, configType, argumentExpression)
+            is KtCallExpression -> resolveProjectCall(project, configType, argumentExpression, anchorFile)
+            is KtDotQualifiedExpression -> resolveProjectAccessor(project, configType, argumentExpression, anchorFile)
             else -> null
         }
     }
 
-    private fun resolveProjectCall(configType: String, projectCall: KtCallExpression): Target? {
+    private fun resolveProjectCall(
+        project: Project,
+        configType: String,
+        projectCall: KtCallExpression,
+        anchorFile: com.intellij.openapi.vfs.VirtualFile?
+    ): Target? {
         if (projectCall.calleeExpression?.text != "project") {
             return null
         }
@@ -150,14 +157,16 @@ object CopyProjectDependencyAsMavenSupport {
             configType = configType,
             moduleName = moduleName,
             dependencyText = """project("$modulePath")""",
-            canonicalModulePath = modulePath
+            canonicalModulePath = modulePath,
+            sourceGradleRootPath = ProjectModuleResolver.findOwningRoot(project, anchorFile)?.path
         )
     }
 
     private fun resolveProjectAccessor(
         project: Project,
         configType: String,
-        expression: KtDotQualifiedExpression
+        expression: KtDotQualifiedExpression,
+        anchorFile: com.intellij.openapi.vfs.VirtualFile?
     ): Target? {
         val topExpression = findTopDotExpression(expression)
         val accessor = topExpression.text.trim()
@@ -168,7 +177,8 @@ object CopyProjectDependencyAsMavenSupport {
             return null
         }
 
-        val modulePath = ProjectModuleResolver.findByTypeSafeAccessor(project, accessor)?.path
+        val module = ProjectModuleResolver.findByTypeSafeAccessor(project, accessor, anchorFile)
+        val modulePath = module?.path
         val moduleName = modulePath
             ?.substringAfterLast(':')
             ?.takeIf { it.isNotBlank() }
@@ -178,7 +188,8 @@ object CopyProjectDependencyAsMavenSupport {
             configType = configType,
             moduleName = moduleName,
             dependencyText = accessor,
-            canonicalModulePath = modulePath
+            canonicalModulePath = modulePath,
+            sourceGradleRootPath = module?.rootDir?.path ?: ProjectModuleResolver.findOwningRoot(project, anchorFile)?.path
         )
     }
 

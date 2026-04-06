@@ -302,6 +302,20 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert hardcoded dependency to findLibrary() and upsert version catalog -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToFindLibraryIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Batch convert hardcoded dependencies to findLibrary() -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToFindLibraryBatchIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert version catalog reference to hardcoded dependency -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
@@ -418,6 +432,13 @@
     <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.catalog.ConvertPluginIdToAliasIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Comment out current plugin declaration across the repository -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCommentOutPluginProjectWideIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 

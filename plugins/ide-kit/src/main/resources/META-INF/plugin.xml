@@ -4,8 +4,10 @@
     <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <directoryIndexExcludePolicy implementation="site.addzero.smart.intentions.find.sourceonly.SmartGeneratedArtifactExcludePolicy"/>
         <searchScopesProvider implementation="site.addzero.smart.intentions.find.sourceonly.SmartSourceOnlySearchScopeProvider"/>
         <projectService serviceImplementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesProjectService"/>
+        <projectService serviceImplementation="site.addzero.smart.intentions.modulelock.ModuleLockProjectService"/>
         <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
         <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>
         <notificationGroup id="IdeKit Notifications" displayType="BALLOON" isLogByDefault="true"/>
@@ -59,6 +61,18 @@
         <action id="IdeKit.HiddenFiles.ToggleShow"
                 class="site.addzero.smart.intentions.hiddenfiles.actions.ToggleShowHiddenFilesAction">
             <add-to-group group-id="ProjectViewToolbar" anchor="before" relative-to-action="NewElement"/>
+        </action>
+        <action id="IdeKit.ModuleLock.Lock"
+                class="site.addzero.smart.intentions.modulelock.actions.LockModuleAction">
+            <add-to-group group-id="ProjectViewPopupMenuModifyGroup" anchor="last"/>
+        </action>
+        <action id="IdeKit.ModuleLock.Unlock"
+                class="site.addzero.smart.intentions.modulelock.actions.UnlockModuleAction">
+            <add-to-group group-id="ProjectViewPopupMenuModifyGroup" anchor="last"/>
+        </action>
+        <action id="IdeKit.ModuleLock.ToggleShow"
+                class="site.addzero.smart.intentions.modulelock.actions.ToggleShowLockedModulesAction">
+            <add-to-group group-id="ProjectViewToolbar" anchor="before" relative-to-action="IdeKit.HiddenFiles.ToggleShow"/>
         </action>
     </actions>
 </idea-plugin>

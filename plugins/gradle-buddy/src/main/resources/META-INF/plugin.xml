@@ -116,6 +116,22 @@
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
     </action>
 
+    <action id="GradleBuddy.CopyPublishCommands"
+            class="site.addzero.gradle.buddy.filter.CopyPublishCommandsAction"
+            text="(Gradle Buddy) Copy Maven Central Publish Commands"
+            description="Copy publishToMavenCentral commands for Gradle modules under the selected file or directory"
+            icon="AllIcons.Actions.Copy">
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.MigrateProjectDependencies"/>
+    </action>
+
+    <action id="GradleBuddy.RunPublishTasks"
+            class="site.addzero.gradle.buddy.filter.RunPublishTasksAction"
+            text="(Gradle Buddy) Run Maven Central Publish Tasks"
+            description="Execute publishToMavenCentral for Gradle modules under the selected file or directory"
+            icon="AllIcons.Actions.Execute">
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.CopyPublishCommands"/>
+    </action>
+
     <!-- Migration: Migrate hardcoded dependencies to Version Catalog -->
     <action id="GradleBuddy.MigrateToVersionCatalog"
             class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"

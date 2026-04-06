@@ -2,6 +2,7 @@ package site.addzero.gradle.buddy.migration
 
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicator
+import site.addzero.gradle.buddy.util.GradleCommandLineUtil
 import site.addzero.network.call.maven.util.MavenArtifact
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
 
@@ -125,7 +126,7 @@ data class PublishCommandCandidate(
         get() = occurrences.map { it.file.name }.toSet()
 
     val command: String
-        get() = "./gradlew $canonicalModulePath:publishToMavenCentral"
+        get() = GradleCommandLineUtil.publishToMavenCentralCommand(canonicalModulePath)
 
     fun toQueueEntry(): PublishCommandEntry {
         return PublishCommandEntry(

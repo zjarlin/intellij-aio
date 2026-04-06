@@ -34,10 +34,17 @@ internal object HardcodedDependencyCatalogSupport {
 
     fun findHardcodedDependency(callExpr: KtCallExpression): DependencyInfo? {
         val callee = callExpr.calleeExpression?.text ?: return null
-        if (!isDependencyConfiguration(callee)) {
-            return null
+        return when {
+            isDependencyConfiguration(callee) -> extractDependencyInfo(
+                callExpr = callExpr,
+                configuration = callee,
+                argumentExpression = callExpr.valueArguments.firstOrNull()?.getArgumentExpression() as? KtStringTemplateExpression
+            )
+
+            callee == "add" -> extractAddDependencyInfo(callExpr)
+
+            else -> null
         }
-        return extractDependencyInfo(callExpr, callee)
     }
 
     fun chooseVersionReference(
@@ -287,9 +294,29 @@ internal object HardcodedDependencyCatalogSupport {
         return callee in DEPENDENCY_CONFIGURATIONS
     }
 
-    private fun extractDependencyInfo(callExpr: KtCallExpression, configuration: String): DependencyInfo? {
-        val firstArg = callExpr.valueArguments.firstOrNull() ?: return null
-        val argExpression = firstArg.getArgumentExpression() as? KtStringTemplateExpression ?: return null
+    private fun extractAddDependencyInfo(callExpr: KtCallExpression): DependencyInfo? {
+        val configExpression = callExpr.valueArguments.getOrNull(0)?.getArgumentExpression() as? KtStringTemplateExpression
+            ?: return null
+        val configuration = extractLiteralString(configExpression)?.trim().orEmpty()
+        if (configuration.isBlank()) {
+            return null
+        }
+
+        val dependencyExpression = callExpr.valueArguments.getOrNull(1)?.getArgumentExpression() as? KtStringTemplateExpression
+            ?: return null
+        return extractDependencyInfo(
+            callExpr = callExpr,
+            configuration = configuration,
+            argumentExpression = dependencyExpression
+        )
+    }
+
+    private fun extractDependencyInfo(
+        callExpr: KtCallExpression,
+        configuration: String,
+        argumentExpression: KtStringTemplateExpression?
+    ): DependencyInfo? {
+        val argExpression = argumentExpression ?: return null
         val dependencyString = argExpression.text.trim('"', '\'')
 
         val parts = dependencyString.split(":")
@@ -330,6 +357,13 @@ internal object HardcodedDependencyCatalogSupport {
             callExpression = callExpr,
             argumentExpression = argExpression
         )
+    }
+
+    private fun extractLiteralString(expression: KtStringTemplateExpression): String? {
+        if (expression.entries.any { entry -> entry !is org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry }) {
+            return null
+        }
+        return expression.entries.joinToString(separator = "") { it.text }
     }
 
     private fun parseVersionCatalog(content: String): VersionCatalogContent {
@@ -627,6 +661,12 @@ internal object HardcodedDependencyCatalogSupport {
     )
 
     private val HARD_CODED_DEPENDENCY_CALL_REGEX = Regex(
-        """\b(${DEPENDENCY_CONFIGURATIONS.joinToString("|")})\s*\(\s*["'][^"'\n]+:[^"'\n]+:[^"'\n]+["']\s*\)"""
+        """(?x)
+        \b(
+            (${DEPENDENCY_CONFIGURATIONS.joinToString("|")})\s*\(\s*["'][^"'\n]+:[^"'\n]+:[^"'\n]+["']\s*\)
+            |
+            add\s*\(\s*["'][^"'\n]+["']\s*,\s*["'][^"'\n]+:[^"'\n]+:[^"'\n]+["']\s*\)
+        )
+        """
     )
 }

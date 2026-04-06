@@ -6,6 +6,7 @@ import com.intellij.ide.projectView.ViewSettings
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.openapi.components.service
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
@@ -21,7 +22,7 @@ class ModuleSleepTreeStructureProvider : TreeStructureProvider, DumbAware {
         settings: ViewSettings?
     ): Collection<AbstractTreeNode<*>> {
         val project = parent.project ?: return children
-        val basePath = project.basePath ?: return children
+        val basePath = project.basePath?.let(FileUtil::toSystemIndependentName) ?: return children
         val focusedModules = project.service<GradleModuleSleepService>().getFocusedModules()
         if (focusedModules.isEmpty()) {
             return children
@@ -41,10 +42,10 @@ class ModuleSleepTreeStructureProvider : TreeStructureProvider, DumbAware {
         val basePath = project.basePath ?: return emptySet()
         return modulePaths.mapNotNullTo(linkedSetOf()) { modulePath ->
             when (modulePath) {
-                ":" -> basePath
+                ":" -> FileUtil.toSystemIndependentName(basePath)
                 else -> {
                     val relativePath = modulePath.removePrefix(":").replace(':', File.separatorChar)
-                    File(basePath, relativePath).path
+                    FileUtil.toSystemIndependentName(File(basePath, relativePath).path)
                 }
             }
         }
@@ -57,11 +58,11 @@ class ModuleSleepTreeStructureProvider : TreeStructureProvider, DumbAware {
         child: AbstractTreeNode<*>
     ): Boolean {
         val virtualFile = extractVirtualFile(project, child) ?: return true
-        val path = virtualFile.path
-        if (!path.startsWith(basePath)) {
+        val path = FileUtil.toSystemIndependentName(virtualFile.path)
+        if (!FileUtil.isAncestor(basePath, path, false)) {
             return true
         }
-        if (path == basePath) {
+        if (FileUtil.pathsEqual(path, basePath)) {
             return true
         }
         if (isAlwaysVisibleRootEntry(basePath, virtualFile)) {
@@ -69,7 +70,9 @@ class ModuleSleepTreeStructureProvider : TreeStructureProvider, DumbAware {
         }
 
         return visibleRoots.any { root ->
-            path == root || path.startsWith("$root/") || root.startsWith("$path/")
+            FileUtil.pathsEqual(path, root) ||
+                FileUtil.isAncestor(root, path, false) ||
+                FileUtil.isAncestor(path, root, false)
         }
     }
 
@@ -88,7 +91,8 @@ class ModuleSleepTreeStructureProvider : TreeStructureProvider, DumbAware {
     }
 
     private fun isAlwaysVisibleRootEntry(basePath: String, file: VirtualFile): Boolean {
-        if (file.parent?.path != basePath) {
+        val parentPath = file.parent?.path?.let(FileUtil::toSystemIndependentName) ?: return false
+        if (!FileUtil.pathsEqual(parentPath, basePath)) {
             return false
         }
         if (!file.isDirectory) {

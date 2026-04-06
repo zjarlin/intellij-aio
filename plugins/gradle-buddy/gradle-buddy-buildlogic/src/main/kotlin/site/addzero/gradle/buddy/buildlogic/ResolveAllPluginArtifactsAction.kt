@@ -249,7 +249,7 @@ class ResolveAllPluginArtifactsAction : AnAction() {
         resolved: List<Pair<PluginDeclaration, PluginMarkerResolver.ResolvedArtifact>>,
         failed: List<PluginDeclaration>
     ) {
-        val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val catalogPath = GradleBuddySettingsService.getInstance(project).getEffectiveVersionCatalogPath(project)
         val message = buildString {
             appendLine("解析完成！")
             appendLine()

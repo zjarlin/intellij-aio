@@ -7,7 +7,6 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
-import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.i18n.GradleBuddyLanguage
@@ -19,12 +18,13 @@ import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
+import java.util.LinkedHashSet
 
-// Gradle Buddy 设置配置界面
 class GradleBuddySettingsConfigurable(private val project: Project) : Configurable {
 
     private var tasksTextArea: JBTextArea? = null
-    private var catalogPathField: JBTextField? = null
+    private var catalogPathCombo: JComboBox<String>? = null
+    private var catalogPathAutoLabel: String = ""
     private var mainPanel: JPanel? = null
     private var catalogBannerCheckbox: JBCheckBox? = null
     private var silentUpsertTomlCheckbox: JBCheckBox? = null
@@ -41,7 +41,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             wrapStyleWord = true
         }
 
-        catalogPathField = JBTextField(40).apply {
+        catalogPathCombo = JComboBox<String>().apply {
+            isEditable = true
             toolTipText = GradleBuddyBundle.message("settings.version.catalog.path.tooltip")
         }
 
@@ -97,58 +98,69 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val resetButton = JButton(GradleBuddyBundle.message("settings.reset.defaults")).apply {
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
-                catalogPathField?.text = GradleBuddySettingsService.DEFAULT_VERSION_CATALOG_PATH
+                refreshCatalogPathOptions(null)
             }
         }
 
-        mainPanel = catalogPathField?.let {
-          FormBuilder.createFormBuilder()
+        refreshCatalogPathOptions(
+            GradleBuddySettingsService.getInstance(project)
+                .takeIf { it.isVersionCatalogPathCustomized() }
+                ?.getConfiguredVersionCatalogPath()
+        )
+
+        mainPanel = FormBuilder.createFormBuilder()
             .addLabeledComponent(GradleBuddyBundle.message("settings.language.label"), languageCb)
             .addLabeledComponent(GradleBuddyBundle.message("settings.default.tasks.label"), JBScrollPane(tasksTextArea))
-            .addLabeledComponent(GradleBuddyBundle.message("settings.version.catalog.path.label"), it)
+            .addLabeledComponent(GradleBuddyBundle.message("settings.version.catalog.path.label"), catalogPathCombo!!)
             .addComponent(bannerCheckBox as JComponent)
             .addComponent(silentUpsertCheckBox as JComponent)
             .addLabeledComponent(GradleBuddyBundle.message("settings.normalize.dedup.strategy.label"), dedupCombo)
             .addComponent(dedupDescLabel)
             .addLabeledComponent(GradleBuddyBundle.message("settings.wrapper.mirror.label"), mirrorCb)
             .addComponent(autoUpdateCb as JComponent)
-        }
-          ?.addComponent(resetButton)
-          ?.addComponentFillVertically(JPanel(), 0)
-            ?.panel
+            .addComponent(resetButton)
+            .addComponentFillVertically(JPanel(), 0)
+            .panel
 
         reset()
         return mainPanel!!
     }
 
     override fun isModified(): Boolean {
+        val settings = GradleBuddySettingsService.getInstance(project)
         val currentTasks = tasksTextArea?.text?.lines()?.filter { it.isNotBlank() } ?: emptyList()
-        val savedTasks = GradleBuddySettingsService.getInstance(project).getDefaultTasks()
-        val currentPath = catalogPathField?.text ?: ""
-        val savedPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val currentCatalogPathOverride = getSelectedCatalogPathOverride()
+        val currentCatalogPathCustomized = !currentCatalogPathOverride.isNullOrBlank()
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         val savedShowBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
-        val savedSilentUpsert = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
         val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
-        val savedDedupStrategy = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
         val mirrorIndex = mirrorCombo?.selectedIndex ?: 0
-        val savedMirrorIndex = GradleBuddySettingsService.getInstance(project).getPreferredMirrorIndex()
         val autoUpdate = autoUpdateWrapperCheckbox?.isSelected ?: false
-        val savedAutoUpdate = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
         val language = languageCombo?.selectedItem as? GradleBuddyLanguage ?: GradleBuddyLanguage.ZH
-        val savedLanguage = GradleBuddyUiSettingsService.getInstance().getLanguage()
-        return currentTasks != savedTasks || currentPath != savedPath || showBanner != savedShowBanner || silentUpsert != savedSilentUpsert || dedupStrategy != savedDedupStrategy || mirrorIndex != savedMirrorIndex || autoUpdate != savedAutoUpdate || language != savedLanguage
+
+        return currentTasks != settings.getDefaultTasks() ||
+            currentCatalogPathCustomized != settings.isVersionCatalogPathCustomized() ||
+            (currentCatalogPathCustomized && currentCatalogPathOverride != settings.getConfiguredVersionCatalogPath()) ||
+            showBanner != savedShowBanner ||
+            silentUpsert != settings.isSilentUpsertToml() ||
+            dedupStrategy != settings.getNormalizeDedupStrategy() ||
+            mirrorIndex != settings.getPreferredMirrorIndex() ||
+            autoUpdate != settings.isAutoUpdateWrapper() ||
+            language != GradleBuddyUiSettingsService.getInstance().getLanguage()
     }
 
     override fun apply() {
+        val settings = GradleBuddySettingsService.getInstance(project)
         val tasks = tasksTextArea?.text?.lines()?.filter { it.isNotBlank() } ?: emptyList()
-        GradleBuddySettingsService.getInstance(project).setDefaultTasks(tasks)
+        settings.setDefaultTasks(tasks)
 
-        val path = catalogPathField?.text?.trim() ?: ""
-        if (path.isNotBlank()) {
-            GradleBuddySettingsService.getInstance(project).setVersionCatalogPath(path)
+        val catalogPathOverride = getSelectedCatalogPathOverride()
+        if (catalogPathOverride.isNullOrBlank()) {
+            settings.clearVersionCatalogPathOverride()
+        } else {
+            settings.setVersionCatalogPath(catalogPathOverride)
         }
 
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
@@ -158,16 +170,16 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         )
 
         val silentUpsert = silentUpsertTomlCheckbox?.isSelected ?: false
-        GradleBuddySettingsService.getInstance(project).setSilentUpsertToml(silentUpsert)
+        settings.setSilentUpsertToml(silentUpsert)
 
         val dedupStrategy = dedupStrategyCombo?.selectedItem as? String ?: "MAJOR_VERSION"
-        GradleBuddySettingsService.getInstance(project).setNormalizeDedupStrategy(dedupStrategy)
+        settings.setNormalizeDedupStrategy(dedupStrategy)
 
         val mirrorIndex = mirrorCombo?.selectedIndex ?: 0
-        GradleBuddySettingsService.getInstance(project).setPreferredMirrorIndex(mirrorIndex)
+        settings.setPreferredMirrorIndex(mirrorIndex)
 
         val autoUpdate = autoUpdateWrapperCheckbox?.isSelected ?: false
-        GradleBuddySettingsService.getInstance(project).setAutoUpdateWrapper(autoUpdate)
+        settings.setAutoUpdateWrapper(autoUpdate)
 
         val language = languageCombo?.selectedItem as? GradleBuddyLanguage ?: GradleBuddyLanguage.ZH
         val uiSettings = GradleBuddyUiSettingsService.getInstance()
@@ -176,25 +188,33 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         if (language != oldLanguage) {
             GradleBuddyRegisteredActionI18n.refreshAll()
         }
+
+        refreshCatalogPathOptions(
+            settings.takeIf { it.isVersionCatalogPathCustomized() }?.getConfiguredVersionCatalogPath()
+        )
     }
 
     override fun reset() {
-        val tasks = GradleBuddySettingsService.getInstance(project).getDefaultTasks()
-        tasksTextArea?.text = tasks.joinToString("\n")
-        catalogPathField?.text = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+        val settings = GradleBuddySettingsService.getInstance(project)
+        tasksTextArea?.text = settings.getDefaultTasks().joinToString("\n")
+        refreshCatalogPathOptions(
+            settings.takeIf { it.isVersionCatalogPathCustomized() }?.getConfiguredVersionCatalogPath()
+        )
+
         val showBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
         catalogBannerCheckbox?.isSelected = showBanner
-        silentUpsertTomlCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isSilentUpsertToml()
-        dedupStrategyCombo?.selectedItem = GradleBuddySettingsService.getInstance(project).getNormalizeDedupStrategy()
-        mirrorCombo?.selectedIndex = GradleBuddySettingsService.getInstance(project).getPreferredMirrorIndex()
-        autoUpdateWrapperCheckbox?.isSelected = GradleBuddySettingsService.getInstance(project).isAutoUpdateWrapper()
+        silentUpsertTomlCheckbox?.isSelected = settings.isSilentUpsertToml()
+        dedupStrategyCombo?.selectedItem = settings.getNormalizeDedupStrategy()
+        mirrorCombo?.selectedIndex = settings.getPreferredMirrorIndex()
+        autoUpdateWrapperCheckbox?.isSelected = settings.isAutoUpdateWrapper()
         languageCombo?.selectedItem = GradleBuddyUiSettingsService.getInstance().getLanguage()
     }
 
     override fun disposeUIResources() {
         tasksTextArea = null
-        catalogPathField = null
+        catalogPathCombo = null
+        catalogPathAutoLabel = ""
         mainPanel = null
         catalogBannerCheckbox = null
         silentUpsertTomlCheckbox = null
@@ -202,5 +222,38 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         mirrorCombo = null
         autoUpdateWrapperCheckbox = null
         languageCombo = null
+    }
+
+    private fun refreshCatalogPathOptions(selectedPathOverride: String?) {
+        val settings = GradleBuddySettingsService.getInstance(project)
+        val items = LinkedHashSet<String>()
+
+        catalogPathAutoLabel = buildAutoDetectLabel(settings)
+        items += catalogPathAutoLabel
+        settings.getVersionCatalogPathCandidates(project).forEach(items::add)
+        if (!selectedPathOverride.isNullOrBlank()) {
+            items += selectedPathOverride
+        }
+
+        catalogPathCombo?.model = DefaultComboBoxModel(items.toTypedArray())
+        catalogPathCombo?.selectedItem = selectedPathOverride ?: catalogPathAutoLabel
+    }
+
+    private fun buildAutoDetectLabel(settings: GradleBuddySettingsService): String {
+        val effectivePath = settings.getEffectiveVersionCatalogPath(project)
+        return if (effectivePath.isBlank()) {
+            GradleBuddyBundle.message("settings.version.catalog.path.auto")
+        } else {
+            GradleBuddyBundle.message("settings.version.catalog.path.auto.detected", effectivePath)
+        }
+    }
+
+    private fun getSelectedCatalogPathOverride(): String? {
+        val rawValue = catalogPathCombo?.editor?.item?.toString()?.trim().orEmpty()
+        return when {
+            rawValue.isBlank() -> null
+            rawValue == catalogPathAutoLabel -> null
+            else -> rawValue
+        }
     }
 }

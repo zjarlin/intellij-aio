@@ -1,10 +1,15 @@
 package site.addzero.gradle.buddy.settings
 
-import com.intellij.openapi.components.*
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import java.io.File
+import java.util.LinkedHashSet
 
 @Service(Service.Level.PROJECT)
 @State(
@@ -15,155 +20,372 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
 
     data class State(
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
-        var versionCatalogPath: String = DEFAULT_VERSION_CATALOG_PATH,
-        /** 智能补全时静默 upsert toml：选中后自动写入 toml 并回显 libs.xxx.xxx */
+        var versionCatalogPath: String = "",
+        var versionCatalogPathCustomized: Boolean = false,
         var silentUpsertToml: Boolean = false,
-        /**
-         * Normalize 去重策略（同 group:artifact 不同版本冲突时）
-         * "MAJOR_VERSION" = 提取主版本号后缀，如 2.7.18 → -v2（默认）
-         * "ALT_SUFFIX"    = 使用 -alt, -alt2, -alt3 后缀
-         */
         var normalizeDedupStrategy: String = "MAJOR_VERSION",
-        /**
-         * Gradle Wrapper 更新时的首选镜像索引。
-         * 0 = Tencent Cloud（默认），1 = Aliyun，2 = Official
-         */
         var preferredMirrorIndex: Int = 0,
-        /**
-         * 是否在项目打开时自动更新 Gradle Wrapper 到最新版本。
-         * 启用后使用首选镜像静默更新，无需手动操作。
-         */
         var autoUpdateWrapper: Boolean = false
     )
 
+    private data class RawCatalogCandidate(
+        val file: File,
+        val preferredPath: String,
+        val score: Int
+    )
+
+    private data class CatalogCandidate(
+        val file: File,
+        val storagePath: String,
+        val score: Int
+    )
+
     private var myState = State()
+    private val catalogCandidateCacheLock = Any()
+
+    @Volatile
+    private var cachedCatalogCandidates: List<CatalogCandidate> = emptyList()
+
+    @Volatile
+    private var cachedCatalogCandidatesKey: String? = null
+
+    @Volatile
+    private var cachedCatalogCandidatesAt: Long = 0L
 
     override fun getState(): State = myState
 
     override fun loadState(state: State) {
         XmlSerializerUtil.copyBean(state, myState)
+        if (myState.versionCatalogPath.isBlank()) {
+            myState.versionCatalogPathCustomized = false
+        } else if (!myState.versionCatalogPathCustomized &&
+            myState.versionCatalogPath.trim() != DEFAULT_VERSION_CATALOG_PATH
+        ) {
+            myState.versionCatalogPathCustomized = true
+        }
     }
 
-    // 获取默认任务列表
     fun getDefaultTasks(): List<String> = myState.defaultTasks.toList()
 
-    // 设置默认任务列表
     fun setDefaultTasks(tasks: List<String>) {
         myState.defaultTasks = tasks.toMutableList()
     }
 
-    // 获取版本目录文件路径
     fun getVersionCatalogPath(): String = myState.versionCatalogPath
 
-    // 设置版本目录文件路径
-    fun setVersionCatalogPath(path: String) {
-        myState.versionCatalogPath = path
+    fun getConfiguredVersionCatalogPath(): String = myState.versionCatalogPath.trim()
+
+    fun isVersionCatalogPathCustomized(): Boolean {
+        return myState.versionCatalogPathCustomized && myState.versionCatalogPath.isNotBlank()
     }
 
-    // 添加默认任务
+    fun getEffectiveVersionCatalogPath(project: Project): String {
+        if (isVersionCatalogPathCustomized()) {
+            return getConfiguredVersionCatalogPath()
+        }
+
+        if (findDefaultCatalogFile(project) != null) {
+            return DEFAULT_VERSION_CATALOG_PATH
+        }
+
+        val detectedPath = getDetectedCatalogCandidates(project).firstOrNull()?.storagePath
+        if (!detectedPath.isNullOrBlank()) {
+            return detectedPath
+        }
+
+        return getConfiguredVersionCatalogPath().ifBlank { DEFAULT_VERSION_CATALOG_PATH }
+    }
+
+    fun getVersionCatalogPathCandidates(project: Project): List<String> {
+        val candidates = LinkedHashSet<String>()
+        val configuredPath = getConfiguredVersionCatalogPath()
+        val effectivePath = getEffectiveVersionCatalogPath(project)
+
+        if (configuredPath.isNotBlank()) {
+            candidates += configuredPath
+        }
+        if (effectivePath.isNotBlank()) {
+            candidates += effectivePath
+        }
+        getDetectedCatalogCandidates(project).mapTo(candidates) { it.storagePath }
+
+        if (candidates.isEmpty()) {
+            candidates += DEFAULT_VERSION_CATALOG_PATH
+        }
+        return candidates.toList()
+    }
+
+    fun setVersionCatalogPath(path: String) {
+        val normalizedPath = path.trim()
+        myState.versionCatalogPath = normalizedPath
+        myState.versionCatalogPathCustomized = normalizedPath.isNotBlank()
+    }
+
+    fun clearVersionCatalogPathOverride() {
+        myState.versionCatalogPath = ""
+        myState.versionCatalogPathCustomized = false
+    }
+
     fun addDefaultTask(task: String) {
         if (task !in myState.defaultTasks) {
             myState.defaultTasks.add(task)
         }
     }
 
-    // 移除默认任务
     fun removeDefaultTask(task: String) {
         myState.defaultTasks.remove(task)
     }
 
-    // 获取是否静默 upsert toml
     fun isSilentUpsertToml(): Boolean = myState.silentUpsertToml
 
-    // 设置是否静默 upsert toml
     fun setSilentUpsertToml(enabled: Boolean) {
         myState.silentUpsertToml = enabled
     }
 
-    // 获取 Normalize 去重策略
     fun getNormalizeDedupStrategy(): String = myState.normalizeDedupStrategy
 
-    // 设置 Normalize 去重策略
     fun setNormalizeDedupStrategy(strategy: String) {
         myState.normalizeDedupStrategy = strategy
     }
 
-    // 获取首选镜像索引
     fun getPreferredMirrorIndex(): Int = myState.preferredMirrorIndex.coerceIn(0, 2)
 
-    // 设置首选镜像索引
     fun setPreferredMirrorIndex(index: Int) {
         myState.preferredMirrorIndex = index.coerceIn(0, 2)
     }
 
-    // 获取是否自动更新 Wrapper
     fun isAutoUpdateWrapper(): Boolean = myState.autoUpdateWrapper
 
-    // 设置是否自动更新 Wrapper
     fun setAutoUpdateWrapper(enabled: Boolean) {
         myState.autoUpdateWrapper = enabled
     }
 
-    // 重置为默认值
     fun resetToDefaults() {
         myState.defaultTasks = DEFAULT_TASKS.toMutableList()
-        myState.versionCatalogPath = DEFAULT_VERSION_CATALOG_PATH
+        clearVersionCatalogPathOverride()
     }
 
-    /**
-     * 解析版本目录文件的真实路径。
-     *
-     * 优先通过 GradleSettings 获取 linked Gradle project 的根路径，
-     * 而非依赖 project.basePath（后者在子目录打开项目时不可靠）。
-     * 如果没有 linked Gradle project，fallback 到 project.basePath。
-     *
-     * @return 找到的第一个存在的 catalog File，或基于最佳猜测的 File（可能不存在）
-     */
     fun resolveVersionCatalogFile(project: Project): File {
-        val catalogRelPath = getVersionCatalogPath().trim()
-        if (catalogRelPath.isBlank()) {
-            return File(DEFAULT_VERSION_CATALOG_PATH)
+        if (isVersionCatalogPathCustomized()) {
+            return resolveCatalogFile(project, getConfiguredVersionCatalogPath())
         }
 
-        val configuredFile = File(catalogRelPath)
+        findDefaultCatalogFile(project)?.let { return it }
+
+        getDetectedCatalogCandidates(project).firstOrNull()?.file?.let { return it }
+
+        return resolveCatalogFile(project, DEFAULT_VERSION_CATALOG_PATH)
+    }
+
+    fun collectGradleSearchRoots(project: Project): List<File> {
+        val roots = LinkedHashSet<File>()
+        collectBaseGradleSearchRoots(project).forEach(roots::add)
+
+        val effectivePath = getEffectiveVersionCatalogPath(project)
+        val resolvedCatalogFile = resolveVersionCatalogFile(project).absoluteFile
+        inferRootFromConfiguredPath(resolvedCatalogFile, effectivePath)
+            ?.let { roots += File(it).absoluteFile }
+        collectAncestorGradleRoots(resolvedCatalogFile.parentFile?.absolutePath)
+            .mapTo(roots) { File(it).absoluteFile }
+
+        return roots.toList()
+    }
+
+    private fun resolveCatalogFile(project: Project, catalogPath: String): File {
+        val normalizedPath = catalogPath.trim().ifBlank { DEFAULT_VERSION_CATALOG_PATH }
+        val configuredFile = File(normalizedPath)
         if (configuredFile.isAbsolute) {
             return configuredFile
         }
 
-        // 优先用 GradleSettings 获取真实的 Gradle root
-        try {
-            val gradleSettings = GradleSettings.getInstance(project)
-            val rootPaths = gradleSettings.linkedProjectsSettings.map { it.externalProjectPath }
-            for (rootPath in rootPaths) {
-                val candidate = File(rootPath, catalogRelPath)
-                if (candidate.exists()) return candidate
+        val searchRoots = collectBaseGradleSearchRoots(project)
+        for (root in searchRoots) {
+            val candidate = File(root, normalizedPath)
+            if (candidate.exists()) {
+                return candidate
             }
-            // 没有找到已存在的，返回第一个 root 的路径（用于创建新文件）
-            if (rootPaths.isNotEmpty()) {
-                val ancestorCandidate = findCatalogFileInAncestors(project.basePath, catalogRelPath)
-                if (ancestorCandidate != null) {
-                    return ancestorCandidate
-                }
-                return File(rootPaths.first(), catalogRelPath)
-            }
-        } catch (_: Throwable) {
-            // GradleSettings 不可用时 fallback
         }
 
-        val ancestorCandidate = findCatalogFileInAncestors(project.basePath, catalogRelPath)
-        if (ancestorCandidate != null) {
-            return ancestorCandidate
+        findCatalogFileInAncestors(project.basePath, normalizedPath)?.let { return it }
+
+        if (searchRoots.isNotEmpty()) {
+            return File(searchRoots.first(), normalizedPath)
         }
 
-        // fallback: basePath
-        val basePath = project.basePath ?: return File(catalogRelPath)
-        return File(basePath, catalogRelPath)
+        val basePath = project.basePath ?: return File(normalizedPath)
+        return File(basePath, normalizedPath)
     }
 
-    /**
-     * 子目录方式打开项目时，catalog 往往位于上层仓库根目录。
-     * 这里按设置中的相对路径一路向上探测，命中已存在文件就直接返回。
-     */
+    private fun findDefaultCatalogFile(project: Project): File? {
+        val matches = LinkedHashSet<File>()
+        for (root in collectBaseGradleSearchRoots(project)) {
+            val candidate = File(root, DEFAULT_VERSION_CATALOG_PATH)
+            if (candidate.exists()) {
+                matches += candidate.absoluteFile
+            }
+        }
+        findCatalogFileInAncestors(project.basePath, DEFAULT_VERSION_CATALOG_PATH)?.let(matches::add)
+        return matches.firstOrNull()
+    }
+
+    private fun getDetectedCatalogCandidates(project: Project): List<CatalogCandidate> {
+        val cacheKey = buildCatalogCandidateCacheKey(project)
+        val now = System.currentTimeMillis()
+        if (cacheKey == cachedCatalogCandidatesKey && now - cachedCatalogCandidatesAt <= CATALOG_CANDIDATE_CACHE_TTL_MS) {
+            return cachedCatalogCandidates
+        }
+
+        synchronized(catalogCandidateCacheLock) {
+            val refreshedNow = System.currentTimeMillis()
+            if (cacheKey == cachedCatalogCandidatesKey &&
+                refreshedNow - cachedCatalogCandidatesAt <= CATALOG_CANDIDATE_CACHE_TTL_MS
+            ) {
+                return cachedCatalogCandidates
+            }
+
+            val scannedCandidates = scanDetectedCatalogCandidates(project)
+            cachedCatalogCandidates = scannedCandidates
+            cachedCatalogCandidatesKey = cacheKey
+            cachedCatalogCandidatesAt = refreshedNow
+            return scannedCandidates
+        }
+    }
+
+    private fun scanDetectedCatalogCandidates(project: Project): List<CatalogCandidate> {
+        val rawCandidates = LinkedHashMap<String, RawCatalogCandidate>()
+        val searchRoots = collectBaseGradleSearchRoots(project)
+
+        searchRoots.forEachIndexed { index, root ->
+            scanCatalogFiles(root).forEach { catalogFile ->
+                val absoluteFile = catalogFile.absoluteFile
+                val absolutePath = normalizePath(absoluteFile.absolutePath)
+                val preferredPath = toPreferredCatalogPath(absoluteFile, root)
+                val score = scoreCatalogCandidate(absoluteFile, root, project.basePath, index)
+
+                val existing = rawCandidates[absolutePath]
+                if (existing == null || score > existing.score) {
+                    rawCandidates[absolutePath] = RawCatalogCandidate(
+                        file = absoluteFile,
+                        preferredPath = preferredPath,
+                        score = score
+                    )
+                }
+            }
+        }
+
+        val candidates = rawCandidates.values.toList()
+        if (candidates.isEmpty()) {
+            return emptyList()
+        }
+
+        val ambiguousPreferredPaths = candidates
+            .groupingBy { it.preferredPath }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+
+        return candidates.map { candidate ->
+            val storagePath = if (candidate.preferredPath in ambiguousPreferredPaths) {
+                normalizePath(candidate.file.absolutePath)
+            } else {
+                candidate.preferredPath
+            }
+            CatalogCandidate(candidate.file, storagePath, candidate.score)
+        }.sortedWith(
+            compareByDescending<CatalogCandidate> { it.score }
+                .thenBy { it.storagePath.length }
+                .thenBy { it.storagePath }
+        )
+    }
+
+    private fun scanCatalogFiles(root: File): List<File> {
+        if (!root.exists() || !root.isDirectory) {
+            return emptyList()
+        }
+
+        val result = mutableListOf<File>()
+        root.walkTopDown()
+            .maxDepth(MAX_CATALOG_SCAN_DEPTH)
+            .onEnter { dir ->
+                val name = dir.name
+                !name.startsWith(".") && name !in CATALOG_SCAN_SKIP_DIRS
+            }
+            .forEach { file ->
+                if (file.isFile && file.name == VERSION_CATALOG_FILE_NAME) {
+                    result += file.absoluteFile
+                }
+            }
+        return result
+    }
+
+    private fun toPreferredCatalogPath(file: File, root: File): String {
+        val relativePath = file.relativeToOrNull(root)?.path?.let(::normalizePath)
+        return if (!relativePath.isNullOrBlank()) {
+            relativePath
+        } else {
+            normalizePath(file.absolutePath)
+        }
+    }
+
+    private fun scoreCatalogCandidate(file: File, root: File, projectBasePath: String?, rootIndex: Int): Int {
+        val relativePath = file.relativeToOrNull(root)?.path?.let(::normalizePath).orEmpty()
+        val normalizedBasePath = projectBasePath?.let(::normalizePath)
+        val normalizedFilePath = normalizePath(file.absolutePath)
+
+        var score = 0
+        if (relativePath == DEFAULT_VERSION_CATALOG_PATH) {
+            score += 100
+        }
+        if (!normalizedBasePath.isNullOrBlank() && normalizedFilePath.startsWith(normalizedBasePath)) {
+            score += 20
+        }
+        score += (10 - rootIndex).coerceAtLeast(0)
+        score -= relativePath.count { it == '/' }
+        return score
+    }
+
+    private fun buildCatalogCandidateCacheKey(project: Project): String {
+        return collectBaseGradleSearchRoots(project).joinToString("|") { normalizePath(it.absolutePath) }
+    }
+
+    private fun collectBaseGradleSearchRoots(project: Project): List<File> {
+        val paths = LinkedHashSet<String>()
+
+        try {
+            GradleSettings.getInstance(project).linkedProjectsSettings
+                .mapNotNullTo(paths) { it.externalProjectPath?.takeIf(String::isNotBlank) }
+        } catch (_: Throwable) {
+        }
+
+        project.basePath?.takeIf(String::isNotBlank)?.let(paths::add)
+        collectAncestorGradleRoots(project.basePath).forEach(paths::add)
+
+        return paths.map { File(it).absoluteFile }.distinctBy { normalizePath(it.absolutePath) }
+    }
+
+    private fun inferRootFromConfiguredPath(catalogFile: File, configuredPath: String): String? {
+        val configuredFile = File(configuredPath)
+        if (configuredFile.isAbsolute) {
+            return null
+        }
+
+        val normalizedCatalogPath = normalizePath(catalogFile.absolutePath)
+        val normalizedConfiguredPath = normalizePath(configuredPath)
+            .trimStart('.')
+            .trimStart('/')
+
+        if (normalizedConfiguredPath.isEmpty()) {
+            return null
+        }
+
+        val suffix = "/$normalizedConfiguredPath"
+        if (!normalizedCatalogPath.endsWith(suffix)) {
+            return null
+        }
+
+        return normalizedCatalogPath.removeSuffix(suffix).ifBlank { "/" }
+    }
+
     private fun findCatalogFileInAncestors(basePath: String?, catalogRelPath: String): File? {
         var current = basePath?.let(::File)?.absoluteFile ?: return null
         var depth = 0
@@ -179,6 +401,24 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
 
         return null
     }
+
+    private fun collectAncestorGradleRoots(basePath: String?): List<String> {
+        val result = mutableListOf<String>()
+        var current = basePath?.let(::File)?.absoluteFile
+        var depth = 0
+
+        while (current != null && depth < MAX_ANCESTOR_DEPTH) {
+            if (current.resolve("settings.gradle.kts").exists() || current.resolve("settings.gradle").exists()) {
+                result += current.absolutePath
+            }
+            current = current.parentFile
+            depth++
+        }
+
+        return result
+    }
+
+    private fun normalizePath(path: String): String = path.replace('\\', '/')
 
     companion object {
         val DEFAULT_TASKS = listOf(
@@ -197,7 +437,11 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         )
 
         const val DEFAULT_VERSION_CATALOG_PATH = "gradle/libs.versions.toml"
+        private const val VERSION_CATALOG_FILE_NAME = "libs.versions.toml"
         private const val MAX_ANCESTOR_DEPTH = 8
+        private const val MAX_CATALOG_SCAN_DEPTH = 8
+        private const val CATALOG_CANDIDATE_CACHE_TTL_MS = 10_000L
+        private val CATALOG_SCAN_SKIP_DIRS = setOf("build", "out", ".gradle", "node_modules", "target")
 
         fun getInstance(project: Project): GradleBuddySettingsService = project.service()
     }

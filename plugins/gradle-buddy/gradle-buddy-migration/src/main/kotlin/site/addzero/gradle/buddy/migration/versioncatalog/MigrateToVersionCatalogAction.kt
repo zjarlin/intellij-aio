@@ -84,7 +84,7 @@ class MigrateToVersionCatalogAction : AnAction() {
                     appendLine("  - Unique artifacts: ${result.uniqueArtifacts}")
                     appendLine("  - Files modified: ${result.modifiedFiles}")
                     appendLine()
-                    val catalogPath = GradleBuddySettingsService.getInstance(project).getVersionCatalogPath()
+                    val catalogPath = GradleBuddySettingsService.getInstance(project).getEffectiveVersionCatalogPath(project)
                     appendLine("Generated: $catalogPath")
                     if (result.warnings.isNotEmpty()) {
                         appendLine()

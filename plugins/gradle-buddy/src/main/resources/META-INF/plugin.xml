@@ -330,6 +330,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Create or jump to version catalog entry for current findLibrary() alias -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.GradleKtsFindLibraryCreateCatalogEntryIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert dynamic findLibrary() calls back to typed catalog accessors in batch -->
     <intentionAction>
       <language>kotlin</language>

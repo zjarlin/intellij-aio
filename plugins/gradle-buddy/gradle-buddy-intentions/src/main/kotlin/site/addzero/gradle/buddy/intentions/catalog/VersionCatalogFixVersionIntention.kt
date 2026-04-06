@@ -10,7 +10,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiFile
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.intentions.select.VersionSelectionDialog
@@ -115,15 +114,13 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
 
                 ApplicationManager.getApplication().invokeLater {
                     if (versions.isEmpty()) {
-                        Messages.showWarningDialog(
-                            project,
-                            GradleBuddyBundle.message(
-                                "intention.version.catalog.fix.version.load.failed.content",
-                                dep.groupId,
-                                dep.artifactId
-                            ),
-                            GradleBuddyBundle.message("intention.version.catalog.fix.version.load.failed.title")
-                        )
+                        WriteCommandAction.runWriteCommandAction(project) {
+                            if (refAlreadyCorrect) {
+                                addVersionVariable(file, targetVersionKey, FALLBACK_VERSION)
+                            } else {
+                                addVersionVariableAndUpdateRef(file, dep, targetVersionKey, FALLBACK_VERSION)
+                            }
+                        }
                         return@invokeLater
                     }
 
@@ -267,5 +264,9 @@ class VersionCatalogFixVersionIntention : IntentionAction, PriorityAction {
 
         // 如果 [versions] 是最后一个 section
         return if (inVersions && lastVersionLineEnd >= 0) lastVersionLineEnd else -1
+    }
+
+    private companion object {
+        const val FALLBACK_VERSION = "+"
     }
 }

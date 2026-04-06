@@ -115,13 +115,15 @@ class GradleKtsHardcodedDependencyToFindLibraryBatchIntention : IntentionAction,
             for (dependencyInfo in fileCandidates.dependencies) {
                 val versionSelection = HardcodedDependencyCatalogSupport.selectVersionReferenceForBatch(
                     existingContent = workingContent,
-                    info = dependencyInfo
+                    info = dependencyInfo,
+                    versionPolicy = HardcodedDependencyCatalogSupport.VersionReferencePolicy.DEDICATED
                 )
                 val prepared = HardcodedDependencyCatalogSupport.prepareCatalogEntry(
                     existingContent = workingContent,
                     info = dependencyInfo,
                     versionRefFromVar = versionSelection.versionRefFromVar,
-                    selectedVersionKey = versionSelection.selectedVersionKey
+                    selectedVersionKey = versionSelection.selectedVersionKey,
+                    versionPolicy = HardcodedDependencyCatalogSupport.VersionReferencePolicy.DEDICATED
                 )
                 val mutation = HardcodedDependencyCatalogSupport.registerCatalogEntry(
                     existingContent = workingContent,

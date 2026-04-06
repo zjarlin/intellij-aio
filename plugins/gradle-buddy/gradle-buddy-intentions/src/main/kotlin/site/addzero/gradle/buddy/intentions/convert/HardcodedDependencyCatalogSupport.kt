@@ -18,6 +18,11 @@ import java.io.File
  */
 internal object HardcodedDependencyCatalogSupport {
 
+    enum class VersionReferencePolicy {
+        REUSE_MATCHING,
+        DEDICATED
+    }
+
     fun isTargetGradleKtsFile(file: PsiFile): Boolean {
         return file.name.endsWith(".gradle.kts")
     }
@@ -39,6 +44,7 @@ internal object HardcodedDependencyCatalogSupport {
         project: Project,
         editor: Editor?,
         info: DependencyInfo,
+        versionPolicy: VersionReferencePolicy = VersionReferencePolicy.REUSE_MATCHING,
         onResolved: (catalogFile: File, existingContent: VersionCatalogContent, versionRefFromVar: String?, selectedVersionKey: String?) -> Unit
     ) {
         val versionRefFromVar = extractVersionRef(info.version)
@@ -49,8 +55,13 @@ internal object HardcodedDependencyCatalogSupport {
             return
         }
 
+        if (versionPolicy == VersionReferencePolicy.DEDICATED || editor == null) {
+            onResolved(catalogFile, existingContent, null, null)
+            return
+        }
+
         val matchingVersionEntries = existingContent.versions.filterValues { it == info.version }
-        if (matchingVersionEntries.isEmpty() || editor == null) {
+        if (matchingVersionEntries.isEmpty()) {
             onResolved(catalogFile, existingContent, null, null)
             return
         }
@@ -89,7 +100,8 @@ internal object HardcodedDependencyCatalogSupport {
         existingContent: VersionCatalogContent,
         info: DependencyInfo,
         versionRefFromVar: String?,
-        selectedVersionKey: String?
+        selectedVersionKey: String?,
+        versionPolicy: VersionReferencePolicy = VersionReferencePolicy.REUSE_MATCHING
     ): PreparedCatalogEntry {
         val existingLibrary = existingContent.libraries.values.firstOrNull { entry ->
             entry.groupId == info.groupId && entry.artifactId == info.artifactId
@@ -106,31 +118,45 @@ internal object HardcodedDependencyCatalogSupport {
             }
         }
 
-        val versionKey = existingLibrary?.versionRef
-            ?: versionRefFromVar
-            ?: selectedVersionKey
-            ?: generateVersionKey(info.groupId, info.artifactId)
+        val dedicatedVersionKey = generateVersionKey(libraryKey)
+        val versionKey = when {
+            versionRefFromVar != null -> versionRefFromVar
+            selectedVersionKey != null -> selectedVersionKey
+            versionPolicy == VersionReferencePolicy.DEDICATED -> dedicatedVersionKey
+            !existingLibrary?.versionRef.isNullOrBlank() -> existingLibrary.versionRef.orEmpty()
+            else -> dedicatedVersionKey
+        }
 
-        val needCreateVersion = versionRefFromVar == null &&
+        val needCreateVersion = versionRefFromVar == null && !existingContent.versions.containsKey(versionKey)
+        val syncVersionValue = versionRefFromVar == null &&
             selectedVersionKey == null &&
-            existingLibrary?.versionRef == null
+            versionPolicy == VersionReferencePolicy.DEDICATED
 
         return PreparedCatalogEntry(
             libraryKey = libraryKey,
             accessorKey = toCatalogAccessor(libraryKey),
             versionKey = versionKey,
-            needCreateVersion = needCreateVersion
+            needCreateVersion = needCreateVersion,
+            syncVersionValue = syncVersionValue
         )
     }
 
     fun selectVersionReferenceForBatch(
         existingContent: VersionCatalogContent,
-        info: DependencyInfo
+        info: DependencyInfo,
+        versionPolicy: VersionReferencePolicy = VersionReferencePolicy.REUSE_MATCHING
     ): BatchVersionSelection {
         val versionRefFromVar = extractVersionRef(info.version)
         if (versionRefFromVar != null) {
             return BatchVersionSelection(
                 versionRefFromVar = versionRefFromVar,
+                selectedVersionKey = null
+            )
+        }
+
+        if (versionPolicy == VersionReferencePolicy.DEDICATED) {
+            return BatchVersionSelection(
+                versionRefFromVar = null,
                 selectedVersionKey = null
             )
         }
@@ -165,22 +191,27 @@ internal object HardcodedDependencyCatalogSupport {
         var createdVersion = false
         var createdLibrary = false
 
-        if (prepared.needCreateVersion && !existingContent.versions.containsKey(prepared.versionKey)) {
+        if (prepared.needCreateVersion || (prepared.syncVersionValue && existingContent.versions[prepared.versionKey] != info.version)) {
+            val existed = existingContent.versions.containsKey(prepared.versionKey)
             existingContent.versions[prepared.versionKey] = info.version
-            createdVersion = true
+            createdVersion = !existed
         }
 
+        val desiredLibrary = LibraryEntry(
+            alias = prepared.libraryKey,
+            groupId = info.groupId,
+            artifactId = info.artifactId,
+            module = "${info.groupId}:${info.artifactId}",
+            versionRef = prepared.versionKey,
+            version = null,
+            classifier = info.classifier
+        )
+
         if (!existingContent.libraries.containsKey(prepared.libraryKey)) {
-            existingContent.libraries[prepared.libraryKey] = LibraryEntry(
-                alias = prepared.libraryKey,
-                groupId = info.groupId,
-                artifactId = info.artifactId,
-                module = "${info.groupId}:${info.artifactId}",
-                versionRef = prepared.versionKey,
-                version = null,
-                classifier = info.classifier
-            )
+            existingContent.libraries[prepared.libraryKey] = desiredLibrary
             createdLibrary = true
+        } else if (existingContent.libraries[prepared.libraryKey] != desiredLibrary) {
+            existingContent.libraries[prepared.libraryKey] = desiredLibrary
         }
 
         return CatalogMutationResult(
@@ -216,7 +247,7 @@ internal object HardcodedDependencyCatalogSupport {
         registerCatalogEntry(existingContent, info, prepared)
 
         if (catalogFile.exists()) {
-            updateVersionCatalogInPlace(catalogFile, info, prepared.libraryKey, prepared.versionKey, prepared.needCreateVersion)
+            updateVersionCatalogInPlace(catalogFile, info, prepared)
         } else {
             writeVersionCatalog(catalogFile, existingContent)
         }
@@ -398,17 +429,20 @@ internal object HardcodedDependencyCatalogSupport {
     private fun updateVersionCatalogInPlace(
         file: File,
         info: DependencyInfo,
-        libraryKey: String,
-        versionKey: String,
-        needCreateVersion: Boolean
+        prepared: PreparedCatalogEntry
     ) {
         val original = file.readText()
         var updatedLines = original.lines().toMutableList()
 
-        if (needCreateVersion) {
-            updatedLines = upsertVersionEntry(updatedLines, versionKey, info.version)
+        if (prepared.needCreateVersion || prepared.syncVersionValue) {
+            updatedLines = upsertVersionEntry(
+                lines = updatedLines,
+                versionKey = prepared.versionKey,
+                version = info.version,
+                replaceExisting = prepared.syncVersionValue
+            )
         }
-        updatedLines = upsertLibraryEntry(updatedLines, libraryKey, info, versionKey)
+        updatedLines = upsertLibraryEntry(updatedLines, prepared.libraryKey, info, prepared.versionKey)
 
         val updated = updatedLines.joinToString("\n")
         if (updated != original) {
@@ -419,12 +453,19 @@ internal object HardcodedDependencyCatalogSupport {
     private fun upsertVersionEntry(
         lines: MutableList<String>,
         versionKey: String,
-        version: String
+        version: String,
+        replaceExisting: Boolean
     ): MutableList<String> {
         val section = findSection(lines, "[versions]")
         val entryRegex = Regex("""^\s*${Regex.escape(versionKey)}\s*=""")
         if (section != null) {
-            if (lines.subList(section.start + 1, section.end).any { entryRegex.containsMatchIn(it) }) {
+            val existingIndex = (section.start + 1 until section.end).firstOrNull { index ->
+                entryRegex.containsMatchIn(lines[index])
+            }
+            if (existingIndex != null) {
+                if (replaceExisting) {
+                    lines[existingIndex] = "$versionKey = \"$version\""
+                }
                 return lines
             }
             lines.add(section.end, "$versionKey = \"$version\"")
@@ -447,11 +488,18 @@ internal object HardcodedDependencyCatalogSupport {
     ): MutableList<String> {
         val section = findSection(lines, "[libraries]")
         val entryRegex = Regex("""^\s*${Regex.escape(libraryKey)}\s*=""")
+        val newLine = buildLibraryLine(libraryKey, info, versionKey)
         if (section != null) {
-            if (lines.subList(section.start + 1, section.end).any { entryRegex.containsMatchIn(it) }) {
+            val existingIndex = (section.start + 1 until section.end).firstOrNull { index ->
+                entryRegex.containsMatchIn(lines[index])
+            }
+            if (existingIndex != null) {
+                if (lines[existingIndex] != newLine) {
+                    lines[existingIndex] = newLine
+                }
                 return lines
             }
-            lines.add(section.end, buildLibraryLine(libraryKey, info, versionKey))
+            lines.add(section.end, newLine)
             return lines
         }
 
@@ -459,7 +507,7 @@ internal object HardcodedDependencyCatalogSupport {
             lines.add("")
         }
         lines.add("[libraries]")
-        lines.add(buildLibraryLine(libraryKey, info, versionKey))
+        lines.add(newLine)
         return lines
     }
 
@@ -517,10 +565,9 @@ internal object HardcodedDependencyCatalogSupport {
         return alias.replace('-', '.').replace('_', '.')
     }
 
-    fun generateVersionKey(groupId: String, artifactId: String): String {
-        val libraryKey = generateLibraryKey(groupId, artifactId)
-        return "${libraryKey}-version"
-    }
+    fun generateVersionKey(groupId: String, artifactId: String): String = generateVersionKey(generateLibraryKey(groupId, artifactId))
+
+    fun generateVersionKey(libraryKey: String): String = libraryKey
 
     data class DependencyInfo(
         val groupId: String,
@@ -537,7 +584,8 @@ internal object HardcodedDependencyCatalogSupport {
         val libraryKey: String,
         val accessorKey: String,
         val versionKey: String,
-        val needCreateVersion: Boolean
+        val needCreateVersion: Boolean,
+        val syncVersionValue: Boolean
     )
 
     data class BatchVersionSelection(

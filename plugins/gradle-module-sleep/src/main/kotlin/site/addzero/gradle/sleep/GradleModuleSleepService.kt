@@ -8,6 +8,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -74,6 +75,10 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
                 override fun fileClosed(source: FileEditorManager, file: VirtualFile) {
                     handleFileClosed(file)
                 }
+
+                override fun selectionChanged(event: FileEditorManagerEvent) {
+                    handleSelectionChanged(event.newFile)
+                }
             }
         )
 
@@ -95,7 +100,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
                 loadedModules.add(modulePath)
             }
         }
-        updateFocusedModules(computeActiveModulesForFocus())
+        updateFocusedModules(computeProjectViewFocusModules())
     }
 
     private fun handleFileOpened(file: VirtualFile) {
@@ -109,13 +114,31 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
         if (!loadedModules.contains(modulePath) && modulePath != ":") {
             logger.info("Module opened: $modulePath, scheduling load...")
             loadedModules.add(modulePath)
-            updateFocusedModules(computeActiveModulesForFocus())
+            updateFocusedModules(computeProjectViewFocusModules())
             scheduleModuleSync()
         }
     }
 
     private fun handleFileClosed(file: VirtualFile) {
         openFileModules.remove(file.path)
+        updateFocusedModules(computeProjectViewFocusModules())
+    }
+
+    private fun handleSelectionChanged(file: VirtualFile?) {
+        val selectedFile = file ?: run {
+            updateFocusedModules(computeProjectViewFocusModules())
+            return
+        }
+        val modulePath = detectModulePath(selectedFile)
+        if (modulePath != null) {
+            moduleLastAccessTime[modulePath] = System.currentTimeMillis()
+            openFileModules[selectedFile.path] = modulePath
+            if (modulePath != ":" && loadedModules.add(modulePath)) {
+                logger.info("Module selected: $modulePath, scheduling load...")
+                scheduleModuleSync()
+            }
+        }
+        updateFocusedModules(computeProjectViewFocusModules())
     }
 
     private fun detectModulePath(file: VirtualFile): String? {
@@ -179,7 +202,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
 
             val success = OnDemandModuleLoader.applyOnDemandLoading(project, activeModules, syncAfter = true)
             if (success) {
-                updateFocusedModules(activeModules)
+                updateFocusedModules(computeProjectViewFocusModules())
                 logger.info("Synced ${activeModules.size} active modules")
                 showNotification("Modules Loaded", "Loaded modules: ${activeModules.joinToString(", ")}")
             }
@@ -236,7 +259,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
                 if (remainingModules.isNotEmpty()) {
                     val success = OnDemandModuleLoader.applyOnDemandLoading(project, remainingModules, syncAfter = true)
                     if (success) {
-                        updateFocusedModules(remainingModules)
+                        updateFocusedModules(computeProjectViewFocusModules())
                         showNotification("Modules Released", "Released: ${modulesToRelease.joinToString(", ")}")
                     }
                 } else {
@@ -269,7 +292,7 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
             }
             // 同步清理 openFileModules 中指向已失效模块的条目
             openFileModules.entries.removeIf { (_, mod) -> stale.contains(mod) }
-            updateFocusedModules(computeActiveModulesForFocus())
+            updateFocusedModules(computeProjectViewFocusModules())
         }
     }
 
@@ -400,10 +423,21 @@ class GradleModuleSleepService(private val project: Project) : Disposable {
         focusedModules.clear()
     }
 
-    private fun computeActiveModulesForFocus(): Set<String> {
+    private fun computeProjectViewFocusModules(): Set<String> {
         val settings = ModuleSleepSettingsService.getInstance(project)
         val manualModules = OnDemandModuleLoader.findModulesByFolderNames(project, settings.getManualFolderNames())
-        val candidates = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet() + manualModules)
+        val expandedManualModules = OnDemandModuleLoader.expandModulesWithDependencies(project, manualModules)
+        val expandedLoadedModules = OnDemandModuleLoader.expandModulesWithDependencies(project, loadedModules.toSet())
+        val selectedModules = FileEditorManager.getInstance(project).selectedFiles
+            .mapNotNull { detectModulePath(it) }
+            .toSet()
+        val expandedSelectedModules = OnDemandModuleLoader.expandModulesWithDependencies(project, selectedModules)
+        val candidates = resolveProjectViewFocusSeedModules(
+            manualInputActive = settings.getManualFolderNamesRaw().isNotBlank(),
+            manualModules = expandedManualModules,
+            loadedModules = expandedLoadedModules,
+            selectedModules = expandedSelectedModules
+        )
         return OnDemandModuleLoader.validateExistingModules(project, candidates).validModules
     }
 }

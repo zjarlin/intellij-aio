@@ -24,9 +24,11 @@ class SmartGeneratedArtifactExcludePolicy : DirectoryIndexExcludePolicy {
 private object NoOpVirtualFilePointerListener : VirtualFilePointerListener
 
 internal object SmartGeneratedArtifactExcludePaths {
-    private val excludedDirectoryNames = listOf(
+    private val excludedRelativeDirectoryPaths = listOf(
         ".gradle",
         ".kotlin",
+        ".gradle-user-home",
+        "build/tmp",
     )
 
     fun collectModuleExcludeUrls(contentRootUrls: Array<String>): List<String> {
@@ -34,8 +36,8 @@ internal object SmartGeneratedArtifactExcludePaths {
             .map { rootUrl -> rootUrl.trimEnd('/') }
             .filter { rootUrl -> rootUrl.isNotBlank() }
             .flatMap { rootUrl ->
-                excludedDirectoryNames.asSequence().map { directoryName ->
-                    "$rootUrl/$directoryName"
+                excludedRelativeDirectoryPaths.asSequence().map { relativePath ->
+                    "$rootUrl/$relativePath"
                 }
             }
             .distinct()

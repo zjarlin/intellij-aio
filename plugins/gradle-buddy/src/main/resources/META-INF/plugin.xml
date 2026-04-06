@@ -476,6 +476,16 @@
             level="WARNING"
             implementationClass="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactInspection"/>
 
+    <!-- Inspection: suspicious version.ref in version catalog TOML -->
+    <localInspection
+            language="TOML"
+            shortName="SuspiciousCatalogVersionRef"
+            displayName="版本目录 version.ref 可能引用错误"
+            groupName="Gradle"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="site.addzero.gradle.buddy.intentions.catalog.SuspiciousCatalogVersionRefInspection"/>
+
     <!-- Reference: dynamic version catalog API strings jump to TOML -->
     <psi.referenceContributor
             language="kotlin"

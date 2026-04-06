@@ -8,4 +8,6 @@
 - Added a source-only Find in Files scope that skips generated directories.
 - Excluded common log files and `log` / `logs` directories from the source-only Find in Files scope.
 - Excluded module-local `.gradle` and `.kotlin` generated script directories from project indexing and global search.
+- Excluded module-local `.gradle-user-home` directories from project indexing and global search.
+- Excluded module-local `build/tmp` Gradle-generated accessor sources from project indexing and global search.
 - Added `Module Lock` to temporarily hide selected modules from the Project view without affecting Gradle builds.

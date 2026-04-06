@@ -18,12 +18,14 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
+import site.addzero.gradle.buddy.intentions.convert.HardcodedDependencyCatalogSupport
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import java.io.File
 
 /**
  * 在 `libs.findLibrary("alias").get()` 上提供一个意图：
- * 如果 [libraries] 中缺少该 alias，则补一条 skeleton；否则直接跳转过去。
+ * 如果 [libraries] 中缺少该 alias，则补一条使用专属 version.ref 的 skeleton；
+ * 如果已存在，则补齐专属 [versions] 条目并跳转过去。
  */
 class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, PriorityAction {
 
@@ -78,25 +80,25 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
         val document = FileDocumentManager.getInstance().getDocument(virtualFile)
         val currentText = document?.text ?: catalogFile.readText()
         val existingEntries = parseLibraryEntries(currentText)
+        val existingVersionEntries = parseVersionEntries(currentText)
+        val dedicatedVersionKey = HardcodedDependencyCatalogSupport.generateVersionKey(alias)
 
         val existing = existingEntries.firstOrNull { it.alias == alias }
-        if (existing != null) {
-            document?.let {
-                PsiDocumentManager.getInstance(project).commitDocument(it)
-                FileDocumentManager.getInstance().saveDocument(it)
-            }
-            return NavigationTarget(
-                virtualFile = virtualFile,
-                offset = existing.preferredOffset()
-            )
-        }
-
-        val coordinates = guessCoordinates(alias, existingEntries)
-        val updatedText = insertLibraryEntry(
-            originalText = currentText,
-            alias = alias,
-            groupId = coordinates.groupId,
-            artifactId = coordinates.artifactId
+        val coordinates = existing?.let { Coordinates(it.groupId, it.artifactId) } ?: guessCoordinates(alias, existingEntries)
+        val versionValue = existingVersionEntries[dedicatedVersionKey]?.value
+            ?: existing?.directVersion
+            ?: existing?.versionRef?.let(existingVersionEntries::get)?.value
+            ?: "+"
+        val updatedText = upsertVersionEntry(
+            originalText = upsertLibraryEntry(
+                originalText = currentText,
+                alias = alias,
+                groupId = coordinates.groupId,
+                artifactId = coordinates.artifactId,
+                versionKey = dedicatedVersionKey
+            ),
+            versionKey = dedicatedVersionKey,
+            versionValue = versionValue
         )
 
         if (document != null) {
@@ -110,7 +112,7 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
         val refreshedVirtualFile = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(catalogFile) ?: virtualFile
         return NavigationTarget(
             virtualFile = refreshedVirtualFile,
-            offset = findInsertedVersionOffset(updatedText, alias)
+            offset = findVersionValueOffset(updatedText, dedicatedVersionKey)
         )
     }
 
@@ -191,6 +193,8 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
         val moduleMatch = Regex("module\\s*=\\s*\"([^\"]+):([^\"]+)\"").find(line)
         val groupMatch = Regex("group\\s*=\\s*\"([^\"]+)\"").find(line)
         val nameMatch = Regex("name\\s*=\\s*\"([^\"]+)\"").find(line)
+        val versionRefMatch = Regex("version\\.ref\\s*=\\s*\"([^\"]+)\"").find(line)
+        val versionMatch = Regex("(?<!\\.)version\\s*=\\s*\"([^\"]+)\"").find(line)
         val groupId = groupMatch?.groupValues?.get(1) ?: moduleMatch?.groupValues?.get(1) ?: return null
         val artifactId = nameMatch?.groupValues?.get(1) ?: moduleMatch?.groupValues?.get(2) ?: return null
 
@@ -198,9 +202,44 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
             alias = alias,
             groupId = groupId,
             artifactId = artifactId,
+            versionRef = versionRefMatch?.groupValues?.get(1),
+            directVersion = versionMatch?.groupValues?.get(1),
             lineText = line,
             lineStartOffset = lineStartOffset
         )
+    }
+
+    private fun parseVersionEntries(content: String): Map<String, CatalogVersionEntry> {
+        val result = linkedMapOf<String, CatalogVersionEntry>()
+        val lines = content.split('\n')
+        var offset = 0
+        var inVersions = false
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                inVersions = trimmed == "[versions]"
+                offset += line.length + 1
+                continue
+            }
+
+            if (inVersions && trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                val match = Regex("^\\s*[\"']?([A-Za-z0-9_.-]+)[\"']?\\s*=\\s*\"([^\"]*)\"").find(line)
+                if (match != null) {
+                    val key = match.groupValues[1]
+                    val value = match.groupValues[2]
+                    result[key] = CatalogVersionEntry(
+                        key = key,
+                        value = value,
+                        lineText = line,
+                        lineStartOffset = offset
+                    )
+                }
+            }
+            offset += line.length + 1
+        }
+
+        return result
     }
 
     private fun guessCoordinates(alias: String, existingEntries: List<CatalogLibraryEntry>): Coordinates {
@@ -260,17 +299,26 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
             .lowercase()
     }
 
-    private fun insertLibraryEntry(
+    private fun upsertLibraryEntry(
         originalText: String,
         alias: String,
         groupId: String,
-        artifactId: String
+        artifactId: String,
+        versionKey: String
     ): String {
         val lines = if (originalText.isEmpty()) mutableListOf() else originalText.split('\n').toMutableList()
-        val entryLine = """$alias = { group = "$groupId", name = "$artifactId", version = "" }"""
+        val entryLine = """$alias = { group = "$groupId", name = "$artifactId", version.ref = "$versionKey" }"""
         val section = findSection(lines, "[libraries]")
 
         if (section != null) {
+            val entryRegex = Regex("""^\s*${Regex.escape(alias)}\s*=""")
+            val existingIndex = (section.start + 1 until section.end).firstOrNull { index ->
+                entryRegex.containsMatchIn(lines[index])
+            }
+            if (existingIndex != null) {
+                lines[existingIndex] = entryLine
+                return lines.joinToString("\n")
+            }
             val insertAt = trimTrailingBlanks(lines, section.start, section.end)
             lines.add(insertAt, entryLine)
             return lines.joinToString("\n")
@@ -280,6 +328,36 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
             lines.add("")
         }
         lines.add("[libraries]")
+        lines.add(entryLine)
+        return lines.joinToString("\n")
+    }
+
+    private fun upsertVersionEntry(
+        originalText: String,
+        versionKey: String,
+        versionValue: String
+    ): String {
+        val lines = if (originalText.isEmpty()) mutableListOf() else originalText.split('\n').toMutableList()
+        val entryLine = "$versionKey = \"$versionValue\""
+        val section = findSection(lines, "[versions]")
+
+        if (section != null) {
+            val entryRegex = Regex("""^\s*${Regex.escape(versionKey)}\s*=""")
+            val existingIndex = (section.start + 1 until section.end).firstOrNull { index ->
+                entryRegex.containsMatchIn(lines[index])
+            }
+            if (existingIndex != null) {
+                return lines.joinToString("\n")
+            }
+            val insertAt = trimTrailingBlanks(lines, section.start, section.end)
+            lines.add(insertAt, entryLine)
+            return lines.joinToString("\n")
+        }
+
+        if (lines.isNotEmpty() && lines.last().isNotBlank()) {
+            lines.add("")
+        }
+        lines.add("[versions]")
         lines.add(entryLine)
         return lines.joinToString("\n")
     }
@@ -308,10 +386,10 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
         return insertAt
     }
 
-    private fun findInsertedVersionOffset(text: String, alias: String): Int {
-        val match = Regex("""(?m)^\s*${Regex.escape(alias)}\s*=.*$""").find(text) ?: return 0
+    private fun findVersionValueOffset(text: String, versionKey: String): Int {
+        val match = Regex("""(?m)^\s*${Regex.escape(versionKey)}\s*=.*$""").find(text) ?: return 0
         val lineText = match.value
-        val versionMatch = Regex("version\\s*=\\s*\"").find(lineText)
+        val versionMatch = Regex("=\\s*\"").find(lineText)
         return if (versionMatch != null) {
             match.range.first + versionMatch.range.last + 1
         } else {
@@ -338,6 +416,8 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
         val alias: String,
         val groupId: String,
         val artifactId: String,
+        val versionRef: String?,
+        val directVersion: String?,
         val lineText: String,
         val lineStartOffset: Int
     ) {
@@ -350,6 +430,13 @@ class GradleKtsFindLibraryCreateCatalogEntryIntention : IntentionAction, Priorit
             }
         }
     }
+
+    private data class CatalogVersionEntry(
+        val key: String,
+        val value: String,
+        val lineText: String,
+        val lineStartOffset: Int
+    )
 
     private data class SectionRange(
         val start: Int,

@@ -53,7 +53,12 @@ class GradleKtsHardcodedDependencyToFindLibraryIntention : IntentionAction, Prio
             return
         }
 
-        HardcodedDependencyCatalogSupport.chooseVersionReference(project, currentEditor, dependencyInfo) {
+        HardcodedDependencyCatalogSupport.chooseVersionReference(
+            project = project,
+            editor = currentEditor,
+            info = dependencyInfo,
+            versionPolicy = HardcodedDependencyCatalogSupport.VersionReferencePolicy.DEDICATED
+        ) {
                 catalogFile,
                 existingContent,
                 versionRefFromVar,
@@ -65,7 +70,8 @@ class GradleKtsHardcodedDependencyToFindLibraryIntention : IntentionAction, Prio
                         existingContent = existingContent,
                         info = dependencyInfo,
                         versionRefFromVar = versionRefFromVar,
-                        selectedVersionKey = selectedVersionKey
+                        selectedVersionKey = selectedVersionKey,
+                        versionPolicy = HardcodedDependencyCatalogSupport.VersionReferencePolicy.DEDICATED
                     )
 
                     HardcodedDependencyCatalogSupport.mergeToVersionCatalog(

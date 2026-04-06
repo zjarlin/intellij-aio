@@ -13,7 +13,7 @@
 - `Alt+Enter` 意图动作：对简单 Kotlin `class` / `data class` 提供 `转换为 interface`
 - Kotlin Inspection：自动标出可以安全删掉的冗余显式类型声明
 - 搜索范围：在 `Find in Files` 中增加“源码目录” scope，排除常见生成目录
-- 全局搜索降噪：自动把各模块下的 `.gradle` / `.kotlin` 生成脚本目录排除出项目索引
+- 全局搜索降噪：自动把各模块下的 `.gradle` / `.kotlin` / `.gradle-user-home` / `build/tmp` 生成目录排除出项目索引
 - Project 视图隐藏：右键隐藏选中的文件或目录
 - 隐藏项显示切换：在 Project 视图工具栏切换是否显示已隐藏文件
 - Module Lock：按模块临时收起稳定功能模块，不影响 Gradle 构建
@@ -107,7 +107,7 @@ interface S3Config {
 
 `ide-kit` 不再偷偷改写默认搜索范围，而是显式提供一个可选的“源码目录” scope。
 
-另外，插件会自动把各模块下的 `.gradle` 和 `.kotlin` 目录从项目索引里排除，避免 `在项目(P)` 的全局搜索把 Gradle 生成脚本和缓存结果混进来。
+另外，插件会自动把各模块下的 `.gradle`、`.kotlin`、`.gradle-user-home` 和 `build/tmp` 目录从项目索引里排除，避免 `在项目(P)` 的全局搜索把 Gradle 生成脚本、版本目录访问器源码和缓存结果混进来。
 
 使用方式：
 
@@ -181,7 +181,7 @@ interface S3Config {
 - Kotlin 清理能力当前面向属性显式类型声明，不是对所有 Kotlin 类型标注做批量重写
 - `class -> interface` 当前只覆盖保守场景，不会尝试自动迁移 `init`、次构造、父类构造调用或类体属性
 - “源码目录”是显式可选 scope，不会强制覆盖 IDE 默认搜索行为
-- `在项目(P)` 的全局搜索会自动少掉 `.gradle` / `.kotlin` 里的 Gradle 生成脚本，但不会替代你手动配置的自定义 scope
+- `在项目(P)` 的全局搜索会自动少掉 `.gradle` / `.kotlin` / `.gradle-user-home` / `build/tmp` 里的 Gradle 生成脚本和访问器源码，但不会替代你手动配置的自定义 scope
 - 隐藏文件能力作用于当前项目视图与变更列表，不会修改磁盘文件，也不会改 Git 跟踪状态
 - Module Lock 当前作用于 Project 视图显示层，不会改变 Gradle 构建和模块依赖关系
 - 如果团队共享同一个仓库但各自 IDE 视图偏好不同，隐藏状态不会替代团队级规则文件

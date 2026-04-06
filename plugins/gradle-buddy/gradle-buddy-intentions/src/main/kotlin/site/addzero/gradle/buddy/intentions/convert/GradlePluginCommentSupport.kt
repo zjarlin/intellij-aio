@@ -24,45 +24,18 @@ internal object GradlePluginCommentSupport {
 
     fun detectTargetPlugin(element: PsiElement): TargetPlugin? {
         val stringExpression = PsiTreeUtil.getParentOfType(element, KtStringTemplateExpression::class.java, false)
+        if (stringExpression != null) {
+            val callExpression = PsiTreeUtil.getParentOfType(stringExpression, KtCallExpression::class.java)
+                ?: return null
+            val resolved = resolvePluginDeclaration(callExpression) ?: return null
+            if (callExpression.valueArguments.singleOrNull()?.getArgumentExpression() == stringExpression) {
+                return resolved
+            }
+        }
+
+        val callExpression = PsiTreeUtil.getParentOfType(element, KtCallExpression::class.java, false)
             ?: return null
-        if (stringExpression.entries.any { it !is KtLiteralStringTemplateEntry }) {
-            return null
-        }
-
-        val value = stringExpression.entries.joinToString(separator = "") { it.text }
-        if (value.isBlank()) {
-            return null
-        }
-
-        val callExpression = PsiTreeUtil.getParentOfType(stringExpression, KtCallExpression::class.java) ?: return null
-        if (!isInsidePluginsBlock(callExpression)) {
-            return null
-        }
-
-        return when (callExpression.calleeExpression?.text) {
-            "id" -> {
-                if (callExpression.valueArguments.singleOrNull()?.getArgumentExpression() != stringExpression) {
-                    return null
-                }
-                TargetPlugin(
-                    pluginId = value,
-                    displayName = "id(\"$value\")"
-                )
-            }
-
-            "kotlin" -> {
-                if (callExpression.valueArguments.singleOrNull()?.getArgumentExpression() != stringExpression) {
-                    return null
-                }
-                val pluginId = "org.jetbrains.kotlin.$value"
-                TargetPlugin(
-                    pluginId = pluginId,
-                    displayName = "kotlin(\"$value\")"
-                )
-            }
-
-            else -> null
-        }
+        return resolvePluginDeclaration(callExpression)
     }
 
     fun collectTargetGradleKtsFiles(project: com.intellij.openapi.project.Project): List<VirtualFile> {
@@ -106,7 +79,8 @@ internal object GradlePluginCommentSupport {
             val startLine = document.getLineNumber(callExpression.textRange.startOffset)
             val safeEndOffset = (callExpression.textRange.endOffset - 1).coerceAtLeast(callExpression.textRange.startOffset)
             val endLine = document.getLineNumber(safeEndOffset)
-            for (line in startLine..endLine) {
+            val extendedEndLine = extendPluginDeclarationEndLine(document, endLine)
+            for (line in startLine..extendedEndLine) {
                 val lineText = document.getText(
                     com.intellij.openapi.util.TextRange(
                         document.getLineStartOffset(line),
@@ -136,6 +110,28 @@ internal object GradlePluginCommentSupport {
             lines[lineNumber] = commentLine(lines[lineNumber])
         }
         return lines.joinToString("\n")
+    }
+
+    private fun extendPluginDeclarationEndLine(document: Document, endLine: Int): Int {
+        var currentEndLine = endLine
+        while (currentEndLine + 1 < document.lineCount) {
+            val nextLine = document.getText(
+                com.intellij.openapi.util.TextRange(
+                    document.getLineStartOffset(currentEndLine + 1),
+                    document.getLineEndOffset(currentEndLine + 1)
+                )
+            ).trim()
+
+            if (nextLine.isBlank() || nextLine.startsWith("//")) {
+                break
+            }
+            if (nextLine.startsWith("version ") || nextLine.startsWith("apply ")) {
+                currentEndLine++
+                continue
+            }
+            break
+        }
+        return currentEndLine
     }
 
     private fun commentLine(line: String): String {

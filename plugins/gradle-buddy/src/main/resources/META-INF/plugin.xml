@@ -436,7 +436,7 @@
     </intentionAction>
 
     <!-- Intention: Comment out current plugin declaration across the repository -->
-    <intentionAction>
+    <intentionAction order="FIRST">
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCommentOutPluginProjectWideIntention</className>
       <category>Gradle Buddy</category>

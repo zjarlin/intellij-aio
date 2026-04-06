@@ -314,6 +314,16 @@ object ProjectModulesPublishSupport {
             return listOf(SelectedModule(exactMatch, expanded = false))
         }
 
+        if (file.isDirectory) {
+            val descendantModules = modules
+                .filter { isPathInside(file.path, it.buildFile.parent.path) }
+                .sortedBy { it.path }
+                .map { SelectedModule(it, expanded = true) }
+            if (descendantModules.isNotEmpty()) {
+                return descendantModules
+            }
+        }
+
         val containingModule = modules
             .filter { isPathInside(it.buildFile.parent.path, file.path) }
             .maxByOrNull { it.buildFile.parent.path.length }
@@ -324,11 +334,7 @@ object ProjectModulesPublishSupport {
         if (!file.isDirectory) {
             return emptyList()
         }
-
-        return modules
-            .filter { isPathInside(file.path, it.buildFile.parent.path) }
-            .sortedBy { it.path }
-            .map { SelectedModule(it, expanded = true) }
+        return emptyList()
     }
 
     private fun dependenciesOf(

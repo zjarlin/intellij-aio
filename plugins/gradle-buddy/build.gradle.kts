@@ -10,7 +10,7 @@ intellijPlatform {
     pluginConfiguration {
         id = "site.addzero.$pluginName"
         name = pluginName
-        version = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+        version = LocalDate.now().plusDays(3).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
     }
 }
 

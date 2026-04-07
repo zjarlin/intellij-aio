@@ -131,12 +131,6 @@
             icon="AllIcons.Actions.Execute">
       <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.CopyPublishCommands"/>
     </action>
-    <action id="GradleBuddy.PublishModulesWithDependencies"
-            class="site.addzero.gradle.buddy.intentions.projectdep.PublishModulesWithDependenciesAction"
-            text="(Gradle Buddy) Publish Modules to Maven Central with Dependencies"
-            description="Publish the selected module or module directory with recursive project dependencies">
-      <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.RunPublishTasks"/>
-    </action>
     <!-- Migration: Migrate hardcoded dependencies to Version Catalog -->
     <action id="GradleBuddy.MigrateToVersionCatalog"
             class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
@@ -440,6 +434,13 @@
       <language>kotlin</language>
       <className>site.addzero.idfixer.FixPluginIdIntention</className>
       <category>Gradle Plugin ID</category>
+    </intentionAction>
+
+    <!-- Intention: Show usages of the current precompiled script plugin -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.idfixer.ShowPrecompiledScriptPluginUsagesIntention</className>
+      <category>Gradle Buddy</category>
     </intentionAction>
 
     <!-- Intention: Select catalog reference from candidates (context menu) -->

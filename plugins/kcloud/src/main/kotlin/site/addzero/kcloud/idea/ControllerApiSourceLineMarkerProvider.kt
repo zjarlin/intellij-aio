@@ -2,13 +2,14 @@ package site.addzero.kcloud.idea
 
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.RelatedItemLineMarkerProvider
-import com.intellij.codeInsight.navigation.NavigationGutterIconBuilder
+import com.intellij.codeInsight.daemon.GutterIconNavigationHandler
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
@@ -57,11 +58,12 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                         return@forEach
                     }
 
-                    result += NavigationGutterIconBuilder
-                        .create(AllIcons.Actions.Back)
-                        .setTargets(targets)
-                        .setTooltipText("Jump to source file ${sourceRef.fileName}")
-                        .createLineMarkerInfo(markerAnchor)
+                    result += createNavigationLineMarker(
+                        anchor = markerAnchor,
+                        icon = AllIcons.Actions.Back,
+                        tooltip = "Jump to source file ${sourceRef.fileName}",
+                        targets = targets,
+                    )
                 }
         }
     }
@@ -94,11 +96,12 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                     if (markerAnchor !in leafElements) {
                         return@forEach
                     }
-                    result += NavigationGutterIconBuilder
-                        .create(AllIcons.Actions.Forward)
-                        .setTargets(generatedDeclarations)
-                        .setTooltipText("Jump to generated Ktorfit API")
-                        .createLineMarkerInfo(markerAnchor)
+                    result += createNavigationLineMarker(
+                        anchor = markerAnchor,
+                        icon = AllIcons.Actions.Forward,
+                        tooltip = "Jump to generated Ktorfit API",
+                        targets = generatedDeclarations,
+                    )
                 }
         }
     }
@@ -263,4 +266,24 @@ private inline fun <T> ignoreBrokenPsiOrIndex(action: () -> T?): T? {
     } catch (_: Throwable) {
         null
     }
+}
+
+private fun createNavigationLineMarker(
+    anchor: PsiElement,
+    icon: javax.swing.Icon,
+    tooltip: String,
+    targets: Collection<OpenFileDescriptor>,
+): LineMarkerInfo<PsiElement> {
+    val navigationHandler = GutterIconNavigationHandler<PsiElement> { _, _ ->
+        targets.firstOrNull()?.navigate(true)
+    }
+    return LineMarkerInfo(
+        anchor,
+        anchor.textRange,
+        icon,
+        { tooltip },
+        navigationHandler,
+        GutterIconRenderer.Alignment.LEFT,
+        { tooltip },
+    )
 }

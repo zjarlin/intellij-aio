@@ -4,13 +4,12 @@ import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.RelatedItemLineMarkerProvider
 import com.intellij.codeInsight.navigation.NavigationGutterIconBuilder
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.containers.ContainerUtil
@@ -86,9 +85,6 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                 return@forEach
             }
 
-            val navigationTargets = generatedDeclarations.map { declaration ->
-                declaration.nameIdentifier ?: declaration
-            }
             containingFile.declarations
                 .filterIsInstance<KtNamedFunction>()
                 .filter(KtNamedFunction::isTopLevel)
@@ -100,7 +96,7 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                     }
                     result += NavigationGutterIconBuilder
                         .create(AllIcons.Actions.Forward)
-                        .setTargets(navigationTargets)
+                        .setTargets(generatedDeclarations)
                         .setTooltipText("Jump to generated Ktorfit API")
                         .createLineMarkerInfo(markerAnchor)
                 }
@@ -110,7 +106,7 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
     private fun resolveFiles(
         project: Project,
         sourceRef: SourceFileRef,
-    ): Collection<PsiFile> {
+    ): Collection<OpenFileDescriptor> {
         val candidates = FilenameIndex.getVirtualFilesByName(
             project,
             sourceRef.fileName,
@@ -119,9 +115,9 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
 
         return ContainerUtil.mapNotNull(candidates) { virtualFile ->
             ignoreBrokenPsiOrIndex {
-                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@ignoreBrokenPsiOrIndex null
-                if (psiFile.packageFqName.asString() == sourceRef.packageName) {
-                    psiFile
+                val fileText = VfsUtilCore.loadText(virtualFile)
+                if (fileText.packageName() == sourceRef.packageName) {
+                    OpenFileDescriptor(project, virtualFile, 0)
                 } else {
                     null
                 }
@@ -132,7 +128,7 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
     private fun resolveGeneratedDeclarations(
         project: Project,
         sourceRef: SourceFileRef,
-    ): Collection<KtClass> {
+    ): Collection<OpenFileDescriptor> {
         val searchScope = GlobalSearchScope.projectScope(project)
         val directCandidates = FilenameIndex.getVirtualFilesByName(
             project,
@@ -153,10 +149,12 @@ class ControllerApiSourceLineMarkerProvider : RelatedItemLineMarkerProvider() {
                 return@mapNotNull null
             }
             ignoreBrokenPsiOrIndex {
-                val psiFile = PsiManager.getInstance(project).findFile(virtualFile) as? KtFile ?: return@ignoreBrokenPsiOrIndex null
-                psiFile.declarations
-                    .filterIsInstance<KtClass>()
-                    .firstOrNull()
+                val fileText = VfsUtilCore.loadText(virtualFile)
+                OpenFileDescriptor(
+                    project,
+                    virtualFile,
+                    fileText.generatedApiDeclarationOffset(),
+                )
             }
         }
     }
@@ -191,6 +189,17 @@ private fun KDoc.findSourceReference(): SourceFileRef? {
     val match = sourceFilePattern.find(text) ?: return null
     val qualifiedPath = match.groupValues[1]
     return qualifiedPath.toSourceFileRef()
+}
+
+private val packagePattern = Regex("""(?m)^\s*package\s+([A-Za-z0-9_.]+)""")
+private val interfacePattern = Regex("""\binterface\s+[A-Za-z0-9_]+""")
+
+private fun String.packageName(): String? {
+    return packagePattern.find(this)?.groupValues?.getOrNull(1)
+}
+
+private fun String.generatedApiDeclarationOffset(): Int {
+    return interfacePattern.find(this)?.range?.first ?: 0
 }
 
 private fun KtFile.toSourceFileRef(): SourceFileRef? {

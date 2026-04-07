@@ -46,7 +46,7 @@ class PublishCommandQueueService {
         return grouped.entries.joinToString(separator = "\n\n") { (rootPath, items) ->
             buildString {
                 appendLine("# $rootPath")
-                items.sortedBy { it.modulePath }.forEach { item ->
+                items.forEach { item ->
                     appendLine(item.command)
                 }
             }.trimEnd()

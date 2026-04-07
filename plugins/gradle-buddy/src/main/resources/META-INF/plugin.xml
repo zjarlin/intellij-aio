@@ -131,7 +131,12 @@
             icon="AllIcons.Actions.Execute">
       <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.CopyPublishCommands"/>
     </action>
-
+    <action id="GradleBuddy.PublishModulesWithDependencies"
+            class="site.addzero.gradle.buddy.intentions.projectdep.PublishModulesWithDependenciesAction"
+            text="(Gradle Buddy) Publish Modules to Maven Central with Dependencies"
+            description="Publish the selected module or module directory with recursive project dependencies">
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="GradleBuddy.RunPublishTasks"/>
+    </action>
     <!-- Migration: Migrate hardcoded dependencies to Version Catalog -->
     <action id="GradleBuddy.MigrateToVersionCatalog"
             class="site.addzero.gradle.buddy.migration.versioncatalog.MigrateToVersionCatalogAction"
@@ -318,6 +323,20 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Convert hardcoded dependency to findLibrary() and upsert version catalog -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToFindLibraryIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Batch convert hardcoded dependencies to findLibrary() -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsHardcodedDependencyToFindLibraryBatchIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Convert version catalog reference to hardcoded dependency -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
@@ -343,6 +362,13 @@
     <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsFindLibraryToCatalogAccessorSingleIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Create or jump to version catalog entry for current findLibrary() alias -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.catalog.GradleKtsFindLibraryCreateCatalogEntryIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 
@@ -381,10 +407,24 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Remove the current broken project()/projects.xxx dependency -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.RemoveBrokenProjectDependencyIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Copy the current project()/projects.xxx dependency as a Maven declaration -->
     <intentionAction>
       <language>kotlin</language>
       <className>site.addzero.gradle.buddy.intentions.projectdep.CopyProjectDependencyAsMavenIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
+    <!-- Intention: Publish the current project()/projects.xxx dependency from an external source repo -->
+    <intentionAction>
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.projectdep.PublishProjectDependencyFromSourceIntention</className>
       <category>Gradle Buddy</category>
     </intentionAction>
 
@@ -423,6 +463,13 @@
       <category>Gradle Buddy</category>
     </intentionAction>
 
+    <!-- Intention: Comment out current plugin declaration across the repository -->
+    <intentionAction order="FIRST">
+      <language>kotlin</language>
+      <className>site.addzero.gradle.buddy.intentions.convert.GradleKtsCommentOutPluginProjectWideIntention</className>
+      <category>Gradle Buddy</category>
+    </intentionAction>
+
     <!-- Intention: Resolve plugin implementation artifact for build-logic -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
@@ -449,6 +496,16 @@
             enabledByDefault="true"
             level="WARNING"
             implementationClass="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactInspection"/>
+
+    <!-- Inspection: suspicious version.ref in version catalog TOML -->
+    <localInspection
+            language="TOML"
+            shortName="SuspiciousCatalogVersionRef"
+            displayName="版本目录 version.ref 可能引用错误"
+            groupName="Gradle"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="site.addzero.gradle.buddy.intentions.catalog.SuspiciousCatalogVersionRefInspection"/>
 
     <!-- Reference: dynamic version catalog API strings jump to TOML -->
     <psi.referenceContributor

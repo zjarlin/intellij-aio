@@ -1,6 +1,7 @@
 package site.addzero.composebuddy.intentions
 
 import com.intellij.codeInsight.intention.PsiElementBaseIntentionAction
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
@@ -13,7 +14,7 @@ import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.analysis.ComposeFunctionSupport
 import site.addzero.composebuddy.refactor.ComposeRefactorEngine
 
-class WrapLayoutContainerAsHigherOrderIntention : PsiElementBaseIntentionAction() {
+class WrapLayoutContainerAsHigherOrderIntention : PsiElementBaseIntentionAction(), DumbAware {
     override fun getFamilyName(): String = ComposeBuddyBundle.message("plugin.name")
 
     override fun getText(): String = ComposeBuddyBundle.message("intention.wrap.higher.order.container")

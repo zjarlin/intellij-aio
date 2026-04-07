@@ -2,6 +2,12 @@
 ---
 ## 功能特性
 
+### 🆕 近期更新 (2026.04.07)
+- **findLibrary 一键补全 TOML 条目**：在 `libs.findLibrary("alias").get()` 上按 `Alt+Enter`，可直接跳转到配置的 `libs.versions.toml`
+  - 缺少条目时自动在 `[libraries]` 中补出 `alias / group / name / version = ""` 骨架
+  - 已有条目时直接跳到现有位置，不重复插入
+- **专属 version.ref 回退增强**：`Fix Version` 在 Maven Central 拉不到版本列表时，不再中断，而是自动创建 `artifactId = "+"` 的版本变量并继续修复 `version.ref`
+
 ### 🆕 近期更新 (2026.03.29)
 - **动态 Version Catalog 引用支持**：`libs.findLibrary("...").get()`、`findPlugin`、`findBundle`、`findVersion` 现在具备更完整的 IDE 支持
   - 引号内智能补全，支持用点号输入匹配 kebab-case alias（如 `site.addzero.ks` → `site-addzero-ksp-support`）

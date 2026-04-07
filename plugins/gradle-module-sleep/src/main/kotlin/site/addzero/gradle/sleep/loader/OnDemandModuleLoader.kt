@@ -24,6 +24,11 @@ import java.io.File
 object OnDemandModuleLoader {
 
     private val logger = Logger.getInstance(OnDemandModuleLoader::class.java)
+    private val singleIncludePattern = Regex("""^(\s*)include\s*\(\s*["']([^"']+)["']\s*\)(.*)$""")
+    private val commentedIncludePattern = Regex(
+        """^(\s*)//\s*(include\s*\(\s*["']([^"']+)["']\s*\).*)\s+// excluded by Gradle Buddy\s*$"""
+    )
+    private val anyIncludePattern = Regex("""^\s*include\b""")
 
     // 受保护的模块（始终包含，但不生成 include）
     private val PROTECTED_MODULES = setOf("buildSrc", "build-logic", "gradle")
@@ -528,50 +533,55 @@ object OnDemandModuleLoader {
         val result = StringBuilder()
 
         val managedBlockRange = findManagedBlockRange(lines)
+        var hasIncludeStatementsOutsideManagedBlock = false
 
-        if (managedBlockRange != null) {
-            val startIndex = managedBlockRange.first
-            val endIndex = managedBlockRange.last
-            // 替换现有的 Gradle Buddy 块
-            for (i in lines.indices) {
-                when {
-                    i < startIndex -> result.appendLine(lines[i])
-                    i == startIndex -> {
-                        result.appendLine(generateGradleBuddyBlock(activeModules))
-                    }
-                    i > endIndex -> result.appendLine(lines[i])
-                    // 跳过 startIndex 到 endIndex 之间的内容
+        for (i in lines.indices) {
+            if (managedBlockRange != null && i in managedBlockRange) {
+                if (i == managedBlockRange.first) {
+                    result.appendLine(generateGradleBuddyBlock(activeModules))
                 }
-            }
-        } else {
-            // No existing block, process original include statements and add a new block if needed.
-            val singleIncludePattern = Regex("""^(\s*)include\s*\(\s*["']([^"']+)["']\s*\)(.*)$""")
-            val anyIncludePattern = Regex("""^\s*include\b""")
-            val hasIncludeStatements = lines.any { anyIncludePattern.containsMatchIn(it) }
-
-            for (line in lines) {
-                val match = singleIncludePattern.find(line)
-                if (match != null) {
-                    val modulePath = match.groupValues[2]
-                    if (activeModules.contains(modulePath)) {
-                        result.appendLine(line)
-                    } else {
-                        result.appendLine("//${line} // excluded by Gradle Buddy")
-                    }
-                } else {
-                    result.appendLine(line)
-                }
+                continue
             }
 
-            // If there are no include statements (e.g. using an auto-modules plugin), add the Gradle Buddy block.
-            // This prevents adding duplicate modules if the user has multi-module include() statements.
-            if (!hasIncludeStatements && activeModules.isNotEmpty()) {
-                result.appendLine()
-                result.appendLine(generateGradleBuddyBlock(activeModules))
+            val rewrittenLine = rewriteIncludeLine(lines[i], activeModules)
+            if (rewrittenLine.hadIncludeStatement) {
+                hasIncludeStatementsOutsideManagedBlock = true
             }
+            result.appendLine(rewrittenLine.line)
+        }
+
+        if (managedBlockRange == null && !hasIncludeStatementsOutsideManagedBlock && activeModules.isNotEmpty()) {
+            result.appendLine()
+            result.appendLine(generateGradleBuddyBlock(activeModules))
         }
 
         return result.toString().trimEnd() + "\n"
+    }
+
+    private fun rewriteIncludeLine(line: String, activeModules: Set<String>): RewrittenIncludeLine {
+        val commentedMatch = commentedIncludePattern.find(line)
+        if (commentedMatch != null) {
+            val indentation = commentedMatch.groupValues[1]
+            val includeStatement = commentedMatch.groupValues[2]
+            val modulePath = commentedMatch.groupValues[3]
+            return if (activeModules.contains(modulePath)) {
+                RewrittenIncludeLine("$indentation$includeStatement", hadIncludeStatement = true)
+            } else {
+                RewrittenIncludeLine(line, hadIncludeStatement = true)
+            }
+        }
+
+        val includeMatch = singleIncludePattern.find(line)
+        if (includeMatch != null) {
+            val modulePath = includeMatch.groupValues[2]
+            return if (activeModules.contains(modulePath)) {
+                RewrittenIncludeLine(line, hadIncludeStatement = true)
+            } else {
+                RewrittenIncludeLine("//$line // excluded by Gradle Buddy", hadIncludeStatement = true)
+            }
+        }
+
+        return RewrittenIncludeLine(line, hadIncludeStatement = anyIncludePattern.containsMatchIn(line))
     }
 
     /**
@@ -710,6 +720,11 @@ object OnDemandModuleLoader {
         }
     }
 }
+
+private data class RewrittenIncludeLine(
+    val line: String,
+    val hadIncludeStatement: Boolean
+)
 
 /**
  * 模块描述符

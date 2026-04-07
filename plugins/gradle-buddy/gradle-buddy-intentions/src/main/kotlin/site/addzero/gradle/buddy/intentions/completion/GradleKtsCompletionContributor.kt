@@ -71,7 +71,7 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
             alias.replace('-', '.').replace('_', '.')
 
         fun generateVersionKey(groupId: String, artifactId: String): String =
-            "${generateLibraryAlias(groupId, artifactId)}-version"
+            generateLibraryAlias(groupId, artifactId)
     }
 
     override fun addCompletions(
@@ -430,37 +430,21 @@ private class GradleDependencyCompletionProvider : CompletionProvider<Completion
         } else {
             val lines = catalogFile.readText().lines().toMutableList()
 
-            // 检查是否已存在该 alias
             val aliasRegex = Regex("""^\s*${Regex.escape(alias)}\s*=""")
-            if (lines.any { aliasRegex.containsMatchIn(it) }) {
-                // 已存在，跳过
-                LocalFileSystem.getInstance().refreshAndFindFileByPath(catalogFile.absolutePath)
-                return
+            val aliasIndex = lines.indexOfFirst { aliasRegex.containsMatchIn(it) }
+            if (aliasIndex >= 0) {
+                lines[aliasIndex] = libraryLine
+            } else {
+                lines.addAll(upsertSection(lines, "[libraries]", libraryLine))
             }
 
-            // 查找是否有同 group 的已有条目，复用其 version.ref
-            var existingVersionRef: String? = null
-            for (line in lines) {
-                val trimmed = line.trim()
-                if (trimmed.contains("\"$groupId:") || trimmed.contains("group = \"$groupId\"")) {
-                    val vRefMatch = Regex("""version\.ref\s*=\s*"([^"]+)"""").find(trimmed)
-                    if (vRefMatch != null) {
-                        existingVersionRef = vRefMatch.groupValues[1]
-                        break
-                    }
-                }
-            }
-
-            val finalVersionKey = existingVersionRef ?: versionKey
-            val finalLibraryLine = "$alias = { module = \"$groupId:$artifactId\", version.ref = \"$finalVersionKey\" }"
-
-            // upsert version（仅当没有复用已有 ref 时）
-            if (existingVersionRef == null) {
+            val versionRegex = Regex("""^\s*${Regex.escape(versionKey)}\s*=""")
+            val versionIndex = lines.indexOfFirst { versionRegex.containsMatchIn(it) }
+            if (versionIndex >= 0) {
+                lines[versionIndex] = "$versionKey = \"$version\""
+            } else {
                 lines.addAll(upsertSection(lines, "[versions]", "$versionKey = \"$version\""))
             }
-
-            // upsert library
-            lines.addAll(upsertSection(lines, "[libraries]", finalLibraryLine))
 
             catalogFile.writeText(lines.joinToString("\n"))
         }

@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import java.io.File
+import java.util.LinkedHashMap
 import java.util.LinkedHashSet
 
 @Service(Service.Level.PROJECT)
@@ -22,6 +23,7 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         var defaultTasks: MutableList<String> = DEFAULT_TASKS.toMutableList(),
         var versionCatalogPath: String = "",
         var versionCatalogPathCustomized: Boolean = false,
+        var externalLibraryRepoPath: String = DEFAULT_EXTERNAL_LIBRARY_REPO_PATH,
         var silentUpsertToml: Boolean = false,
         var normalizeDedupStrategy: String = "MAJOR_VERSION",
         var preferredMirrorIndex: Int = 0,
@@ -62,6 +64,9 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
             myState.versionCatalogPath.trim() != DEFAULT_VERSION_CATALOG_PATH
         ) {
             myState.versionCatalogPathCustomized = true
+        }
+        if (myState.externalLibraryRepoPath.isBlank()) {
+            myState.externalLibraryRepoPath = DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
         }
     }
 
@@ -126,6 +131,12 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         myState.versionCatalogPathCustomized = false
     }
 
+    fun getExternalLibraryRepoPath(): String = myState.externalLibraryRepoPath
+
+    fun setExternalLibraryRepoPath(path: String) {
+        myState.externalLibraryRepoPath = path.trim().ifBlank { DEFAULT_EXTERNAL_LIBRARY_REPO_PATH }
+    }
+
     fun addDefaultTask(task: String) {
         if (task !in myState.defaultTasks) {
             myState.defaultTasks.add(task)
@@ -163,6 +174,19 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
     fun resetToDefaults() {
         myState.defaultTasks = DEFAULT_TASKS.toMutableList()
         clearVersionCatalogPathOverride()
+        myState.externalLibraryRepoPath = DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
+    }
+
+    fun resolveExternalLibraryRepoRoot(project: Project): File {
+        val rawPath = getExternalLibraryRepoPath().trim().ifBlank { DEFAULT_EXTERNAL_LIBRARY_REPO_PATH }
+        val expandedPath = expandHomeAwarePath(rawPath)
+        val configured = File(expandedPath)
+        if (configured.isAbsolute) {
+            return configured
+        }
+
+        val basePath = project.basePath ?: return configured.absoluteFile
+        return File(basePath, expandedPath).absoluteFile
     }
 
     fun resolveVersionCatalogFile(project: Project): File {
@@ -171,9 +195,7 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         }
 
         findDefaultCatalogFile(project)?.let { return it }
-
         getDetectedCatalogCandidates(project).firstOrNull()?.file?.let { return it }
-
         return resolveCatalogFile(project, DEFAULT_VERSION_CATALOG_PATH)
     }
 
@@ -418,6 +440,19 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         return result
     }
 
+    private fun expandHomeAwarePath(path: String): String {
+        val home = System.getProperty("user.home").orEmpty()
+        return when {
+            path == "~" -> home
+            path.startsWith("~/") -> home + path.removePrefix("~")
+            path.startsWith("${'$'}HOME/") -> home + "/" + path.removePrefix("${'$'}HOME/")
+            path == "${'$'}HOME" -> home
+            path.startsWith("\${HOME}/") -> home + "/" + path.removePrefix("\${HOME}/")
+            path == "\${HOME}" -> home
+            else -> path
+        }
+    }
+
     private fun normalizePath(path: String): String = path.replace('\\', '/')
 
     companion object {
@@ -437,6 +472,7 @@ class GradleBuddySettingsService : PersistentStateComponent<GradleBuddySettingsS
         )
 
         const val DEFAULT_VERSION_CATALOG_PATH = "gradle/libs.versions.toml"
+        const val DEFAULT_EXTERNAL_LIBRARY_REPO_PATH = "${'$'}HOME/IdeaProjects/addzero-lib"
         private const val VERSION_CATALOG_FILE_NAME = "libs.versions.toml"
         private const val MAX_ANCESTOR_DEPTH = 8
         private const val MAX_CATALOG_SCAN_DEPTH = 8

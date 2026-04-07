@@ -25,6 +25,9 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
+import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
+import site.addzero.gradle.buddy.intentions.convert.GradlePluginCommentProjectWideSupport
+import site.addzero.gradle.buddy.intentions.convert.GradlePluginCommentSupport
 import site.addzero.gradle.buddy.intentions.select.VersionSelectionDialog
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
 import site.addzero.network.call.maven.util.MavenCentralSearchUtil
@@ -137,7 +140,7 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
 
     override fun onStatusChange(event: ExternalSystemTaskNotificationEvent) {
         // 部分 IDE 版本通过 status event 传递错误描述
-        val desc = event.description ?: return
+        val desc = event.description
         if (desc.contains("Could not find") || desc.contains("Could not resolve")
             || desc.contains("was not found in any of the following sources")
             || desc.contains("Plugin [id:")) {
@@ -377,22 +380,36 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
                 val relativePath = project.basePath?.let { base ->
                     path.removePrefix(base.trimEnd('/', '\\') + "/")
                 } ?: path
-                " (in $relativePath)"
+                GradleBuddyBundle.message("notification.unresolved.plugin.item.file", relativePath)
             } ?: ""
-            "  • ${plugin.pluginId}$file"
+            GradleBuddyBundle.message("notification.unresolved.plugin.item", plugin.pluginId, file)
         }
         val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup("GradleBuddy")
             .createNotification(
-                "Gradle: ${plugins.size} plugin(s) not found",
-                "Plugin not found:\n$summary",
+                GradleBuddyBundle.message("notification.unresolved.plugin.title", plugins.size),
+                GradleBuddyBundle.message("notification.unresolved.plugin.body", summary),
                 NotificationType.WARNING
             )
 
-        for (plugin in plugins.take(5)) {
-            notification.addAction(object : AnAction("Fix ${plugin.pluginId.substringAfterLast('.')}") {
+        for (plugin in plugins.take(2)) {
+            val shortName = plugin.pluginId.substringAfterLast('.')
+
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message("notification.unresolved.plugin.fix.action", shortName)
+            ) {
                 override fun actionPerformed(e: AnActionEvent) {
                     fixPluginReference(project, plugin)
+                    notification.expire()
+                }
+            })
+
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message("notification.unresolved.plugin.comment.out.action", shortName)
+            ) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    commentOutPluginProjectWide(project, plugin)
+                    notification.expire()
                 }
             })
         }
@@ -400,7 +417,9 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         // 添加导航到报错文件的按钮
         val pluginsWithFile = plugins.filter { it.buildFilePath != null }
         if (pluginsWithFile.isNotEmpty()) {
-            notification.addAction(object : AnAction("Open Build File") {
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message("notification.unresolved.plugin.open.build.file")
+            ) {
                 override fun actionPerformed(e: AnActionEvent) {
                     navigateToPluginDeclaration(project, pluginsWithFile.first())
                 }
@@ -431,14 +450,25 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         }.sortedByDescending { it.second }
 
         if (candidates.isEmpty()) {
-            NotificationGroupManager.getInstance()
+            val notification = NotificationGroupManager.getInstance()
                 .getNotificationGroup("GradleBuddy")
                 .createNotification(
-                    "No matching build-logic plugin found for '${plugin.pluginId}'",
-                    "Try checking your build-logic directory or plugin repositories.",
+                    GradleBuddyBundle.message("notification.unresolved.plugin.no.match.title", plugin.pluginId),
+                    GradleBuddyBundle.message("notification.unresolved.plugin.no.match.body"),
                     NotificationType.WARNING
                 )
-                .notify(project)
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message(
+                    "notification.unresolved.plugin.comment.out.action",
+                    plugin.pluginId.substringAfterLast('.')
+                )
+            ) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    commentOutPluginProjectWide(project, plugin)
+                    notification.expire()
+                }
+            })
+            notification.notify(project)
             return
         }
 
@@ -449,7 +479,12 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             val items = candidates.map { it.first }
             val popup = com.intellij.openapi.ui.popup.JBPopupFactory.getInstance()
                 .createPopupChooserBuilder(items)
-                .setTitle("Select correct plugin ID for '${plugin.pluginId}'")
+                .setTitle(
+                    GradleBuddyBundle.message(
+                        "notification.unresolved.plugin.select.popup.title",
+                        plugin.pluginId
+                    )
+                )
                 .setRenderer(com.intellij.ui.SimpleListCellRenderer.create("") { info ->
                     val relativePath = project.basePath?.let { base ->
                         info.file.path.removePrefix(base.trimEnd('/', '\\') + "/")
@@ -462,6 +497,16 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
                 .createPopup()
             popup.showInFocusCenter()
         }
+    }
+
+    private fun commentOutPluginProjectWide(project: Project, plugin: UnresolvedPlugin) {
+        GradlePluginCommentProjectWideSupport.runWithConfirmation(
+            project,
+            GradlePluginCommentSupport.TargetPlugin(
+                pluginId = plugin.pluginId,
+                displayName = plugin.pluginId
+            )
+        )
     }
 
     /**

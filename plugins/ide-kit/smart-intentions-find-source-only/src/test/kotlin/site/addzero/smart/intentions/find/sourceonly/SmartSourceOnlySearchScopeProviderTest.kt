@@ -22,4 +22,38 @@ class SmartSourceOnlySearchScopeProviderTest : BasePlatformTestCase() {
         assertFalse(scope.contains(generatedFile))
         assertFalse(scope.contains(generatedRoot))
     }
+
+    fun testExcludesLogFilesInsideSourceRoot() {
+        val sourceRoot = myFixture.tempDirFixture.findOrCreateDir("src")
+        PsiTestUtil.addSourceRoot(module, sourceRoot)
+
+        val kotlinFile = myFixture.tempDirFixture.createFile("src/App.kt", "class App")
+        val logFile = myFixture.tempDirFixture.createFile("src/kcloud-compile.log", "Task :demo")
+        val rotatedLogFile = myFixture.tempDirFixture.createFile("src/kcloud-compile.log.1", "Task :demo")
+
+        val scope = SmartSourceOnlySearchScopeProvider()
+            .getGeneralSearchScopes(project, DataContext.EMPTY_CONTEXT)
+            .single()
+
+        assertTrue(scope.contains(kotlinFile))
+        assertFalse(scope.contains(logFile))
+        assertFalse(scope.contains(rotatedLogFile))
+    }
+
+    fun testExcludesFilesUnderLogsDirectoryInsideSourceRoot() {
+        val sourceRoot = myFixture.tempDirFixture.findOrCreateDir("src")
+        val logsDir = myFixture.tempDirFixture.findOrCreateDir("src/logs")
+        PsiTestUtil.addSourceRoot(module, sourceRoot)
+
+        val kotlinFile = myFixture.tempDirFixture.createFile("src/service/UserService.kt", "class UserService")
+        val logFile = myFixture.tempDirFixture.createFile("src/logs/build.txt", "Task :demo")
+
+        val scope = SmartSourceOnlySearchScopeProvider()
+            .getGeneralSearchScopes(project, DataContext.EMPTY_CONTEXT)
+            .single()
+
+        assertTrue(scope.contains(kotlinFile))
+        assertFalse(scope.contains(logFile))
+        assertFalse(scope.contains(logsDir))
+    }
 }

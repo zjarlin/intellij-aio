@@ -7,6 +7,7 @@ import com.intellij.openapi.editor.event.CaretListener
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.TextRange
@@ -179,14 +180,16 @@ class ComposeBlocksInspectFileEditor(
     }
 
     private fun refreshModel() {
-        val ktFile = createSnapshotKtFile()
-        if (ktFile == null) {
+        val snapshot = ReadAction.compute<InspectSnapshot?, RuntimeException> {
+            buildSnapshot()
+        }
+        if (snapshot == null) {
             renderEmptyState("Compose Blocks only works on Kotlin PSI files.")
             clearFocus()
             return
         }
 
-        visibleRoots = ComposeBlockTreeBuilder.build(ktFile, hideShells = true)
+        visibleRoots = snapshot.roots
         val allNodes = flattenNodes(visibleRoots)
         if (editingCommentNodeId != null && allNodes.none { it.id == editingCommentNodeId }) {
             editingCommentNodeId = null
@@ -198,6 +201,13 @@ class ComposeBlocksInspectFileEditor(
         selectedNode = findBestSelection(embeddedEditor.caretModel.offset)
         renderCanvas()
         applyCurrentEditorPresentation(scrollToCaret = false)
+    }
+
+    private fun buildSnapshot(): InspectSnapshot? {
+        val ktFile = createSnapshotKtFile() ?: return null
+        return InspectSnapshot(
+            roots = ComposeBlockTreeBuilder.build(ktFile, hideShells = true),
+        )
     }
 
     private fun renderCanvas() {
@@ -739,5 +749,9 @@ class ComposeBlocksInspectFileEditor(
                 document.text,
             ) as? KtFile
     }
+
+    private data class InspectSnapshot(
+        val roots: List<ComposeBlockNode>,
+    )
 
 }

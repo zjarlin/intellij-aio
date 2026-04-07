@@ -5,7 +5,9 @@
 
 package site.addzero.smart.intentions.kotlin.redundantexplicittype
 
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.TextRange
+import java.lang.reflect.InvocationTargetException
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.components.KaDiagnosticCheckerFilter
@@ -87,7 +89,16 @@ internal object RedundantExplicitTypeSupport {
             )
         } ?: return false
 
-        return when (evaluateApplicabilityWithCopy(property, originalState)) {
+        val copyApplicability = try {
+            evaluateApplicabilityWithCopy(property, originalState)
+        } catch (exception: RuntimeException) {
+            if (!shouldFallbackToNonCopyAnalysis(exception)) {
+                throw exception
+            }
+            CopyApplicability.UNAVAILABLE
+        }
+
+        return when (copyApplicability) {
             CopyApplicability.APPLICABLE -> true
             CopyApplicability.NOT_APPLICABLE -> false
             CopyApplicability.UNAVAILABLE -> evaluateApplicabilityWithoutCopy(property, typeReference)
@@ -160,6 +171,9 @@ internal object RedundantExplicitTypeSupport {
 
     private fun createAnalyzablePropertyCopyWithoutExplicitType(property: KtProperty): KtProperty? {
         val originalFile = property.containingFile as? KtFile ?: return null
+        if (originalFile.context != null) {
+            return null
+        }
         val copiedFile = KtPsiFactory.contextual(originalFile, false).createFile(
             originalFile.name,
             originalFile.text,
@@ -169,6 +183,20 @@ internal object RedundantExplicitTypeSupport {
         val copiedProperty = copiedFile.findElementAt(property.textOffset)?.getNonStrictParentOfType<KtProperty>() ?: return null
         copiedProperty.removeDeclarationTypeReference()
         return copiedProperty
+    }
+
+    internal fun shouldFallbackToNonCopyAnalysis(exception: Throwable): Boolean {
+        if (exception is ProcessCanceledException) {
+            return false
+        }
+
+        return generateSequence(exception) { current -> current.cause }
+            .mapNotNull { current -> current.message }
+            .any { message ->
+                message.contains(
+                    "Dangling file module cannot depend on another dangling file module",
+                )
+            }
     }
 
     private fun KaSession.isStableType(type: KaType): Boolean {
@@ -265,15 +293,21 @@ internal object RedundantExplicitTypeSupport {
         )
 
         fun getType(session: KaSession, typeReference: KtTypeReference): KaType {
-            return getTypeMethod.invoke(session, typeReference) as KaType
+            return invokeReflectively {
+                getTypeMethod.invoke(session, typeReference) as KaType
+            }
         }
 
         fun getReturnType(session: KaSession, declaration: KtDeclaration): KaType {
-            return getReturnTypeMethod.invoke(session, declaration) as KaType
+            return invokeReflectively {
+                getReturnTypeMethod.invoke(session, declaration) as KaType
+            }
         }
 
         fun getExpressionType(session: KaSession, expression: KtExpression): KaType? {
-            return getExpressionTypeMethod.invoke(session, expression) as? KaType
+            return invokeReflectively {
+                getExpressionTypeMethod.invoke(session, expression) as? KaType
+            }
         }
 
         fun diagnostics(
@@ -282,20 +316,26 @@ internal object RedundantExplicitTypeSupport {
             filter: KaDiagnosticCheckerFilter,
         ): Collection<org.jetbrains.kotlin.analysis.api.diagnostics.KaDiagnosticWithPsi<*>> {
             @Suppress("UNCHECKED_CAST")
-            return diagnosticsMethod.invoke(session, element, filter) as Collection<org.jetbrains.kotlin.analysis.api.diagnostics.KaDiagnosticWithPsi<*>>
+            return invokeReflectively {
+                diagnosticsMethod.invoke(session, element, filter) as Collection<org.jetbrains.kotlin.analysis.api.diagnostics.KaDiagnosticWithPsi<*>>
+            }
         }
 
         fun restore(session: KaSession, pointer: KaTypePointer<KaType>): KaType? {
-            return restoreMethod.invoke(session, pointer) as? KaType
+            return invokeReflectively {
+                restoreMethod.invoke(session, pointer) as? KaType
+            }
         }
 
         fun semanticallyEquals(session: KaSession, left: KaType, right: KaType): Boolean {
-            return semanticallyEqualsMethod.invoke(
-                session,
-                left,
-                right,
-                KaSubtypingErrorTypePolicy.STRICT,
-            ) as Boolean
+            return invokeReflectively {
+                semanticallyEqualsMethod.invoke(
+                    session,
+                    left,
+                    right,
+                    KaSubtypingErrorTypePolicy.STRICT,
+                ) as Boolean
+            }
         }
     }
 
@@ -309,7 +349,9 @@ internal object RedundantExplicitTypeSupport {
         )
 
         fun setContextModule(file: KtFile, module: KaModule) {
-            setContextModuleMethod.invoke(null, file, module)
+            invokeReflectively {
+                setContextModuleMethod.invoke(null, file, module)
+            }
         }
     }
 
@@ -332,7 +374,23 @@ internal object RedundantExplicitTypeSupport {
             initializer: KtExpression,
             typeReference: KtTypeReference,
         ): Boolean {
-            return method.invoke(intentionInstance, session, initializer, typeReference) as Boolean
+            return invokeReflectively {
+                method.invoke(intentionInstance, session, initializer, typeReference) as Boolean
+            }
+        }
+    }
+}
+
+private fun <T> invokeReflectively(action: () -> T): T {
+    try {
+        return action()
+    } catch (exception: InvocationTargetException) {
+        val target = exception.targetException ?: throw exception
+        when (target) {
+            is ProcessCanceledException -> throw target
+            is RuntimeException -> throw target
+            is Error -> throw target
+            else -> throw exception
         }
     }
 }

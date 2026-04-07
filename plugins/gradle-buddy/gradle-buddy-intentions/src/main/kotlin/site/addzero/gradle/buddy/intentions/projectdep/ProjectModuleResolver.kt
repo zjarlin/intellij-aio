@@ -11,16 +11,19 @@ object ProjectModuleResolver {
     data class ModuleInfo(
         val path: String,
         val buildFile: VirtualFile,
+        val rootDir: VirtualFile,
         val typeSafeAccessor: String
     )
 
-    fun findByTypeSafeAccessor(project: Project, accessor: String): ModuleInfo? {
+    fun findByTypeSafeAccessor(project: Project, accessor: String, anchorFile: VirtualFile? = null): ModuleInfo? {
         val normalized = accessor.removePrefix("projects.")
-        return scanModules(project).firstOrNull { it.typeSafeAccessor.removePrefix("projects.") == normalized }
+        val matched = scanModules(project).filter { it.typeSafeAccessor.removePrefix("projects.") == normalized }
+        return chooseBestMatch(project, matched, anchorFile)
     }
 
-    fun findByProjectPath(project: Project, modulePath: String): ModuleInfo? {
-        return scanModules(project).firstOrNull { it.path == modulePath }
+    fun findByProjectPath(project: Project, modulePath: String, anchorFile: VirtualFile? = null): ModuleInfo? {
+        val matched = scanModules(project).filter { it.path == modulePath }
+        return chooseBestMatch(project, matched, anchorFile)
     }
 
     fun scanModules(project: Project): List<ModuleInfo> {
@@ -51,6 +54,7 @@ object ProjectModuleResolver {
                             modules += ModuleInfo(
                                 path = modulePath,
                                 buildFile = buildFile,
+                                rootDir = baseDir,
                                 typeSafeAccessor = modulePathToTypeSafeAccessor(modulePath)
                             )
                         }
@@ -62,6 +66,15 @@ object ProjectModuleResolver {
         }
 
         return modules
+    }
+
+    fun findOwningRoot(project: Project, file: VirtualFile?): VirtualFile? {
+        val targetPath = file?.path ?: return null
+        return site.addzero.gradle.buddy.intentions.util.GradleProjectRoots.collectSearchRoots(project)
+            .filter { root ->
+                targetPath == root.path || targetPath.startsWith(root.path.trimEnd('/') + "/")
+            }
+            .maxByOrNull { it.path.length }
     }
 
     fun modulePathToTypeSafeAccessor(modulePath: String): String {
@@ -99,6 +112,20 @@ object ProjectModuleResolver {
 
     private fun hasSettingsFile(dir: VirtualFile): Boolean {
         return dir.findChild("settings.gradle.kts") != null || dir.findChild("settings.gradle") != null
+    }
+
+    private fun chooseBestMatch(
+        project: Project,
+        candidates: List<ModuleInfo>,
+        anchorFile: VirtualFile?
+    ): ModuleInfo? {
+        if (candidates.isEmpty()) {
+            return null
+        }
+        val owningRoot = findOwningRoot(project, anchorFile)
+        return candidates.firstOrNull { candidate ->
+            owningRoot != null && candidate.rootDir.path == owningRoot.path
+        } ?: candidates.first()
     }
 
     private val SKIP_DIRS = setOf("build", "out", ".gradle", "node_modules", "target", "buildSrc")

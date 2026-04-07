@@ -6,12 +6,14 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="site.addzero.composebuddy.settings.ComposeBuddySettingsService"/>
+        <applicationService serviceImplementation="site.addzero.composeblocks.settings.ComposeBlocksSettingsService"/>
+        <notificationGroup id="KMP Buddy Notifications" displayType="BALLOON" isLogByDefault="true"/>
 
         <applicationConfigurable
             parentId="tools"
             instance="site.addzero.composebuddy.settings.ComposeBuddyConfigurable"
             id="site.addzero.composebuddy.settings"
-            displayName="kmp-aio"/>
+            displayName="%settings.display.name"/>
 
         <toolWindow
             id="Compose Designer"
@@ -151,6 +153,18 @@
             <category>kmp-buddy</category>
         </intentionAction>
 
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.MoveFileToSharedSourceSetIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.PromoteComposableFunctionNameIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
         <localInspection
             language="kotlin"
             shortName="ComposeWrapperInspection"
@@ -236,6 +250,14 @@
             description="%inspection.explosion.description">
             <add-to-group group-id="RefactoringMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.MoveFilesToSharedSourceSet"
+            class="site.addzero.composebuddy.actions.MoveFilesToSharedSourceSetAction"
+            text="%action.move.files.to.shared"
+            description="%action.move.files.to.shared.description">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

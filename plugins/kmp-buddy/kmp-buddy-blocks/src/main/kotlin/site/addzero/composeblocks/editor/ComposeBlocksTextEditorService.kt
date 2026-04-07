@@ -1,6 +1,9 @@
 package site.addzero.composeblocks.editor
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.editor.FoldRegion
 import com.intellij.openapi.editor.event.CaretEvent
@@ -10,11 +13,13 @@ import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.util.Alarm
+import com.intellij.util.concurrency.AppExecutorUtil
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -85,8 +90,12 @@ private class ComposeBlocksTextEditorSession(
     private var selectedNode: ComposeBlockNode? = null
     private var semanticRanges: List<ComposeInlineSemanticRange> = emptyList()
     private var progressiveExpansionEnabled = false
+    private var refreshInFlight = false
+    private var pendingDaemonRefresh = false
+    private var daemonListenerInstalled = false
 
     fun install() {
+        installDaemonListener()
         document.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
@@ -105,7 +114,7 @@ private class ComposeBlocksTextEditorSession(
             this,
         )
 
-        refreshModel()
+        scheduleRefresh()
     }
 
     override fun dispose() {
@@ -128,27 +137,80 @@ private class ComposeBlocksTextEditorSession(
     private fun scheduleRefresh() {
         refreshAlarm.cancelAllRequests()
         refreshAlarm.addRequest(
-            { refreshModel() },
+            { scheduleRefreshIfReady() },
             180,
         )
     }
 
-    private fun refreshModel() {
-        val ktFile = createSnapshotKtFile()
-        if (ktFile == null) {
-            clearPresentation()
+    private fun scheduleRefreshIfReady() {
+        if (refreshInFlight) {
             return
         }
-
-        visibleRoots = ComposeBlockTreeBuilder.build(ktFile, hideShells = false)
-        semanticRanges = collectSemanticRanges(ktFile)
-        if (visibleRoots.isEmpty()) {
-            clearPresentation()
+        if (!isReadyForBlocks()) {
             return
         }
+        refreshModelAsync()
+    }
 
-        selectedNode = findBestSelection(editor.caretModel.offset)
-        applyPresentation()
+    private fun isReadyForBlocks(): Boolean {
+        if (DumbService.isDumb(project)) {
+            DumbService.getInstance(project).runWhenSmart { scheduleRefreshIfReady() }
+            return false
+        }
+        if (DaemonCodeAnalyzer.getInstance(project).isRunning) {
+            pendingDaemonRefresh = true
+            return false
+        }
+        return true
+    }
+
+    private fun installDaemonListener() {
+        if (daemonListenerInstalled) {
+            return
+        }
+        daemonListenerInstalled = true
+        project.messageBus.connect(this).subscribe(
+            DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC,
+            object : DaemonCodeAnalyzer.DaemonListener {
+                override fun daemonFinished() {
+                    if (pendingDaemonRefresh) {
+                        pendingDaemonRefresh = false
+                        scheduleRefresh()
+                    }
+                }
+            },
+        )
+    }
+
+    private fun refreshModelAsync() {
+        refreshInFlight = true
+        ReadAction.nonBlocking<Snapshot?> {
+            buildSnapshot()
+        }.finishOnUiThread(ModalityState.any()) { snapshot ->
+            refreshInFlight = false
+            if (snapshot == null) {
+                clearPresentation()
+                return@finishOnUiThread
+            }
+            visibleRoots = snapshot.roots
+            semanticRanges = snapshot.semanticRanges
+            if (visibleRoots.isEmpty()) {
+                clearPresentation()
+                return@finishOnUiThread
+            }
+            selectedNode = findBestSelection(editor.caretModel.offset)
+            applyPresentation()
+        }.submit(AppExecutorUtil.getAppExecutorService())
+    }
+
+    private fun buildSnapshot(): Snapshot? {
+        val ktFile = createSnapshotKtFile() ?: return null
+        val roots = ComposeBlockTreeBuilder.build(ktFile, hideShells = false)
+        if (roots.isEmpty()) {
+            return Snapshot(emptyList(), emptyList())
+        }
+        val ranges = collectSemanticRanges(ktFile)
+        return Snapshot(roots, ranges)
     }
 
     private fun syncSelectionFromCaret() {
@@ -325,3 +387,8 @@ private class ComposeBlocksTextEditorSession(
         }
     }
 }
+
+private data class Snapshot(
+    val roots: List<ComposeBlockNode>,
+    val semanticRanges: List<ComposeInlineSemanticRange>,
+)

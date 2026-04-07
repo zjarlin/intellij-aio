@@ -2,6 +2,16 @@
 
 All notable changes to Gradle Buddy plugin will be documented in this file.
 
+## [2026.04.07] - 2026-04-07
+
+### ✨ 新增功能
+- **findLibrary 条目补全意图**：在 `libs.findLibrary("alias").get()` 上新增 Alt+Enter 意图，可直接跳转到配置的 `libs.versions.toml`
+  - 缺少 alias 时自动在 `[libraries]` 中补出 `alias = { group = "...", name = "...", version = "" }`
+  - 已有 alias 时直接跳到现有条目，避免重复插入
+
+### 🔧 改进
+- **专属 version.ref 回退策略**：`Fix Version` 在 Maven Central 无法返回版本列表时，自动创建 `artifactId = "+"` 的版本变量并继续修复引用，不再直接弹失败对话框
+
 ## [2026.03.29] - 2026-03-29
 
 ### ✨ 新增功能

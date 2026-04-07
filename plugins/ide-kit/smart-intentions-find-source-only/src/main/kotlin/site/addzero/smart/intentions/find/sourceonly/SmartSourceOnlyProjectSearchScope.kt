@@ -21,6 +21,9 @@ class SmartSourceOnlyProjectSearchScope(
         if (isUnderGeneratedOutputPath(file)) {
             return false
         }
+        if (isLogArtifact(file)) {
+            return false
+        }
         return true
     }
 
@@ -50,6 +53,21 @@ class SmartSourceOnlyProjectSearchScope(
                 ".gradle",
                 "generated",
                 -> return true
+            }
+            current = current.parent
+        }
+        return false
+    }
+
+    private fun isLogArtifact(file: VirtualFile): Boolean {
+        var current: VirtualFile? = file
+        while (current != null) {
+            val lowerName = current.name.lowercase()
+            if (lowerName == "log" || lowerName == "logs") {
+                return true
+            }
+            if (!current.isDirectory && (lowerName.endsWith(".log") || lowerName.contains(".log."))) {
+                return true
             }
             current = current.parent
         }

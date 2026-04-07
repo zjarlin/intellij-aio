@@ -1,0 +1,14 @@
+<html>
+<body>
+<p>
+  扫描整个项目中的 <code>.gradle.kts</code> 文件，尽可能将
+  <code>implementation("group:artifact:version")</code> 这类硬编码依赖
+  批量替换为 <code>libs.findLibrary("alias").get()</code>。
+</p>
+<p>
+  如果配置的 <code>libs.versions.toml</code> 中还没有对应的条目，
+  会自动补全 <code>[libraries]</code> 与需要的 <code>[versions]</code> 项，
+  并在缺失时为脚本补上 <code>versionCatalogs.named("libs")</code> 变量。
+</p>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<html>
+<body>
+<p>
+  将当前硬编码 Maven 依赖字符串直接替换为 <code>libs.findLibrary("alias").get()</code>。
+</p>
+<p>
+  如果配置的 <code>libs.versions.toml</code> 中还没有对应的 <code>[libraries]</code> 条目，
+  会自动补充 alias、group、name 与 version.ref，并尽量复用现有版本变量。
+</p>
+</body>
+</html>

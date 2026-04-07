@@ -7,24 +7,26 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
+import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.i18n.GradleBuddyLanguage
 import site.addzero.gradle.buddy.i18n.GradleBuddyRegisteredActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyUiSettingsService
 import site.addzero.gradle.buddy.notification.VersionCatalogNotificationSettings
+import java.util.LinkedHashSet
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
-import java.util.LinkedHashSet
 
 class GradleBuddySettingsConfigurable(private val project: Project) : Configurable {
 
     private var tasksTextArea: JBTextArea? = null
     private var catalogPathCombo: JComboBox<String>? = null
     private var catalogPathAutoLabel: String = ""
+    private var externalLibraryRepoField: JBTextField? = null
     private var mainPanel: JPanel? = null
     private var catalogBannerCheckbox: JBCheckBox? = null
     private var silentUpsertTomlCheckbox: JBCheckBox? = null
@@ -44,6 +46,10 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         catalogPathCombo = JComboBox<String>().apply {
             isEditable = true
             toolTipText = GradleBuddyBundle.message("settings.version.catalog.path.tooltip")
+        }
+
+        externalLibraryRepoField = JBTextField(40).apply {
+            toolTipText = GradleBuddyBundle.message("settings.external.library.repo.path.tooltip")
         }
 
         val properties = PropertiesComponent.getInstance(project)
@@ -99,6 +105,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             addActionListener {
                 tasksTextArea?.text = GradleBuddySettingsService.DEFAULT_TASKS.joinToString("\n")
                 refreshCatalogPathOptions(null)
+                externalLibraryRepoField?.text = GradleBuddySettingsService.DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
             }
         }
 
@@ -112,6 +119,10 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
             .addLabeledComponent(GradleBuddyBundle.message("settings.language.label"), languageCb)
             .addLabeledComponent(GradleBuddyBundle.message("settings.default.tasks.label"), JBScrollPane(tasksTextArea))
             .addLabeledComponent(GradleBuddyBundle.message("settings.version.catalog.path.label"), catalogPathCombo!!)
+            .addLabeledComponent(
+                GradleBuddyBundle.message("settings.external.library.repo.path.label"),
+                externalLibraryRepoField!!
+            )
             .addComponent(bannerCheckBox as JComponent)
             .addComponent(silentUpsertCheckBox as JComponent)
             .addLabeledComponent(GradleBuddyBundle.message("settings.normalize.dedup.strategy.label"), dedupCombo)
@@ -131,6 +142,8 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         val currentTasks = tasksTextArea?.text?.lines()?.filter { it.isNotBlank() } ?: emptyList()
         val currentCatalogPathOverride = getSelectedCatalogPathOverride()
         val currentCatalogPathCustomized = !currentCatalogPathOverride.isNullOrBlank()
+        val currentExternalRepoPath = externalLibraryRepoField?.text?.trim().orEmpty()
+        val savedExternalRepoPath = settings.getExternalLibraryRepoPath().trim()
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         val savedShowBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
@@ -143,6 +156,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         return currentTasks != settings.getDefaultTasks() ||
             currentCatalogPathCustomized != settings.isVersionCatalogPathCustomized() ||
             (currentCatalogPathCustomized && currentCatalogPathOverride != settings.getConfiguredVersionCatalogPath()) ||
+            currentExternalRepoPath != savedExternalRepoPath ||
             showBanner != savedShowBanner ||
             silentUpsert != settings.isSilentUpsertToml() ||
             dedupStrategy != settings.getNormalizeDedupStrategy() ||
@@ -162,6 +176,13 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         } else {
             settings.setVersionCatalogPath(catalogPathOverride)
         }
+
+        val externalRepoPath = externalLibraryRepoField?.text?.trim().orEmpty()
+        val normalizedExternalRepoPath = externalRepoPath.ifBlank {
+            GradleBuddySettingsService.DEFAULT_EXTERNAL_LIBRARY_REPO_PATH
+        }
+        settings.setExternalLibraryRepoPath(normalizedExternalRepoPath)
+        externalLibraryRepoField?.text = normalizedExternalRepoPath
 
         val showBanner = catalogBannerCheckbox?.isSelected ?: true
         PropertiesComponent.getInstance(project).setValue(
@@ -200,6 +221,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         refreshCatalogPathOptions(
             settings.takeIf { it.isVersionCatalogPathCustomized() }?.getConfiguredVersionCatalogPath()
         )
+        externalLibraryRepoField?.text = settings.getExternalLibraryRepoPath()
 
         val showBanner = !PropertiesComponent.getInstance(project)
             .getBoolean(VersionCatalogNotificationSettings.BANNER_DISABLED_KEY, false)
@@ -215,6 +237,7 @@ class GradleBuddySettingsConfigurable(private val project: Project) : Configurab
         tasksTextArea = null
         catalogPathCombo = null
         catalogPathAutoLabel = ""
+        externalLibraryRepoField = null
         mainPanel = null
         catalogBannerCheckbox = null
         silentUpsertTomlCheckbox = null

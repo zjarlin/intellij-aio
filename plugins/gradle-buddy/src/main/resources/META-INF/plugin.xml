@@ -436,13 +436,6 @@
       <category>Gradle Plugin ID</category>
     </intentionAction>
 
-    <!-- Intention: Show usages of the current precompiled script plugin -->
-    <intentionAction order="FIRST">
-      <language>kotlin</language>
-      <className>site.addzero.idfixer.ShowPrecompiledScriptPluginUsagesIntention</className>
-      <category>Gradle Buddy</category>
-    </intentionAction>
-
     <!-- Intention: Select catalog reference from candidates (context menu) -->
     <intentionAction order="FIRST">
       <language>kotlin</language>
@@ -537,6 +530,10 @@
     <!-- Line Marker: gutter icons for version catalog libraries -->
     <codeInsight.lineMarkerProvider language="TOML"
                                     implementationClass="site.addzero.gradle.buddy.linemarker.VersionCatalogLineMarkerProvider"/>
+
+    <!-- Line Marker: gutter icon for precompiled script plugin usages -->
+    <codeInsight.lineMarkerProvider language="kotlin"
+                                    implementationClass="site.addzero.idfixer.PrecompiledScriptPluginUsagesLineMarkerProvider"/>
 
     <!-- Deprecated Artifact Cache (application-level, cross-project) -->
     <applicationService serviceImplementation="site.addzero.gradle.buddy.linemarker.DeprecatedArtifactService"/>

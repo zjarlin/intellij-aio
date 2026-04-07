@@ -2,9 +2,13 @@ package site.addzero.idfixer
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.psi.PsiManager
@@ -68,6 +72,34 @@ object PrecompiledScriptPluginUsagesSupport {
             }
             .sortedWith(compareBy<Usage>({ it.file.path }, { it.lineNumber }, { it.offset }))
             .toList()
+    }
+
+    fun showUsagesAsync(
+        project: Project,
+        editor: Editor?,
+        sourceFile: com.intellij.openapi.vfs.VirtualFile,
+        pluginInfo: PluginIdInfo
+    ) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(
+            project,
+            GradleBuddyBundle.message("intention.precompiled.plugin.usages.task", pluginInfo.fullyQualifiedId),
+            true
+        ) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = GradleBuddyBundle.message(
+                    "intention.precompiled.plugin.usages.task",
+                    pluginInfo.fullyQualifiedId
+                )
+
+                val usages = ReadAction.compute<List<Usage>, Throwable> {
+                    findUsages(project, sourceFile, pluginInfo)
+                }
+                ApplicationManager.getApplication().invokeLater {
+                    presentUsages(project, editor, pluginInfo, usages)
+                }
+            }
+        })
     }
 
     fun presentUsages(

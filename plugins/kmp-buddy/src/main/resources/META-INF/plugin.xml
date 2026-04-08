@@ -119,6 +119,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.selectedregionspi.SelectedRegionSpiIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.effectkeys.EffectKeysIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>

@@ -909,6 +909,99 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertFalse(text.contains("interface AppAlertDialogButtonsSpi"))
     }
 
+    fun testSelectedRegionSpiIntentionExtractsSelectedComposeStatementWithReceiverAndState() {
+        myFixture.configureByText(
+            "SelectedRegionSpi.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface ColumnScope
+
+            object Modifier
+
+            class State(
+                val projectName: String,
+            ) {
+                fun updateProjectName(value: String) {}
+            }
+
+            @Composable
+            fun CupertinoText(text: String) {}
+
+            @Composable
+            fun CupertinoBorderedTextField(
+                value: String,
+                onValueChange: (String) -> Unit,
+                modifier: Modifier,
+                singleLine: Boolean,
+                placeholder: @Composable () -> Unit,
+            ) {}
+
+            @Composable
+            fun Row(content: @Composable () -> Unit = {}) {}
+
+            @Composable
+            fun WorkbenchCard(
+                content: @Composable ColumnScope.() -> Unit,
+            ) {}
+
+            @Composable
+            fun FormsPage(state: State) {
+                WorkbenchCard {
+                    CupertinoBorderedTextField(
+                        value = state.projectName,
+                        onValueChange = state::updateProjectName,
+                        modifier = Modifier,
+                        singleLine = true,
+                        placeholder = {
+                            CupertinoText("输入项目名称")
+                        },
+                    )
+                    Row {}
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.lastIndexOf("CupertinoBorderedTextField(")
+        val selectionEnd = originalText.indexOf("Row {}", selectionStart)
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
+        assertTrue(text.contains("class DefaultFormsPageCupertinoBorderedTextFieldSpi : FormsPageCupertinoBorderedTextFieldSpi"))
+        assertTrue(text.contains("scope: ColumnScope"))
+        assertTrue(text.contains("state: State"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
+        assertTrue(text.contains("with(scope)"))
+        assertTrue(text.contains("value = state.projectName"))
+        assertTrue(text.contains("onValueChange = state::updateProjectName"))
+    }
+
+    fun testSelectedRegionSpiIntentionIsHiddenWithoutSelection() {
+        myFixture.configureByText(
+            "SelectedRegionNoSelection.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Text(text: String) {}
+
+            @Composable
+            fun Screen() {
+                Te<caret>xt("demo")
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+        assertEmpty(actions)
+    }
+
     private fun invokeIntention(actionText: String) {
         val action = myFixture.findSingleIntention(actionText)
         action.invoke(project, myFixture.editor, myFixture.file)

@@ -20,7 +20,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Extract repeated Modifier chain")
+        invokeIntention("(KMP Buddy) Extract repeated Modifier chain")
 
         val text = myFixture.file.text
         assertTrue(text.contains("private fun androidx.compose.ui.Modifier.modifierChainStyle()"))
@@ -48,7 +48,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Extract minimal UiState")
+        invokeIntention("(KMP Buddy) Extract minimal UiState")
 
         val text = myFixture.file.text
         assertTrue(text.contains("data class"))
@@ -82,7 +82,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val actions = myFixture.filterAvailableIntentions("(Compose Buddy) Flatten used object params into signature")
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Flatten used object params into signature")
         assertTrue(actions.isNotEmpty())
     }
 
@@ -102,7 +102,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Normalize remember/effect keys")
+        invokeIntention("(KMP Buddy) Normalize remember/effect keys")
 
         myFixture.checkResult(
             """
@@ -132,12 +132,129 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Generate preview samples")
+        invokeIntention("(KMP Buddy) Generate preview samples")
 
         val text = myFixture.file.text
         assertTrue(text.contains("@androidx.compose.ui.tooling.preview.Preview"))
         assertTrue(text.contains("private fun CardDefaultPreview()"))
         assertTrue(text.contains("private fun CardLoadingPreview()"))
+    }
+
+    fun testPreviewPlaygroundIntentionGeneratesMinimalPreviewHarness() {
+        myFixture.configureByText(
+            "QuickPreview.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            enum class Tone {
+                Neutral,
+                Positive,
+            }
+
+            data class CardMeta(
+                val subtitle: String,
+                val priority: Int,
+            )
+
+            @Composable
+            fun Ca<caret>rd(
+                title: String,
+                enabled: Boolean,
+                tone: Tone,
+                meta: CardMeta,
+                onClick: () -> Unit,
+                count: Int = 0,
+            ) {
+                Text(title)
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Generate quick preview playground")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("@androidx.compose.ui.tooling.preview.Preview("))
+        assertTrue(text.contains("private fun CardQuickPreview()"))
+        assertTrue(text.contains("androidx.compose.foundation.text.BasicText(text = \"Quick preview: Card\")"))
+        assertTrue(text.contains("title = \""))
+        assertTrue(text.contains("enabled = "))
+        assertTrue(text.contains("tone = Tone.Neutral"))
+        assertTrue(text.contains("meta = CardMeta(subtitle = \""))
+        assertTrue(text.contains("onClick = { }"))
+        assertFalse(text.contains("count = "))
+    }
+
+    fun testPreviewPlaygroundIntentionIsHiddenForUnsupportedRequiredTypes() {
+        myFixture.configureByText(
+            "UnsupportedPreview.kt",
+            """
+            import androidx.compose.runtime.Composable
+            
+            class ExternalPayload(
+                private val raw: java.io.File,
+            )
+
+            @Composable
+            fun Sc<caret>reen(payload: ExternalPayload) {
+                Text(payload.toString())
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Generate quick preview playground")
+        assertEmpty(actions)
+    }
+
+    fun testPreviewPlaygroundIntentionBuildsImportedComplexModels() {
+        myFixture.addFileToProject(
+            "preview/model/RemoteModels.kt",
+            """
+            package preview.model
+
+            enum class Accent {
+                Primary,
+                Secondary,
+            }
+
+            data class Detail(
+                val caption: String,
+                val weight: Int,
+            )
+
+            data class RemoteCardMeta(
+                val accent: Accent,
+                val detail: Detail,
+            )
+
+            data class Boxed<T>(
+                val value: T,
+                val active: Boolean,
+            )
+            """.trimIndent(),
+        )
+
+        myFixture.configureByText(
+            "ImportedPreview.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import preview.model.Boxed
+            import preview.model.RemoteCardMeta
+
+            @Composable
+            fun Ca<caret>rd(meta: Boxed<RemoteCardMeta>) {
+                Text(meta.toString())
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Generate quick preview playground")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("meta = preview.model.Boxed("))
+        assertTrue(text.contains("value = preview.model.RemoteCardMeta("))
+        assertTrue(text.contains("accent = preview.model.Accent.Primary"))
+        assertTrue(text.contains("detail = preview.model.Detail("))
+        assertTrue(text.contains("active = "))
     }
 
     fun testContainerWrapIntentionRequiresSelectionAndWrapsSelectedContainer() {
@@ -165,7 +282,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
         myFixture.editor.caretModel.moveToOffset(selectionStart + 2)
 
-        invokeIntention("(Compose Buddy) Wrap selected layout container as higher-order container")
+        invokeIntention("(KMP Buddy) Wrap selected layout container as higher-order container")
 
         val updatedText = myFixture.file.text
         assertTrue(updatedText.contains("private fun RowContainer(content: @androidx.compose.runtime.Composable () -> Unit)"))
@@ -187,7 +304,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val actions = myFixture.filterAvailableIntentions("(Compose Buddy) Wrap selected layout container as higher-order container")
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Wrap selected layout container as higher-order container")
         assertEmpty(actions)
     }
 
@@ -217,7 +334,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Inline used viewModel state and events into parameters")
+        invokeIntention("(KMP Buddy) Inline used viewModel state and events into parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("expanded: Set<T>"))
@@ -258,7 +375,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Inline used viewModel state and events into parameters")
+        invokeIntention("(KMP Buddy) Inline used viewModel state and events into parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("stateExpanded: Set<T>"))
@@ -304,7 +421,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Inline used viewModel state and events into parameters")
+        invokeIntention("(KMP Buddy) Inline used viewModel state and events into parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("viewModel: TreeViewModel<T>"))
@@ -339,7 +456,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Fill call arguments from same-named parameters")
+        invokeIntention("(KMP Buddy) Fill call arguments from same-named parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("text = text"))
@@ -367,7 +484,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Fill call arguments from same-named parameters")
+        invokeIntention("(KMP Buddy) Fill call arguments from same-named parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("text = text"))
@@ -391,7 +508,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val actions = myFixture.filterAvailableIntentions("(Compose Buddy) Fill call arguments from same-named parameters")
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Fill call arguments from same-named parameters")
         assertEmpty(actions)
     }
 
@@ -422,7 +539,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Extract current call argument to composable parameter")
+        invokeIntention("(KMP Buddy) Extract current call argument to composable parameter")
 
         val text = myFixture.file.text
         assertTrue(text.contains("lineHeight: kotlin.Int = TODO()") || text.contains("lineHeight: Int = TODO()"))
@@ -459,7 +576,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(Compose Buddy) Extract placeholder call arguments to composable parameters")
+        invokeIntention("(KMP Buddy) Extract placeholder call arguments to composable parameters")
 
         val text = myFixture.file.text
         assertTrue(text.contains("color: kotlin.String = TODO()") || text.contains("color: String = TODO()"))
@@ -468,6 +585,114 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("color = color"))
         assertTrue(text.contains("lineHeight = lineHeight"))
         assertTrue(text.contains("overflow = overflow"))
+    }
+
+    fun testSlotSpiIntentionExtractsCurrentNamedSlot() {
+        myFixture.configureByText(
+            "AlertSlots.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface DialogButtonsScope
+
+            @Composable
+            fun Text(text: String) {}
+
+            fun DialogButtonsScope.cancel(onClick: () -> Unit, content: @Composable () -> Unit) {}
+
+            fun DialogButtonsScope.default(onClick: () -> Unit, content: @Composable () -> Unit) {}
+
+            @Composable
+            fun AlertDialog(
+                title: @Composable () -> Unit,
+                buttons: DialogButtonsScope.() -> Unit,
+            ) {}
+
+            class State {
+                fun dismissAlert() {}
+            }
+
+            @Composable
+            fun App() {
+                val state: State = State()
+                AlertDialog(
+                    title = {
+                        Text("title")
+                    },
+                    buttons = {
+                        can<caret>cel(onClick = state::dismissAlert) {
+                            Text("关闭")
+                        }
+                        default(onClick = state::dismissAlert) {
+                            Text("继续")
+                        }
+                    },
+                )
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Extract named slot as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AppAlertDialogButtonsSpi"))
+        assertTrue(text.contains("class DefaultAppAlertDialogButtonsSpi : AppAlertDialogButtonsSpi"))
+        assertTrue(text.contains("scope: DialogButtonsScope"))
+        assertTrue(text.contains("state: State"))
+        assertTrue(text.contains("buttons = { org.koin.compose.koinInject<AppAlertDialogButtonsSpi>().Render(this, state = state) }"))
+        assertTrue(text.contains("with(scope)"))
+        assertTrue(text.contains("cancel(onClick = state::dismissAlert)"))
+    }
+
+    fun testSlotSpiIntentionExtractsAllSlotsFromComposableCall() {
+        myFixture.configureByText(
+            "AlertAllSlots.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface DialogButtonsScope
+
+            @Composable
+            fun Text(text: String) {}
+
+            fun DialogButtonsScope.cancel(onClick: () -> Unit, content: @Composable () -> Unit) {}
+
+            @Composable
+            fun AlertDialog(
+                title: @Composable () -> Unit,
+                buttons: DialogButtonsScope.() -> Unit,
+            ) {}
+
+            class State {
+                fun dismissAlert() {}
+            }
+
+            @Composable
+            fun App() {
+                val state: State = State()
+                Al<caret>ertDialog(
+                    title = {
+                        Text("title")
+                    },
+                    buttons = {
+                        cancel(onClick = state::dismissAlert) {
+                            Text("关闭")
+                        }
+                    },
+                )
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Extract named slot as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AppAlertDialogTitleSpi"))
+        assertTrue(text.contains("class DefaultAppAlertDialogTitleSpi : AppAlertDialogTitleSpi"))
+        assertTrue(text.contains("interface AppAlertDialogButtonsSpi"))
+        assertTrue(text.contains("class DefaultAppAlertDialogButtonsSpi : AppAlertDialogButtonsSpi"))
+        assertTrue(text.contains("title = { org.koin.compose.koinInject<AppAlertDialogTitleSpi>().Render() }"))
+        assertTrue(text.contains("buttons = { org.koin.compose.koinInject<AppAlertDialogButtonsSpi>().Render(this, state = state) }"))
     }
 
     private fun invokeIntention(actionText: String) {

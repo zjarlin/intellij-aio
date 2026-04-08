@@ -10,7 +10,7 @@ import site.addzero.composebuddy.ComposeBuddyBundle
 class CallArgExtractSingleIntention : PsiElementBaseIntentionAction(), DumbAware {
     override fun getFamilyName(): String = ComposeBuddyBundle.message("plugin.name")
 
-    override fun getText(): String = ComposeBuddyBundle.message("intention.extract.call.argument.to.parameter")
+    override fun getText(): String = ComposeBuddyBundle.message("intention.extract.call.argument.to_parameter")
 
     override fun startInWriteAction(): Boolean = false
 

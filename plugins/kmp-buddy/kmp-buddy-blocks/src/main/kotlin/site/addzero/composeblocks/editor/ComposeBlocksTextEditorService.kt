@@ -99,7 +99,7 @@ private class ComposeBlocksTextEditorSession(
         document.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
-                    scheduleRefresh()
+                    scheduleRefresh(waitForDaemon = true)
                 }
             },
             this,
@@ -114,7 +114,7 @@ private class ComposeBlocksTextEditorSession(
             this,
         )
 
-        scheduleRefresh()
+        scheduleRefresh(waitForDaemon = true)
     }
 
     override fun dispose() {
@@ -134,8 +134,15 @@ private class ComposeBlocksTextEditorSession(
         applyPresentation()
     }
 
-    private fun scheduleRefresh() {
+    private fun scheduleRefresh(waitForDaemon: Boolean = false) {
         refreshAlarm.cancelAllRequests()
+        if (waitForDaemon) {
+            pendingDaemonRefresh = true
+            refreshAlarm.addRequest(
+                { forceRefreshAfterDaemonTimeout() },
+                DAEMON_FALLBACK_DELAY_MS,
+            )
+        }
         refreshAlarm.addRequest(
             { scheduleRefreshIfReady() },
             180,
@@ -157,8 +164,7 @@ private class ComposeBlocksTextEditorSession(
             DumbService.getInstance(project).runWhenSmart { scheduleRefreshIfReady() }
             return false
         }
-        if (DaemonCodeAnalyzer.getInstance(project).isRunning) {
-            pendingDaemonRefresh = true
+        if (pendingDaemonRefresh) {
             return false
         }
         return true
@@ -180,6 +186,14 @@ private class ComposeBlocksTextEditorSession(
                 }
             },
         )
+    }
+
+    private fun forceRefreshAfterDaemonTimeout() {
+        if (!pendingDaemonRefresh) {
+            return
+        }
+        pendingDaemonRefresh = false
+        scheduleRefresh()
     }
 
     private fun refreshModelAsync() {
@@ -392,3 +406,5 @@ private data class Snapshot(
     val roots: List<ComposeBlockNode>,
     val semanticRanges: List<ComposeInlineSemanticRange>,
 )
+
+private const val DAEMON_FALLBACK_DELAY_MS = 1200

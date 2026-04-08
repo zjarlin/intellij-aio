@@ -65,6 +65,18 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.smart.intentions.koin.singlebinds.SmartConvertProjectSingleToSingletonIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.smart.intentions.koin.singlebinds.SmartConvertProjectSingletonToSingleIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.modifierchain.ModifierChainIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>
@@ -101,6 +113,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.slotspi.SlotSpiIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.effectkeys.EffectKeysIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>
@@ -120,6 +138,12 @@
         <intentionAction order="FIRST">
             <language>kotlin</language>
             <className>site.addzero.composebuddy.features.previewsample.PreviewSampleIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.previewplayground.PreviewPlaygroundIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>
 

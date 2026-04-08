@@ -14,6 +14,9 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.ui.SimpleListCellRenderer
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
@@ -28,6 +31,11 @@ import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
  * 预编译脚本插件使用处扫描与跳转支持。
  */
 object PrecompiledScriptPluginUsagesSupport {
+
+    data class ResolvedPluginIdCall(
+        val stringExpression: KtStringTemplateExpression,
+        val pluginId: String
+    )
 
     data class Usage(
         val file: com.intellij.openapi.vfs.VirtualFile,
@@ -45,6 +53,24 @@ object PrecompiledScriptPluginUsagesSupport {
         return PluginIdScanner(project).extractPluginInfo(virtualFile)
     }
 
+    fun resolvePluginInfoById(project: Project, pluginId: String): PluginIdInfo? {
+        val infoMap = CachedValuesManager.getManager(project).getCachedValue(project) {
+            val plugins = collectPrecompiledScriptPlugins(project)
+            CachedValueProvider.Result.create(
+                plugins.flatMap { pluginInfo ->
+                    buildList {
+                        add(pluginInfo.fullyQualifiedId to pluginInfo)
+                        if (pluginInfo.shortId.isNotBlank()) {
+                            add(pluginInfo.shortId to pluginInfo)
+                        }
+                    }
+                }.toMap(),
+                PsiModificationTracker.MODIFICATION_COUNT
+            )
+        }
+        return infoMap[pluginId]
+    }
+
     fun findUsages(
         project: Project,
         sourceFile: com.intellij.openapi.vfs.VirtualFile,
@@ -54,24 +80,22 @@ object PrecompiledScriptPluginUsagesSupport {
         if (pluginInfo.shortId.isNotBlank()) {
             targetIds += pluginInfo.shortId
         }
-
-        val psiManager = PsiManager.getInstance(project)
-        val scope = GlobalSearchScope.projectScope(project)
-        val files = FilenameIndex.getAllFilesByExt(project, "kts", scope)
-
-        return files.asSequence()
-            .filter { candidate ->
-                candidate != sourceFile &&
-                    candidate.name.endsWith(".gradle.kts") &&
-                    !shouldSkipPath(candidate.path)
-            }
-            .flatMap { candidate ->
-                ProgressManager.checkCanceled()
-                val psiFile = psiManager.findFile(candidate) as? KtFile ?: return@flatMap emptySequence()
-                collectUsages(psiFile, targetIds).asSequence()
+        return collectAllUsages(project).asSequence()
+            .filter { usage ->
+                usage.file != sourceFile && usage.matchedPluginId in targetIds
             }
             .sortedWith(compareBy<Usage>({ it.file.path }, { it.lineNumber }, { it.offset }))
             .toList()
+    }
+
+    fun hasUsages(sourcePsiFile: KtFile, pluginInfo: PluginIdInfo): Boolean {
+        val sourceVirtualFile = sourcePsiFile.virtualFile ?: return false
+        return CachedValuesManager.getCachedValue(sourcePsiFile) {
+            CachedValueProvider.Result.create(
+                findUsages(sourcePsiFile.project, sourceVirtualFile, pluginInfo).isNotEmpty(),
+                PsiModificationTracker.MODIFICATION_COUNT
+            )
+        }
     }
 
     fun showUsagesAsync(
@@ -100,6 +124,59 @@ object PrecompiledScriptPluginUsagesSupport {
                 }
             }
         })
+    }
+
+    fun showOtherUsagesAsync(
+        project: Project,
+        editor: Editor?,
+        pluginInfo: PluginIdInfo,
+        currentUsage: Usage
+    ) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(
+            project,
+            GradleBuddyBundle.message("line.marker.precompiled.plugin.other.usages.task", pluginInfo.fullyQualifiedId),
+            true
+        ) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = GradleBuddyBundle.message(
+                    "line.marker.precompiled.plugin.other.usages.task",
+                    pluginInfo.fullyQualifiedId
+                )
+
+                val usages = ReadAction.compute<List<Usage>, Throwable> {
+                    findUsages(project, pluginInfo.file, pluginInfo)
+                        .filterNot { usage ->
+                            usage.file == currentUsage.file && usage.offset == currentUsage.offset
+                        }
+                }
+                ApplicationManager.getApplication().invokeLater {
+                    presentUsages(project, editor, pluginInfo, usages)
+                }
+            }
+        })
+    }
+
+    fun createUsage(file: KtFile, call: ResolvedPluginIdCall): Usage? {
+        val virtualFile = file.virtualFile ?: return null
+        return createUsage(file.text, virtualFile, call.stringExpression.textRange.startOffset, call.pluginId)
+    }
+
+    fun resolvePluginIdCall(callExpression: KtCallExpression): ResolvedPluginIdCall? {
+        if (callExpression.calleeExpression?.text != "id") {
+            return null
+        }
+        if (!isInsidePluginsBlock(callExpression)) {
+            return null
+        }
+        val stringExpression = callExpression.valueArguments.firstOrNull()?.getArgumentExpression()
+            as? KtStringTemplateExpression
+            ?: return null
+        val pluginId = extractLiteralString(stringExpression) ?: return null
+        return ResolvedPluginIdCall(
+            stringExpression = stringExpression,
+            pluginId = pluginId
+        )
     }
 
     fun presentUsages(
@@ -162,21 +239,50 @@ object PrecompiledScriptPluginUsagesSupport {
     }
 
     private fun collectUsages(file: KtFile, targetIds: Set<String>): List<Usage> {
-        val fileText = file.text
         return file.collectDescendantsOfType<KtCallExpression>()
             .asSequence()
-            .filter { callExpression -> callExpression.calleeExpression?.text == "id" }
-            .filter(::isInsidePluginsBlock)
-            .mapNotNull { callExpression ->
-                val stringExpression = callExpression.valueArguments.firstOrNull()?.getArgumentExpression()
-                    as? KtStringTemplateExpression
-                    ?: return@mapNotNull null
-                val pluginId = extractLiteralString(stringExpression) ?: return@mapNotNull null
-                if (pluginId !in targetIds) {
+            .mapNotNull(::resolvePluginIdCall)
+            .mapNotNull { resolvedCall ->
+                if (targetIds.isNotEmpty() && resolvedCall.pluginId !in targetIds) {
                     return@mapNotNull null
                 }
-                createUsage(fileText, file.virtualFile, stringExpression.textRange.startOffset, pluginId)
+                createUsage(file, resolvedCall)
             }
+            .toList()
+    }
+
+    private fun collectAllUsages(project: Project): List<Usage> {
+        return CachedValuesManager.getManager(project).getCachedValue(project) {
+            val psiManager = PsiManager.getInstance(project)
+            val scope = GlobalSearchScope.projectScope(project)
+            val files = FilenameIndex.getAllFilesByExt(project, "kts", scope)
+
+            val usages = files.asSequence()
+                .filter { candidate ->
+                    candidate.name.endsWith(".gradle.kts") && !shouldSkipPath(candidate.path)
+                }
+                .flatMap { candidate ->
+                    ProgressManager.checkCanceled()
+                    val psiFile = psiManager.findFile(candidate) as? KtFile ?: return@flatMap emptySequence()
+                    collectUsages(psiFile, emptySet()).asSequence()
+                }
+                .toList()
+
+            CachedValueProvider.Result.create(
+                usages,
+                PsiModificationTracker.MODIFICATION_COUNT
+            )
+        }
+    }
+
+    private fun collectPrecompiledScriptPlugins(project: Project): List<PluginIdInfo> {
+        val scanner = PluginIdScanner(project)
+        val psiScope = GlobalSearchScope.projectScope(project)
+        val files = FilenameIndex.getAllFilesByExt(project, "kts", psiScope)
+        return files.asSequence()
+            .filter(::isPrecompiledScriptPluginFile)
+            .mapNotNull(scanner::extractPluginInfo)
+            .sortedBy { it.fullyQualifiedId }
             .toList()
     }
 

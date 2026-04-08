@@ -3,9 +3,9 @@ package site.addzero.composebuddy.features.previewsample
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import site.addzero.composebuddy.ComposeBuddyBundle
-import site.addzero.composebuddy.support.ComposeNamingSupport
+import site.addzero.composebuddy.preview.support.PreviewNamingSupport
+import site.addzero.composebuddy.preview.support.PreviewWriteSupport
 import site.addzero.composebuddy.support.ComposePreviewSupport
-import site.addzero.composebuddy.support.ComposeRefactorWriteSupport
 
 class PreviewSampleRefactor(
     private val project: Project,
@@ -13,10 +13,10 @@ class PreviewSampleRefactor(
     fun apply(analysis: PreviewSampleAnalysisResult) {
         val function = analysis.function
         val factory = KtPsiFactory(project)
-        ComposeRefactorWriteSupport.run(project, ComposeBuddyBundle.message("command.generate.preview.samples")) {
+        PreviewWriteSupport.run(project, ComposeBuddyBundle.message("command.generate.preview.samples")) {
             val variants = listOf("Default", "Loading", "Error", "Success")
             variants.forEach { variant ->
-                val previewName = ComposeNamingSupport.uniqueFunctionName(function, "${function.name}$variant" + "Preview")
+                val previewName = PreviewNamingSupport.uniqueFunctionName(function, "${function.name}$variant" + "Preview")
                 val callArguments = function.valueParameters.joinToString(", ") { parameter ->
                     val name = parameter.name ?: "value"
                     "$name = ${ComposePreviewSupport.sampleExpression(parameter, variant.lowercase())}"

@@ -3,6 +3,8 @@ package site.addzero.smart.intentions.core
 object SmartIntentionsMessages {
     const val FAMILY_NAME = "Smart Intentions"
     const val CONVERT_CLASS_TO_INTERFACE = "转换为 interface"
+    const val CONVERT_PROJECT_KOIN_SINGLE_TO_SINGLETON = "将项目中的 @Single 替换为 @Singleton"
+    const val CONVERT_PROJECT_KOIN_SINGLETON_TO_SINGLE = "将项目中的 @Singleton 替换为 @Single"
     const val REMOVE_REDUNDANT_KOIN_DEPENDENCY = "移除可由其他依赖提供的注入参数"
     const val REMOVE_PROJECT_SINGLE_BINDS = "删除项目中 @Single 的 binds"
     const val REMOVE_REDUNDANT_EXPLICIT_TYPE = "移除冗余显式类型"

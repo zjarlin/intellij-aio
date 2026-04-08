@@ -1,7 +1,7 @@
 package site.addzero.composebuddy.features.previewsample
 
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import site.addzero.composebuddy.support.ComposePsiSupport
+import site.addzero.composebuddy.preview.support.PreviewComposePsiSupport
 
 data class PreviewSampleAnalysisResult(
     val function: KtNamedFunction,
@@ -9,7 +9,7 @@ data class PreviewSampleAnalysisResult(
 
 object PreviewSampleAnalysis {
     fun analyze(function: KtNamedFunction): PreviewSampleAnalysisResult? {
-        if (!ComposePsiSupport.isComposable(function)) return null
+        if (!PreviewComposePsiSupport.isComposable(function)) return null
         if (function.name.isNullOrBlank()) return null
         return PreviewSampleAnalysisResult(function)
     }

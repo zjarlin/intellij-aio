@@ -78,6 +78,7 @@ class GradleBuildErrorListenerRegistrar : ProjectActivity {
 class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
 
     private val outputBuffers = ConcurrentHashMap<ExternalSystemTaskId, StringBuilder>()
+    private val taskWorkingDirs = ConcurrentHashMap<ExternalSystemTaskId, String>()
     /** 防止同一个 task 重复弹通知 */
     private val processedTasks = ConcurrentHashMap.newKeySet<ExternalSystemTaskId>()
 
@@ -91,6 +92,7 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         // 如果 onFailure 已经处理过，跳过
         if (processedTasks.remove(id)) {
             outputBuffers.remove(id)
+            taskWorkingDirs.remove(id)
             return
         }
         val buffer = outputBuffers.remove(id)
@@ -100,6 +102,7 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
         } else {
             LOG.info("onEnd: no buffer found for task $id")
         }
+        taskWorkingDirs.remove(id)
     }
 
     override fun onFailure(id: ExternalSystemTaskId, e: Exception) {
@@ -132,10 +135,14 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
     override fun onCancel(id: ExternalSystemTaskId) {
         outputBuffers.remove(id)
         processedTasks.remove(id)
+        taskWorkingDirs.remove(id)
     }
 
     override fun onStart(id: ExternalSystemTaskId, workingDir: String?) {
         LOG.info("onStart [${id.type}] workingDir=$workingDir")
+        workingDir
+            ?.takeIf(String::isNotBlank)
+            ?.let { taskWorkingDirs[id] = it }
     }
 
     override fun onStatusChange(event: ExternalSystemTaskNotificationEvent) {
@@ -158,6 +165,12 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
 
     private fun processOutput(id: ExternalSystemTaskId, output: String) {
         val project = id.findProject() ?: return
+        val gradleRootPath = resolveGradleRootPath(project, id)
+        val handledWasmYarnLock = KotlinWasmYarnLockAutoFixSupport.maybeAutoFix(project, output, gradleRootPath)
+
+        if (handledWasmYarnLock) {
+            LOG.info("Detected Kotlin/Wasm yarn lock drift (root=$gradleRootPath)")
+        }
 
         // 处理依赖解析错误
         val unresolved = parseUnresolvedDependencies(output)
@@ -175,9 +188,39 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             ApplicationManager.getApplication().invokeLater { showPluginFixNotification(project, uniquePlugins) }
         }
 
-        if (unresolved.isEmpty() && unresolvedPlugins.isEmpty()) {
+        if (unresolved.isEmpty() && unresolvedPlugins.isEmpty() && !handledWasmYarnLock) {
             LOG.info("No unresolved dependencies or plugins found in output (${output.length} chars, type=${id.type})")
         }
+    }
+
+    /**
+     * 尽量把当前 external task 归属到正确的 Gradle 根目录，避免在多根工程里跑错修复任务。
+     */
+    private fun resolveGradleRootPath(project: Project, id: ExternalSystemTaskId): String? {
+        val workingDir = taskWorkingDirs[id]?.takeIf(String::isNotBlank)
+        val linkedRoots = runCatching {
+            org.jetbrains.plugins.gradle.settings.GradleSettings.getInstance(project)
+                .linkedProjectsSettings
+                .mapNotNull { it.externalProjectPath?.takeIf(String::isNotBlank) }
+                .distinct()
+        }.getOrDefault(emptyList())
+
+        if (!workingDir.isNullOrBlank()) {
+            val workingPath = File(workingDir).absoluteFile.toPath().normalize()
+            val matchedRoot = linkedRoots
+                .map { File(it).absoluteFile }
+                .filter { workingPath.startsWith(it.toPath().normalize()) }
+                .maxByOrNull { it.path.length }
+            if (matchedRoot != null) {
+                return matchedRoot.absolutePath
+            }
+            return File(workingDir).absoluteFile.path
+        }
+
+        if (linkedRoots.size == 1) {
+            return linkedRoots.first()
+        }
+        return project.basePath
     }
 
     /**

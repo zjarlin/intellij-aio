@@ -1,5 +1,6 @@
 package site.addzero.composebuddy.features.slotspi
 
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
@@ -44,29 +45,20 @@ data class SlotSpiAnalysisResult(
 )
 
 object SlotSpiAnalysis {
-    fun analyze(element: PsiElement): SlotSpiAnalysisResult? {
+    fun analyze(element: PsiElement, editor: Editor? = null): SlotSpiAnalysisResult? {
         val function = element.getStrictParentOfType<KtNamedFunction>() ?: return null
         if (!ComposePsiSupport.isComposable(function)) {
             return null
         }
+        analyzeSelection(function, editor)?.let { return it }
+        return analyzeCaret(function, element)
+    }
 
+    private fun analyzeCaret(function: KtNamedFunction, element: PsiElement): SlotSpiAnalysisResult? {
         val slotArgument = findSlotArgument(element)
         if (slotArgument != null) {
             val call = slotArgument.parentCall ?: return null
-            val file = function.containingKtFile
-            val usedNames = collectDeclaredTypeNames(file)
-            val target = buildTarget(
-                function = function,
-                call = call,
-                slot = slotArgument,
-                usedNames = usedNames,
-            ) ?: return null
-            return SlotSpiAnalysisResult(
-                file = file,
-                function = function,
-                call = call,
-                targets = listOf(target),
-            )
+            return buildAnalysis(function, call, listOf(slotArgument))
         }
 
         val call = element.getStrictParentOfType<KtCallExpression>() ?: return null
@@ -74,7 +66,38 @@ object SlotSpiAnalysis {
         if (slots.isEmpty()) {
             return null
         }
+        return buildAnalysis(function, call, slots)
+    }
 
+    private fun analyzeSelection(function: KtNamedFunction, editor: Editor?): SlotSpiAnalysisResult? {
+        if (editor == null || !editor.selectionModel.hasSelection()) {
+            return null
+        }
+        val selectionRange = TextRange(editor.selectionModel.selectionStart, editor.selectionModel.selectionEnd)
+        val matchedSlots = function.collectDescendantsOfType<KtCallExpression>()
+            .flatMap(::collectSlotArguments)
+            .filter { slot -> selectionMatchesSlot(selectionRange, slot.lambdaExpression) }
+        val selectedSlots = matchedSlots
+            .filterNot { slot ->
+                matchedSlots.any { other ->
+                    other != slot && containsRange(other.lambdaExpression.textRange, slot.lambdaExpression.textRange)
+                }
+            }
+        if (selectedSlots.isEmpty()) {
+            return null
+        }
+        val selectedCalls = selectedSlots.mapNotNull { it.parentCall }.distinct()
+        if (selectedCalls.size != 1) {
+            return null
+        }
+        return buildAnalysis(function, selectedCalls.single(), selectedSlots)
+    }
+
+    private fun buildAnalysis(
+        function: KtNamedFunction,
+        call: KtCallExpression,
+        slots: List<SlotArgumentCandidate>,
+    ): SlotSpiAnalysisResult? {
         val file = function.containingKtFile
         val usedNames = collectDeclaredTypeNames(file)
         val targets = slots.mapNotNull { slot ->
@@ -94,6 +117,14 @@ object SlotSpiAnalysis {
             call = call,
             targets = targets,
         )
+    }
+
+    private fun selectionMatchesSlot(selectionRange: TextRange, lambdaExpression: KtLambdaExpression): Boolean {
+        val lambdaRange = lambdaExpression.textRange
+        val bodyRange = lambdaExpression.bodyExpression?.textRange
+        return containsRange(selectionRange, lambdaRange) ||
+            (bodyRange != null && containsRange(selectionRange, bodyRange)) ||
+            (bodyRange != null && containsRange(bodyRange, selectionRange))
     }
 
     private fun findSlotArgument(element: PsiElement): SlotArgumentCandidate? {

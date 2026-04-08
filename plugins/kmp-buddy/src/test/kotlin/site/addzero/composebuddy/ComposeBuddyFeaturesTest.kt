@@ -1,5 +1,6 @@
 package site.addzero.composebuddy
 
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
@@ -205,6 +206,45 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertEmpty(actions)
     }
 
+    fun testPreviewPlaygroundIntentionIsHiddenOutsideComposableFunctionName() {
+        myFixture.configureByText(
+            "QuickPreviewHost.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Card(title: String) {
+                Text(title)
+            }
+
+            @Composable
+            fun Host() {
+                Car<caret>d(title = "demo")
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Generate quick preview playground")
+        assertEmpty(actions)
+    }
+
+    fun testPreviewPlaygroundIntentionIsHiddenOnComposableParameterList() {
+        myFixture.configureByText(
+            "QuickPreviewSignature.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Card(title<caret>: String) {
+                Text(title)
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Generate quick preview playground")
+        assertEmpty(actions)
+    }
+
     fun testPreviewPlaygroundIntentionBuildsImportedComplexModels() {
         myFixture.addFileToProject(
             "preview/model/RemoteModels.kt",
@@ -255,6 +295,64 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("accent = preview.model.Accent.Primary"))
         assertTrue(text.contains("detail = preview.model.Detail("))
         assertTrue(text.contains("active = "))
+    }
+
+    fun testMoveFileToSharedSourceSetIntentionIsAvailableOnModelDeclaration() {
+        configureProjectFile(
+            "feature/src/jvmMain/kotlin/demo/DeviceState.kt",
+            """
+            package demo
+
+            data class Device<caret>State(
+                val online: Boolean,
+                val name: String,
+            )
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Move file to shared source set")
+        assertTrue(actions.isNotEmpty())
+    }
+
+    fun testMoveFileToSharedSourceSetIntentionIsHiddenInsideComposableBody() {
+        configureProjectFile(
+            "feature/src/jvmMain/kotlin/demo/DeviceScreen.kt",
+            """
+            package demo
+
+            import androidx.compose.runtime.Composable
+
+            data class DeviceState(
+                val online: Boolean,
+            )
+
+            @Composable
+            fun DeviceScreen(state: DeviceState) {
+                Tex<caret>t(state.toString())
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Move file to shared source set")
+        assertEmpty(actions)
+    }
+
+    private fun configureProjectFile(path: String, textWithCaret: String) {
+        val caretMarker = "<caret>"
+        val caretOffset = textWithCaret.indexOf(caretMarker)
+        assertTrue(caretOffset >= 0)
+
+        val cleanedText = textWithCaret.replace(caretMarker, "")
+        val kotlinRootMarker = "/kotlin/"
+        val kotlinRootIndex = path.indexOf(kotlinRootMarker)
+        assertTrue(kotlinRootIndex >= 0)
+        val sourceRootPath = path.substring(0, kotlinRootIndex + kotlinRootMarker.length - 1)
+        val sourceRoot = myFixture.tempDirFixture.findOrCreateDir(sourceRootPath)
+        PsiTestUtil.addSourceRoot(module, sourceRoot)
+
+        val virtualFile = myFixture.tempDirFixture.createFile(path, cleanedText)
+        myFixture.openFileInEditor(virtualFile)
+        myFixture.editor.caretModel.moveToOffset(caretOffset)
     }
 
     fun testContainerWrapIntentionRequiresSelectionAndWrapsSelectedContainer() {
@@ -693,6 +791,122 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("class DefaultAppAlertDialogButtonsSpi : AppAlertDialogButtonsSpi"))
         assertTrue(text.contains("title = { org.koin.compose.koinInject<AppAlertDialogTitleSpi>().Render() }"))
         assertTrue(text.contains("buttons = { org.koin.compose.koinInject<AppAlertDialogButtonsSpi>().Render(this, state = state) }"))
+    }
+
+    fun testSlotSpiIntentionExtractsSelectedSingleSlot() {
+        myFixture.configureByText(
+            "AlertSelectedSlot.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface DialogButtonsScope
+
+            @Composable
+            fun Text(text: String) {}
+
+            fun DialogButtonsScope.cancel(onClick: () -> Unit, content: @Composable () -> Unit) {}
+
+            @Composable
+            fun AlertDialog(
+                title: @Composable () -> Unit,
+                buttons: DialogButtonsScope.() -> Unit,
+            ) {}
+
+            class State {
+                fun dismissAlert() {}
+            }
+
+            @Composable
+            fun App() {
+                val state: State = State()
+                AlertDialog(
+                    title = {
+                        Text("title")
+                    },
+                    buttons = {
+                        cancel(onClick = state::dismissAlert) {
+                            Text("关闭")
+                        }
+                    },
+                )
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectedText = "Text(\"title\")"
+        val selectionStart = originalText.indexOf(selectedText)
+        val selectionEnd = selectionStart + selectedText.length
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract named slot as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AppAlertDialogTitleSpi"))
+        assertTrue(text.contains("class DefaultAppAlertDialogTitleSpi : AppAlertDialogTitleSpi"))
+        assertTrue(text.contains("title = { org.koin.compose.koinInject<AppAlertDialogTitleSpi>().Render() }"))
+        assertFalse(text.contains("interface AppAlertDialogButtonsSpi"))
+    }
+
+    fun testSlotSpiIntentionExtractsOnlySelectedContinuousSlots() {
+        myFixture.configureByText(
+            "AlertSelectedSlots.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface DialogButtonsScope
+
+            @Composable
+            fun Text(text: String) {}
+
+            fun DialogButtonsScope.cancel(onClick: () -> Unit, content: @Composable () -> Unit) {}
+
+            @Composable
+            fun AlertDialog(
+                title: @Composable () -> Unit,
+                message: @Composable () -> Unit,
+                buttons: DialogButtonsScope.() -> Unit,
+            ) {}
+
+            class State {
+                fun dismissAlert() {}
+            }
+
+            @Composable
+            fun App() {
+                val state: State = State()
+                AlertDialog(
+                    title = {
+                        Text("title")
+                    },
+                    message = {
+                        Text("message")
+                    },
+                    buttons = {
+                        cancel(onClick = state::dismissAlert) {
+                            Text("关闭")
+                        }
+                    },
+                )
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.indexOf("title = {")
+        val selectionEnd = originalText.indexOf("buttons = {")
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract named slot as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AppAlertDialogTitleSpi"))
+        assertTrue(text.contains("interface AppAlertDialogMessageSpi"))
+        assertTrue(text.contains("title = { org.koin.compose.koinInject<AppAlertDialogTitleSpi>().Render() }"))
+        assertTrue(text.contains("message = { org.koin.compose.koinInject<AppAlertDialogMessageSpi>().Render() }"))
+        assertFalse(text.contains("interface AppAlertDialogButtonsSpi"))
     }
 
     private fun invokeIntention(actionText: String) {

@@ -6,7 +6,10 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.refactoring.util.CommonRefactoringUtil
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
 
@@ -18,6 +21,9 @@ class MoveFileToSharedSourceSetIntention : PsiElementBaseIntentionAction(), Dumb
     override fun startInWriteAction(): Boolean = false
 
     override fun isAvailable(project: Project, editor: Editor?, element: PsiElement): Boolean {
+        if (!isModelContext(element)) {
+            return false
+        }
         val file = (element.containingFile as? KtFile)?.virtualFile ?: return false
         return MoveToSharedSourceSetSupport.buildPlan(file) != null
     }
@@ -43,5 +49,12 @@ class MoveFileToSharedSourceSetIntention : PsiElementBaseIntentionAction(), Dumb
             ComposeBuddyBundle.message("refactor.move.file.to.shared.title"),
             null,
         )
+    }
+
+    private fun isModelContext(element: PsiElement): Boolean {
+        if (element.getStrictParentOfType<KtNamedFunction>() != null) {
+            return false
+        }
+        return element.getStrictParentOfType<KtClass>() != null
     }
 }

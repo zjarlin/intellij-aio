@@ -1002,6 +1002,142 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertEmpty(actions)
     }
 
+    fun testSelectedRegionSpiIntentionExtractsWholeStatementFromPartialSelection() {
+        myFixture.configureByText(
+            "SelectedRegionPartialSelection.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface ColumnScope
+
+            object Modifier
+
+            class State(
+                val projectName: String,
+            ) {
+                fun updateProjectName(value: String) {}
+            }
+
+            @Composable
+            fun CupertinoText(text: String) {}
+
+            @Composable
+            fun CupertinoBorderedTextField(
+                value: String,
+                onValueChange: (String) -> Unit,
+                modifier: Modifier,
+                singleLine: Boolean,
+                placeholder: @Composable () -> Unit,
+            ) {}
+
+            @Composable
+            fun WorkbenchCard(
+                content: @Composable ColumnScope.() -> Unit,
+            ) {}
+
+            @Composable
+            fun FormsPage(state: State) {
+                WorkbenchCard {
+                    CupertinoBorderedTextField(
+                        value = state.projectName,
+                        onValueChange = state::updateProjectName,
+                        modifier = Modifier,
+                        singleLine = true,
+                        placeholder = {
+                            CupertinoText("输入项目名称")
+                        },
+                    )
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.indexOf("value = state.projectName")
+        val selectionEnd = originalText.indexOf("CupertinoText(\"输入项目名称\")") + "CupertinoText(\"输入项目名称\")".length
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
+        assertTrue(text.contains("onValueChange = state::updateProjectName"))
+    }
+
+    fun testSelectedRegionSpiIntentionKeepsInnerComposeCallWhenSelectionIncludesIndentAndTrailingWhitespace() {
+        myFixture.configureByText(
+            "SelectedRegionWhitespaceSelection.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface ColumnScope
+
+            object Modifier
+
+            class State(
+                val projectName: String,
+            ) {
+                fun updateProjectName(value: String) {}
+                fun showAlert() {}
+            }
+
+            @Composable
+            fun CupertinoText(text: String) {}
+
+            @Composable
+            fun CupertinoBorderedTextField(
+                value: String,
+                onValueChange: (String) -> Unit,
+                modifier: Modifier,
+                singleLine: Boolean,
+                placeholder: @Composable () -> Unit,
+            ) {}
+
+            @Composable
+            fun Row(content: @Composable () -> Unit = {}) {}
+
+            @Composable
+            fun WorkbenchCard(
+                content: @Composable ColumnScope.() -> Unit,
+            ) {}
+
+            @Composable
+            fun FormsPage(state: State) {
+                WorkbenchCard {
+                    CupertinoBorderedTextField(
+                        value = state.projectName,
+                        onValueChange = state::updateProjectName,
+                        modifier = Modifier,
+                        singleLine = true,
+                        placeholder = {
+                            CupertinoText("输入项目名称")
+                        },
+                    )
+                    Row { CupertinoText("next") }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val statementStart = originalText.lastIndexOf("CupertinoBorderedTextField(")
+        val selectionStart = originalText.lastIndexOf("\n", statementStart) + 1
+        val rowStart = originalText.indexOf("Row { CupertinoText(\"next\") }", statementStart)
+        val selectionEnd = rowStart
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(statementStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
+        assertFalse(text.contains("interface FormsPageWorkbenchCardSpi"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
+        assertTrue(text.contains("Row { CupertinoText(\"next\") }"))
+    }
+
     private fun invokeIntention(actionText: String) {
         val action = myFixture.findSingleIntention(actionText)
         action.invoke(project, myFixture.editor, myFixture.file)

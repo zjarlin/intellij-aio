@@ -3,6 +3,7 @@ package site.addzero.composebuddy.features.selectedregionspi
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
+import kotlin.math.max
 import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.isBuiltinFunctionalType
 import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
@@ -40,6 +41,11 @@ data class SelectedRegionSpiAnalysisResult(
     val capturedParameters: List<SelectedRegionSpiCapturedParameter>,
 )
 
+private data class SelectedRegionSpiTarget(
+    val block: KtBlockExpression,
+    val statements: List<PsiElement>,
+)
+
 object SelectedRegionSpiAnalysis {
     fun analyze(element: PsiElement, editor: Editor?): SelectedRegionSpiAnalysisResult? {
         val currentEditor = editor ?: return null
@@ -50,13 +56,14 @@ object SelectedRegionSpiAnalysis {
         if (!ComposePsiSupport.isComposable(function)) {
             return null
         }
-        val selectionRange = TextRange(
+        val rawSelectionRange = TextRange(
             currentEditor.selectionModel.selectionStart,
             currentEditor.selectionModel.selectionEnd,
         )
-        val bodyContainer = findSelectionContainer(function, selectionRange) ?: return null
-        val selectedStatements = bodyContainer.statements
-            .filter { statement -> ComposePsiSupport.selectedRangeContains(selectionRange.startOffset, selectionRange.endOffset, statement) }
+        val selectionRange = normalizeSelectionRange(currentEditor, rawSelectionRange)
+        val target = findSelectionTarget(function, selectionRange) ?: return null
+        val bodyContainer = target.block
+        val selectedStatements = target.statements
         if (selectedStatements.isEmpty()) {
             return null
         }
@@ -86,13 +93,73 @@ object SelectedRegionSpiAnalysis {
         )
     }
 
-    private fun findSelectionContainer(
+    private fun normalizeSelectionRange(
+        editor: Editor,
+        selectionRange: TextRange,
+    ): TextRange {
+        val text = editor.document.charsSequence
+        var start = selectionRange.startOffset
+        var end = selectionRange.endOffset
+        while (start < end && text[start].isWhitespace()) {
+            start++
+        }
+        while (end > start && text[end - 1].isWhitespace()) {
+            end--
+        }
+        return TextRange(start, end)
+    }
+
+    private fun findSelectionTarget(
         function: KtNamedFunction,
         selectionRange: TextRange,
-    ): KtBlockExpression? {
-        return function.collectDescendantsOfType<KtBlockExpression>()
-            .filter { block -> containsRange(block.textRange, selectionRange) }
-            .minByOrNull { block -> block.textRange.length }
+    ): SelectedRegionSpiTarget? {
+        val blocks = buildList {
+            val functionBody = function.bodyExpression as? KtBlockExpression
+            if (functionBody != null) {
+                add(functionBody)
+            }
+            addAll(function.collectDescendantsOfType<KtBlockExpression>())
+        }.distinctBy { block -> block.textRange }
+        val directStatements = blocks.flatMap { block ->
+            block.statements.map { statement -> statement to block }
+        }
+        val selectionEndOffset = max(selectionRange.endOffset - 1, selectionRange.startOffset)
+        val singleStatement = directStatements
+            .filter { (statement, _) ->
+                containsOffset(statement.textRange, selectionRange.startOffset) &&
+                    containsOffset(statement.textRange, selectionEndOffset)
+            }
+            .minByOrNull { (statement, _) -> statement.textRange.length }
+        if (singleStatement != null) {
+            return SelectedRegionSpiTarget(
+                block = singleStatement.second,
+                statements = listOf(singleStatement.first),
+            )
+        }
+        val rangedBlocks = blocks.mapNotNull { block ->
+            val containedStatements = block.statements
+                .filter { statement -> ComposePsiSupport.selectedRangeContains(selectionRange.startOffset, selectionRange.endOffset, statement) }
+            if (containedStatements.isNotEmpty() && statementsSpanSelection(containedStatements, selectionRange)) {
+                return@mapNotNull SelectedRegionSpiTarget(block, containedStatements)
+            }
+            val intersectingStatements = block.statements
+                .filter { statement -> intersectsRange(statement.textRange, selectionRange) }
+            if (intersectingStatements.isNotEmpty() && statementsSpanSelection(intersectingStatements, selectionRange)) {
+                return@mapNotNull SelectedRegionSpiTarget(block, intersectingStatements)
+            }
+            null
+        }
+        return rangedBlocks.minByOrNull { target -> target.block.textRange.length }
+    }
+
+    private fun statementsSpanSelection(
+        statements: List<PsiElement>,
+        selectionRange: TextRange,
+    ): Boolean {
+        val first = statements.firstOrNull() ?: return false
+        val last = statements.lastOrNull() ?: return false
+        return first.textRange.startOffset <= selectionRange.startOffset &&
+            last.textRange.endOffset >= selectionRange.endOffset
     }
 
     private fun resolveReceiverTypeText(block: KtBlockExpression): String? {
@@ -276,5 +343,13 @@ object SelectedRegionSpiAnalysis {
 
     private fun containsRange(outer: TextRange, inner: TextRange): Boolean {
         return outer.startOffset <= inner.startOffset && outer.endOffset >= inner.endOffset
+    }
+
+    private fun containsOffset(range: TextRange, offset: Int): Boolean {
+        return offset >= range.startOffset && offset < range.endOffset
+    }
+
+    private fun intersectsRange(left: TextRange, right: TextRange): Boolean {
+        return left.startOffset < right.endOffset && right.startOffset < left.endOffset
     }
 }

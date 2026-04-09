@@ -2,8 +2,33 @@ package site.addzero.composebuddy
 
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 
 class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
+    fun testComposeFunctionTypeSupportExtractsReceiverFromComposableAnnotationCallSyntax() {
+        val receiverType = ComposeFunctionTypeSupport.extractReceiverTypeText(
+            "@androidx.compose.runtime.Composable() (androidx.compose.foundation.layout.RowScope).() -> kotlin.Unit",
+        )
+
+        assertEquals("androidx.compose.foundation.layout.RowScope", receiverType)
+    }
+
+    fun testComposeFunctionTypeSupportExtractsReceiverFromSimpleComposableSyntax() {
+        val receiverType = ComposeFunctionTypeSupport.extractReceiverTypeText(
+            "@Composable demo.ColumnScope.() -> kotlin.Unit",
+        )
+
+        assertEquals("demo.ColumnScope", receiverType)
+    }
+
+    fun testComposeFunctionTypeSupportExtractsReceiverFromParenthesizedComposableSyntax() {
+        val receiverType = ComposeFunctionTypeSupport.extractReceiverTypeText(
+            "(@androidx.compose.runtime.Composable androidx.compose.foundation.layout.RowScope.() -> kotlin.Unit)",
+        )
+
+        assertEquals("androidx.compose.foundation.layout.RowScope", receiverType)
+    }
+
     fun testModifierChainIntentionExtractsRepeatedChain() {
         myFixture.configureByText(
             "ModifierChains.kt",
@@ -1136,6 +1161,123 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertFalse(text.contains("interface FormsPageWorkbenchCardSpi"))
         assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
         assertTrue(text.contains("Row { CupertinoText(\"next\") }"))
+    }
+
+    fun testSelectedRegionSpiIntentionBuildsValidReceiverParameterFromAnnotatedFunctionType() {
+        myFixture.configureByText(
+            "SelectedRegionAnnotatedReceiver.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface RowScope
+
+            class CupertinoDemoState {
+                var adaptiveCheckboxEnabled: Boolean = false
+                fun updateAdaptiveCheckboxEnabled(value: Boolean) {}
+            }
+
+            @Composable
+            fun AdaptiveCheckbox(
+                checked: Boolean,
+                onCheckedChange: (Boolean) -> Unit,
+            ) {}
+
+            @Composable
+            fun HostRow(
+                content: @androidx.compose.runtime.Composable() (RowScope).() -> kotlin.Unit,
+            ) {}
+
+            @Composable
+            fun AdaptivePage(state: CupertinoDemoState) {
+                HostRow {
+                    AdaptiveCheckbox(
+                        checked = state.adaptiveCheckboxEnabled,
+                        onCheckedChange = state::updateAdaptiveCheckboxEnabled,
+                    )
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.lastIndexOf("AdaptiveCheckbox(")
+        val selectionEnd = originalText.indexOf(")", selectionStart) + 1
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AdaptivePageAdaptiveCheckboxSpi"))
+        assertTrue(text.contains("scope: RowScope"))
+        assertFalse(text.contains("scope: ("))
+        assertTrue(text.contains("state: CupertinoDemoState"))
+        assertTrue(text.contains("override fun Render("))
+    }
+
+    fun testSelectedRegionSpiIntentionBuildsValidReceiverParameterFromParenthesizedFunctionType() {
+        myFixture.configureByText(
+            "SelectedRegionParenthesizedReceiver.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface RowScope
+
+            class CupertinoDemoState {
+                fun showAlert() {}
+            }
+
+            @Composable
+            fun CupertinoIcon(
+                imageVector: String,
+                contentDescription: String?,
+            ) {}
+
+            @Composable
+            fun AdaptiveIconButton(
+                onClick: () -> Unit,
+                content: @Composable () -> Unit,
+            ) {}
+
+            @Composable
+            fun HostRow(
+                content: (@androidx.compose.runtime.Composable RowScope.() -> kotlin.Unit),
+            ) {}
+
+            object AdaptiveIcons {
+                object Outlined {
+                    const val Search: String = "search"
+                }
+            }
+
+            @Composable
+            fun AdaptivePage(state: CupertinoDemoState) {
+                HostRow {
+                    AdaptiveIconButton(onClick = state::showAlert) {
+                        CupertinoIcon(
+                            imageVector = AdaptiveIcons.Outlined.Search,
+                            contentDescription = "Search",
+                        )
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.lastIndexOf("AdaptiveIconButton(")
+        val selectionEnd = originalText.indexOf("contentDescription = \"Search\"", selectionStart) + "contentDescription = \"Search\"".length
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface AdaptivePageAdaptiveIconButtonSpi"))
+        assertTrue(text.contains("scope: RowScope"))
+        assertFalse(text.contains("scope: ("))
+        assertTrue(text.contains("state: CupertinoDemoState"))
+        assertTrue(text.contains("AdaptiveIconButton(onClick = state::showAlert)"))
     }
 
     private fun invokeIntention(actionText: String) {

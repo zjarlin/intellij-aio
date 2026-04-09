@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
+import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.ComposePsiSupport
 
 data class SelectedRegionSpiCapturedParameter(
@@ -171,16 +172,20 @@ object SelectedRegionSpiAnalysis {
             ?: return null
         val slotName = valueArgument?.getArgumentName()?.asName?.identifier
             ?: resolveTrailingLambdaSlotName(parentCall)
-        resolveReceiverTypeFromSource(parentCall, slotName)?.let { return it }
-        val resolvedCall = runCatching { parentCall.resolveToCall() }.getOrNull() ?: return null
-        val parameter = resolvedCall.resultingDescriptor.valueParameters.firstOrNull { it.name.asString() == slotName } ?: return null
-        if (parameter.type.isBuiltinFunctionalType) {
+        val resolvedCall = runCatching { parentCall.resolveToCall() }.getOrNull()
+        val parameter = resolvedCall
+            ?.resultingDescriptor
+            ?.valueParameters
+            ?.firstOrNull { it.name.asString() == slotName }
+        if (parameter?.type?.isBuiltinFunctionalType == true) {
             val receiverType = parameter.type.getReceiverTypeFromFunctionType()
             if (receiverType != null) {
                 return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(receiverType)
             }
+            val functionTypeText = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(parameter.type)
+            ComposeFunctionTypeSupport.extractReceiverTypeText(functionTypeText)?.let { return it }
         }
-        return null
+        return resolveReceiverTypeFromSource(parentCall, slotName)
     }
 
     private fun resolveTrailingLambdaSlotName(call: KtCallExpression): String {
@@ -217,20 +222,7 @@ object SelectedRegionSpiAnalysis {
     }
 
     private fun parseReceiverTypeText(typeText: String): String? {
-        val normalized = typeText
-            .replace("@androidx.compose.runtime.Composable", "")
-            .replace("@Composable", "")
-            .trim()
-            .removeSuffix("?")
-        val marker = ".() ->"
-        if (!normalized.contains(marker)) {
-            return null
-        }
-        return normalized.substringBefore(marker)
-            .trim()
-            .removePrefix("(")
-            .trim()
-            .ifBlank { null }
+        return ComposeFunctionTypeSupport.extractReceiverTypeText(typeText)
     }
 
     private fun collectCapturedParameters(

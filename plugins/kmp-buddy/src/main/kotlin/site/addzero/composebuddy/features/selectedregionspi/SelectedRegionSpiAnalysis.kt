@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.ComposePsiSupport
+import site.addzero.composebuddy.support.ComposeReceiverUsageSupport
 
 data class SelectedRegionSpiCapturedParameter(
     val name: String,
@@ -89,7 +90,8 @@ object SelectedRegionSpiAnalysis {
             selectedStatements = selectedStatements,
             interfaceName = interfaceName,
             implementationName = implementationName,
-            receiverTypeText = resolveReceiverTypeText(bodyContainer),
+            receiverTypeText = resolveReceiverTypeText(bodyContainer)
+                ?.takeIf { ComposeReceiverUsageSupport.usesImplicitReceiver(selectedStatements) },
             capturedParameters = collectCapturedParameters(function, selectedStatements, selectedRange),
         )
     }

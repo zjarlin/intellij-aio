@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.ComposePsiSupport
+import site.addzero.composebuddy.support.ComposeReceiverUsageSupport
 
 data class SlotSpiCapturedParameter(
     val name: String,
@@ -205,7 +206,8 @@ object SlotSpiAnalysis {
             interfaceName = interfaceName,
             implementationName = implementationName,
             lambdaExpression = slot.lambdaExpression,
-            receiverTypeText = resolveReceiverTypeText(call, slot.slotName),
+            receiverTypeText = resolveReceiverTypeText(call, slot.slotName)
+                ?.takeIf { ComposeReceiverUsageSupport.usesImplicitReceiver(listOf(lambdaBody)) },
             capturedParameters = collectCapturedParameters(function, slot.lambdaExpression),
         )
     }

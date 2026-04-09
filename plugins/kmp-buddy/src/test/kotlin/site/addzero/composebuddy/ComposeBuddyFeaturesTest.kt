@@ -999,10 +999,10 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         val text = myFixture.file.text
         assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
         assertTrue(text.contains("class DefaultFormsPageCupertinoBorderedTextFieldSpi : FormsPageCupertinoBorderedTextFieldSpi"))
-        assertTrue(text.contains("scope: ColumnScope"))
         assertTrue(text.contains("state: State"))
-        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
-        assertTrue(text.contains("with(scope)"))
+        assertFalse(text.contains("scope: ColumnScope"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(state = state)"))
+        assertFalse(text.contains("with(scope)"))
         assertTrue(text.contains("value = state.projectName"))
         assertTrue(text.contains("onValueChange = state::updateProjectName"))
     }
@@ -1087,7 +1087,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
 
         val text = myFixture.file.text
         assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
-        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(state = state)"))
         assertTrue(text.contains("onValueChange = state::updateProjectName"))
     }
 
@@ -1159,11 +1159,11 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         val text = myFixture.file.text
         assertTrue(text.contains("interface FormsPageCupertinoBorderedTextFieldSpi"))
         assertFalse(text.contains("interface FormsPageWorkbenchCardSpi"))
-        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(this, state = state)"))
+        assertTrue(text.contains("org.koin.compose.koinInject<FormsPageCupertinoBorderedTextFieldSpi>().Render(state = state)"))
         assertTrue(text.contains("Row { CupertinoText(\"next\") }"))
     }
 
-    fun testSelectedRegionSpiIntentionBuildsValidReceiverParameterFromAnnotatedFunctionType() {
+    fun testSelectedRegionSpiIntentionOmitsUnusedReceiverParameterFromAnnotatedFunctionType() {
         myFixture.configureByText(
             "SelectedRegionAnnotatedReceiver.kt",
             """
@@ -1209,13 +1209,15 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
 
         val text = myFixture.file.text
         assertTrue(text.contains("interface AdaptivePageAdaptiveCheckboxSpi"))
-        assertTrue(text.contains("scope: RowScope"))
+        assertFalse(text.contains("scope: RowScope"))
         assertFalse(text.contains("scope: ("))
         assertTrue(text.contains("state: CupertinoDemoState"))
+        assertTrue(text.contains("org.koin.compose.koinInject<AdaptivePageAdaptiveCheckboxSpi>().Render(state = state)"))
+        assertFalse(text.contains("with(scope)"))
         assertTrue(text.contains("override fun Render("))
     }
 
-    fun testSelectedRegionSpiIntentionBuildsValidReceiverParameterFromParenthesizedFunctionType() {
+    fun testSelectedRegionSpiIntentionOmitsUnusedReceiverParameterFromParenthesizedFunctionType() {
         myFixture.configureByText(
             "SelectedRegionParenthesizedReceiver.kt",
             """
@@ -1274,10 +1276,60 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
 
         val text = myFixture.file.text
         assertTrue(text.contains("interface AdaptivePageAdaptiveIconButtonSpi"))
-        assertTrue(text.contains("scope: RowScope"))
+        assertFalse(text.contains("scope: RowScope"))
         assertFalse(text.contains("scope: ("))
         assertTrue(text.contains("state: CupertinoDemoState"))
+        assertTrue(text.contains("org.koin.compose.koinInject<AdaptivePageAdaptiveIconButtonSpi>().Render(state = state)"))
         assertTrue(text.contains("AdaptiveIconButton(onClick = state::showAlert)"))
+    }
+
+    fun testSelectedRegionSpiIntentionKeepsReceiverParameterWhenImplicitReceiverIsUsed() {
+        myFixture.configureByText(
+            "SelectedRegionNeedsReceiver.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            interface ColumnScope {
+                fun Modifier.weight(value: Float): Modifier
+            }
+
+            object Modifier
+
+            @Composable
+            fun WeightedBox(
+                modifier: Modifier,
+            ) {}
+
+            @Composable
+            fun WorkbenchCard(
+                content: @Composable ColumnScope.() -> Unit,
+            ) {}
+
+            @Composable
+            fun Screen() {
+                WorkbenchCard {
+                    WeightedBox(
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.lastIndexOf("WeightedBox(")
+        val selectionEnd = originalText.indexOf(")", selectionStart) + 1
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Extract selected Compose region as SPI + default implementation")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("interface ScreenWeightedBoxSpi"))
+        assertTrue(text.contains("scope: ColumnScope"))
+        assertTrue(text.contains("org.koin.compose.koinInject<ScreenWeightedBoxSpi>().Render(this)"))
+        assertTrue(text.contains("with(scope)"))
+        assertTrue(text.contains("modifier = Modifier.weight(1f)"))
     }
 
     private fun invokeIntention(actionText: String) {

@@ -13,6 +13,9 @@ import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import site.addzero.gradle.buddy.migration.PublishCommandEntry
 import site.addzero.gradle.buddy.migration.PublishCommandQueueService
 import site.addzero.gradle.buddy.settings.GradleBuddySettingsService
+import site.addzero.gradle.buddy.util.GradleCommandLineUtil
+import site.addzero.gradle.buddy.util.GradlePublishExecutionSupport
+import site.addzero.gradle.buddy.util.GradlePublishTaskTracker
 import java.awt.datatransfer.StringSelection
 import java.io.File
 
@@ -34,10 +37,15 @@ object ProjectDependencySourcePublishSupport {
 
     fun execute(project: Project, target: CopyProjectDependencyAsMavenSupport.Target) {
         val publishTarget = resolvePublishTarget(project, target) ?: return
+        val version = GradlePublishExecutionSupport.requestVersion(project, 1) ?: return
+        val effectiveCommand = GradlePublishExecutionSupport.buildCommandWithVersion(publishTarget.command, version)
+        val tracker = GradlePublishTaskTracker(listOf(publishTarget.repoRoot.absolutePath), 1)
         val taskSettings = ExternalSystemTaskExecutionSettings().apply {
             externalSystemIdString = GradleConstants.SYSTEM_ID.id
             externalProjectPath = publishTarget.repoRoot.absolutePath
             taskNames = listOf(publishTarget.taskName)
+            scriptParameters = GradlePublishExecutionSupport.buildScriptParameters(version)
+            executionName = "Gradle Buddy Publish ${publishTarget.modulePath} ($version)"
         }
 
         try {
@@ -47,15 +55,17 @@ object ProjectDependencySourcePublishSupport {
                 project,
                 GradleConstants.SYSTEM_ID
             )
-            showStartedNotification(project, publishTarget)
+            tracker.updateExpectedTaskCount(1)
+            showStartedNotification(project, publishTarget, version, tracker)
         } catch (t: Throwable) {
+            tracker.updateExpectedTaskCount(0)
             notify(
                 project = project,
                 title = GradleBuddyBundle.message("intention.publish.project.dependency.from.source.failed.title"),
                 content = GradleBuddyBundle.message(
                     "intention.publish.project.dependency.from.source.failed.content",
                     publishTarget.modulePath,
-                    publishTarget.command,
+                    effectiveCommand,
                     t.message ?: t.javaClass.simpleName
                 ),
                 type = NotificationType.ERROR
@@ -114,7 +124,13 @@ object ProjectDependencySourcePublishSupport {
         return externalTarget
     }
 
-    private fun showStartedNotification(project: Project, target: PublishTarget) {
+    private fun showStartedNotification(
+        project: Project,
+        target: PublishTarget,
+        version: String,
+        tracker: GradlePublishTaskTracker,
+    ) {
+        val effectiveCommand = GradlePublishExecutionSupport.buildCommandWithVersion(target.command, version)
         val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup("GradleBuddy")
             .createNotification(
@@ -122,22 +138,39 @@ object ProjectDependencySourcePublishSupport {
                 GradleBuddyBundle.message(
                     "intention.publish.project.dependency.from.source.started.content",
                     target.repoRoot.absolutePath,
-                    target.command
+                    version,
+                    effectiveCommand
                 ),
                 NotificationType.INFORMATION
             )
+
+        notification.addAction(object : AnAction(GradleBuddyBundle.message("publish.cancel.all")) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val cancellingCount = tracker.requestCancelAll()
+                notification.expire()
+                notify(
+                    project = project,
+                    title = GradleBuddyBundle.message("publish.cancel.requested.title"),
+                    content = GradleBuddyBundle.message(
+                        "publish.cancel.requested.content",
+                        cancellingCount,
+                    ),
+                    type = NotificationType.WARNING,
+                )
+            }
+        })
 
         notification.addAction(object : AnAction(
             GradleBuddyBundle.message("intention.publish.project.dependency.from.source.copy.command")
         ) {
             override fun actionPerformed(e: AnActionEvent) {
-                CopyPasteManager.getInstance().setContents(StringSelection(target.command))
+                CopyPasteManager.getInstance().setContents(StringSelection(effectiveCommand))
                 notify(
                     project = project,
                     title = GradleBuddyBundle.message("intention.publish.project.dependency.from.source.command.copied.title"),
                     content = GradleBuddyBundle.message(
                         "intention.publish.project.dependency.from.source.command.copied.content",
-                        target.command
+                        effectiveCommand
                     ),
                     type = NotificationType.INFORMATION
                 )
@@ -155,7 +188,7 @@ object ProjectDependencySourcePublishSupport {
                                 moduleName = target.moduleName,
                                 modulePath = target.modulePath,
                                 rootPath = target.repoRoot.absolutePath,
-                                command = target.command
+                                command = effectiveCommand
                             )
                         )
                     )
@@ -193,8 +226,8 @@ object ProjectDependencySourcePublishSupport {
     ): PublishTarget? {
         val moduleDir = buildExpectedModuleDir(repoRoot, modulePath)
         val buildFile = findBuildFile(moduleDir) ?: return null
-        val taskName = if (modulePath == ":") "publishToMavenCentral" else "$modulePath:publishToMavenCentral"
-        val command = if (modulePath == ":") "./gradlew publishToMavenCentral" else "./gradlew $modulePath:publishToMavenCentral"
+        val taskName = GradleCommandLineUtil.publishSingleArtifactToMavenCentralTaskPath(modulePath)
+        val command = GradleCommandLineUtil.publishSingleArtifactToMavenCentralCommand(modulePath)
 
         return PublishTarget(
             moduleName = target.moduleName,

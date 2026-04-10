@@ -14,6 +14,8 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
 import site.addzero.gradle.buddy.i18n.GradleBuddyActionI18n
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
 import com.intellij.execution.executors.DefaultRunExecutor
+import site.addzero.gradle.buddy.util.GradlePublishExecutionSupport
+import site.addzero.gradle.buddy.util.GradlePublishTaskTracker
 
 class RunPublishTasksAction : AnAction() {
 
@@ -36,33 +38,83 @@ class RunPublishTasksAction : AnAction() {
             return
         }
 
+        val version = GradlePublishExecutionSupport.requestVersion(project, targets.size) ?: return
         val groupedTargets = targets.groupBy { it.rootPath }.toSortedMap()
+        val tracker = GradlePublishTaskTracker(targets.map { it.rootPath }, targets.size)
+        var startedCount = 0
+        val failures = mutableListOf<Pair<String, String>>()
 
         targets.forEach { target ->
             val settings = ExternalSystemTaskExecutionSettings().apply {
                 externalSystemIdString = GradleConstants.SYSTEM_ID.id
                 externalProjectPath = target.rootPath
                 taskNames = listOf(target.taskPath)
+                scriptParameters = GradlePublishExecutionSupport.buildScriptParameters(version)
+                executionName = "Gradle Buddy Publish ${target.modulePath} ($version)"
             }
 
-            ExternalSystemUtil.runTask(
-                settings,
-                DefaultRunExecutor.EXECUTOR_ID,
-                project,
-                GradleConstants.SYSTEM_ID,
-            )
+            runCatching {
+                ExternalSystemUtil.runTask(
+                    settings,
+                    DefaultRunExecutor.EXECUTOR_ID,
+                    project,
+                    GradleConstants.SYSTEM_ID,
+                )
+            }.onSuccess {
+                startedCount++
+            }.onFailure { error ->
+                failures += target.modulePath to (error.message ?: error.javaClass.simpleName)
+            }
+        }
+        tracker.updateExpectedTaskCount(startedCount)
+
+        if (startedCount > 0) {
+            val notification = NotificationGroupManager.getInstance()
+                .getNotificationGroup("GradleBuddy")
+                .createNotification(
+                    GradleBuddyBundle.message("action.run.publish.tasks.started.title"),
+                    GradleBuddyBundle.message(
+                        "action.run.publish.tasks.started.content",
+                        version,
+                        startedCount,
+                        groupedTargets.size,
+                    ),
+                    NotificationType.INFORMATION,
+                )
+
+            notification.addAction(object : AnAction(GradleBuddyBundle.message("publish.cancel.all")) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    val cancellingCount = tracker.requestCancelAll()
+                    notification.expire()
+                    notify(
+                        project = project,
+                        title = GradleBuddyBundle.message("publish.cancel.requested.title"),
+                        content = GradleBuddyBundle.message(
+                            "publish.cancel.requested.content",
+                            cancellingCount,
+                        ),
+                        type = NotificationType.WARNING,
+                    )
+                }
+            })
+
+            notification.notify(project)
         }
 
-        notify(
-            project = project,
-            title = GradleBuddyBundle.message("action.run.publish.tasks.started.title"),
-            content = GradleBuddyBundle.message(
-                "action.run.publish.tasks.started.content",
-                targets.size,
-                groupedTargets.size,
-            ),
-            type = NotificationType.INFORMATION,
-        )
+        if (failures.isNotEmpty()) {
+            val (modulePath, reason) = failures.first()
+            notify(
+                project = project,
+                title = GradleBuddyBundle.message("action.run.publish.tasks.failed.title"),
+                content = GradleBuddyBundle.message(
+                    "action.run.publish.tasks.failed.content",
+                    modulePath,
+                    reason,
+                    failures.size,
+                ),
+                type = NotificationType.ERROR,
+            )
+        }
     }
 
     override fun update(e: AnActionEvent) {

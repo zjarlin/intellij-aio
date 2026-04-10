@@ -16,10 +16,10 @@ internal object GradlePublishSelectionResolver {
         val rootPath: String,
     ) {
         val taskPath: String
-            get() = GradleCommandLineUtil.publishToMavenCentralTaskPath(modulePath)
+            get() = GradleCommandLineUtil.publishSingleArtifactToMavenCentralTaskPath(modulePath)
 
         val command: String
-            get() = GradleCommandLineUtil.publishToMavenCentralCommand(modulePath)
+            get() = GradleCommandLineUtil.publishSingleArtifactToMavenCentralCommand(modulePath)
     }
 
     fun canResolve(project: Project, selections: List<VirtualFile>): Boolean {

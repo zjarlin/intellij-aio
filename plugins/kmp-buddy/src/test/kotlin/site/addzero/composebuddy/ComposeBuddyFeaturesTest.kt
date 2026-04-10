@@ -270,6 +270,67 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertEmpty(actions)
     }
 
+    fun testPreviewPlaygroundIntentionIsAvailableForSelectedComposableFunction() {
+        myFixture.configureByText(
+            "SelectedQuickPreview.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+
+            @Composable
+            fun HostConfigStatusStrip(
+                text: String,
+                modifier: Modifier = Modifier,
+            ) {
+                Box(
+                    modifier = modifier,
+                ) {
+                    Text(text)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.indexOf("@Composable")
+        val selectionEnd = originalText.lastIndexOf("}") + 1
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Generate quick preview playground")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("private fun HostConfigStatusStripQuickPreview()"))
+        assertTrue(text.contains("HostConfigStatusStrip("))
+    }
+
+    fun testPreviewPlaygroundIntentionIsHiddenForSelectionInsideComposableBody() {
+        myFixture.configureByText(
+            "SelectedQuickPreviewBody.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun HostConfigStatusStrip(
+                text: String,
+            ) {
+                Box {
+                    Te<caret>xt(text)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.indexOf("Text(text)")
+        val selectionEnd = selectionStart + "Text(text)".length
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 2)
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Generate quick preview playground")
+        assertEmpty(actions)
+    }
+
     fun testPreviewPlaygroundIntentionBuildsImportedComplexModels() {
         myFixture.addFileToProject(
             "preview/model/RemoteModels.kt",

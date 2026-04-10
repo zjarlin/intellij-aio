@@ -36,18 +36,13 @@ class RunPublishTasksAction : AnAction() {
             return
         }
 
-        val groupedTargets = targets
-            .groupBy { it.rootPath }
-            .toSortedMap()
+        val groupedTargets = targets.groupBy { it.rootPath }.toSortedMap()
 
-        groupedTargets.forEach { (rootPath, rootTargets) ->
+        targets.forEach { target ->
             val settings = ExternalSystemTaskExecutionSettings().apply {
                 externalSystemIdString = GradleConstants.SYSTEM_ID.id
-                externalProjectPath = rootPath
-                taskNames = rootTargets
-                    .map { it.taskPath }
-                    .distinct()
-                    .sorted()
+                externalProjectPath = target.rootPath
+                taskNames = listOf(target.taskPath)
             }
 
             ExternalSystemUtil.runTask(

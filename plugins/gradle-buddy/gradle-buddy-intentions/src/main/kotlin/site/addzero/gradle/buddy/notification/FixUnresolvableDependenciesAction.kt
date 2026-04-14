@@ -13,6 +13,7 @@ import com.intellij.openapi.externalSystem.model.task.ExternalSystemTaskNotifica
 import com.intellij.openapi.externalSystem.service.notification.ExternalSystemProgressNotificationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.progress.ProgressIndicator
@@ -26,6 +27,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
 import site.addzero.gradle.buddy.i18n.GradleBuddyBundle
+import site.addzero.gradle.buddy.intentions.catalog.FindLibraryCatalogEntrySupport
 import site.addzero.gradle.buddy.intentions.convert.GradlePluginCommentProjectWideSupport
 import site.addzero.gradle.buddy.intentions.convert.GradlePluginCommentSupport
 import site.addzero.gradle.buddy.intentions.select.VersionSelectionDialog
@@ -180,6 +182,14 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             ApplicationManager.getApplication().invokeLater { showFixNotification(project, unique) }
         }
 
+        // 处理 `libs.findLibrary("...").get()` 命中空 Optional 的场景
+        val missingCatalogAliases = parseMissingCatalogAliases(output)
+        if (missingCatalogAliases.isNotEmpty()) {
+            LOG.info("Found ${missingCatalogAliases.size} missing catalog aliases (type=${id.type})")
+            val uniqueFailures = missingCatalogAliases.distinctBy { "${it.buildFilePath}:${it.lineNumber}:${it.alias}" }
+            ApplicationManager.getApplication().invokeLater { showMissingCatalogAliasNotification(project, uniqueFailures) }
+        }
+
         // 处理插件未找到错误
         val unresolvedPlugins = parseUnresolvedPlugins(output)
         if (unresolvedPlugins.isNotEmpty()) {
@@ -188,7 +198,7 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             ApplicationManager.getApplication().invokeLater { showPluginFixNotification(project, uniquePlugins) }
         }
 
-        if (unresolved.isEmpty() && unresolvedPlugins.isEmpty() && !handledWasmYarnLock) {
+        if (unresolved.isEmpty() && missingCatalogAliases.isEmpty() && unresolvedPlugins.isEmpty() && !handledWasmYarnLock) {
             LOG.info("No unresolved dependencies or plugins found in output (${output.length} chars, type=${id.type})")
         }
     }
@@ -349,6 +359,62 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             i++
         }
         return result
+    }
+
+    // ── Missing Version Catalog Alias 解析 ──────────────────────────────
+
+    data class MissingCatalogAliasFailure(
+        val buildFilePath: String,
+        val lineNumber: Int,
+        val alias: String,
+        val lineText: String
+    )
+
+    /**
+     * 识别如下错误：
+     * 1. `Build file '/path/build.gradle.kts' line: N`
+     * 2. 同一错误块中含 `No value present`
+     * 3. 对应源码行含 `libs.findLibrary("alias").get()`
+     */
+    private fun parseMissingCatalogAliases(output: String): List<MissingCatalogAliasFailure> {
+        val result = mutableListOf<MissingCatalogAliasFailure>()
+        val lines = output.lines()
+        val buildFilePattern = Regex("""Build file '([^']+)' line:\s*(\d+)""")
+
+        for (index in lines.indices) {
+            val match = buildFilePattern.find(lines[index]) ?: continue
+            val buildFilePath = match.groupValues[1]
+            val lineNumber = match.groupValues[2].toIntOrNull() ?: continue
+            val hasNoValuePresent = (index until minOf(lines.size, index + 80))
+                .any { cursor -> lines[cursor].contains("No value present") }
+            if (!hasNoValuePresent) {
+                continue
+            }
+
+            val lineText = readFileLine(buildFilePath, lineNumber) ?: continue
+            val alias = FindLibraryCatalogEntrySupport.extractAliasFromLine(lineText) ?: continue
+            result += MissingCatalogAliasFailure(
+                buildFilePath = buildFilePath,
+                lineNumber = lineNumber,
+                alias = alias,
+                lineText = lineText.trim()
+            )
+        }
+
+        return result
+    }
+
+    private fun readFileLine(path: String, lineNumber: Int): String? {
+        if (lineNumber <= 0) {
+            return null
+        }
+        val file = File(path)
+        if (!file.exists() || !file.isFile) {
+            return null
+        }
+        return file.useLines { sequence ->
+            sequence.drop(lineNumber - 1).firstOrNull()
+        }
     }
 
     // ── Plugin Not Found 解析 ───────────────────────────────────────────
@@ -689,6 +755,109 @@ class GradleBuildErrorListener : ExternalSystemTaskNotificationListener {
             textEditor.editor.caretModel.moveToOffset(idx)
             textEditor.editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
         }
+    }
+
+    // ── Missing Catalog Alias Notification ─────────────────────────────
+
+    private fun showMissingCatalogAliasNotification(project: Project, failures: List<MissingCatalogAliasFailure>) {
+        val summary = failures.joinToString("\n") { failure ->
+            val location = presentFileLocation(project, failure.buildFilePath, failure.lineNumber)
+            GradleBuddyBundle.message(
+                "notification.missing.catalog.alias.item",
+                failure.alias,
+                location
+            )
+        }
+        val notification = NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(
+                GradleBuddyBundle.message("notification.missing.catalog.alias.title", failures.size),
+                GradleBuddyBundle.message("notification.missing.catalog.alias.body", summary),
+                NotificationType.WARNING
+            )
+
+        for (failure in failures.take(3)) {
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message("notification.missing.catalog.alias.fix.action", failure.alias)
+            ) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    fixMissingCatalogAlias(project, failure)
+                    notification.expire()
+                }
+            })
+        }
+
+        if (failures.size > 1) {
+            notification.addAction(object : AnAction(
+                GradleBuddyBundle.message("notification.missing.catalog.alias.fix.all.action")
+            ) {
+                override fun actionPerformed(e: AnActionEvent) {
+                    failures.forEach { failure -> fixMissingCatalogAlias(project, failure) }
+                    notification.expire()
+                }
+            })
+        }
+
+        notification.addAction(object : AnAction(
+            GradleBuddyBundle.message("notification.missing.catalog.alias.open.build.file")
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                navigateToFileLine(project, failures.first().buildFilePath, failures.first().lineNumber)
+            }
+        })
+
+        notification.addAction(object : AnAction(
+            GradleBuddyBundle.message("notification.missing.catalog.alias.open.toml")
+        ) {
+            override fun actionPerformed(e: AnActionEvent) {
+                openCatalogFile(project)
+            }
+        })
+
+        notification.notify(project)
+    }
+
+    private fun fixMissingCatalogAlias(project: Project, failure: MissingCatalogAliasFailure) {
+        val buildFile = LocalFileSystem.getInstance().refreshAndFindFileByPath(failure.buildFilePath)
+        var navigation: FindLibraryCatalogEntrySupport.NavigationTarget? = null
+        WriteCommandAction.writeCommandAction(project)
+            .withName(GradleBuddyBundle.message("notification.missing.catalog.alias.command"))
+            .run<Throwable> {
+                navigation = FindLibraryCatalogEntrySupport.ensureCatalogEntry(
+                    project = project,
+                    alias = failure.alias,
+                    preferredBuildFile = buildFile
+                )
+            }
+
+        val resolvedNavigation = navigation ?: return
+        OpenFileDescriptor(project, resolvedNavigation.virtualFile, resolvedNavigation.offset).navigate(true)
+
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("GradleBuddy")
+            .createNotification(
+                GradleBuddyBundle.message("notification.missing.catalog.alias.fixed.title", failure.alias),
+                GradleBuddyBundle.message(
+                    "notification.missing.catalog.alias.fixed.body",
+                    failure.alias,
+                    presentFileLocation(project, failure.buildFilePath, failure.lineNumber)
+                ),
+                NotificationType.INFORMATION
+            )
+            .notify(project)
+    }
+
+    private fun presentFileLocation(project: Project, filePath: String, lineNumber: Int): String {
+        val relativePath = project.basePath?.let { base ->
+            filePath.removePrefix(base.trimEnd('/', '\\') + "/")
+        } ?: filePath
+        return "$relativePath:$lineNumber"
+    }
+
+    private fun navigateToFileLine(project: Project, filePath: String, lineNumber: Int) {
+        val virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByPath(filePath) ?: return
+        val descriptor = OpenFileDescriptor(project, virtualFile, (lineNumber - 1).coerceAtLeast(0), 0)
+        descriptor.navigate(true)
     }
 
     // ── Notification ────────────────────────────────────────────────────

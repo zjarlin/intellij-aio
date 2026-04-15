@@ -4,7 +4,6 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
@@ -39,26 +38,25 @@ object ProjectDependencySourcePublishSupport {
         val publishTarget = resolvePublishTarget(project, target) ?: return
         val version = GradlePublishExecutionSupport.requestVersion(project, 1) ?: return
         val effectiveCommand = GradlePublishExecutionSupport.buildCommandWithVersion(publishTarget.command, version)
-        val tracker = GradlePublishTaskTracker(listOf(publishTarget.repoRoot.absolutePath), 1)
-        val taskSettings = ExternalSystemTaskExecutionSettings().apply {
-            externalSystemIdString = GradleConstants.SYSTEM_ID.id
-            externalProjectPath = publishTarget.repoRoot.absolutePath
-            taskNames = listOf(publishTarget.taskName)
-            scriptParameters = GradlePublishExecutionSupport.buildScriptParameters(version)
-            executionName = "Gradle Buddy Publish ${publishTarget.modulePath} ($version)"
-        }
+        val tracker = GradlePublishTaskTracker(project)
+        val request = GradlePublishExecutionSupport.PublishTaskRequest(
+            rootPath = publishTarget.repoRoot.absolutePath,
+            modulePath = publishTarget.modulePath,
+            taskName = publishTarget.taskName,
+            version = version,
+        )
+        tracker.registerScheduledTask(request)
 
         try {
             ExternalSystemUtil.runTask(
-                taskSettings,
+                GradlePublishExecutionSupport.createTaskSettings(request),
                 com.intellij.execution.executors.DefaultRunExecutor.EXECUTOR_ID,
                 project,
                 GradleConstants.SYSTEM_ID
             )
-            tracker.updateExpectedTaskCount(1)
             showStartedNotification(project, publishTarget, version, tracker)
         } catch (t: Throwable) {
-            tracker.updateExpectedTaskCount(0)
+            tracker.markLaunchFailure(request)
             notify(
                 project = project,
                 title = GradleBuddyBundle.message("intention.publish.project.dependency.from.source.failed.title"),

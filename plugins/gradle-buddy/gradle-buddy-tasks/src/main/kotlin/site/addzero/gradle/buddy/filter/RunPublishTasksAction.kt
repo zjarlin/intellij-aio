@@ -6,7 +6,6 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -40,34 +39,32 @@ class RunPublishTasksAction : AnAction() {
 
         val version = GradlePublishExecutionSupport.requestVersion(project, targets.size) ?: return
         val groupedTargets = targets.groupBy { it.rootPath }.toSortedMap()
-        val tracker = GradlePublishTaskTracker(targets.map { it.rootPath }, targets.size)
-        var startedCount = 0
+        val tracker = GradlePublishTaskTracker(project)
         val failures = mutableListOf<Pair<String, String>>()
 
         targets.forEach { target ->
-            val settings = ExternalSystemTaskExecutionSettings().apply {
-                externalSystemIdString = GradleConstants.SYSTEM_ID.id
-                externalProjectPath = target.rootPath
-                taskNames = listOf(target.taskPath)
-                scriptParameters = GradlePublishExecutionSupport.buildScriptParameters(version)
-                executionName = "Gradle Buddy Publish ${target.modulePath} ($version)"
-            }
+            val request = GradlePublishExecutionSupport.PublishTaskRequest(
+                rootPath = target.rootPath,
+                modulePath = target.modulePath,
+                taskName = target.taskPath,
+                version = version,
+            )
+            tracker.registerScheduledTask(request)
 
             runCatching {
                 ExternalSystemUtil.runTask(
-                    settings,
+                    GradlePublishExecutionSupport.createTaskSettings(request),
                     DefaultRunExecutor.EXECUTOR_ID,
                     project,
                     GradleConstants.SYSTEM_ID,
                 )
-            }.onSuccess {
-                startedCount++
             }.onFailure { error ->
+                tracker.markLaunchFailure(request)
                 failures += target.modulePath to (error.message ?: error.javaClass.simpleName)
             }
         }
-        tracker.updateExpectedTaskCount(startedCount)
 
+        val startedCount = targets.size - failures.size
         if (startedCount > 0) {
             val notification = NotificationGroupManager.getInstance()
                 .getNotificationGroup("GradleBuddy")

@@ -1,0 +1,25 @@
+<idea-plugin>
+    <id>site.addzero.recent-project-cleaner</id>
+    <name>Recent Project Cleaner</name>
+    <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin">zjarlin</vendor>
+
+    <description><![CDATA[
+        <p>Add a Welcome screen action that removes missing recent-project entries in one click.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Recent Project Cleaner" displayType="BALLOON" isLogByDefault="true"/>
+    </extensions>
+
+    <actions>
+        <action id="RecentProjectCleaner.ClearInvalidRecentProjects"
+                class="site.addzero.recentprojectcleaner.ClearInvalidRecentProjectsAction"
+                text="Clear Invalid Projects"
+                description="Remove missing recent projects from the Welcome screen"
+                icon="AllIcons.Actions.GC">
+            <add-to-group group-id="WelcomeScreen.QuickStart.ProjectsState" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

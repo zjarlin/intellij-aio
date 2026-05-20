@@ -1,0 +1,23 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="recentCleanerGrad" x1="5" y1="4" x2="35" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#26C6DA"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#recentCleanerGrad)" opacity="0.12"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" stroke="url(#recentCleanerGrad)" stroke-width="2"/>
+
+  <rect x="9" y="11" width="12" height="7" rx="2" fill="url(#recentCleanerGrad)" opacity="0.42"/>
+  <rect x="9" y="22" width="12" height="7" rx="2" fill="url(#recentCleanerGrad)" opacity="0.22"/>
+  <path d="M11 14.5H19" stroke="url(#recentCleanerGrad)" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M11 25.5H17" stroke="url(#recentCleanerGrad)" stroke-width="1.8" stroke-linecap="round"/>
+
+  <path d="M26 12V16" stroke="url(#recentCleanerGrad)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M23 16H29" stroke="url(#recentCleanerGrad)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M24 20H28L27 30H25L24 20Z" fill="url(#recentCleanerGrad)" opacity="0.28" stroke="url(#recentCleanerGrad)" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M22.5 20H29.5" stroke="url(#recentCleanerGrad)" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M25.7 23.5V27.5" stroke="url(#recentCleanerGrad)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M27.3 23.5V27.5" stroke="url(#recentCleanerGrad)" stroke-width="1.6" stroke-linecap="round" opacity="0.75"/>
+</svg>

@@ -143,7 +143,7 @@ class OpenProjectEverywhereContributor(
             return
         }
 
-        val rootPath = settings.localProjectsRoot
+        val rootPath = settings.resolvedCloneRoot()
         val cloneRoot = File(rootPath)
         if (rootPath.isBlank() || (!cloneRoot.exists() && !cloneRoot.mkdirs())) {
             notify(OpenProjectEverywhereBundle.message("notification.clone.invalidRoot"), NotificationType.WARNING)

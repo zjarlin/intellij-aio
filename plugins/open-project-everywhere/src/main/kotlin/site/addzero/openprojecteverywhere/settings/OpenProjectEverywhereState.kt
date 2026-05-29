@@ -3,6 +3,7 @@ package site.addzero.openprojecteverywhere.settings
 data class OpenProjectEverywhereState(
     var localProjectsRoot: String = OpenProjectEverywhereDefaults.defaultLocalProjectsRoot(),
     var localProjectsRoots: MutableList<String> = mutableListOf(OpenProjectEverywhereDefaults.defaultLocalProjectsRoot()),
+    var cloneRoot: String = "",
     var localProjectsEnabled: Boolean = true,
     var githubEnabled: Boolean = true,
     var githubAuthMode: String = AuthMode.TOKEN.name,

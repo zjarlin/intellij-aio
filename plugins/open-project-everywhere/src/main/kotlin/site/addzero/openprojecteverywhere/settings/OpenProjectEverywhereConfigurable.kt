@@ -6,6 +6,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBCheckBox
@@ -34,6 +35,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
     private val localEnabledCheckBox = JBCheckBox(OpenProjectEverywhereBundle.message("settings.local.enabled"))
     private val localRootsModel = DefaultListModel<String>()
     private val localRootsList = JBList(localRootsModel)
+    private val cloneRootField = TextFieldWithBrowseButton()
 
     private val githubEnabledCheckBox = JBCheckBox(OpenProjectEverywhereBundle.message("settings.provider.enabled"))
     private val githubAuthModeCombo = ComboBox(arrayOf(AuthMode.TOKEN))
@@ -74,10 +76,22 @@ class OpenProjectEverywhereConfigurable : Configurable {
     override fun getDisplayName(): String = OpenProjectEverywhereBundle.message("settings.display.name")
 
     override fun createComponent(): JComponent {
+        cloneRootField.addBrowseFolderListener(
+            OpenProjectEverywhereBundle.message("settings.clone.root.browse.title"),
+            OpenProjectEverywhereBundle.message("settings.clone.root.browse.description"),
+            null,
+            FileChooserDescriptorFactory.createSingleFolderDescriptor()
+        )
+
         val panel = panel {
             group(OpenProjectEverywhereBundle.message("settings.section.local")) {
                 row {
                     cell(localEnabledCheckBox)
+                }
+                row(OpenProjectEverywhereBundle.message("settings.clone.root")) {
+                    cell(cloneRootField)
+                        .align(AlignX.FILL)
+                        .comment(OpenProjectEverywhereBundle.message("settings.clone.root.comment"))
                 }
                 row(OpenProjectEverywhereBundle.message("settings.local.root")) {
                     val decorator = ToolbarDecorator.createDecorator(localRootsList)
@@ -200,6 +214,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
 
     override fun isModified(): Boolean {
         return localEnabledCheckBox.isSelected != settings.localProjectsEnabled ||
+            cloneRootField.text.trim() != settings.cloneRoot ||
             localRoots() != settings.localProjectsRoots ||
             githubEnabledCheckBox.isSelected != settings.githubEnabled ||
             githubAuthModeCombo.selectedItem != settings.githubAuthMode ||
@@ -229,6 +244,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
         validateSettings()
 
         settings.localProjectsEnabled = localEnabledCheckBox.isSelected
+        settings.cloneRoot = cloneRootField.text.trim()
         settings.localProjectsRoots = localRoots()
 
         settings.githubEnabled = githubEnabledCheckBox.isSelected
@@ -277,6 +293,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
 
     override fun reset() {
         localEnabledCheckBox.isSelected = settings.localProjectsEnabled
+        cloneRootField.text = settings.cloneRoot
         resetLocalRoots(settings.localProjectsRoots)
 
         githubEnabledCheckBox.isSelected = settings.githubEnabled
@@ -313,6 +330,11 @@ class OpenProjectEverywhereConfigurable : Configurable {
     }
 
     private fun validateSettings() {
+        val cloneRoot = cloneRootField.text.trim()
+        if (cloneRoot.isBlank() || OpenProjectEverywhereDefaults.expandHomeAwarePath(cloneRoot).isBlank()) {
+            throw ConfigurationException(OpenProjectEverywhereBundle.message("settings.validation.cloneRoot"))
+        }
+
         if (localEnabledCheckBox.isSelected && localRoots().isEmpty()) {
             throw ConfigurationException(OpenProjectEverywhereBundle.message("settings.validation.localRoot"))
         }
@@ -348,6 +370,7 @@ class OpenProjectEverywhereConfigurable : Configurable {
 
     private fun updateEnabledStates() {
         localRootsList.isEnabled = localEnabledCheckBox.isSelected
+        cloneRootField.isEnabled = true
 
         val githubEnabled = githubEnabledCheckBox.isSelected
         githubAuthModeCombo.isEnabled = false

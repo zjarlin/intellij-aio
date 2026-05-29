@@ -27,6 +27,9 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
         state = loadedState.copy(
             localProjectsRoot = migratedLocalRoots.first(),
             localProjectsRoots = migratedLocalRoots.toMutableList(),
+            cloneRoot = normalizeCloneRoot(
+                loadedState.cloneRoot.ifBlank { migratedCloneRoot(migratedLocalRoots.first()) }
+            ),
             githubAuthMode = AuthMode.TOKEN.name,
             githubUsername = "",
             gitlabBaseUrl = loadedState.gitlabBaseUrl.ifBlank { "https://gitlab.com" },
@@ -53,6 +56,16 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
         set(value) {
             state.localProjectsEnabled = value
         }
+
+    var cloneRoot: String
+        get() = normalizeCloneRoot(state.cloneRoot)
+        set(value) {
+            state.cloneRoot = normalizeCloneRoot(value)
+        }
+
+    fun resolvedCloneRoot(): String {
+        return OpenProjectEverywhereDefaults.expandHomeAwarePath(cloneRoot)
+    }
 
     var githubEnabled: Boolean
         get() = state.githubEnabled
@@ -254,6 +267,18 @@ class OpenProjectEverywhereSettings : PersistentStateComponent<OpenProjectEveryw
                 .distinct()
                 .toList()
                 .ifEmpty { listOf(OpenProjectEverywhereDefaults.defaultLocalProjectsRoot()) }
+        }
+
+        private fun normalizeCloneRoot(value: String): String {
+            return value.trim().ifBlank { OpenProjectEverywhereDefaults.defaultCloneRoot() }
+        }
+
+        private fun migratedCloneRoot(localProjectsRoot: String): String {
+            return if (localProjectsRoot == OpenProjectEverywhereDefaults.defaultLocalProjectsRoot()) {
+                OpenProjectEverywhereDefaults.defaultCloneRoot()
+            } else {
+                localProjectsRoot
+            }
         }
 
         fun getInstance(): OpenProjectEverywhereSettings {

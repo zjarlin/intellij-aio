@@ -5,14 +5,15 @@
 - Press `Shift` twice and search local projects across one or more configured directories, defaulting to `~/IdeaProjects`.
 - Search GitHub, GitLab, Gitee, and one custom Git host in parallel.
 - Show the repository source category for every result.
-- Open local matches directly or clone remote repositories into the first configured local directory and open them.
+- Open local matches directly or clone remote repositories into the configured clone root and open them.
 - Reuse credentials from this plugin for Git HTTPS clone operations.
 
 ## Configuration
 
 Open `Settings | Tools | Open Project Everywhere` and configure any combination of:
 
-- One or more local project directories, with `~/IdeaProjects` added by default and used first for cloning
+- Clone root, defaulting to `~/IdeaProjects` and supporting values such as `~/workspace`
+- One or more local project directories, with `~/IdeaProjects` added by default
 - GitHub
 - GitLab
 - Gitee

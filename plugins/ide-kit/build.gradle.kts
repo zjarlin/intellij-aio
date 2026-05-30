@@ -13,7 +13,7 @@ intellijPlatform {
     pluginConfiguration {
         id = pluginId
         name = pluginName
-        version = LocalDate.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+        version = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
     }
 }
 

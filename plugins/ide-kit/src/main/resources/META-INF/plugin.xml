@@ -1,6 +1,7 @@
 <idea-plugin>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
     <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -13,6 +14,7 @@
         <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
         <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>
         <notificationGroup id="IdeKit Notifications" displayType="BALLOON" isLogByDefault="true"/>
+        <notificationGroup id="SplitModule" displayType="BALLOON" isLogByDefault="true"/>
         <applicationConfigurable
                 parentId="tools"
                 instance="site.addzero.koog.agent.settings.KoogAgentConfigurable"
@@ -96,6 +98,18 @@
         <action id="IdeKit.ModuleLock.ToggleShow"
                 class="site.addzero.smart.intentions.modulelock.actions.ToggleShowLockedModulesAction">
             <add-to-group group-id="ProjectViewToolbar" anchor="before" relative-to-action="IdeKit.HiddenFiles.ToggleShow"/>
+        </action>
+        <action id="SplitModule.SplitModuleAction"
+                class="site.addzero.split.actions.SplitModuleAction"
+                text="Split Module"
+                description="Split selected files into a new sibling Gradle module">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="SplitModule.MergeModuleAction"
+                class="site.addzero.split.actions.MergeModuleAction"
+                text="Merge Modules"
+                description="Merge selected module roots into one main module">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

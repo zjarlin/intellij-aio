@@ -5,7 +5,12 @@ internal object KoogAgentModelDeduplicator {
         val byIdentity = linkedMapOf<String, KoogAgentModelState>()
         models.asSequence()
             .map { model -> sanitize(model) }
-            .sortedWith(compareBy<KoogAgentModelState> { it.order }.thenBy { it.vendor }.thenBy { it.model })
+            .sortedWith(
+                compareBy<KoogAgentModelState> { it.order }
+                    .thenBy { it.detected }
+                    .thenBy { it.vendor }
+                    .thenBy { it.model },
+            )
             .forEach { model ->
                 byIdentity.putIfAbsent(identity(model), model)
             }

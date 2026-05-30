@@ -60,7 +60,10 @@ class KoogAgentConfigurable : SearchableConfigurable {
 
     private fun createButtonPanel(): JComponent {
         return JPanel(BorderLayout()).apply {
-            add(JLabel("Fallback order is ascending. Duplicate vendor/base URL/model/API key rows are collapsed on apply."), BorderLayout.CENTER)
+            add(
+                JLabel("Fallback order is ascending. Add inserts first. Duplicate vendor/base URL/model/API key rows are collapsed on apply."),
+                BorderLayout.CENTER,
+            )
             add(
                 JPanel(FlowLayout(FlowLayout.RIGHT)).apply {
                     add(JButton("Add").apply { addActionListener { addRow() } })
@@ -76,19 +79,20 @@ class KoogAgentConfigurable : SearchableConfigurable {
     }
 
     private fun addRow() {
-        tableModel.add(
+        tableModel.prepend(
             KoogAgentModelState(
                 enabled = true,
                 vendor = KoogAgentProvider.OPENAI_COMPATIBLE.name,
                 baseUrl = "",
                 model = "",
                 apiKey = "",
-                order = tableModel.nextOrder(),
+                order = 10,
                 detected = false,
                 source = "",
             ),
         )
-        selectRow(tableModel.rowCount - 1)
+        tableModel.renumberOrders()
+        selectRow(0)
     }
 
     private fun removeSelectedRow() {
@@ -231,14 +235,14 @@ class KoogAgentConfigurable : SearchableConfigurable {
 
         fun setRows(newRows: Collection<KoogAgentModelState>) {
             rows = newRows.map { it.copy() }
-                .sortedWith(compareBy<KoogAgentModelState> { it.order }.thenBy { it.vendor }.thenBy { it.model })
+                .sortedWith(ROW_ORDER)
                 .toMutableList()
             fireTableDataChanged()
         }
 
-        fun add(row: KoogAgentModelState) {
-            rows.add(row)
-            fireTableRowsInserted(rows.lastIndex, rows.lastIndex)
+        fun prepend(row: KoogAgentModelState) {
+            rows.add(0, row)
+            fireTableRowsInserted(0, 0)
         }
 
         fun remove(row: Int) {
@@ -263,10 +267,6 @@ class KoogAgentConfigurable : SearchableConfigurable {
             fireTableDataChanged()
         }
 
-        fun nextOrder(): Int {
-            return (rows.maxOfOrNull { it.order } ?: 0) + 10
-        }
-
         companion object {
             const val ENABLED_COLUMN = 0
             const val VENDOR_COLUMN = 1
@@ -277,6 +277,10 @@ class KoogAgentConfigurable : SearchableConfigurable {
             const val SOURCE_COLUMN = 6
 
             private val COLUMNS = listOf("Enabled", "Vendor", "Base URL", "Model", "API Key", "Order", "Source")
+            private val ROW_ORDER = compareBy<KoogAgentModelState> { it.order }
+                .thenBy { it.detected }
+                .thenBy { it.vendor }
+                .thenBy { it.model }
         }
     }
 }

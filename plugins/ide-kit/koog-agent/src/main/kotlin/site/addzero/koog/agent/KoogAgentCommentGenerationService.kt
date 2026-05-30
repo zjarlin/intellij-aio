@@ -7,6 +7,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Document
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
@@ -31,23 +32,25 @@ class KoogAgentCommentGenerationService(
     fun canGenerateAt(
         document: Document,
         triggerOffset: Int,
+        editor: Editor? = null,
     ): Boolean {
         val settings = KoogAgentSettingsService.getInstance().snapshot()
         if (!settings.enabled) {
             return false
         }
-        return createGenerationRequest(document, triggerOffset) != null
+        return createGenerationRequest(document, triggerOffset, editor = editor) != null
     }
 
     fun generateAt(
         document: Document,
         triggerOffset: Int,
         contextScope: KoogAgentContextScope,
+        editor: Editor?,
     ) {
         ProgressManager.getInstance().run(
             object : Task.Backgroundable(project, "ide-kit Generate Code", true) {
                 override fun run(indicator: ProgressIndicator) {
-                    generateForDocument(document, triggerOffset, contextScope)
+                    generateForDocument(document, triggerOffset, contextScope, editor)
                 }
             },
         )
@@ -57,9 +60,10 @@ class KoogAgentCommentGenerationService(
         document: Document,
         triggerOffset: Int,
         contextScope: KoogAgentContextScope,
+        editor: Editor?,
     ) {
         val request = ReadAction.compute<KoogAgentGenerationRequest?, Throwable> {
-            createGenerationRequest(document, triggerOffset, contextScope)
+            createGenerationRequest(document, triggerOffset, contextScope, editor)
         } ?: return
 
         if (!inFlightKeys.add(request.key)) {
@@ -90,6 +94,7 @@ class KoogAgentCommentGenerationService(
         document: Document,
         triggerOffset: Int,
         contextScope: KoogAgentContextScope = KoogAgentContextScope.NEARBY,
+        editor: Editor? = null,
     ): KoogAgentGenerationRequest? {
         val virtualFile = FileDocumentManager.getInstance().getFile(document) ?: return null
         if (!isEligibleFile(virtualFile)) {
@@ -105,7 +110,12 @@ class KoogAgentCommentGenerationService(
 
         val offset = triggerOffset.coerceIn(0, document.textLength)
         val lineNumber = document.getLineNumber((offset - 1).coerceAtLeast(0))
-        val candidates = sequenceOf(lineNumber, lineNumber - 1)
+        val selectionContext = if (contextScope == KoogAgentContextScope.SELECTION) {
+            collectSelectionContext(document, editor) ?: return null
+        } else {
+            null
+        }
+        val candidates = candidateInstructionLines(document, lineNumber, editor)
             .filter { line -> line in 0 until document.lineCount }
             .distinct()
 
@@ -128,8 +138,10 @@ class KoogAgentCommentGenerationService(
                 insertionLineNumber = line + 2,
                 fullFileContent = when (contextScope) {
                     KoogAgentContextScope.NEARBY -> null
+                    KoogAgentContextScope.SELECTION -> null
                     KoogAgentContextScope.FULL_FILE -> KoogAgentContextCollector.fullFileContent(document)
                 },
+                selectedContext = selectionContext,
                 focusedContext = focusedContext,
                 beforeContext = context.before,
                 afterContext = context.after,
@@ -139,6 +151,58 @@ class KoogAgentCommentGenerationService(
             )
         }
         return null
+    }
+
+    private fun candidateInstructionLines(
+        document: Document,
+        caretLineNumber: Int,
+        editor: Editor?,
+    ): Sequence<Int> {
+        val selectionModel = editor?.selectionModel
+        if (selectionModel?.hasSelection() != true) {
+            return sequenceOf(caretLineNumber, caretLineNumber - 1)
+        }
+
+        val selectionStartLine = document.getLineNumber(selectionModel.selectionStart.coerceIn(0, document.textLength))
+        val selectionEndLine = document.getLineNumber(
+            (selectionModel.selectionEnd - 1).coerceIn(0, (document.textLength - 1).coerceAtLeast(0)),
+        )
+        return sequenceOf(
+            caretLineNumber,
+            caretLineNumber - 1,
+            selectionStartLine,
+            selectionStartLine - 1,
+            selectionEndLine,
+            selectionEndLine - 1,
+        )
+    }
+
+    private fun collectSelectionContext(
+        document: Document,
+        editor: Editor?,
+    ): KoogAgentSelectedContext? {
+        val selectionModel = editor?.selectionModel ?: return null
+        if (!selectionModel.hasSelection()) {
+            return null
+        }
+
+        val startOffset = selectionModel.selectionStart.coerceIn(0, document.textLength)
+        val endOffset = selectionModel.selectionEnd.coerceIn(0, document.textLength)
+        if (startOffset >= endOffset) {
+            return null
+        }
+
+        val startLine = document.getLineNumber(startOffset)
+        val endLine = document.getLineNumber((endOffset - 1).coerceAtLeast(0))
+        val range = TextRange(startOffset, endOffset)
+        return KoogAgentSelectedContext(
+            startOffset = startOffset,
+            endOffset = endOffset,
+            startLineNumber = startLine + 1,
+            endLineNumber = endLine + 1,
+            rawContent = document.getText(range),
+            content = lineNumberedTextForRange(document, startLine, endLine + 1),
+        )
     }
 
     private fun applyGeneratedCode(
@@ -152,6 +216,8 @@ class KoogAgentCommentGenerationService(
         val placement = KoogAgentGeneratedCodePlacementDecider.decide(request, rawCode)
         val targetIndent = when (placement) {
             KoogAgentGeneratedCodePlacement.INSERT_SNIPPET -> request.leadingIndent
+            KoogAgentGeneratedCodePlacement.REPLACE_SELECTED_CONTEXT ->
+                request.selectedContext?.rawContent?.let(KoogAgentIndentSupport::leadingIndentOf).orEmpty()
             KoogAgentGeneratedCodePlacement.REPLACE_FOCUSED_CONTEXT ->
                 request.focusedContext?.rawContent?.let(KoogAgentIndentSupport::leadingIndentOf).orEmpty()
         }
@@ -165,6 +231,7 @@ class KoogAgentCommentGenerationService(
             .run<RuntimeException> {
                 val changedRange = when (placement) {
                     KoogAgentGeneratedCodePlacement.INSERT_SNIPPET -> insertSnippet(document, request, code)
+                    KoogAgentGeneratedCodePlacement.REPLACE_SELECTED_CONTEXT -> replaceSelectedContext(document, request, code)
                     KoogAgentGeneratedCodePlacement.REPLACE_FOCUSED_CONTEXT -> replaceFocusedContext(document, request, code)
                 } ?: return@run
                 val psiDocumentManager = PsiDocumentManager.getInstance(project)
@@ -214,6 +281,45 @@ class KoogAgentCommentGenerationService(
             focusedContext.startOffset,
             (focusedContext.startOffset + code.length).coerceAtMost(document.textLength),
         )
+    }
+
+    private fun replaceSelectedContext(
+        document: Document,
+        request: KoogAgentGenerationRequest,
+        code: String,
+    ): TextRange? {
+        val selectedContext = request.selectedContext ?: return null
+        if (selectedContext.startOffset < 0 || selectedContext.endOffset > document.textLength) {
+            return null
+        }
+        if (selectedContext.startOffset >= selectedContext.endOffset) {
+            return null
+        }
+        document.replaceString(selectedContext.startOffset, selectedContext.endOffset, code)
+        return TextRange(
+            selectedContext.startOffset,
+            (selectedContext.startOffset + code.length).coerceAtMost(document.textLength),
+        )
+    }
+
+    private fun lineNumberedTextForRange(
+        document: Document,
+        startLineInclusive: Int,
+        endLineExclusive: Int,
+    ): String {
+        if (startLineInclusive >= endLineExclusive || document.lineCount == 0) {
+            return ""
+        }
+        return buildString {
+            for (line in startLineInclusive until endLineExclusive) {
+                val lineStart = document.getLineStartOffset(line)
+                val lineEnd = document.getLineEndOffset(line)
+                append((line + 1).toString().padStart(4, ' '))
+                append(" | ")
+                append(document.getText(TextRange(lineStart, lineEnd)))
+                appendLine()
+            }
+        }.trimEnd()
     }
 
     private fun isEligibleFile(file: VirtualFile): Boolean {

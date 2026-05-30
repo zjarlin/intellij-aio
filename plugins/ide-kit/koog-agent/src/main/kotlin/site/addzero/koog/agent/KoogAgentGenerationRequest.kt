@@ -9,6 +9,7 @@ data class KoogAgentGenerationRequest(
     val commentLineNumber: Int,
     val insertionLineNumber: Int,
     val fullFileContent: String?,
+    val selectedContext: KoogAgentSelectedContext?,
     val focusedContext: KoogAgentFocusedContext?,
     val beforeContext: String,
     val afterContext: String,
@@ -19,8 +20,18 @@ data class KoogAgentGenerationRequest(
 
 enum class KoogAgentContextScope(val displayName: String) {
     NEARBY("nearby context"),
+    SELECTION("current selection"),
     FULL_FILE("full file"),
 }
+
+data class KoogAgentSelectedContext(
+    val startOffset: Int,
+    val endOffset: Int,
+    val startLineNumber: Int,
+    val endLineNumber: Int,
+    val rawContent: String,
+    val content: String,
+)
 
 data class KoogAgentFocusedContext(
     val kind: String,

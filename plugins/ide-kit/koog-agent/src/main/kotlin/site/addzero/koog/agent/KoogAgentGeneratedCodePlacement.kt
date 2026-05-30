@@ -2,6 +2,7 @@ package site.addzero.koog.agent
 
 internal enum class KoogAgentGeneratedCodePlacement {
     INSERT_SNIPPET,
+    REPLACE_SELECTED_CONTEXT,
     REPLACE_FOCUSED_CONTEXT,
 }
 
@@ -10,6 +11,9 @@ internal object KoogAgentGeneratedCodePlacementDecider {
         request: KoogAgentGenerationRequest,
         rawCode: String,
     ): KoogAgentGeneratedCodePlacement {
+        if (request.selectedContext != null) {
+            return KoogAgentGeneratedCodePlacement.REPLACE_SELECTED_CONTEXT
+        }
         val focusedContext = request.focusedContext ?: return KoogAgentGeneratedCodePlacement.INSERT_SNIPPET
         if (!isReplaceableFocusedContext(focusedContext.kind)) {
             return KoogAgentGeneratedCodePlacement.INSERT_SNIPPET

@@ -30,7 +30,21 @@ internal object KoogAgentPromptBuilder {
                 appendLine("```")
                 appendLine()
             } ?: run {
-                appendLine("Full file content was omitted because the user selected nearby context.")
+                appendLine("Full file content was omitted because the user selected ${request.contextScope.displayName}.")
+                appendLine()
+            }
+            request.selectedContext?.let { selectedContext ->
+                appendLine("Selected region chosen in the editor or ide-kit range selector and to be replaced verbatim:")
+                appendLine("Lines: ${selectedContext.startLineNumber}-${selectedContext.endLineNumber}")
+                appendLine("Character offsets: ${selectedContext.startOffset}-${selectedContext.endOffset}")
+                appendLine("Raw selected region source:")
+                appendLine("```")
+                appendLine(selectedContext.rawContent)
+                appendLine("```")
+                appendLine("Selected region source with 1-based line numbers:")
+                appendLine("```")
+                appendLine(selectedContext.content)
+                appendLine("```")
                 appendLine()
             }
             request.focusedContext?.let { focusedContext ->
@@ -60,11 +74,12 @@ internal object KoogAgentPromptBuilder {
             appendLine()
             appendLine("Output contract:")
             appendLine("- Default: return only the incremental snippet to insert at line ${request.insertionLineNumber}.")
+            appendLine("- If a selected region is present above, return the replacement for that selected region only.")
             appendLine("- If a full focused-context rewrite is necessary, return only the complete replacement for the focused method/function/constructor/accessor shown above.")
             appendLine("- Do not return both an insertion snippet and a full replacement.")
             appendLine("- Do not repeat line ${request.commentLineNumber}, existing surrounding lines, the enclosing class, or the whole file.")
             appendLine("- If imports are required, include only the new import lines that are not already present.")
-            appendLine("- The returned code is applied automatically: declaration-shaped focused-context output replaces that context; otherwise it is inserted below the instruction comment.")
+            appendLine("- The returned code is applied automatically: selected regions are replaced directly; declaration-shaped focused-context output replaces that context; otherwise it is inserted below the instruction comment.")
         }
     }
 }

@@ -27,11 +27,17 @@ internal object KoogAgentDetectedModelMerger {
                 }
                 merged.add(firstMatchingIndex.coerceAtMost(merged.size), replacement)
             } else if (addMissing) {
-                merged.add(detected.copy())
+                val missing = detected.copy()
+                missing.order = nextOrderAfter(merged)
+                merged.add(missing)
             }
         }
 
         return KoogAgentModelDeduplicator.deduplicate(merged)
+    }
+
+    private fun nextOrderAfter(models: Collection<KoogAgentModelState>): Int {
+        return ((models.maxOfOrNull { model -> model.order } ?: 0) / 10 + 1) * 10
     }
 
     private fun String.detectedSourceFamily(): String {

@@ -6,13 +6,13 @@ plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform") version "+"
 }
 
-//val pluginId = "site.addzero.smart-intentions"
-//val pluginName = "ide-kit"
+val pluginId = "site.addzero.smart-intentions"
+val pluginName = "ide-kit"
 
 intellijPlatform {
     pluginConfiguration {
-//        id = pluginId
-//        name = pluginName
+        id = pluginId
+        name = pluginName
         version = LocalDate.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
     }
 }
@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-class-to-interface"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-redundant-explicit-type"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-shorten-qualified-name"))
+    implementation(project(":plugins:ide-kit:split-module"))
 }
 
 listOf(
@@ -44,6 +45,6 @@ listOf(
     }
 }
 
-//tasks.named<Zip>("buildPlugin") {
-//    archiveBaseName.set(pluginName)
-//}
+tasks.named<Zip>("buildPlugin") {
+    archiveBaseName.set(pluginName)
+}

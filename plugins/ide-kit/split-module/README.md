@@ -12,7 +12,7 @@
 - **Package relocation**: Confirm the common base package, then move source files under `{basePackage}.{module_package_segment}`
 - **Dependency fusion**: Merge Gradle dependency statements into the main module, remove dependencies to merged modules, and deduplicate project references
 - **Background merge task**: Long-running package scans, moves, and reference rewrites run with IDE task progress instead of blocking the UI
-- **Root README preservation**: Source module root `README*` files stay in their original module directory instead of being moved into `merged-modules`
+- **Root README relocation**: Source module root `README*` files are moved into `merged-modules/<module>/`
 - **Multi-build system support**: Supports **Maven** (`pom.xml`), **Gradle Kotlin DSL** (`build.gradle.kts`), and **Gradle Groovy DSL** (`build.gradle`)
 - **Smart dependency injection**: Automatically adds the new module as a dependency in the source module using the appropriate syntax
 - **Structure preservation**: Maintains file paths and package hierarchy (e.g., `src/main/kotlin/...`)
@@ -42,7 +42,7 @@
    - Remove the shared prefix between the old package and confirmed base package before appending the old package suffix
    - Update imports and fully qualified references for detected top-level Kotlin/Java symbols
    - Merge Gradle dependencies into the main module and remove direct dependencies to merged modules
-   - Delete fully merged source module contents after the move, while keeping root `README*` files in place
+   - Delete fully merged source module directories after moving source files and root `README*` files
 
 ## Example
 

@@ -39,7 +39,6 @@ class ModuleMerger(private val project: Project) {
         val packageSegment: String,
         val gradlePath: String?,
         val buildFile: File?,
-        val preservedRootReadmes: List<File>,
         val moveEntries: List<MoveEntry>,
     )
 
@@ -211,7 +210,6 @@ class ModuleMerger(private val project: Project) {
                 packageSegment = packageSegment,
                 gradlePath = sourceDir.gradlePathOrNull(projectRoot),
                 buildFile = sourceDir.findBuildFile(),
-                preservedRootReadmes = sourceDir.rootReadmeFiles(),
                 moveEntries = createMoveEntries(
                     sourceModuleDir = sourceDir,
                     targetModuleDir = targetModuleDir,
@@ -258,7 +256,6 @@ class ModuleMerger(private val project: Project) {
             .onEnter { child -> !child.isExcludedDirectory() }
             .filter { it.isFile }
             .filterNot { it.isBuildDescriptor() }
-            .filterNot { it.isRootReadme(sourceModuleDir) }
             .map { sourceFile ->
                 indicator?.checkCanceled()
                 val sourceRootInfo = sourceFile.sourceRootInfo(sourceModuleDir)
@@ -482,11 +479,7 @@ class ModuleMerger(private val project: Project) {
                 return@forEach
             }
 
-            if (sourcePlan.preservedRootReadmes.any { it.exists() }) {
-                deleteModuleContentsExceptRootReadmes(sourcePlan.moduleDir)
-            } else {
-                sourcePlan.moduleDir.deleteRecursively()
-            }
+            sourcePlan.moduleDir.deleteRecursively()
         }
 
         VfsUtil.markDirtyAndRefresh(
@@ -997,26 +990,6 @@ class ModuleMerger(private val project: Project) {
         return listOf("build.gradle.kts", "build.gradle", "pom.xml")
             .map { File(this, it) }
             .firstOrNull { it.isFile }
-    }
-
-    private fun File.rootReadmeFiles(): List<File> {
-        return listFiles()
-            .orEmpty()
-            .filter { it.isFile && it.name.startsWith("README", ignoreCase = true) }
-            .sortedBy { it.name }
-    }
-
-    private fun File.isRootReadme(moduleDir: File): Boolean {
-        return parentFile?.canonicalFile == moduleDir.canonicalFile &&
-            name.startsWith("README", ignoreCase = true)
-    }
-
-    private fun deleteModuleContentsExceptRootReadmes(moduleDir: File) {
-        moduleDir
-            .listFiles()
-            .orEmpty()
-            .filterNot { it.isFile && it.name.startsWith("README", ignoreCase = true) }
-            .forEach { it.deleteRecursively() }
     }
 
     private fun File.gradlePathOrNull(projectRoot: File): String? {

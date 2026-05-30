@@ -18,7 +18,12 @@ class KoogAgentSettingsState {
     fun enabledModels(): List<KoogAgentModelState> {
         return KoogAgentModelDeduplicator.deduplicate(models)
             .filter { model -> model.enabled && model.baseUrl.isNotBlank() && model.model.isNotBlank() && model.apiKey.isNotBlank() }
-            .sortedWith(compareBy<KoogAgentModelState> { it.order }.thenBy { it.vendor }.thenBy { it.model })
+            .sortedWith(
+                compareBy<KoogAgentModelState> { it.order }
+                    .thenBy { it.detected }
+                    .thenBy { it.vendor }
+                    .thenBy { it.model },
+            )
     }
 }
 

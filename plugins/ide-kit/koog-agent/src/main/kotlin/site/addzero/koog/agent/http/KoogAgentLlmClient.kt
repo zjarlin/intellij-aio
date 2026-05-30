@@ -25,13 +25,7 @@ internal object KoogAgentLlmClient {
         systemPrompt: String,
         userPrompt: String,
     ): String {
-        val payload = mapOf(
-            "model" to model.model.trim(),
-            "instructions" to systemPrompt,
-            "input" to userPrompt,
-            "max_output_tokens" to CODE_SNIPPET_MAX_TOKENS,
-            "reasoning" to mapOf("effort" to "low"),
-        )
+        val payload = openAiResponsesPayload(model.model, systemPrompt, userPrompt)
         val response = postJson(
             endpoint = endpoint(model.baseUrl, "responses"),
             apiKey = model.apiKey,
@@ -39,6 +33,30 @@ internal object KoogAgentLlmClient {
             headers = mapOf("Authorization" to "Bearer ${model.apiKey.trim()}"),
         )
         return KoogAgentResponseParsers.openAiResponsesText(response)
+    }
+
+    internal fun openAiResponsesPayload(
+        model: String,
+        systemPrompt: String,
+        userPrompt: String,
+    ): Map<String, Any?> {
+        return mapOf(
+            "model" to model.trim(),
+            "instructions" to systemPrompt,
+            "input" to listOf(
+                mapOf(
+                    "type" to "message",
+                    "role" to "user",
+                    "content" to listOf(
+                        mapOf(
+                            "type" to "input_text",
+                            "text" to userPrompt,
+                        ),
+                    ),
+                ),
+            ),
+            "reasoning" to mapOf("effort" to "low"),
+        )
     }
 
     private fun generateWithOpenAiCompatibleChat(

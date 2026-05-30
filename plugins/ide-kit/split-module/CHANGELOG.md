@@ -37,7 +37,7 @@ All notable changes to the Split Module plugin will be documented in this file.
 - Gradle dependencies from merged modules are fused into the main module, direct dependencies to merged modules are removed, and duplicate project dependency lines are deduplicated.
 - Project code imports and fully qualified references are updated for detected top-level Kotlin and Java symbols.
 - Merge preparation and execution now run through background progress tasks instead of blocking the event dispatch thread.
-- Source module root `README*` files are preserved in the original module directory instead of being moved into `merged-modules`.
+- Source module root `README*` files are moved into `merged-modules/<module>/` with the rest of the module content.
 
 ### Changed
 - The default module name now prefers `{source-module}-{selected-leaf-package}` when the selection resolves to a single leaf package, and falls back to `{source-module}1` otherwise.

@@ -7,6 +7,7 @@
 - Kotlin `class` / `data class` 转 `interface`
 - Find in Files 里的“源码目录”搜索范围
 - Project 视图与 VCS 提交列表里的文件隐藏能力
+- Project 视图里的模块拆分与模块合并工具
 
 ## 功能一览
 
@@ -20,6 +21,7 @@
 - 隐藏项显示切换：在 Project 视图工具栏切换是否显示已隐藏文件
 - Module Lock：按模块临时收起稳定功能模块，不影响 Gradle 构建
 - VCS 提交列表联动：隐藏项会同步从提交变更列表中排除
+- Split/Merge Module：在 Project 视图右键把选中文件拆到新模块，或把选中模块合并回目标模块
 
 ## 适合谁用
 
@@ -29,6 +31,7 @@
 - 想把 `build/`、`target/`、`.gradle/`、`generated/` 等目录排除出全文搜索的人
 - 想临时把噪音文件从 Project 视图和变更提交面板里收起来的人
 - 想把一批暂时不用动的稳定模块先收起来，集中盯当前功能的人
+- 想在 Gradle/Maven 项目里拆分或合并模块，并让插件处理基础目录、包名和依赖调整的人
 
 ## 安装后怎么用
 
@@ -204,6 +207,28 @@ interface S3Config {
 - 不会影响模块构建、依赖解析或同步
 - 状态按项目保存在 workspace 中，适合“这几天先别看这些稳定模块”的场景
 
+### 7. 拆分或合并项目模块
+
+Split/Merge Module 面向模块重构场景，支持 Gradle Kotlin DSL、Gradle Groovy DSL 和 Maven 项目。
+
+拆分模块：
+
+1. 在 `Project` 视图中选中同一模块下的文件或目录
+2. 右键选择 `Split Module`
+3. 输入新模块名并确认
+
+合并模块：
+
+1. 在 `Project` 视图中选中要合并的模块根目录
+2. 右键选择 `Merge Modules`
+3. 选择目标模块和基包后确认
+
+补充说明：
+
+- 拆分会创建同级模块，并保留原始目录层级
+- 合并会尝试迁移源文件、调整包名、合并依赖并清理重复 project 引用
+- 复杂自定义构建逻辑仍然需要人工复核生成后的构建文件
+
 ## 示意截图
 
 下面这张图展示了插件当前文档里提到的主要入口，包括 Kotlin 的 `Alt+Enter` 清理、`Find in Files` 的“源码目录”范围，以及 Project 视图里的隐藏文件操作。
@@ -218,6 +243,7 @@ interface S3Config {
 - `在项目(P)` 的全局搜索会自动少掉 `.gradle` / `.kotlin` / `.gradle-user-home` / `build/tmp` 里的 Gradle 生成脚本和访问器源码，但不会替代你手动配置的自定义 scope
 - 隐藏文件能力作用于当前项目视图与变更列表，不会修改磁盘文件，也不会改 Git 跟踪状态
 - Module Lock 当前作用于 Project 视图显示层，不会改变 Gradle 构建和模块依赖关系
+- Split/Merge Module 会修改项目文件和构建文件，执行后应通过 IDE diff 和 Gradle/Maven 同步结果复核
 - 如果团队共享同一个仓库但各自 IDE 视图偏好不同，隐藏状态不会替代团队级规则文件
 
 ## 开发（本仓库）
@@ -228,6 +254,7 @@ interface S3Config {
 - `class -> interface` 实现：`plugins/ide-kit/smart-intentions-kotlin-class-to-interface`
 - 搜索 scope 实现：`plugins/ide-kit/smart-intentions-find-source-only`
 - 隐藏文件实现：`plugins/ide-kit/smart-intentions-hidden-files`
+- 模块拆分/合并实现：`plugins/ide-kit/split-module`
 
 构建插件：
 

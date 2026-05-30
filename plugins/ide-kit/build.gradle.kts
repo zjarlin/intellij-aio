@@ -25,6 +25,7 @@ tasks {
 }
 
 dependencies {
+    implementation(project(":plugins:ide-kit:koog-agent"))
     implementation(project(":plugins:ide-kit:smart-intentions-core"))
     implementation(project(":plugins:ide-kit:smart-intentions-find-source-only"))
     implementation(project(":plugins:ide-kit:smart-intentions-hidden-files"))

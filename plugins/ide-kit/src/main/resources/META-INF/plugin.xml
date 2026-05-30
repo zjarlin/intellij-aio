@@ -8,9 +8,22 @@
         <searchScopesProvider implementation="site.addzero.smart.intentions.find.sourceonly.SmartSourceOnlySearchScopeProvider"/>
         <projectService serviceImplementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesProjectService"/>
         <projectService serviceImplementation="site.addzero.smart.intentions.modulelock.ModuleLockProjectService"/>
+        <projectService serviceImplementation="site.addzero.koog.agent.KoogAgentCommentGenerationService"/>
+        <applicationService serviceImplementation="site.addzero.koog.agent.settings.KoogAgentSettingsService"/>
         <treeStructureProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesTreeStructureProvider"/>
         <ignoredFileProvider implementation="site.addzero.smart.intentions.hiddenfiles.HiddenFilesIgnoredFileProvider"/>
         <notificationGroup id="IdeKit Notifications" displayType="BALLOON" isLogByDefault="true"/>
+        <applicationConfigurable
+                parentId="tools"
+                instance="site.addzero.koog.agent.settings.KoogAgentConfigurable"
+                id="site.addzero.koog.agent.settings"
+                displayName="ide-kit AI"/>
+        <postStartupActivity implementation="site.addzero.koog.agent.KoogAgentProjectActivity"/>
+
+        <intentionAction order="FIRST">
+            <className>site.addzero.koog.agent.KoogAgentGenerateCodeIntention</className>
+            <category>ide-kit</category>
+        </intentionAction>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>

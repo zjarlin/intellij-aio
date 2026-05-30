@@ -2,6 +2,8 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
+
 intellijPlatform {
     pluginConfiguration {
         id = "com.addzero.autoddl"
@@ -22,12 +24,12 @@ dependencies {
     implementation(project(":lib:ide-component-settings-old"))
 
 
-    implementation(libs.site.addzero.tool.ai)
-    implementation(libs.site.addzero.tool.toml)
-    implementation(libs.site.addzero.tool.io.codegen)
-    implementation(libs.site.addzero.tool.str)
-    implementation(libs.site.addzero.tool.jvmstr)
-    implementation(libs.site.addzero.tool.coll)
-    implementation(libs.site.addzero.tool.reflection)
+    implementation(libs.findLibrary("site-addzero-tool-ai").get())
+    implementation(libs.findLibrary("site-addzero-tool-toml").get())
+    implementation(libs.findLibrary("site-addzero-tool-io-codegen").get())
+    implementation(libs.findLibrary("site-addzero-tool-str").get())
+    implementation(libs.findLibrary("site-addzero-tool-jvmstr").get())
+    implementation(libs.findLibrary("site-addzero-tool-coll").get())
+    implementation(libs.findLibrary("site-addzero-tool-reflection").get())
 
 }

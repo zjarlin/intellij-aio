@@ -2,6 +2,7 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
 
 val pluginName = project.name
 intellijPlatform {
@@ -12,5 +13,5 @@ intellijPlatform {
 }
 
 dependencies {
-    implementation(libs.com.google.code.gson.gson)
+    implementation(libs.findLibrary("com-google-code-gson-gson").get())
 }

@@ -2,10 +2,11 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-core")
 }
+val libs = versionCatalogs.named("libs")
 
 dependencies {
-    implementation(libs.site.addzero.tool.jvmstr)
-    implementation(libs.cn.hutool.hutool.core)
+    implementation(libs.findLibrary("site-addzero-tool-jvmstr").get())
+    implementation(libs.findLibrary("cn-hutool-hutool-core").get())
 //    implementation(tool-str)
 
 

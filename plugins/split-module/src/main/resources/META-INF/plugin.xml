@@ -7,15 +7,20 @@
     <idea-version since-build="242" until-build="262.*"/>
 
     <description>
-        Quickly split files from a Gradle module into a new sibling module.
+        Split selected files into sibling modules, or merge selected module roots back into one main module.
 
         Features:
         - Right-click selected files to split into a new module
+        - Right-click selected module roots to merge modules into one main module
         - Automatically creates sibling module with same build configuration
         - Automatically adds dependency from source module to new module
+        - Relocates merged packages under a confirmed common base package
+        - Fuses Gradle dependencies and removes duplicate project references
+        - Runs long module merges in background progress tasks
+        - Keeps source module root README files in their original directories
         - Preserves file structure and package hierarchy
 
-        Perfect for refactoring large modules into smaller, focused modules.
+        Perfect for refactoring large modules into smaller modules and consolidating module sets again.
     </description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -37,6 +42,12 @@
                 class="site.addzero.split.actions.SplitModuleAction"
                 text="Split Module"
                 description="Split selected files into a new sibling Gradle module">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="SplitModule.MergeModuleAction"
+                class="site.addzero.split.actions.MergeModuleAction"
+                text="Merge Modules"
+                description="Merge selected module roots into one main module">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>

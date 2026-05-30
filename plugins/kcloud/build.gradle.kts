@@ -4,6 +4,7 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
 
 group = "site.addzero"
 
@@ -12,7 +13,7 @@ base {
 }
 
 dependencies {
-    implementation(libs.org.xerial.sqlite.jdbc.v3)
+    implementation(libs.findLibrary("org-xerial-sqlite-jdbc-v3").get())
 
     intellijPlatform {
         testFramework(TestFrameworkType.Platform)

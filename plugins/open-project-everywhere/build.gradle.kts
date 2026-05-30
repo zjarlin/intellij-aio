@@ -1,14 +1,15 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
 
 dependencies {
     intellijPlatform {
         bundledPlugin("Git4Idea")
         bundledPlugin("org.jetbrains.plugins.github")
     }
-    implementation(libs.com.google.code.gson.gson)
-    implementation(libs.com.squareup.okhttp3.okhttp)
+    implementation(libs.findLibrary("com-google-code-gson-gson").get())
+    implementation(libs.findLibrary("com-squareup-okhttp3-okhttp").get())
 }
 
 //intellijPlatform {

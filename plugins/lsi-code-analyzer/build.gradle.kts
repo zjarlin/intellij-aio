@@ -1,6 +1,7 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
 
 
 dependencies {
@@ -15,11 +16,11 @@ dependencies {
     implementation("site.addzero:tool-database-model:2025.12.04")
     implementation("site.addzero:tool-sql-executor:2025.11.26")
     implementation("site.addzero:tool-jdbc:2025.10.07")
-    implementation(libs.com.google.code.gson.gson)
-    implementation(libs.site.addzero.tool.jvmstr)
+    implementation(libs.findLibrary("com-google-code-gson-gson").get())
+    implementation(libs.findLibrary("site-addzero-tool-jvmstr").get())
 
     // JSON to Kotlin Data Class
-    implementation(libs.site.addzero.json2kotlin.dataclass)
+    implementation(libs.findLibrary("site-addzero-json2kotlin-dataclass").get())
 
 
 

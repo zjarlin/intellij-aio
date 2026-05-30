@@ -1,12 +1,13 @@
 plugins {
     id("site.addzero.buildlogic.intellij.intellij-platform")
 }
+val libs = versionCatalogs.named("libs")
 
 dependencies {
     intellijPlatform {
         bundledPlugin("Git4Idea")
     }
-    implementation(libs.com.squareup.okhttp3.okhttp)
+    implementation(libs.findLibrary("com-squareup-okhttp3-okhttp").get())
 }
 
 val pluginName = project.name

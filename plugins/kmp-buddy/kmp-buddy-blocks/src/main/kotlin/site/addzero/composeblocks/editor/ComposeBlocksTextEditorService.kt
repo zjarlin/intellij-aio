@@ -19,6 +19,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.util.Alarm
+import com.intellij.util.IncorrectOperationException
 import com.intellij.util.concurrency.AppExecutorUtil
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtFile
@@ -40,8 +41,22 @@ class ComposeBlocksTextEditorService(
         file: VirtualFile,
         textEditor: TextEditor,
     ) {
+        if (project.isDisposed) {
+            return
+        }
+
+        val textEditorDisposable = textEditor as? Disposable
+        if (textEditorDisposable?.isDisposedByDisposer() == true) {
+            return
+        }
+
         val editor = textEditor.editor as? EditorEx ?: return
-        val parentDisposable = (textEditor as? Disposable) ?: (editor as? Disposable) ?: project
+        val editorDisposable = editor as? Disposable
+        if (editorDisposable?.isDisposedByDisposer() == true) {
+            return
+        }
+
+        val parentDisposable = textEditorDisposable ?: editorDisposable ?: project
         installIfNeeded(file, editor, parentDisposable)
     }
 
@@ -50,28 +65,65 @@ class ComposeBlocksTextEditorService(
         editor: EditorEx,
         parentDisposable: Disposable,
     ) {
+        if (project.isDisposed || parentDisposable.isDisposedByDisposer()) {
+            return
+        }
+
         if (!file.isComposeKotlinFile(project)) {
             return
         }
 
         val existingSession = editor.getUserData(TEXT_SESSION_KEY)
         if (existingSession != null) {
-            existingSession.setProgressiveExpansionEnabled(file.isProgressiveExpansionEnabled())
+            if (existingSession.isDisposedByDisposer()) {
+                editor.putUserData(TEXT_SESSION_KEY, null)
+            } else {
+                existingSession.setProgressiveExpansionEnabled(file.isProgressiveExpansionEnabled())
+                return
+            }
+        }
+
+        if (parentDisposable.isDisposedByDisposer()) {
             return
         }
 
         val session = ComposeBlocksTextEditorSession(project, file, editor)
+        if (!registerSession(parentDisposable, session)) {
+            Disposer.dispose(session)
+            return
+        }
+
+        if (session.isDisposedByDisposer()) {
+            return
+        }
+
         editor.putUserData(TEXT_SESSION_KEY, session)
-        Disposer.register(parentDisposable, session)
         session.install()
         session.setProgressiveExpansionEnabled(file.isProgressiveExpansionEnabled())
+    }
+
+    private fun registerSession(
+        parentDisposable: Disposable,
+        session: ComposeBlocksTextEditorSession,
+    ): Boolean {
+        return try {
+            Disposer.register(parentDisposable, session)
+            true
+        } catch (_: IncorrectOperationException) {
+            false
+        }
     }
 
     fun updateProgressiveExpansion(
         editor: EditorEx,
         enabled: Boolean,
     ) {
-        editor.getUserData(TEXT_SESSION_KEY)?.setProgressiveExpansionEnabled(enabled)
+        val existingSession = editor.getUserData(TEXT_SESSION_KEY) ?: return
+        if (existingSession.isDisposedByDisposer()) {
+            editor.putUserData(TEXT_SESSION_KEY, null)
+        } else {
+            existingSession.setProgressiveExpansionEnabled(enabled)
+        }
     }
 }
 
@@ -93,8 +145,10 @@ private class ComposeBlocksTextEditorSession(
     private var refreshInFlight = false
     private var pendingDaemonRefresh = false
     private var daemonListenerInstalled = false
+    private var installed = false
 
     fun install() {
+        installed = true
         installDaemonListener()
         document.addDocumentListener(
             object : DocumentListener {
@@ -118,6 +172,11 @@ private class ComposeBlocksTextEditorSession(
     }
 
     override fun dispose() {
+        if (!installed) {
+            refreshAlarm.cancelAllRequests()
+            return
+        }
+
         editor.putUserData(TEXT_SESSION_KEY, null)
         refreshAlarm.cancelAllRequests()
         decorationController.clear()
@@ -127,6 +186,9 @@ private class ComposeBlocksTextEditorSession(
     }
 
     fun setProgressiveExpansionEnabled(enabled: Boolean) {
+        if (this.isDisposedByDisposer() || project.isDisposed) {
+            return
+        }
         if (progressiveExpansionEnabled == enabled) {
             return
         }
@@ -150,6 +212,9 @@ private class ComposeBlocksTextEditorSession(
     }
 
     private fun scheduleRefreshIfReady() {
+        if (this.isDisposedByDisposer() || project.isDisposed) {
+            return
+        }
         if (refreshInFlight) {
             return
         }
@@ -201,6 +266,9 @@ private class ComposeBlocksTextEditorSession(
         ReadAction.nonBlocking<Snapshot?> {
             buildSnapshot()
         }.finishOnUiThread(ModalityState.any()) { snapshot ->
+            if (this.isDisposedByDisposer() || project.isDisposed) {
+                return@finishOnUiThread
+            }
             refreshInFlight = false
             if (snapshot == null) {
                 clearPresentation()
@@ -214,7 +282,7 @@ private class ComposeBlocksTextEditorSession(
             }
             selectedNode = findBestSelection(editor.caretModel.offset)
             applyPresentation()
-        }.submit(AppExecutorUtil.getAppExecutorService())
+        }.expireWith(this).submit(AppExecutorUtil.getAppExecutorService())
     }
 
     private fun buildSnapshot(): Snapshot? {
@@ -408,3 +476,8 @@ private data class Snapshot(
 )
 
 private const val DAEMON_FALLBACK_DELAY_MS = 1200
+
+@Suppress("DEPRECATION")
+private fun Disposable.isDisposedByDisposer(): Boolean {
+    return Disposer.isDisposed(this)
+}

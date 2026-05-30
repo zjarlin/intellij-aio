@@ -5,8 +5,15 @@ internal object KoogAgentIndentSupport {
         code: String,
         commentIndent: String,
     ): String {
+        return alignToIndent(code, commentIndent)
+    }
+
+    fun alignToIndent(
+        code: String,
+        targetIndent: String,
+    ): String {
         val trimmed = code.trim('\n', '\r')
-        if (commentIndent.isBlank() || trimmed.isBlank()) {
+        if (targetIndent.isBlank() || trimmed.isBlank()) {
             return trimmed
         }
         val nonBlankLines = trimmed.lineSequence().filter { it.isNotBlank() }.toList()
@@ -22,8 +29,15 @@ internal object KoogAgentIndentSupport {
                 if (line.isBlank()) {
                     line
                 } else {
-                    commentIndent + line
+                    targetIndent + line
                 }
             }
+    }
+
+    fun leadingIndentOf(text: String): String {
+        return text.lineSequence()
+            .firstOrNull { line -> line.isNotBlank() }
+            ?.takeWhile { char -> char == ' ' || char == '\t' }
+            .orEmpty()
     }
 }

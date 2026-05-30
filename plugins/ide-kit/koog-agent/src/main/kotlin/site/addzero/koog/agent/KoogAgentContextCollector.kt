@@ -42,8 +42,11 @@ internal object KoogAgentContextCollector {
         val endLine = document.getLineNumber((range.endOffset - 1).coerceIn(0, (document.textLength - 1).coerceAtLeast(0)))
         return KoogAgentFocusedContext(
             kind = focusedElement.javaClass.simpleName,
+            startOffset = range.startOffset,
+            endOffset = range.endOffset,
             startLineNumber = startLine + 1,
             endLineNumber = endLine + 1,
+            rawContent = document.getText(range),
             content = lineNumberedTextForLineRange(document, startLine, endLine + 1),
         )
     }

@@ -42,19 +42,24 @@ class KoogAgentCommentGenerationService(
     fun generateAt(
         document: Document,
         triggerOffset: Int,
+        contextScope: KoogAgentContextScope,
     ) {
         ProgressManager.getInstance().run(
             object : Task.Backgroundable(project, "ide-kit Generate Code", true) {
                 override fun run(indicator: ProgressIndicator) {
-                    generateForDocument(document, triggerOffset)
+                    generateForDocument(document, triggerOffset, contextScope)
                 }
             },
         )
     }
 
-    private fun generateForDocument(document: Document, triggerOffset: Int) {
+    private fun generateForDocument(
+        document: Document,
+        triggerOffset: Int,
+        contextScope: KoogAgentContextScope,
+    ) {
         val request = ReadAction.compute<KoogAgentGenerationRequest?, Throwable> {
-            createGenerationRequest(document, triggerOffset)
+            createGenerationRequest(document, triggerOffset, contextScope)
         } ?: return
 
         if (!inFlightKeys.add(request.key)) {
@@ -84,6 +89,7 @@ class KoogAgentCommentGenerationService(
     private fun createGenerationRequest(
         document: Document,
         triggerOffset: Int,
+        contextScope: KoogAgentContextScope = KoogAgentContextScope.NEARBY,
     ): KoogAgentGenerationRequest? {
         val virtualFile = FileDocumentManager.getInstance().getFile(document) ?: return null
         if (!isEligibleFile(virtualFile)) {
@@ -116,10 +122,14 @@ class KoogAgentCommentGenerationService(
                 filePath = virtualFile.path,
                 language = resolveLanguage(virtualFile),
                 instruction = instruction,
+                contextScope = contextScope,
                 caretLineNumber = lineNumber + 1,
                 commentLineNumber = line + 1,
                 insertionLineNumber = line + 2,
-                fullFileContent = KoogAgentContextCollector.fullFileContent(document),
+                fullFileContent = when (contextScope) {
+                    KoogAgentContextScope.NEARBY -> null
+                    KoogAgentContextScope.FULL_FILE -> KoogAgentContextCollector.fullFileContent(document)
+                },
                 focusedContext = focusedContext,
                 beforeContext = context.before,
                 afterContext = context.after,
@@ -139,26 +149,71 @@ class KoogAgentCommentGenerationService(
         if (project.isDisposed || request.insertOffset > document.textLength) {
             return
         }
-        val code = KoogAgentIndentSupport.alignToCommentIndent(rawCode, request.leadingIndent)
-        val insertion = buildString {
-            append('\n')
-            append(code.trimEnd())
-            append('\n')
+        val placement = KoogAgentGeneratedCodePlacementDecider.decide(request, rawCode)
+        val targetIndent = when (placement) {
+            KoogAgentGeneratedCodePlacement.INSERT_SNIPPET -> request.leadingIndent
+            KoogAgentGeneratedCodePlacement.REPLACE_FOCUSED_CONTEXT ->
+                request.focusedContext?.rawContent?.let(KoogAgentIndentSupport::leadingIndentOf).orEmpty()
+        }
+        val code = KoogAgentIndentSupport.alignToIndent(rawCode, targetIndent).trimEnd()
+        if (code.isBlank()) {
+            return
         }
 
         WriteCommandAction.writeCommandAction(project)
             .withName("ide-kit Generate Code")
             .run<RuntimeException> {
-                document.insertString(request.insertOffset, insertion)
+                val changedRange = when (placement) {
+                    KoogAgentGeneratedCodePlacement.INSERT_SNIPPET -> insertSnippet(document, request, code)
+                    KoogAgentGeneratedCodePlacement.REPLACE_FOCUSED_CONTEXT -> replaceFocusedContext(document, request, code)
+                } ?: return@run
                 val psiDocumentManager = PsiDocumentManager.getInstance(project)
                 psiDocumentManager.commitDocument(document)
                 val psiFile = psiDocumentManager.getPsiFile(document) ?: return@run
-                val startOffset = (request.insertOffset + 1).coerceAtMost(document.textLength)
-                val endOffset = (request.insertOffset + insertion.length).coerceAtMost(document.textLength)
-                if (startOffset < endOffset) {
-                    CodeStyleManager.getInstance(project).reformatText(psiFile, startOffset, endOffset)
+                if (changedRange.startOffset < changedRange.endOffset) {
+                    CodeStyleManager.getInstance(project).reformatText(
+                        psiFile,
+                        changedRange.startOffset,
+                        changedRange.endOffset,
+                    )
                 }
             }
+    }
+
+    private fun insertSnippet(
+        document: Document,
+        request: KoogAgentGenerationRequest,
+        code: String,
+    ): TextRange {
+        val insertion = buildString {
+            append('\n')
+            append(code)
+            append('\n')
+        }
+        document.insertString(request.insertOffset, insertion)
+        return TextRange(
+            (request.insertOffset + 1).coerceAtMost(document.textLength),
+            (request.insertOffset + insertion.length).coerceAtMost(document.textLength),
+        )
+    }
+
+    private fun replaceFocusedContext(
+        document: Document,
+        request: KoogAgentGenerationRequest,
+        code: String,
+    ): TextRange? {
+        val focusedContext = request.focusedContext ?: return null
+        if (focusedContext.startOffset < 0 || focusedContext.endOffset > document.textLength) {
+            return null
+        }
+        if (focusedContext.startOffset >= focusedContext.endOffset) {
+            return null
+        }
+        document.replaceString(focusedContext.startOffset, focusedContext.endOffset, code)
+        return TextRange(
+            focusedContext.startOffset,
+            (focusedContext.startOffset + code.length).coerceAtMost(document.textLength),
+        )
     }
 
     private fun isEligibleFile(file: VirtualFile): Boolean {

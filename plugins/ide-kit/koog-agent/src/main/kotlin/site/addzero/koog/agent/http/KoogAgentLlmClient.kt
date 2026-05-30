@@ -27,16 +27,8 @@ internal object KoogAgentLlmClient {
     ): String {
         val payload = mapOf(
             "model" to model.model.trim(),
-            "input" to listOf(
-                mapOf(
-                    "role" to "system",
-                    "content" to listOf(mapOf("type" to "input_text", "text" to systemPrompt)),
-                ),
-                mapOf(
-                    "role" to "user",
-                    "content" to listOf(mapOf("type" to "input_text", "text" to userPrompt)),
-                ),
-            ),
+            "instructions" to systemPrompt,
+            "input" to userPrompt,
             "max_output_tokens" to CODE_SNIPPET_MAX_TOKENS,
             "reasoning" to mapOf("effort" to "low"),
         )

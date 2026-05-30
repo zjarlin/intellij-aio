@@ -1,8 +1,9 @@
 # ide-kit packages Kotlin cleanup, source-only search, and project file hiding tools for JetBrains IDEs.
 
-`ide-kit` 是一个面向 JetBrains IDE 的轻量效率插件，当前聚焦三类高频场景：
+`ide-kit` 是一个面向 JetBrains IDE 的轻量效率插件，当前聚焦几类高频场景：
 
 - Kotlin 属性的冗余显式类型清理
+- Kotlin 全项目全限定名缩短
 - Kotlin `class` / `data class` 转 `interface`
 - Find in Files 里的“源码目录”搜索范围
 - Project 视图与 VCS 提交列表里的文件隐藏能力
@@ -10,6 +11,7 @@
 ## 功能一览
 
 - `Alt+Enter` 意图动作：对 Kotlin 属性提供 `移除冗余显式类型`
+- `Alt+Enter` / `Code` 菜单动作：缩短项目 Kotlin 文件中的全限定名
 - `Alt+Enter` 意图动作：对简单 Kotlin `class` / `data class` 提供 `转换为 interface`
 - Kotlin Inspection：自动标出可以安全删掉的冗余显式类型声明
 - 搜索范围：在 `Find in Files` 中增加“源码目录” scope，排除常见生成目录
@@ -22,6 +24,7 @@
 ## 适合谁用
 
 - Kotlin 项目里经常需要清理样板类型声明的开发者
+- Kotlin 代码里经常需要把全限定名收敛成 import 加短名的开发者
 - 习惯先写数据承载类，后续又想把契约抽成接口的 Kotlin 开发者
 - 想把 `build/`、`target/`、`.gradle/`、`generated/` 等目录排除出全文搜索的人
 - 想临时把噪音文件从 Project 视图和变更提交面板里收起来的人
@@ -61,7 +64,38 @@ val retryCount = 3
 3. 运行后筛选 `SmartRedundantExplicitType`
 4. 直接执行批量修复
 
-### 2. 把 Kotlin class / data class 转为 interface
+### 2. 缩短项目里的 Kotlin 全限定名
+
+当代码里出现可导入的全限定名时，可以一次性对项目 Kotlin 文件执行缩短。插件会复用 Kotlin 插件自己的引用缩短逻辑，自动补 import，并把调用位置改成短名。
+
+使用方式：
+
+1. 打开任意 Kotlin 文件，按 `Alt+Enter`
+2. 选择 `缩短项目中的 Kotlin 全限定名`
+
+也可以从 `Code -> 缩短项目中的 Kotlin 全限定名` 直接执行。
+
+示例：
+
+```kotlin
+return site.addzero.workbench.immersivedesktop.immersiveDesktopWindowDecoration(
+    config = config,
+    state = state,
+)
+```
+
+执行后：
+
+```kotlin
+import site.addzero.workbench.immersivedesktop.immersiveDesktopWindowDecoration
+
+return immersiveDesktopWindowDecoration(
+    config = config,
+    state = state,
+)
+```
+
+### 3. 把 Kotlin class / data class 转为 interface
 
 当一个 Kotlin 类型本质上只是“属性契约”时，可以直接在类声明上用 `Alt+Enter` 转成 `interface`。
 
@@ -103,7 +137,7 @@ interface S3Config {
 - 存在父类构造调用，例如 `: Base()`
 - 类体里声明了普通属性
 
-### 3. 在 Find in Files 里只搜源码
+### 4. 在 Find in Files 里只搜源码
 
 `ide-kit` 不再偷偷改写默认搜索范围，而是显式提供一个可选的“源码目录” scope。
 
@@ -126,7 +160,7 @@ interface S3Config {
 - `logs`
 - `*.log`
 
-### 4. 在 Project 视图里隐藏文件或目录
+### 5. 在 Project 视图里隐藏文件或目录
 
 `ide-kit` 提供的是“项目内隐藏”，不是删除、移动或写 `.gitignore`。
 
@@ -148,7 +182,7 @@ interface S3Config {
 - 隐藏状态按项目保存，在当前项目的 workspace state 中持久化
 - 打开“显示隐藏文件”只是在当前项目里临时显示，不会丢失隐藏标记
 
-### 5. 用 Module Lock 暂时收起稳定模块
+### 6. 用 Module Lock 暂时收起稳定模块
 
 `Module Lock` 面向的是模块级收纳，不是文件级隐藏。
 

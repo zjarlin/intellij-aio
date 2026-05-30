@@ -30,6 +30,12 @@
             <category>Smart Intentions</category>
         </intentionAction>
 
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
+            <className>site.addzero.smart.intentions.kotlin.shortenqualifiedname.SmartShortenProjectQualifiedNamesIntention</className>
+            <category>Smart Intentions</category>
+        </intentionAction>
+
         <localInspection
                 language="kotlin"
                 shortName="SmartRedundantExplicitType"
@@ -49,6 +55,10 @@
                 class="site.addzero.smart.intentions.actions.LocateCurrentRunTargetAction">
             <add-to-group group-id="GoToMenu" anchor="last"/>
             <add-to-group group-id="MainToolbarRight" anchor="before" relative-to-action="HelpTopics"/>
+        </action>
+        <action id="IdeKit.Kotlin.ShortenProjectQualifiedNames"
+                class="site.addzero.smart.intentions.kotlin.shortenqualifiedname.ShortenProjectQualifiedNamesAction">
+            <add-to-group group-id="CodeMenu" anchor="last"/>
         </action>
         <action id="IdeKit.HiddenFiles.Hide"
                 class="site.addzero.smart.intentions.hiddenfiles.actions.HideFilesAction">

@@ -30,6 +30,7 @@ dependencies {
     implementation(project(":plugins:ide-kit:smart-intentions-hidden-files"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-class-to-interface"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-redundant-explicit-type"))
+    implementation(project(":plugins:ide-kit:smart-intentions-kotlin-shorten-qualified-name"))
 }
 
 listOf(

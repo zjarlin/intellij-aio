@@ -1,0 +1,186 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - link "Homepage" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+        - generic [ref=e13]:
+          - navigation "Global" [ref=e16]:
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - button "Platform" [ref=e20] [cursor=pointer]:
+                  - text: Platform
+                  - img [ref=e21]
+              - listitem [ref=e23]:
+                - button "Solutions" [ref=e25] [cursor=pointer]:
+                  - text: Solutions
+                  - img [ref=e26]
+              - listitem [ref=e28]:
+                - button "Resources" [ref=e30] [cursor=pointer]:
+                  - text: Resources
+                  - img [ref=e31]
+              - listitem [ref=e33]:
+                - button "Open Source" [ref=e35] [cursor=pointer]:
+                  - text: Open Source
+                  - img [ref=e36]
+              - listitem [ref=e38]:
+                - button "Enterprise" [ref=e40] [cursor=pointer]:
+                  - text: Enterprise
+                  - img [ref=e41]
+              - listitem [ref=e43]:
+                - link "Pricing" [ref=e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+                  - generic [ref=e45]: Pricing
+          - generic [ref=e46]:
+            - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+            - link "Sign in" [ref=e54] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fzjarlin%2Fintellij-aio%2Factions
+            - link "Sign up" [ref=e55] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Factions%2Findex&source=header-repo&source_repo=zjarlin%2Fintellij-aio
+            - button "Appearance settings" [ref=e58] [cursor=pointer]:
+              - img
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - link "zjarlin" [ref=e70] [cursor=pointer]:
+            - /url: /zjarlin
+          - generic [ref=e71]: /
+          - strong [ref=e72]:
+            - link "intellij-aio" [ref=e73] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio
+          - generic [ref=e74]: Public
+        - generic [ref=e75]:
+          - list:
+            - listitem [ref=e76]:
+              - link "You must be signed in to change notification settings" [ref=e77] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e78]
+                - text: Notifications
+            - listitem [ref=e80]:
+              - link "Fork 1" [ref=e81] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e82]
+                - text: Fork
+                - generic "1" [ref=e84]
+            - listitem [ref=e85]:
+              - link "You must be signed in to star a repository" [ref=e87] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e88]
+                - text: Star
+                - generic "4 users starred this repository" [ref=e90]: "4"
+      - navigation "Repository" [ref=e91]:
+        - list [ref=e92]:
+          - listitem [ref=e93]:
+            - link "Code" [ref=e94] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio
+              - img [ref=e95]
+              - generic [ref=e97]: Code
+          - listitem [ref=e98]:
+            - link "Issues" [ref=e99] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/issues
+              - img [ref=e100]
+              - generic [ref=e103]: Issues
+          - listitem [ref=e104]:
+            - link "Pull requests" [ref=e105] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulls
+              - img [ref=e106]
+              - generic [ref=e108]: Pull requests
+          - listitem [ref=e109]:
+            - link "Actions" [ref=e110] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/actions
+              - img [ref=e111]
+              - generic [ref=e113]: Actions
+          - listitem [ref=e114]:
+            - link "Projects" [ref=e115] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/projects
+              - img [ref=e116]
+              - generic [ref=e118]: Projects
+          - listitem [ref=e119]:
+            - link "Security and quality" [ref=e120] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/security
+              - img [ref=e121]
+              - generic [ref=e123]: Security and quality
+          - listitem [ref=e124]:
+            - link "Insights" [ref=e125] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulse
+              - img [ref=e126]
+              - generic [ref=e128]: Insights
+    - generic [ref=e130]:
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - paragraph [ref=e133]: Automate your workflow from idea to production
+          - paragraph [ref=e134]: GitHub Actions makes it easy to automate all your software workflows, now with world-class CI/CD. Build, test, and deploy your code right from GitHub.
+        - link "Learn more about getting started with Actions." [ref=e136] [cursor=pointer]:
+          - /url: https://docs.github.com/articles/getting-started-with-github-actions
+      - separator [ref=e137]
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - img "Operating systems and containers" [ref=e140]
+          - heading "Linux, macOS, Windows, ARM, and containers" [level=4] [ref=e141]
+          - paragraph [ref=e142]: Hosted runners for every major OS make it easy to build and test all your projects. Run directly on a VM or inside a container. Use your own VMs, in the cloud or on-prem, with self-hosted runners.
+        - generic [ref=e143]:
+          - img "Matrix builds" [ref=e144]
+          - heading "Matrix builds" [level=4] [ref=e145]
+          - paragraph [ref=e146]: Save time with matrix workflows that simultaneously test across multiple operating systems and versions of your runtime.
+        - generic [ref=e147]:
+          - img "Any language" [ref=e148]
+          - heading "Any language" [level=4] [ref=e149]
+          - paragraph [ref=e150]: GitHub Actions supports Node.js, Python, Java, Ruby, PHP, Go, Rust, .NET, and more. Build, test, and deploy applications in your language of choice.
+        - generic [ref=e151]:
+          - img "Live logs" [ref=e152]
+          - heading "Live logs" [level=4] [ref=e153]
+          - paragraph [ref=e154]: See your workflow run in realtime with color and emoji. It’s one click to copy a link that highlights a specific line number to share a CI/CD failure.
+        - generic [ref=e155]:
+          - img "Secret store" [ref=e156]
+          - heading "Built-in secret store" [level=4] [ref=e157]
+          - paragraph [ref=e158]: Automate your software development practices with workflow files embracing the Git flow by codifying it in your repository.
+        - generic [ref=e159]:
+          - img "Multi-container testing" [ref=e160]
+          - heading "Multi-container testing" [level=4] [ref=e161]
+          - paragraph [ref=e162]:
+            - text: Test your web service and its DB in your workflow by simply adding some
+            - code [ref=e163]: docker-compose
+            - text: to your workflow file.
+  - contentinfo [ref=e164]:
+    - heading "Footer" [level=2] [ref=e165]
+    - generic [ref=e166]:
+      - generic [ref=e167]:
+        - link "GitHub Homepage" [ref=e168] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e169]
+        - generic [ref=e171]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e172]:
+        - heading "Footer navigation" [level=3] [ref=e173]
+        - list "Footer navigation" [ref=e174]:
+          - listitem [ref=e175]:
+            - link "Terms" [ref=e176] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e177]:
+            - link "Privacy" [ref=e178] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e179]:
+            - link "Security" [ref=e180] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e181]:
+            - link "Status" [ref=e182] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e183]:
+            - link "Community" [ref=e184] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e185]:
+            - link "Docs" [ref=e186] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e187]:
+            - link "Contact" [ref=e188] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e189]:
+            - button "Manage cookies" [ref=e191] [cursor=pointer]
+          - listitem [ref=e192]:
+            - button "Do not share my personal information" [ref=e194] [cursor=pointer]

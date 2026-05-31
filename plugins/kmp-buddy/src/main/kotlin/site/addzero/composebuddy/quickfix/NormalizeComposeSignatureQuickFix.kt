@@ -2,6 +2,7 @@ package site.addzero.composebuddy.quickfix
 
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
@@ -12,6 +13,10 @@ import site.addzero.composebuddy.refactor.ComposeRefactorRequest
 
 class NormalizeComposeSignatureQuickFix : LocalQuickFix {
     override fun getFamilyName(): String = ComposeBuddyBundle.message("quickfix.normalize.signature")
+
+    override fun generatePreview(project: Project, previewDescriptor: ProblemDescriptor): IntentionPreviewInfo {
+        return IntentionPreviewInfo.Html(ComposeBuddyBundle.message("quickfix.normalize.signature.preview"))
+    }
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val function = descriptor.psiElement.getStrictParentOfType<KtNamedFunction>() ?: return

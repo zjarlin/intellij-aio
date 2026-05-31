@@ -6,6 +6,7 @@ import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.util.IncorrectOperationException
 import com.intellij.ui.EditorNotificationProvider
 import java.util.function.Function
 import javax.swing.JComponent
@@ -29,7 +30,11 @@ class ComposeBlocksEditorNotificationProvider : EditorNotificationProvider, Dumb
                 return@Function null
             }
 
-            project.service<ComposeBlocksTextEditorService>().installIfNeeded(file, fileEditor)
+            try {
+                project.service<ComposeBlocksTextEditorService>().installIfNeeded(file, fileEditor)
+            } catch (_: IncorrectOperationException) {
+                // Editor notification refresh can race with editor disposal.
+            }
             null
         }
     }

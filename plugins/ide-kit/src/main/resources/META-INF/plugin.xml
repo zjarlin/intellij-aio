@@ -41,6 +41,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.smart.intentions.kotlin.kotlinxjson.SmartRemoveKotlinxJsonExplicitSerializerIntention</className>
+            <category>Smart Intentions</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.smart.intentions.kotlin.redundantexplicittype.SmartRemoveProjectRedundantExplicitTypeIntention</className>
             <category>Smart Intentions</category>
         </intentionAction>
@@ -109,6 +115,12 @@
                 class="site.addzero.split.actions.MergeModuleAction"
                 text="Merge Modules"
                 description="Merge selected module roots into one main module">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="IdeKit.RemoveCommonFolderPrefix"
+                class="site.addzero.split.actions.RemoveCommonFolderPrefixAction"
+                text="Remove Common Folder Prefix"
+                description="Infer the most repeated folder-name prefix, rename matching folders, and update package references">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>

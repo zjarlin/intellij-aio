@@ -46,13 +46,13 @@ class ComposeBlocksTextEditorService(
         }
 
         val textEditorDisposable = textEditor as? Disposable
-        if (textEditorDisposable?.isDisposedByDisposer() == true) {
+        if (textEditorDisposable.isDisposedByDisposerSafe()) {
             return
         }
 
-        val editor = textEditor.editor as? EditorEx ?: return
+        val editor = safeCompute { textEditor.editor as? EditorEx } ?: return
         val editorDisposable = editor as? Disposable
-        if (editorDisposable?.isDisposedByDisposer() == true) {
+        if (editorDisposable.isDisposedByDisposerSafe()) {
             return
         }
 
@@ -65,7 +65,7 @@ class ComposeBlocksTextEditorService(
         editor: EditorEx,
         parentDisposable: Disposable,
     ) {
-        if (project.isDisposed || parentDisposable.isDisposedByDisposer()) {
+        if (project.isDisposed || parentDisposable.isDisposedByDisposerSafe()) {
             return
         }
 
@@ -83,7 +83,7 @@ class ComposeBlocksTextEditorService(
             }
         }
 
-        if (parentDisposable.isDisposedByDisposer()) {
+        if (parentDisposable.isDisposedByDisposerSafe()) {
             return
         }
 
@@ -480,4 +480,19 @@ private const val DAEMON_FALLBACK_DELAY_MS = 1200
 @Suppress("DEPRECATION")
 private fun Disposable.isDisposedByDisposer(): Boolean {
     return Disposer.isDisposed(this)
+}
+
+private fun Disposable?.isDisposedByDisposerSafe(): Boolean {
+    if (this == null) {
+        return false
+    }
+    return safeCompute { isDisposedByDisposer() } ?: true
+}
+
+private fun <T> safeCompute(action: () -> T): T? {
+    return try {
+        action()
+    } catch (_: IncorrectOperationException) {
+        null
+    }
 }

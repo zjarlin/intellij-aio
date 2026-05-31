@@ -1,0 +1,214 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - link "Homepage" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+        - generic [ref=e13]:
+          - navigation "Global" [ref=e16]:
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - button "Platform" [ref=e20] [cursor=pointer]:
+                  - text: Platform
+                  - img [ref=e21]
+              - listitem [ref=e23]:
+                - button "Solutions" [ref=e25] [cursor=pointer]:
+                  - text: Solutions
+                  - img [ref=e26]
+              - listitem [ref=e28]:
+                - button "Resources" [ref=e30] [cursor=pointer]:
+                  - text: Resources
+                  - img [ref=e31]
+              - listitem [ref=e33]:
+                - button "Open Source" [ref=e35] [cursor=pointer]:
+                  - text: Open Source
+                  - img [ref=e36]
+              - listitem [ref=e38]:
+                - button "Enterprise" [ref=e40] [cursor=pointer]:
+                  - text: Enterprise
+                  - img [ref=e41]
+              - listitem [ref=e43]:
+                - link "Pricing" [ref=e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+                  - generic [ref=e45]: Pricing
+          - generic [ref=e46]:
+            - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+            - link "Sign in" [ref=e54] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fzjarlin%2Fintellij-aio%2Fpulls
+            - link "Sign up" [ref=e55] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fpull_requests%2Findex&source=header-repo&source_repo=zjarlin%2Fintellij-aio
+            - button "Appearance settings" [ref=e58] [cursor=pointer]:
+              - img
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e66]:
+          - img [ref=e67]
+          - link "zjarlin" [ref=e70] [cursor=pointer]:
+            - /url: /zjarlin
+          - generic [ref=e71]: /
+          - strong [ref=e72]:
+            - link "intellij-aio" [ref=e73] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio
+          - generic [ref=e74]: Public
+        - generic [ref=e75]:
+          - list:
+            - listitem [ref=e76]:
+              - link "You must be signed in to change notification settings" [ref=e77] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e78]
+                - text: Notifications
+            - listitem [ref=e80]:
+              - link "Fork 1" [ref=e81] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e82]
+                - text: Fork
+                - generic "1" [ref=e84]
+            - listitem [ref=e85]:
+              - link "You must be signed in to star a repository" [ref=e87] [cursor=pointer]:
+                - /url: /login?return_to=%2Fzjarlin%2Fintellij-aio
+                - img [ref=e88]
+                - text: Star
+                - generic "4 users starred this repository" [ref=e90]: "4"
+      - navigation "Repository" [ref=e91]:
+        - list [ref=e92]:
+          - listitem [ref=e93]:
+            - link "Code" [ref=e94] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio
+              - img [ref=e95]
+              - generic [ref=e97]: Code
+          - listitem [ref=e98]:
+            - link "Issues" [ref=e99] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/issues
+              - img [ref=e100]
+              - generic [ref=e103]: Issues
+          - listitem [ref=e104]:
+            - link "Pull requests" [ref=e105] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulls
+              - img [ref=e106]
+              - generic [ref=e108]: Pull requests
+          - listitem [ref=e109]:
+            - link "Actions" [ref=e110] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/actions
+              - img [ref=e111]
+              - generic [ref=e113]: Actions
+          - listitem [ref=e114]:
+            - link "Projects" [ref=e115] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/projects
+              - img [ref=e116]
+              - generic [ref=e118]: Projects
+          - listitem [ref=e119]:
+            - link "Security and quality" [ref=e120] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/security
+              - img [ref=e121]
+              - generic [ref=e123]: Security and quality
+          - listitem [ref=e124]:
+            - link "Insights" [ref=e125] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulse
+              - img [ref=e126]
+              - generic [ref=e128]: Insights
+    - generic [ref=e131]:
+      - 'heading "Pull requests: zjarlin/intellij-aio" [level=1] [ref=e132]'
+      - generic [ref=e133]:
+        - search [ref=e134]:
+          - search "Issues" [ref=e135]:
+            - textbox "Search all issues" [ref=e136]: is:pr is:open
+            - img
+          - navigation "Issue" [ref=e138]:
+            - link "Labels 9" [ref=e139] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/labels
+              - img [ref=e140]
+              - text: Labels 9
+            - link "Milestones 0" [ref=e142] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/milestones
+              - img [ref=e143]
+              - text: Milestones 0
+        - link "New pull request" [ref=e147] [cursor=pointer]:
+          - /url: /zjarlin/intellij-aio/compare
+          - generic [ref=e150]: New pull request
+      - generic [ref=e151]:
+        - generic [ref=e153]:
+          - generic [ref=e155]:
+            - link "0 Open" [ref=e156] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulls?q=is%3Aopen+is%3Apr
+              - img [ref=e157]
+              - text: 0 Open
+            - link "2 Closed" [ref=e159] [cursor=pointer]:
+              - /url: /zjarlin/intellij-aio/pulls?q=is%3Apr+is%3Aclosed
+              - img [ref=e160]
+              - text: 2 Closed
+          - generic [ref=e162]:
+            - group [ref=e163]:
+              - button "Author" [ref=e164] [cursor=pointer]: Author
+            - group [ref=e166]:
+              - button "Label" [ref=e167] [cursor=pointer]: Label
+            - generic [ref=e169]:
+              - group [ref=e170]:
+                - button "Projects" [ref=e171] [cursor=pointer]: Projects
+              - group [ref=e173]:
+                - button "Milestones" [ref=e174] [cursor=pointer]: Milestones
+              - group [ref=e176]:
+                - button "Reviews" [ref=e177] [cursor=pointer]: Reviews
+            - group [ref=e179]:
+              - button "Assignee" [ref=e180] [cursor=pointer]: Assignee
+            - group [ref=e182]:
+              - button "Sort" [ref=e183] [cursor=pointer]: Sort
+        - generic [ref=e186]:
+          - img [ref=e187]
+          - heading "There aren’t any open pull requests." [level=2] [ref=e190]
+          - paragraph [ref=e191]:
+            - text: You could search
+            - link "all of GitHub" [ref=e192] [cursor=pointer]:
+              - /url: /search
+            - text: or try an
+            - link "advanced search" [ref=e193] [cursor=pointer]:
+              - /url: /search/advanced
+            - text: .
+      - generic [ref=e194]:
+        - img [ref=e195]
+        - strong [ref=e197]: ProTip!
+        - text: Type
+        - generic [ref=e198]: g
+        - generic [ref=e199]: p
+        - text: on any issue or pull request to go back to the pull request listing page.
+  - contentinfo [ref=e200]:
+    - heading "Footer" [level=2] [ref=e201]
+    - generic [ref=e202]:
+      - generic [ref=e203]:
+        - link "GitHub Homepage" [ref=e204] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e205]
+        - generic [ref=e207]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e208]:
+        - heading "Footer navigation" [level=3] [ref=e209]
+        - list "Footer navigation" [ref=e210]:
+          - listitem [ref=e211]:
+            - link "Terms" [ref=e212] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e213]:
+            - link "Privacy" [ref=e214] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e215]:
+            - link "Security" [ref=e216] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e217]:
+            - link "Status" [ref=e218] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e219]:
+            - link "Community" [ref=e220] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e221]:
+            - link "Docs" [ref=e222] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e223]:
+            - link "Contact" [ref=e224] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e225]:
+            - button "Manage cookies" [ref=e227] [cursor=pointer]
+          - listitem [ref=e228]:
+            - button "Do not share my personal information" [ref=e230] [cursor=pointer]

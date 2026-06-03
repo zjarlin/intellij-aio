@@ -2,6 +2,7 @@
     <resource-bundle>messages.ComposeBuddyBundle</resource-bundle>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
     <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -26,6 +27,10 @@
 
         <fileEditorProvider
             implementation="site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider"/>
+
+        <codeInsight.lineMarkerProvider
+            language="kotlin"
+            implementationClass="site.addzero.composebuddy.run.KmpCommonMainStartupLineMarkerProvider"/>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
@@ -208,7 +213,7 @@
             shortName="ComposeParameterExplosionInspection"
             displayName="%inspection.explosion.display"
             groupName="%plugin.name"
-            enabledByDefault="true"
+            enabledByDefault="false"
             implementationClass="site.addzero.composebuddy.inspection.ComposeParameterExplosionInspection"/>
 
         <localInspection

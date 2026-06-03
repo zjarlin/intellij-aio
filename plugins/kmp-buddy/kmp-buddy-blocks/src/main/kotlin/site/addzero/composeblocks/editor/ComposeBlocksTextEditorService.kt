@@ -1,6 +1,7 @@
 package site.addzero.composeblocks.editor
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.diagnostic.PluginException
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
@@ -111,6 +112,12 @@ class ComposeBlocksTextEditorService(
             true
         } catch (_: IncorrectOperationException) {
             false
+        } catch (e: PluginException) {
+            if (e.isEditorDisposalRace()) {
+                false
+            } else {
+                throw e
+            }
         }
     }
 
@@ -494,5 +501,11 @@ private fun <T> safeCompute(action: () -> T): T? {
         action()
     } catch (_: IncorrectOperationException) {
         null
+    } catch (e: PluginException) {
+        if (e.isEditorDisposalRace()) {
+            null
+        } else {
+            throw e
+        }
     }
 }

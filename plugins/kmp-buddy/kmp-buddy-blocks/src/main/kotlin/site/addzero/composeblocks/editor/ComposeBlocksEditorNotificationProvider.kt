@@ -1,5 +1,6 @@
 package site.addzero.composeblocks.editor
 
+import com.intellij.diagnostic.PluginException
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.TextEditor
@@ -34,6 +35,10 @@ class ComposeBlocksEditorNotificationProvider : EditorNotificationProvider, Dumb
                 project.service<ComposeBlocksTextEditorService>().installIfNeeded(file, fileEditor)
             } catch (_: IncorrectOperationException) {
                 // Editor notification refresh can race with editor disposal.
+            } catch (e: PluginException) {
+                if (!e.isEditorDisposalRace()) {
+                    throw e
+                }
             }
             null
         }

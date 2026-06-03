@@ -128,7 +128,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(KMP Buddy) Normalize remember/effect keys")
+        invokeIntention("(KMP Buddy) Normalize effect keys")
 
         myFixture.checkResult(
             """
@@ -143,6 +143,26 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             }
             """.trimIndent(),
         )
+    }
+
+    fun testEffectKeysIntentionIgnoresUnkeyedRememberInitialization() {
+        myFixture.configureByText(
+            "RememberInitialization.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.remember
+
+            @Composable
+            fun <T> Demo<caret>(calculation: () -> T): T {
+                return remember {
+                    calculation()
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Normalize effect keys")
+        assertEmpty(actions)
     }
 
     fun testPreviewSampleIntentionGeneratesPreviewFunctions() {

@@ -5,7 +5,7 @@
     <vendor email="zjarlin@outlook.com" url="https://gitee.com/zjarlin/autoddl-idea-plugin.git">zjarlin</vendor>
 
     <description><![CDATA[
-        Problem4AI is an IntelliJ IDEA plugin that automatically collects compilation errors and warnings from your project, and generates AI-friendly prompts for quick fixes.
+        Problem4AI automatically collects compilation errors and warnings from JetBrains IDE projects, and generates AI-friendly prompts for quick fixes.
         <h2>Features</h2>
         <ul>
             <li>Automatically collect project compilation errors and warnings</li>

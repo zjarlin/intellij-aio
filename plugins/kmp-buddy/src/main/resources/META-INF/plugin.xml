@@ -22,6 +22,12 @@
             factoryClass="site.addzero.composebuddy.designer.toolwindow.ComposeDesignerToolWindowFactory"
             icon="/icons/compose-designer-toolwindow.svg"/>
 
+        <toolWindow
+            id="KMP Buddy Preview"
+            anchor="right"
+            factoryClass="site.addzero.composebuddy.previewsandbox.ComposePreviewSandboxToolWindowFactory"
+            icon="/icons/kmp-buddy-preview-gutter.svg"/>
+
         <editorNotificationProvider
             implementation="site.addzero.composeblocks.editor.ComposeBlocksEditorNotificationProvider"/>
 
@@ -31,6 +37,10 @@
         <codeInsight.lineMarkerProvider
             language="kotlin"
             implementationClass="site.addzero.composebuddy.run.KmpCommonMainStartupLineMarkerProvider"/>
+
+        <codeInsight.lineMarkerProvider
+            language="kotlin"
+            implementationClass="site.addzero.composebuddy.previewsandbox.ComposePreviewSandboxLineMarkerProvider"/>
 
         <intentionAction order="FIRST">
             <language>kotlin</language>

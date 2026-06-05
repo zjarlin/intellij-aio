@@ -50,8 +50,9 @@ fun VirtualFile.collectDiagnostics(project: Project): FileDiagnostics? {
 
     val documentManager = PsiDocumentManager.getInstance(project)
     val document = documentManager.getDocument(psiFile)
-    if (document != null && documentManager.isUncommited(document)) {
-        documentManager.commitDocument(document)
+    val hasUncommittedDocument = document != null && documentManager.isUncommited(document)
+    if (hasUncommittedDocument) {
+        LOG.debug("[Problem4AI][Collect] collect read-only diagnostics for uncommitted document file=${this.path}")
     }
 
     val items = mutableListOf<DiagnosticItem>()
@@ -59,7 +60,9 @@ fun VirtualFile.collectDiagnostics(project: Project): FileDiagnostics? {
 
     // 1. 语法错误（PsiErrorElement）
     val syntaxBefore = items.size
-    psiFile.checkSyntaxErrors(this, items)
+    if (!hasUncommittedDocument) {
+        psiFile.checkSyntaxErrors(this, items)
+    }
     val syntaxAdded = items.size - syntaxBefore
 
     // 2. 文档高亮（DocumentMarkupModel）
@@ -75,11 +78,12 @@ fun VirtualFile.collectDiagnostics(project: Project): FileDiagnostics? {
         val beforeDaemonCount = items.size
         psiFile.runDaemonMainPasses(project, items)
         daemonAdded = items.size - beforeDaemonCount
-        if (items.size == beforeDaemonCount && ENABLE_OFFLINE_INSPECTION_FALLBACK) {
+        if (items.size == beforeDaemonCount && ENABLE_OFFLINE_INSPECTION_FALLBACK && !hasUncommittedDocument) {
             val beforeFallbackCount = items.size
             psiFile.runOfflineInspectionFallback(this, items)
             fallbackAdded = items.size - beforeFallbackCount
         } else if (items.size == beforeDaemonCount &&
+            !hasUncommittedDocument &&
             OFFLINE_FALLBACK_NOTICE_LOGGED.compareAndSet(false, true)
         ) {
             LOG.info(
@@ -96,7 +100,9 @@ fun VirtualFile.collectDiagnostics(project: Project): FileDiagnostics? {
 
     // 5. Wolf 兜底
     val wolfBefore = items.size
-    checkWolfProblems(project, psiFile, items)
+    if (!hasUncommittedDocument) {
+        checkWolfProblems(project, psiFile, items)
+    }
     val wolfAdded = items.size - wolfBefore
 
     LOG.debug(

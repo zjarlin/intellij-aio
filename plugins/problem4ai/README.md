@@ -1,6 +1,6 @@
-# Problem4AI
+# Problem4AI Diagnostics Assistant for JetBrains IDEs
 
-An IntelliJ IDEA plugin that automatically collects compilation errors and warnings from your project, and generates AI-friendly prompts for quick fixes.
+Problem4AI automatically collects compilation errors and warnings from JetBrains IDE projects, and generates AI-friendly prompts for quick fixes.
 
 代码问题AI修复助手 - 自动收集项目诊断信息，一键生成AI修复提示词。
 

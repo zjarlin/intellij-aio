@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":plugins:kmp-buddy:kmp-buddy-blocks"))
     implementation(project(":plugins:kmp-buddy:kmp-buddy-designer"))
     implementation(project(":plugins:kmp-buddy:kmp-buddy-preview"))
+    implementation(project(":plugins:kmp-buddy:kmp-buddy-preview-sandbox"))
     implementation(project(":plugins:kmp-buddy:smart-intentions-koin-redundant-dependency"))
     implementation(project(":plugins:kmp-buddy:smart-intentions-koin-single-binds"))
     implementation(project(":plugins:ide-kit:smart-intentions-core"))

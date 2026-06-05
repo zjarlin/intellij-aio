@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026.06.06] - 2026-06-04
+
+### Fixed
+- Avoid committing uncommitted editor documents from the background diagnostic read action.
+- Keep diagnostics collection read-only for unsaved editor buffers while preserving document and daemon highlight results.
+
 ## [Unreleased] - 2025-12-07
 
 ### ✨ Added

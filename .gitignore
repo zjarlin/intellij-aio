@@ -64,3 +64,4 @@ out/
 /.playwright-mcp
 /download.log
 .tmp
+/.kmp-buddy/

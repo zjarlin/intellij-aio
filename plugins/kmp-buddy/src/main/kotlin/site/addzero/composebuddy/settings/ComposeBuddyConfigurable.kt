@@ -11,11 +11,12 @@ import com.intellij.ui.dsl.builder.bindIntText
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
 import site.addzero.composebuddy.ComposeBuddyBundle
-import site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider
-import site.addzero.composeblocks.settings.ComposeBlocksSettingsService
 import site.addzero.composebuddy.designer.model.ComposeDesignerCustomComponent
 import site.addzero.composebuddy.designer.model.ComposeDesignerPaletteCatalog
 import site.addzero.composebuddy.designer.model.ComposePaletteItem
+import site.addzero.composebuddy.designer.toolwindow.ComposeDesignerToolWindowFactory
+import site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider
+import site.addzero.composeblocks.settings.ComposeBlocksSettingsService
 import java.awt.BorderLayout
 import java.nio.file.InvalidPathException
 import java.nio.file.Paths
@@ -132,6 +133,11 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
 
         group(ComposeBuddyBundle.message("settings.group.designer")) {
             row {
+                checkBox(ComposeBuddyBundle.message("settings.designer.enable"))
+                    .bindSelected(settings::enableComposeDesigner)
+                    .comment(ComposeBuddyBundle.message("settings.designer.enable.comment"))
+            }
+            row {
                 cell(createStructuredEditor())
                     .resizableColumn()
             }
@@ -162,10 +168,14 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
             throw ConfigurationException(validation.errors.joinToString("\n"))
         }
         val blocksWasEnabled = composeBlocksSettings.enableComposeBlocksEditorByDefault
+        val designerWasEnabled = settings.enableComposeDesigner
         super.apply()
         composeBlocksSettings.composeBlocksEditorSettingTouched = true
         if (blocksWasEnabled != composeBlocksSettings.enableComposeBlocksEditorByDefault) {
             ComposeBlocksFileEditorProvider.handleSettingsChanged()
+        }
+        if (designerWasEnabled != settings.enableComposeDesigner) {
+            ComposeDesignerToolWindowFactory.handleSettingsChanged()
         }
     }
 

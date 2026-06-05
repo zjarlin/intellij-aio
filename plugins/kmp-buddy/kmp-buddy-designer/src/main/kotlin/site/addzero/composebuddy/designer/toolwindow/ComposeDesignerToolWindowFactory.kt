@@ -2,11 +2,14 @@ package site.addzero.composebuddy.designer.toolwindow
 
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.designer.ui.ComposeDesignerPanel
+import site.addzero.composebuddy.settings.ComposeBuddySettingsService
 
 class ComposeDesignerToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -19,5 +22,19 @@ class ComposeDesignerToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.contentManager.addContent(content)
     }
 
-    override fun shouldBeAvailable(project: Project): Boolean = true
+    override fun shouldBeAvailable(project: Project): Boolean =
+        ComposeBuddySettingsService.getInstance().state.enableComposeDesigner
+
+    companion object {
+        const val TOOL_WINDOW_ID: String = "Compose Designer"
+
+        fun handleSettingsChanged() {
+            val enabled = ComposeBuddySettingsService.getInstance().state.enableComposeDesigner
+            ProjectManager.getInstance().openProjects.forEach { project ->
+                ToolWindowManager.getInstance(project)
+                    .getToolWindow(TOOL_WINDOW_ID)
+                    ?.setAvailable(enabled, null)
+            }
+        }
+    }
 }

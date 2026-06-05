@@ -188,6 +188,88 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(imports.contains("import androidx.compose.runtime.setValue"))
     }
 
+    fun testReachableAstSnapshotInfersExternalDependenciesFromThemeChain() {
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/component/ComponentPreviewTheme.kt",
+            """
+            package site.addzero.component
+
+            import androidx.compose.runtime.Composable
+            import site.addzero.themes.AppTheme
+
+            @Composable
+            fun ComponentPreviewTheme(content: @Composable () -> Unit) {
+                AppTheme(content)
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/AppTheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.runtime.Composable
+            import org.koin.compose.koinInject
+            import site.addzero.context.viewmode.AppViewModel
+
+            @Composable
+            fun AppTheme(content: @Composable () -> Unit) {
+                val viewModel: AppViewModel = koinInject()
+                viewModel.launchPreviewJob()
+                content()
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/context/viewmode/AppViewModel.kt",
+            """
+            package site.addzero.context.viewmode
+
+            import androidx.lifecycle.ViewModel
+            import androidx.lifecycle.viewModelScope
+            import kotlinx.coroutines.launch
+            import org.koin.core.KoinApplication
+            import org.koin.core.annotation.KoinViewModel
+
+            @KoinViewModel
+            class AppViewModel : ViewModel() {
+                fun launchPreviewJob() {
+                    viewModelScope.launch {
+                        println(KoinApplication::class.simpleName)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            "DropdownMenu.kt",
+            """
+            package site.addzero.component.dropdown
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+            import site.addzero.component.ComponentPreviewTheme
+
+            @Preview
+            @Composable
+            fun DropdownMenuPreview() {
+                ComponentPreviewTheme {
+                    println("preview")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("DropdownMenuPreview")
+        val dependencies = snapshot.externalMavenDependencies
+
+        assertTrue(dependencies.contains("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel:2.10.0"))
+        assertTrue(dependencies.contains("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0"))
+        assertTrue(dependencies.contains("io.insert-koin:koin-annotations:4.2.1"))
+        assertTrue(dependencies.contains("io.insert-koin:koin-compose:4.2.1"))
+        assertTrue(dependencies.contains("io.insert-koin:koin-core:4.2.1"))
+    }
+
     fun testExternalDependenciesAreInferredFromReachableAstImports() {
         val dependencies = PreviewSandboxExternalDependencies.infer(
             listOf(

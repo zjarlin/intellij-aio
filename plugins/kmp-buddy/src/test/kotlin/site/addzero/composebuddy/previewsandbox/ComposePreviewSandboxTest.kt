@@ -5,6 +5,9 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.Files
+import java.nio.file.Path
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
 import kotlin.io.path.exists
 
 class ComposePreviewSandboxTest : BasePlatformTestCase() {
@@ -440,6 +443,67 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(dependencies.contains("io.insert-koin:koin-core:4.2.1"))
     }
 
+    fun testExternalDependenciesIncludeKyantBackdropAndShapes() {
+        val dependencies = PreviewSandboxExternalDependencies.infer(
+            listOf(
+                PreviewSandboxSourceFile(
+                    key = "LiquidButton.kt",
+                    packageName = "site.addzero.component.liquid",
+                    originalPath = "LiquidButton.kt",
+                    outputFileName = "LiquidButton.kt",
+                    imports = listOf(
+                        "import com.kyant.backdrop.Backdrop",
+                        "import com.kyant.backdrop.drawBackdrop",
+                        "import com.kyant.shapes.Capsule",
+                    ),
+                    declarations = listOf(
+                        """
+                        fun useLiquid(backdrop: Backdrop) {
+                            println(Capsule::class.simpleName)
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.KYANT_BACKDROP))
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.KYANT_SHAPES))
+    }
+
+    fun testExternalDependenciesResolveUnknownImportsFromDependencyClasspath() {
+        val cacheRoot = Files.createTempDirectory("kmp-buddy-preview-dependencies")
+        val dependencyJar = createGradleCacheJar(
+            root = cacheRoot,
+            group = "dev.example",
+            variantModule = "unknown-ui-jvm",
+            rootModule = "unknown-ui",
+            version = "1.2.3",
+            classEntry = "dev/example/unknown/Widget.class",
+        )
+        val dependencies = PreviewSandboxExternalDependencies.infer(
+            files = listOf(
+                PreviewSandboxSourceFile(
+                    key = "UnknownWidget.kt",
+                    packageName = "demo",
+                    originalPath = "UnknownWidget.kt",
+                    outputFileName = "UnknownWidget.kt",
+                    imports = listOf("import dev.example.unknown.Widget"),
+                    declarations = listOf(
+                        """
+                        fun render(widget: Widget) {
+                            println(widget)
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+            dependencyClassPath = listOf(dependencyJar.toString()),
+        )
+
+        assertTrue(dependencies.contains("dev.example:unknown-ui:1.2.3"))
+    }
+
     fun testWriterAddsInferredExternalDependenciesToSandboxBuild() {
         myFixture.configureByText(
             "PreviewSandbox.kt",
@@ -477,6 +541,147 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(buildText.contains("implementation(\"${PreviewSandboxExternalDependencies.KOTLINX_SERIALIZATION_CORE}\")"))
     }
 
+    fun testReachableAstSnapshotAddsThemeSupportForBareComponentPreview() {
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/AppTheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.material3.MaterialTheme
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.ReadOnlyComposable
+            import androidx.compose.runtime.staticCompositionLocalOf
+
+            val LocalAppColorScheme = staticCompositionLocalOf<AppColorScheme> { error("missing") }
+            val LocalAppRadius = staticCompositionLocalOf<AppRadius> { Radius }
+            val LocalAppShadows = staticCompositionLocalOf<AppShadows> { Shadows }
+
+            val MaterialTheme.appColors
+                @Composable
+                @ReadOnlyComposable
+                get() = LocalAppColorScheme.current
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/AppColorScheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.material3.ColorScheme
+            import androidx.compose.runtime.Immutable
+            import androidx.compose.ui.graphics.Color
+
+            @Immutable
+            interface AppColorScheme {
+                val material: ColorScheme
+                val ring: Color
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/DefaultLightAppColorScheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.ui.graphics.Color
+
+            internal object DefaultLightAppColorScheme : AppColorScheme {
+                override val material = DefaultMaterialLightColorScheme
+                override val ring = Color.Black
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/MaterialDefaultTheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.material3.lightColorScheme
+
+            internal val DefaultMaterialLightColorScheme = lightColorScheme()
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/Radius.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.ui.unit.Dp
+            import androidx.compose.ui.unit.dp
+
+            interface AppRadius {
+                val sm: Dp
+            }
+
+            object Radius : AppRadius {
+                override val sm = 4.dp
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/Shadows.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.ui.graphics.Color
+
+            interface AppShadows {
+                val ambient: Color
+            }
+
+            object Shadows : AppShadows {
+                override val ambient = Color.Transparent
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/component/checkbox/CheckboxDefaults.kt",
+            """
+            package site.addzero.component.checkbox
+
+            import androidx.compose.material3.MaterialTheme
+            import site.addzero.themes.appColors
+
+            object CheckboxDefaults {
+                fun ring() = MaterialTheme.appColors.ring
+            }
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            "Checkbox.kt",
+            """
+            package site.addzero.component.checkbox
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+
+            @Preview
+            @Composable
+            fun CheckboxQuickPreview() {
+                println(CheckboxDefaults.ring())
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("CheckboxQuickPreview")
+        val generatedText = snapshot.files.joinToString("\n") { sourceFile ->
+            sourceFile.declarations.joinToString("\n")
+        }
+        val written = ComposePreviewSandboxWriter.write(project, snapshot)
+            ?: error("Expected preview sandbox files to be written")
+        val runnerText = String(Files.readAllBytes(written.runnerFile), Charsets.UTF_8)
+
+        assertTrue(generatedText.contains("val LocalAppColorScheme"))
+        assertTrue(generatedText.contains("interface AppColorScheme"))
+        assertTrue(generatedText.contains("internal object DefaultLightAppColorScheme"))
+        assertTrue(generatedText.contains("internal val DefaultMaterialLightColorScheme"))
+        assertTrue(generatedText.contains("object Radius"))
+        assertTrue(generatedText.contains("object Shadows"))
+        assertTrue(runnerText.contains("site.addzero.themes.LocalAppColorScheme provides site.addzero.themes.DefaultLightAppColorScheme"))
+        assertTrue(runnerText.contains("site.addzero.themes.LocalAppRadius provides site.addzero.themes.Radius"))
+        assertTrue(runnerText.contains("site.addzero.themes.LocalAppShadows provides site.addzero.themes.Shadows"))
+    }
+
     fun testErrorFormatterUnwrapsReflectionFailures() {
         val root = IllegalStateException("Preview factory failed")
         val formatted = ComposePreviewSandboxErrorFormatter.format(
@@ -497,5 +702,39 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
             .first { candidate -> candidate.name == functionName }
         return PreviewReachableAstCollector.collect(function)
             ?: error("Expected preview sandbox snapshot for $functionName")
+    }
+
+    private fun createGradleCacheJar(
+        root: Path,
+        group: String,
+        variantModule: String,
+        rootModule: String,
+        version: String,
+        classEntry: String,
+    ): Path {
+        val filesRoot = root
+            .resolve("caches")
+            .resolve("modules-2")
+            .resolve("files-2.1")
+            .resolve(group)
+        val variantVersionDirectory = filesRoot
+            .resolve(variantModule)
+            .resolve(version)
+        val jarDirectory = variantVersionDirectory.resolve("jarhash")
+        Files.createDirectories(jarDirectory)
+        val jarFile = jarDirectory.resolve("$variantModule.jar")
+        JarOutputStream(Files.newOutputStream(jarFile)).use { jar ->
+            jar.putNextEntry(JarEntry(classEntry))
+            jar.write(byteArrayOf(0))
+            jar.closeEntry()
+        }
+
+        val rootModuleDirectory = filesRoot
+            .resolve(rootModule)
+            .resolve(version)
+            .resolve("modulehash")
+        Files.createDirectories(rootModuleDirectory)
+        Files.write(rootModuleDirectory.resolve("$rootModule-$version.module"), "{}".toByteArray(Charsets.UTF_8))
+        return jarFile
     }
 }

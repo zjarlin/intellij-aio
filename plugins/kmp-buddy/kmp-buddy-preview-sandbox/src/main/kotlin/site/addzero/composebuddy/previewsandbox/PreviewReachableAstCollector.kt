@@ -96,6 +96,7 @@ object PreviewReachableAstCollector {
             )
 
         val sandboxId = buildSandboxId(previewVirtualFile, previewName, previewFunction.textRange.startOffset)
+        val dependencyClassPath = PreviewSandboxDependencyClasspath.collect(previewFile)
         return PreviewSandboxSnapshot(
             sandboxId = sandboxId,
             previewName = previewName,
@@ -103,8 +104,8 @@ object PreviewReachableAstCollector {
             originalPreviewPath = previewVirtualFile.path,
             entryFileKey = previewFile.fileKey(),
             files = sourceFiles,
-            dependencyClassPath = PreviewSandboxDependencyClasspath.collect(previewFile),
-            externalMavenDependencies = PreviewSandboxExternalDependencies.infer(sourceFiles),
+            dependencyClassPath = dependencyClassPath,
+            externalMavenDependencies = PreviewSandboxExternalDependencies.infer(sourceFiles, dependencyClassPath),
         )
     }
 
@@ -339,6 +340,12 @@ object PreviewReachableAstCollector {
     )
 
     private val themeSupportDeclarationNames = setOf(
+        "AppColorScheme",
+        "AppRadius",
+        "AppShadows",
+        "LocalAppColorScheme",
+        "LocalAppRadius",
+        "LocalAppShadows",
         "DefaultLightAppColorScheme",
         "DefaultDarkAppColorScheme",
         "DefaultMaterialLightColorScheme",

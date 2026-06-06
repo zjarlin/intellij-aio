@@ -21,13 +21,23 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import kotlin.math.absoluteValue
 
 object ComposePreviewSupport {
-    fun canRenderQuickPreview(function: KtNamedFunction): Boolean {
+    fun canRenderQuickPreview(
+        function: KtNamedFunction,
+        sampleExpressionOverrides: Map<String, String> = emptyMap(),
+    ): Boolean {
         if (function.receiverTypeReference != null) {
             return false
         }
         return function.valueParameters
             .filterNot { it.hasDefaultValue() }
-            .all { sampleValue(it).supported }
+            .all { parameter ->
+                val parameterName = parameter.name
+                if (parameterName != null && sampleExpressionOverrides.containsKey(parameterName)) {
+                    true
+                } else {
+                    sampleValue(parameter).supported
+                }
+            }
     }
 
     fun renderCallExpression(
@@ -35,6 +45,7 @@ object ComposePreviewSupport {
         variant: String = "default",
         includeDefaulted: Boolean = true,
         indent: String = "    ",
+        sampleExpressionOverrides: Map<String, String> = emptyMap(),
     ): String {
         val functionName = function.name ?: "Composable"
         val parameters = function.valueParameters.filter { includeDefaulted || !it.hasDefaultValue() }
@@ -43,7 +54,8 @@ object ComposePreviewSupport {
         }
         val arguments = parameters.joinToString(",\n") { parameter ->
             val name = parameter.name ?: "value"
-            "$indent$name = ${sampleExpression(parameter, variant)}"
+            val expression = sampleExpressionOverrides[name] ?: sampleExpression(parameter, variant)
+            "$indent$name = $expression"
         }
         return buildString {
             appendLine("$functionName(")
@@ -91,6 +103,7 @@ private class PreviewSampleGenerator(
         if (depth > 4) {
             return unsupportedValue()
         }
+        val originalType = substituteBindings(typeText, typeBindings)
         val normalizedType = substituteBindings(normalizeType(typeText), typeBindings)
         if (normalizedType.isBlank()) {
             return unsupportedValue()
@@ -102,7 +115,15 @@ private class PreviewSampleGenerator(
             return PreviewSampleValue("null", supported = true)
         }
         if (normalizedType.contains("->")) {
-            return lambdaValue(normalizedType, parameterName, variant, context, depth, typeBindings)
+            return lambdaValue(
+                typeText = normalizedType,
+                parameterName = parameterName,
+                variant = variant,
+                context = context,
+                depth = depth,
+                typeBindings = typeBindings,
+                isComposableLambda = originalType.contains("Composable"),
+            )
         }
 
         val baseType = normalizedType.substringBefore("<").substringBefore(" ").trim()
@@ -313,15 +334,22 @@ private class PreviewSampleGenerator(
         context: PsiElement,
         depth: Int,
         typeBindings: Map<String, String>,
+        isComposableLambda: Boolean,
     ): PreviewSampleValue {
         val normalized = typeText
             .replace("suspend ", "")
             .replace("@Composable", "")
             .trim()
-        val returnType = normalized.substringAfterLast("->", "Unit").trim()
+        val returnType = normalized.substringAfterLast("->", "Unit").trim().removeSuffix(")").trim()
         val parameterSection = normalized.substringBeforeLast("->", "").trim()
         val lambdaPrefix = buildLambdaPrefix(parameterSection)
-        if (returnType == "Unit") {
+        if (returnType == "Unit" || returnType == "kotlin.Unit") {
+            if (parameterName.equals("content", ignoreCase = true) && isComposableLambda) {
+                return PreviewSampleValue(
+                    "{ androidx.compose.foundation.text.BasicText(text = \"Preview content\") }",
+                    true,
+                )
+            }
             return PreviewSampleValue(
                 if (lambdaPrefix.isEmpty()) "{ }" else "{ $lambdaPrefix -> }",
                 true,

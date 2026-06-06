@@ -18,7 +18,8 @@ class PreviewPlaygroundRefactor(
         val invocationText = ComposePreviewSupport.renderCallExpression(
             function = function,
             includeDefaulted = false,
-            indent = "            ",
+            indent = "    ",
+            sampleExpressionOverrides = analysis.sampleExpressionOverrides,
         )
         val declarationText = buildString {
             appendLine("@androidx.compose.ui.tooling.preview.Preview(")
@@ -28,16 +29,42 @@ class PreviewPlaygroundRefactor(
             appendLine(")")
             appendLine("@androidx.compose.runtime.Composable")
             appendLine("private fun $previewName() {")
-            appendLine("    androidx.compose.foundation.layout.Column {")
-            appendLine("        androidx.compose.foundation.text.BasicText(text = \"$previewTitle\")")
-            appendLine(invocationText.prependIndent("        "))
-            appendLine("    }")
+            appendPreviewBody(
+                invocationText = invocationText,
+                previewTitle = previewTitle,
+                wrappers = analysis.wrappers,
+            )
             appendLine("}")
         }
         val factory = KtPsiFactory(project)
         PreviewWriteSupport.run(project, ComposeBuddyBundle.message("command.generate.quick.preview.playground")) {
             function.parent.addBefore(factory.createWhiteSpace("\n\n"), function)
             function.parent.addBefore(factory.createDeclaration(declarationText.trim()), function)
+        }
+    }
+
+    private fun StringBuilder.appendPreviewBody(
+        invocationText: String,
+        previewTitle: String,
+        wrappers: List<PreviewPlaygroundWrapper>,
+    ) {
+        if (wrappers.isEmpty()) {
+            appendLine("    androidx.compose.foundation.layout.Column {")
+            appendLine("        androidx.compose.foundation.text.BasicText(text = \"$previewTitle\")")
+            appendLine(invocationText.prependIndent("        "))
+            appendLine("    }")
+            return
+        }
+
+        var indent = "    "
+        wrappers.forEach { wrapper ->
+            appendLine("$indent${wrapper.openLine}")
+            indent += "    "
+        }
+        appendLine(invocationText.prependIndent(indent))
+        wrappers.asReversed().forEach { wrapper ->
+            indent = indent.dropLast(4)
+            appendLine("$indent${wrapper.closeLine}")
         }
     }
 }

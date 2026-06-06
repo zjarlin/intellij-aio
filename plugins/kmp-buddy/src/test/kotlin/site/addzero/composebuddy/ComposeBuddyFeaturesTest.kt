@@ -399,6 +399,47 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("active = "))
     }
 
+    fun testPreviewPlaygroundSupportsLiquidBackdropComponents() {
+        myFixture.configureByText(
+            "LiquidButton.kt",
+            """
+            package site.addzero.component.液态玻璃
+
+            import androidx.compose.foundation.layout.RowScope
+            import androidx.compose.runtime.Composable
+            import com.kyant.backdrop.Backdrop
+
+            @Composable
+            fun LiquidGlassSceneRoot(content: @Composable () -> Unit) {
+                content()
+            }
+
+            object LocalLiquidBackdrop {
+                val current: Backdrop
+                    get() = TODO("preview")
+            }
+
+            @Composable
+            fun Liquid<caret>Button(
+                onClick: () -> Unit,
+                backdrop: Backdrop,
+                content: @Composable RowScope.() -> Unit,
+            ) {
+                content
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Generate quick preview playground")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("private fun LiquidButtonQuickPreview()"))
+        assertTrue(text.contains("LiquidGlassSceneRoot {"))
+        assertTrue(text.contains("onClick = { }"))
+        assertTrue(text.contains("backdrop = LocalLiquidBackdrop.current"))
+        assertTrue(text.contains("content = { androidx.compose.foundation.text.BasicText(text = \"Preview content\") }"))
+    }
+
     fun testMoveFileToSharedSourceSetIntentionIsAvailableOnModelDeclaration() {
         configureProjectFile(
             "feature/src/jvmMain/kotlin/demo/DeviceState.kt",

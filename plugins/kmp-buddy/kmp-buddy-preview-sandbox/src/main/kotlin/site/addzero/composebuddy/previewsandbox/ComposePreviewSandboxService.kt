@@ -23,6 +23,11 @@ class ComposePreviewSandboxService(
         dispatcher.multicaster.sessionChanged(session)
     }
 
+    fun clearSession() {
+        currentSession = null
+        dispatcher.multicaster.sessionChanged(null)
+    }
+
     fun refreshCurrentPreview() {
         val anchor = ReadAction.compute<com.intellij.psi.PsiElement?, Throwable> {
             val function = currentSession?.previewFunctionPointer?.element ?: return@compute null

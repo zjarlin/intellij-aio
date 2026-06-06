@@ -59,10 +59,10 @@ class ComposePreviewSandboxPanel(
     private val renderPreviewButton = JButton("Render In Panel").apply {
         addActionListener { renderEmbeddedPreview() }
     }
-    private val runPreviewButton = JButton("Run Window Preview").apply {
+    private val deleteSandboxButton = JButton("Delete Sandbox").apply {
         addActionListener {
-            runPanelAction("Unable to launch the external Compose preview window.") {
-                runGraphicalPreview()
+            runPanelAction("Unable to delete the Compose preview sandbox directory.") {
+                deleteCurrentSandboxDirectory()
             }
         }
     }
@@ -105,8 +105,8 @@ class ComposePreviewSandboxPanel(
         val buttonPanel = JPanel().apply {
             isOpaque = false
             add(renderPreviewButton)
-            add(runPreviewButton)
             add(refreshButton)
+            add(deleteSandboxButton)
             add(openEntryButton)
         }
         return JPanel(BorderLayout(JBUI.scale(8), JBUI.scale(4))).apply {
@@ -159,8 +159,8 @@ class ComposePreviewSandboxPanel(
             sourceArea.text = ""
             openEntryButton.isEnabled = false
             renderPreviewButton.isEnabled = false
-            runPreviewButton.isEnabled = false
             refreshButton.isEnabled = false
+            deleteSandboxButton.isEnabled = false
             return
         }
 
@@ -175,8 +175,8 @@ class ComposePreviewSandboxPanel(
         tabs.selectedIndex = 0
         openEntryButton.isEnabled = true
         renderPreviewButton.isEnabled = true
-        runPreviewButton.isEnabled = true
         refreshButton.isEnabled = true
+        deleteSandboxButton.isEnabled = true
         showSelectedSourceFile()
         if (autoRenderedSession !== nextSession) {
             autoRenderedSession = nextSession
@@ -211,15 +211,22 @@ class ComposePreviewSandboxPanel(
         )
     }
 
-    private fun runGraphicalPreview() {
+    private fun deleteCurrentSandboxDirectory() {
         val session = currentSession ?: return
-        surface.markRunLaunched()
-        ComposePreviewSandboxRunConfigurationSupport.run(
-            project = project,
-            session = session,
-            onStatus = surface::markStatus,
-            onError = surface::markRunFailed,
-        )
+        val rootDirectory = session.written.rootDirectory
+        if (rootDirectory.exists()) {
+            Files.walk(rootDirectory)
+                .sorted(Comparator.reverseOrder())
+                .forEach(Files::deleteIfExists)
+        }
+        LocalFileSystem.getInstance().refreshIoFiles(listOf(rootDirectory.toFile()), true, true, null)
+        autoRenderedSession = null
+        service.clearSession()
+        ApplicationManager.getApplication().invokeLater {
+            if (!project.isDisposed) {
+                surface.markStatus("Deleted preview sandbox directory: $rootDirectory")
+            }
+        }
     }
 
     private fun runPanelAction(

@@ -222,7 +222,7 @@ internal data class RedundantKoinDependencyCandidate(
                 val replacementText = replacement.renderedAccess()
                 val replacementExpression = psiFactory.createExpression(replacementText)
                 val parentDot = reference.parent as? KtDotQualifiedExpression
-                val target = if (parentDot?.selectorExpression == reference && parentDot.receiverExpression is KtThisExpression) {
+                val target: PsiElement = if (parentDot?.selectorExpression == reference && parentDot.receiverExpression is KtThisExpression) {
                     parentDot
                 } else {
                     reference

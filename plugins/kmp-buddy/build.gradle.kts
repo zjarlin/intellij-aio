@@ -1,3 +1,5 @@
+import org.gradle.internal.impldep.org.joda.time.LocalDate
+import org.gradle.internal.impldep.org.joda.time.format.DateTimeFormatter
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -25,16 +27,10 @@ dependencies {
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.1")
 }
 
-//listOf(
-//    "buildSearchableOptions",
-//    "prepareJarSearchableOptions",
-//    "jarSearchableOptions",
-//).forEach { taskName ->
-//    tasks.named(taskName) {
-//        enabled = false
-//    }
-//}
-//
-//tasks.named<Zip>("buildPlugin") {
-//    archiveBaseName.set(pluginName)
-//}
+val pluginName = project.name
+intellijPlatform {
+    pluginConfiguration {
+        id = "site.addzero.$pluginName"
+//        name = "Gitee"
+    }
+}

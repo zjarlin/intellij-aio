@@ -12,7 +12,10 @@ object PreviewSandboxExternalDependencies {
     private const val KOIN_VERSION = "4.2.1"
     private const val KOTLINX_COROUTINES_VERSION = "1.11.0"
     private const val KOTLINX_SERIALIZATION_VERSION = "1.11.0"
+    private const val COIL_VERSION = "3.3.0"
 
+    const val COIL_COMPOSE: String = "io.coil-kt.coil3:coil-compose:$COIL_VERSION"
+    const val COIL_NETWORK_KTOR3: String = "io.coil-kt.coil3:coil-network-ktor3:$COIL_VERSION"
     const val KYANT_BACKDROP: String = "io.github.kyant0:backdrop:$KYANT_BACKDROP_VERSION"
     const val KYANT_SHAPES: String = "io.github.kyant0:shapes:$KYANT_SHAPES_VERSION"
     const val KOIN_ANNOTATIONS: String = "io.insert-koin:koin-annotations:$KOIN_VERSION"
@@ -38,6 +41,15 @@ object PreviewSandboxExternalDependencies {
             addAll(resolvedDependencies)
             if (text.contains("androidx.lifecycle.")) {
                 add("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel:$ANDROIDX_LIFECYCLE_VERSION")
+            }
+            if (text.contains("coil3.compose.")) {
+                add(COIL_COMPOSE)
+                if (text.contains("http://") || text.contains("https://")) {
+                    add(COIL_NETWORK_KTOR3)
+                }
+            }
+            if (text.contains("coil3.network.") || text.contains("coil3.request.ImageRequest")) {
+                add(COIL_NETWORK_KTOR3)
             }
             if (text.contains("com.kyant.backdrop.")) {
                 add(KYANT_BACKDROP)

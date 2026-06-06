@@ -4,9 +4,6 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import kotlin.math.max
-import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
-import org.jetbrains.kotlin.builtins.isBuiltinFunctionalType
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -23,7 +20,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
-import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.ComposePsiSupport
 import site.addzero.composebuddy.support.ComposeReceiverUsageSupport
@@ -174,47 +170,20 @@ object SelectedRegionSpiAnalysis {
             ?: return null
         val slotName = valueArgument?.getArgumentName()?.asName?.identifier
             ?: resolveTrailingLambdaSlotName(parentCall)
-        val resolvedCall = runCatching { parentCall.resolveToCall() }.getOrNull()
-        val parameter = resolvedCall
-            ?.resultingDescriptor
-            ?.valueParameters
-            ?.firstOrNull { it.name.asString() == slotName }
-        if (parameter?.type?.isBuiltinFunctionalType == true) {
-            val receiverType = parameter.type.getReceiverTypeFromFunctionType()
-            if (receiverType != null) {
-                return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(receiverType)
-            }
-            val functionTypeText = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(parameter.type)
-            ComposeFunctionTypeSupport.extractReceiverTypeText(functionTypeText)?.let { return it }
-        }
         return resolveReceiverTypeFromSource(parentCall, slotName)
     }
 
     private fun resolveTrailingLambdaSlotName(call: KtCallExpression): String {
-        val resolvedCall = runCatching { call.resolveToCall() }.getOrNull()
-        return resolvedCall
-            ?.resultingDescriptor
+        return resolveSourceFunction(call)
             ?.valueParameters
             ?.lastOrNull()
             ?.name
-            ?.asString()
             .orEmpty()
             .ifBlank { "content" }
     }
 
     private fun resolveReceiverTypeFromSource(call: KtCallExpression, slotName: String): String? {
-        val resolved = call.calleeExpression?.mainReference?.resolve() ?: return null
-        val function = when (resolved) {
-            is KtNamedFunction -> {
-                resolved
-            }
-
-            is KtNamedDeclaration -> {
-                resolved.getStrictParentOfType<KtNamedFunction>()
-            }
-
-            else -> null
-        } ?: return null
+        val function = resolveSourceFunction(call) ?: return null
         val typeText = function.valueParameters
             .firstOrNull { parameter -> parameter.name == slotName }
             ?.typeReference
@@ -225,6 +194,15 @@ object SelectedRegionSpiAnalysis {
 
     private fun parseReceiverTypeText(typeText: String): String? {
         return ComposeFunctionTypeSupport.extractReceiverTypeText(typeText)
+    }
+
+    private fun resolveSourceFunction(call: KtCallExpression): KtNamedFunction? {
+        val resolved = call.calleeExpression?.mainReference?.resolve() ?: return null
+        return when (resolved) {
+            is KtNamedFunction -> resolved
+            is KtNamedDeclaration -> resolved.getStrictParentOfType<KtNamedFunction>()
+            else -> null
+        }
     }
 
     private fun collectCapturedParameters(
@@ -281,12 +259,6 @@ object SelectedRegionSpiAnalysis {
     private fun resolveTypeText(reference: KtNameReferenceExpression, declaredTypeText: String?): String {
         if (!declaredTypeText.isNullOrBlank()) {
             return declaredTypeText
-        }
-        val resolvedCall = runCatching { reference.resolveToCall() }.getOrNull()
-        val descriptor = resolvedCall?.resultingDescriptor
-        val returnType = descriptor?.returnType
-        if (returnType != null) {
-            return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(returnType)
         }
         return "kotlin.Any"
     }

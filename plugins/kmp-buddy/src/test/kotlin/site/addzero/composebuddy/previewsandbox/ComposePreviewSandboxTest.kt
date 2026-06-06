@@ -471,6 +471,36 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.KYANT_SHAPES))
     }
 
+    fun testExternalDependenciesIncludeCoilComposeForAvatarPreviews() {
+        val dependencies = PreviewSandboxExternalDependencies.infer(
+            listOf(
+                PreviewSandboxSourceFile(
+                    key = "Avatar.kt",
+                    packageName = "site.addzero.component.avatar",
+                    originalPath = "Avatar.kt",
+                    outputFileName = "Avatar.kt",
+                    imports = listOf(
+                        "import coil3.compose.AsyncImagePainter",
+                        "import coil3.compose.rememberAsyncImagePainter",
+                    ),
+                    declarations = listOf(
+                        """
+                        fun avatar() {
+                            val imageUrl = "https://picsum.photos/1200/800"
+                            println(imageUrl)
+                            println(AsyncImagePainter::class.simpleName)
+                            println(::rememberAsyncImagePainter.name)
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.COIL_COMPOSE))
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.COIL_NETWORK_KTOR3))
+    }
+
     fun testExternalDependenciesResolveUnknownImportsFromDependencyClasspath() {
         val cacheRoot = Files.createTempDirectory("kmp-buddy-preview-dependencies")
         val dependencyJar = createGradleCacheJar(

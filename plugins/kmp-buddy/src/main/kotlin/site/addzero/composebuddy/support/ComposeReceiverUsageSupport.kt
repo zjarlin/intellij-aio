@@ -1,11 +1,14 @@
 package site.addzero.composebuddy.support
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
-import org.jetbrains.kotlin.resolve.calls.tasks.ExplicitReceiverKind
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 object ComposeReceiverUsageSupport {
     fun usesImplicitReceiver(elements: List<PsiElement>): Boolean {
@@ -32,13 +35,12 @@ object ComposeReceiverUsageSupport {
     }
 
     private fun requiresImplicitReceiver(call: KtCallExpression): Boolean {
-        val resolvedCall = runCatching { call.resolveToCall() }.getOrNull() ?: return false
-        val explicitReceiverKind = resolvedCall.explicitReceiverKind
-        val hasImplicitDispatchReceiver = resolvedCall.dispatchReceiver != null &&
-            explicitReceiverKind != ExplicitReceiverKind.DISPATCH_RECEIVER &&
-            explicitReceiverKind != ExplicitReceiverKind.BOTH_RECEIVERS
-        val hasImplicitExtensionReceiver = resolvedCall.extensionReceiver != null &&
-            explicitReceiverKind == ExplicitReceiverKind.NO_EXPLICIT_RECEIVER
-        return hasImplicitDispatchReceiver || hasImplicitExtensionReceiver
+        val resolved = call.calleeExpression?.mainReference?.resolve() as? KtNamedFunction ?: return false
+        val hasExplicitReceiver = (call.parent as? KtQualifiedExpression)?.selectorExpression == call
+        if (resolved.receiverTypeReference != null && !hasExplicitReceiver) {
+            return true
+        }
+        val declaredInClass = resolved.getStrictParentOfType<KtClassOrObject>() != null
+        return declaredInClass && (!hasExplicitReceiver || resolved.receiverTypeReference != null)
     }
 }

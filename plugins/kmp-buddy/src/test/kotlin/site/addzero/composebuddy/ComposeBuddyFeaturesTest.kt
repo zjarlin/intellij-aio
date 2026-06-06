@@ -2,6 +2,9 @@ package site.addzero.composebuddy
 
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import site.addzero.composebuddy.features.effectkeys.EffectKeysAnalysis
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 
 class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
@@ -128,7 +131,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(KMP Buddy) Normalize effect keys")
+        invokeIntention(effectKeysIntentionText())
 
         myFixture.checkResult(
             """
@@ -161,7 +164,101 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Normalize effect keys")
+        val actions = myFixture.filterAvailableIntentions(effectKeysIntentionText())
+        assertEmpty(actions)
+    }
+
+    fun testEffectKeysIntentionIgnoresNamedKeyArgument() {
+        myFixture.configureByText(
+            "NamedEffectKey.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.LaunchedEffect
+
+            @Composable
+            fun Screen<caret>(query: String) {
+                LaunchedEffect(key1 = query) {
+                    println(query)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        assertEmpty(EffectKeysAnalysis.analyze(findFunction("Screen")))
+        val actions = myFixture.filterAvailableIntentions(effectKeysIntentionText())
+        assertEmpty(actions)
+    }
+
+    fun testEffectKeysIntentionIgnoresRememberedStateHolderCapturedByEffect() {
+        myFixture.configureByText(
+            "NavigationScaffold.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.LaunchedEffect
+
+            class NavigationGroup(val id: String) {
+                fun containsRoute(path: String): Boolean = true
+            }
+
+            class NavigationScaffoldState {
+                fun ensureExpanded(id: String) = Unit
+            }
+
+            @Composable
+            fun rememberNavigationScaffoldState(): NavigationScaffoldState = NavigationScaffoldState()
+
+            @Composable
+            fun NavigationScaffold<caret>(
+                navigationGroups: List<NavigationGroup>,
+                selectedRoutePath: String,
+                state: NavigationScaffoldState = rememberNavigationScaffoldState(),
+            ) {
+                LaunchedEffect(navigationGroups) {
+                    navigationGroups.forEach { group ->
+                        state.ensureExpanded(group.id)
+                    }
+                }
+                LaunchedEffect(navigationGroups, selectedRoutePath) {
+                    navigationGroups.forEach { group ->
+                        if (group.containsRoute(selectedRoutePath)) {
+                            state.ensureExpanded(group.id)
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        assertEmpty(EffectKeysAnalysis.analyze(findFunction("NavigationScaffold")))
+        val actions = myFixture.filterAvailableIntentions(effectKeysIntentionText())
+        assertEmpty(actions)
+    }
+
+    fun testEffectKeysIntentionIgnoresViewModelCapturedByEffect() {
+        myFixture.configureByText(
+            "NavigationScaffold.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.LaunchedEffect
+
+            class TreeViewModel<T> {
+                fun selectNode(path: String) = Unit
+            }
+
+            @Composable
+            fun NavigationScaffold<caret>(
+                viewModel: TreeViewModel<*>,
+                selectedRoutePath: String,
+            ) {
+                LaunchedEffect(selectedRoutePath) {
+                    viewModel.selectNode(selectedRoutePath)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        assertEmpty(EffectKeysAnalysis.analyze(findFunction("NavigationScaffold")))
+        val actions = myFixture.filterAvailableIntentions(effectKeysIntentionText())
         assertEmpty(actions)
     }
 
@@ -1453,5 +1550,16 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
     private fun invokeIntention(actionText: String) {
         val action = myFixture.findSingleIntention(actionText)
         action.invoke(project, myFixture.editor, myFixture.file)
+    }
+
+    private fun findFunction(name: String): KtNamedFunction {
+        return (myFixture.file as KtFile)
+            .declarations
+            .filterIsInstance<KtNamedFunction>()
+            .first { function -> function.name == name }
+    }
+
+    private fun effectKeysIntentionText(): String {
+        return ComposeBuddyBundle.message("intention.normalize.effect.keys")
     }
 }

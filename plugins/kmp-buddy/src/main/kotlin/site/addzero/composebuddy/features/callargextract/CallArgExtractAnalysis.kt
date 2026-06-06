@@ -1,12 +1,11 @@
 package site.addzero.composebuddy.features.callargextract
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
-import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import site.addzero.composebuddy.support.ComposePsiSupport
 
 data class CallArgExtractCandidate(
@@ -68,13 +67,7 @@ object CallArgExtractAnalysis {
     }
 
     private fun resolveParameterTypes(call: KtCallExpression): Map<String, String> {
-        val resolvedCall = runCatching { call.resolveToCall() }.getOrNull()
-        if (resolvedCall != null) {
-            return resolvedCall.resultingDescriptor.valueParameters.associate { parameter ->
-                parameter.name.asString() to DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(parameter.type)
-            }
-        }
-        val target = call.calleeExpression?.references?.firstNotNullOfOrNull { it.resolve() }
+        val target = call.calleeExpression?.mainReference?.resolve()
         return when (target) {
             is KtNamedFunction -> target.valueParameters.mapNotNull { parameter ->
                 val name = parameter.name ?: return@mapNotNull null

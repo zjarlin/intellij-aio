@@ -3,9 +3,6 @@ package site.addzero.composebuddy.features.slotspi
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
-import org.jetbrains.kotlin.builtins.isBuiltinFunctionalType
-import org.jetbrains.kotlin.idea.caches.resolve.resolveToCall
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDestructuringDeclarationEntry
@@ -20,7 +17,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
-import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.ComposePsiSupport
 import site.addzero.composebuddy.support.ComposeReceiverUsageSupport
@@ -171,13 +167,10 @@ object SlotSpiAnalysis {
     }
 
     private fun resolveTrailingLambdaSlotName(call: KtCallExpression): String {
-        val resolvedCall = runCatching { call.resolveToCall() }.getOrNull()
-        return resolvedCall
-            ?.resultingDescriptor
+        return resolveSourceFunction(call)
             ?.valueParameters
             ?.lastOrNull()
             ?.name
-            ?.asString()
             .orEmpty()
             .ifBlank { "content" }
     }
@@ -265,45 +258,15 @@ object SlotSpiAnalysis {
         if (!declaredTypeText.isNullOrBlank()) {
             return declaredTypeText
         }
-        val resolvedCall = runCatching { reference.resolveToCall() }.getOrNull()
-        val descriptor = resolvedCall?.resultingDescriptor
-        val returnType = descriptor?.returnType
-        if (returnType != null) {
-            return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(returnType)
-        }
         return "kotlin.Any"
     }
 
     private fun resolveReceiverTypeText(call: KtCallExpression, slotName: String): String? {
-        val resolvedCall = runCatching { call.resolveToCall() }.getOrNull()
-        val parameter = resolvedCall
-            ?.resultingDescriptor
-            ?.valueParameters
-            ?.firstOrNull { it.name.asString() == slotName }
-        if (parameter?.type?.isBuiltinFunctionalType == true) {
-            val receiverType = parameter.type.getReceiverTypeFromFunctionType()
-            if (receiverType != null) {
-                return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(receiverType)
-            }
-            val typeText = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(parameter.type)
-            parseReceiverTypeText(typeText)?.let { return it }
-        }
         return resolveReceiverTypeFromSource(call, slotName)
     }
 
     private fun resolveReceiverTypeFromSource(call: KtCallExpression, slotName: String): String? {
-        val resolved = call.calleeExpression?.mainReference?.resolve() ?: return null
-        val function = when (resolved) {
-            is KtNamedFunction -> {
-                resolved
-            }
-
-            is KtNamedDeclaration -> {
-                resolved.getStrictParentOfType<KtNamedFunction>()
-            }
-
-            else -> null
-        } ?: return null
+        val function = resolveSourceFunction(call) ?: return null
         val typeText = function.valueParameters
             .firstOrNull { parameter -> parameter.name == slotName }
             ?.typeReference
@@ -314,6 +277,15 @@ object SlotSpiAnalysis {
 
     private fun parseReceiverTypeText(typeText: String): String? {
         return ComposeFunctionTypeSupport.extractReceiverTypeText(typeText)
+    }
+
+    private fun resolveSourceFunction(call: KtCallExpression): KtNamedFunction? {
+        val resolved = call.calleeExpression?.mainReference?.resolve() ?: return null
+        return when (resolved) {
+            is KtNamedFunction -> resolved
+            is KtNamedDeclaration -> resolved.getStrictParentOfType<KtNamedFunction>()
+            else -> null
+        }
     }
 
     private fun collectDeclaredTypeNames(file: KtFile): MutableSet<String> {

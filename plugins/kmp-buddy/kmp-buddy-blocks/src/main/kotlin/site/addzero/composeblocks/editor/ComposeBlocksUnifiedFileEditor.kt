@@ -244,9 +244,6 @@ class ComposeBlocksUnifiedFileEditor(
             }
         }
 
-        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-        override fun displayTextInToolbar(): Boolean = true
-
         override fun update(event: AnActionEvent) {
             super.update(event)
             event.presentation.isEnabledAndVisible = when (mode) {

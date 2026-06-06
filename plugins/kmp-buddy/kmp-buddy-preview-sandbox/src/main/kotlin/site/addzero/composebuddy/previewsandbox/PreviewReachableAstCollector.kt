@@ -3,13 +3,18 @@ package site.addzero.composebuddy.previewsandbox
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.idea.references.mainReference
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import java.security.MessageDigest
 
@@ -25,12 +30,19 @@ object PreviewReachableAstCollector {
         val queue = ArrayDeque<KtNamedDeclaration>()
 
         fun enqueue(declaration: KtNamedDeclaration) {
+            val actualDeclarations = declaration.matchingJvmActualDeclarations()
+            if (actualDeclarations.isNotEmpty()) {
+                actualDeclarations.forEach(::enqueue)
+                return
+            }
             if (!declaration.isSandboxEligible()) {
                 return
             }
             val key = declaration.declarationKey() ?: return
             if (declarations.putIfAbsent(key, declaration) == null) {
                 queue.add(declaration)
+                declaration.matchingKoinImplementationDeclarations().forEach(::enqueue)
+                declaration.matchingThemeSupportDeclarations().forEach(::enqueue)
             }
         }
 
@@ -108,6 +120,102 @@ object PreviewReachableAstCollector {
             reachable.putIfAbsent(key, declaration)
         }
         return reachable.values.toList()
+    }
+
+    private fun KtNamedDeclaration.matchingJvmActualDeclarations(): List<KtNamedDeclaration> {
+        if (!hasModifier(KtTokens.EXPECT_KEYWORD)) {
+            return emptyList()
+        }
+        val expectedName = name ?: return emptyList()
+        val expectedFile = containingKtFile
+        val expectedUrl = expectedFile.virtualFile?.url ?: return emptyList()
+        val moduleRootUrl = expectedUrl.substringBefore(COMMON_MAIN_SOURCE_ROOT_MARKER, missingDelimiterValue = "")
+            .takeIf(String::isNotBlank)
+            ?: return emptyList()
+        val packagePath = expectedFile.packageFqName
+            .asString()
+            .replace('.', '/')
+            .takeIf(String::isNotBlank)
+
+        return buildList {
+            jvmActualSourceSets.forEach { sourceSetName ->
+                val sourceRootUrl = "$moduleRootUrl/src/$sourceSetName/kotlin"
+                val packageDirectoryUrl = packagePath
+                    ?.let { "$sourceRootUrl/$it" }
+                    ?: sourceRootUrl
+                val packageDirectory = VirtualFileManager.getInstance().findFileByUrl(packageDirectoryUrl)
+                    ?: return@forEach
+                packageDirectory.children
+                    .asSequence()
+                    .filter { child -> !child.isDirectory && child.extension == "kt" }
+                    .mapNotNull { child -> PsiManager.getInstance(project).findFile(child) as? KtFile }
+                    .flatMap { file -> file.declarations.filterIsInstance<KtNamedDeclaration>() }
+                    .filter { candidate ->
+                        candidate.name == expectedName &&
+                            candidate.hasModifier(KtTokens.ACTUAL_KEYWORD) &&
+                            candidate.isSandboxEligible()
+                    }
+                    .forEach(::add)
+            }
+        }.distinctBy { actualDeclaration -> actualDeclaration.declarationKey() }
+    }
+
+    private fun KtNamedDeclaration.matchingKoinImplementationDeclarations(): List<KtNamedDeclaration> {
+        val interfaceDeclaration = this as? KtClass ?: return emptyList()
+        if (!interfaceDeclaration.isInterface()) {
+            return emptyList()
+        }
+        val interfaceName = interfaceDeclaration.name ?: return emptyList()
+        val packageDirectory = containingKtFile.virtualFile?.parent ?: return emptyList()
+        return packageDirectory.children
+            .asSequence()
+            .filter { child -> !child.isDirectory && child.extension == "kt" }
+            .mapNotNull { child -> PsiManager.getInstance(project).findFile(child) as? KtFile }
+            .flatMap { file -> file.declarations.filterIsInstance<KtClass>() }
+            .filter { candidate ->
+                !candidate.isInterface() &&
+                    candidate.hasKoinProviderAnnotation() &&
+                    candidate.superTypeNames().contains(interfaceName) &&
+                    candidate.isSandboxEligible()
+            }
+            .distinctBy { candidate -> candidate.declarationKey() }
+            .toList()
+    }
+
+    private fun KtClass.hasKoinProviderAnnotation(): Boolean {
+        return annotationEntries
+            .mapNotNull { annotationEntry -> annotationEntry.shortName?.asString() }
+            .any(providerAnnotationNames::contains)
+    }
+
+    private fun KtClass.superTypeNames(): Set<String> {
+        return superTypeListEntries
+            .mapNotNull { superTypeEntry ->
+                (superTypeEntry.typeReference?.typeElement as? KtUserType)
+                    ?.referencedName
+                    ?: superTypeEntry.text.substringBefore('<').substringBefore('(').substringAfterLast('.').trim()
+            }
+            .filter(String::isNotBlank)
+            .toSet()
+    }
+
+    private fun KtNamedDeclaration.matchingThemeSupportDeclarations(): List<KtNamedDeclaration> {
+        val declarationName = name ?: return emptyList()
+        if (declarationName !in themeSupportTriggerNames) {
+            return emptyList()
+        }
+        val packageDirectory = containingKtFile.virtualFile?.parent ?: return emptyList()
+        return packageDirectory.children
+            .asSequence()
+            .filter { child -> !child.isDirectory && child.extension == "kt" }
+            .mapNotNull { child -> PsiManager.getInstance(project).findFile(child) as? KtFile }
+            .flatMap { file -> file.declarations.filterIsInstance<KtNamedDeclaration>() }
+            .filter { candidate ->
+                candidate.name in themeSupportDeclarationNames &&
+                    candidate.isSandboxEligible()
+            }
+            .distinctBy { candidate -> candidate.declarationKey() }
+            .toList()
     }
 
     private fun resolveReference(reference: KtNameReferenceExpression): PsiElement? {
@@ -218,6 +326,31 @@ object PreviewReachableAstCollector {
     }
 
     private val propertyDelegateImportNames = setOf("getValue", "setValue")
+
+    private val providerAnnotationNames = setOf("Single", "Factory")
+
+    private val themeSupportTriggerNames = setOf(
+        "LocalAppColorScheme",
+        "LocalAppRadius",
+        "LocalAppShadows",
+        "appColors",
+        "radius",
+        "shadow",
+    )
+
+    private val themeSupportDeclarationNames = setOf(
+        "DefaultLightAppColorScheme",
+        "DefaultDarkAppColorScheme",
+        "DefaultMaterialLightColorScheme",
+        "DefaultMaterialDarkColorScheme",
+        "DefaultTypography",
+        "Radius",
+        "Shadows",
+    )
+
+    private const val COMMON_MAIN_SOURCE_ROOT_MARKER = "/src/commonMain/kotlin/"
+
+    private val jvmActualSourceSets = listOf("jvmMain", "desktopMain")
 }
 
 private data class DeclarationKey(

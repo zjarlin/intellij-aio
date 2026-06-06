@@ -158,12 +158,6 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
-            <className>site.addzero.composebuddy.features.previewsample.PreviewSampleIntention</className>
-            <category>kmp-buddy</category>
-        </intentionAction>
-
-        <intentionAction order="FIRST">
-            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.previewplayground.PreviewPlaygroundIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>

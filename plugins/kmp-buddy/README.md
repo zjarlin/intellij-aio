@@ -41,7 +41,6 @@ The plugin adds many `Alt+Enter` intentions for Compose functions and call sites
 | `EffectKeysIntention` | Extracts or normalizes effect keys. | When `LaunchedEffect` or related effects use unstable keys. |
 | `SectionSplitIntention` | Splits large composables into sections. | When a file contains a very long function body. |
 | `StateMapperIntention` | Generates state mapping layers. | When domain state and UI state should be decoupled. |
-| `PreviewSampleIntention` | Generates preview sample data or wrappers. | When previews are missing or repetitive to write by hand. |
 | `ViewModelInlineIntention` | Reworks ViewModel usage near the UI boundary. | When ViewModel plumbing is too entangled in UI code. |
 | `CallArgFillIntention` | Fills missing call arguments. | When adapting callers after a signature change. |
 | `CallArgExtractSingleIntention` | Extracts one call argument into a named construct. | When a single inline argument becomes complex. |
@@ -69,7 +68,6 @@ These are designed to turn large or messy composables into clearer contracts wit
 | `EffectKeysIntention` | 提取或规范 effect keys。 | 适合 `LaunchedEffect` 等 key 不稳定时。 |
 | `SectionSplitIntention` | 将大函数切成多个 section。 | 适合超长 composable。 |
 | `StateMapperIntention` | 生成状态映射层。 | 适合业务状态与 UI 状态解耦。 |
-| `PreviewSampleIntention` | 生成预览样例数据或包装。 | 适合预览样板代码重复较多时。 |
 | `ViewModelInlineIntention` | 调整 ViewModel 与 UI 边界附近的写法。 | 适合 ViewModel 使用方式过度耦合 UI 时。 |
 | `CallArgFillIntention` | 自动补全调用参数。 | 适合函数签名修改后的调用点修复。 |
 | `CallArgExtractSingleIntention` | 提取单个调用参数。 | 适合某一个内联参数已经过于复杂时。 |

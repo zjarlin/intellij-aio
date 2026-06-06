@@ -188,6 +188,45 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(imports.contains("import androidx.compose.runtime.setValue"))
     }
 
+    fun testWriterRendersKmpActualDeclarationAsPlainJvmDeclaration() {
+        myFixture.configureByText(
+            "SidebarPreview.kt",
+            """
+            package site.addzero.util
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+
+            @Preview
+            @Composable
+            fun SidebarPreview() {
+                println("sidebar")
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("SidebarPreview")
+        val snapshotWithActual = snapshot.copy(
+            files = snapshot.files + PreviewSandboxSourceFile(
+                key = "PlatformScreen.jvm.kt",
+                packageName = "site.addzero.util",
+                originalPath = "src/jvmMain/kotlin/site/addzero/util/PlatformScreen.jvm.kt",
+                outputFileName = "PlatformScreen.jvm.kt",
+                imports = emptyList(),
+                declarations = listOf("actual fun isMobile(): Boolean = false"),
+            ),
+        )
+        val written = ComposePreviewSandboxWriter.write(project, snapshotWithActual)
+            ?: error("Expected preview sandbox files to be written")
+        val generatedText = written.generatedFiles.joinToString("\n") { generatedFile ->
+            String(Files.readAllBytes(generatedFile.path), Charsets.UTF_8)
+        }
+
+        assertFalse(generatedText.contains("expect fun isMobile"))
+        assertFalse(generatedText.contains("actual fun isMobile"))
+        assertTrue(generatedText.contains("fun isMobile(): Boolean = false"))
+    }
+
     fun testReachableAstSnapshotInfersExternalDependenciesFromThemeChain() {
         myFixture.addFileToProject(
             "src/main/kotlin/site/addzero/component/ComponentPreviewTheme.kt",
@@ -268,6 +307,101 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(dependencies.contains("io.insert-koin:koin-annotations:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-compose:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-core:4.2.1"))
+    }
+
+    fun testWriterWrapsKoinPreviewAndRegistersReachableAnnotatedBindings() {
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/context/spi/AppStateRepository.kt",
+            """
+            package site.addzero.context.spi
+
+            import org.koin.core.annotation.Single
+
+            interface AppStateRepository {
+                fun load(): String?
+            }
+
+            @Single
+            class InMemoryAppStateRepository : AppStateRepository {
+                override fun load(): String? = null
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/context/viewmode/AppViewModel.kt",
+            """
+            package site.addzero.context.viewmode
+
+            import org.koin.core.annotation.KoinViewModel
+            import site.addzero.context.spi.AppStateRepository
+
+            @KoinViewModel
+            class AppViewModel(
+                private val repository: AppStateRepository,
+            ) {
+                val label: String = repository.load() ?: "preview"
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/main/kotlin/site/addzero/themes/AppTheme.kt",
+            """
+            package site.addzero.themes
+
+            import androidx.compose.runtime.Composable
+            import org.koin.compose.koinInject
+            import site.addzero.context.viewmode.AppViewModel
+
+            @Composable
+            fun AppTheme(content: @Composable () -> Unit) {
+                val viewModel: AppViewModel = koinInject()
+                println(viewModel.label)
+                content()
+            }
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            "CardPreview.kt",
+            """
+            package site.addzero.component.card
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+            import site.addzero.themes.AppTheme
+
+            @Preview
+            @Composable
+            fun CardPreview() {
+                AppTheme {
+                    println("card")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("CardPreview")
+        val generatedText = snapshot.files.joinToString("\n") { sourceFile ->
+            sourceFile.declarations.joinToString("\n")
+        }
+        val written = ComposePreviewSandboxWriter.write(project, snapshot)
+            ?: error("Expected preview sandbox files to be written")
+        val runnerText = String(Files.readAllBytes(written.runnerFile), Charsets.UTF_8)
+
+        assertTrue(generatedText.contains("class InMemoryAppStateRepository"))
+        assertTrue(snapshot.externalMavenDependencies.contains(PreviewSandboxExternalDependencies.KOIN_COMPOSE))
+        assertTrue(snapshot.externalMavenDependencies.contains(PreviewSandboxExternalDependencies.KOIN_CORE))
+        assertTrue(runnerText.contains("org.koin.compose.KoinApplication"))
+        assertTrue(runnerText.contains("configuration = org.koin.dsl.koinConfiguration"))
+        assertTrue(
+            runnerText.contains(
+                "single<site.addzero.context.spi.AppStateRepository> { site.addzero.context.spi.InMemoryAppStateRepository() }",
+            ),
+        )
+        assertTrue(
+            runnerText.contains(
+                "single { site.addzero.context.viewmode.AppViewModel(get()) }",
+            ),
+        )
     }
 
     fun testExternalDependenciesAreInferredFromReachableAstImports() {

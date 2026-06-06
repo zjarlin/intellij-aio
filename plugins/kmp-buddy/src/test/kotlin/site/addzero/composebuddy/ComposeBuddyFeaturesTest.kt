@@ -165,7 +165,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertEmpty(actions)
     }
 
-    fun testPreviewSampleIntentionGeneratesPreviewFunctions() {
+    fun testPreviewSampleIntentionIsHidden() {
         myFixture.configureByText(
             "Previewable.kt",
             """
@@ -178,12 +178,8 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             """.trimIndent(),
         )
 
-        invokeIntention("(KMP Buddy) Generate preview samples")
-
-        val text = myFixture.file.text
-        assertTrue(text.contains("@androidx.compose.ui.tooling.preview.Preview"))
-        assertTrue(text.contains("private fun CardDefaultPreview()"))
-        assertTrue(text.contains("private fun CardLoadingPreview()"))
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Generate preview samples")
+        assertEmpty(actions)
     }
 
     fun testPreviewPlaygroundIntentionGeneratesMinimalPreviewHarness() {

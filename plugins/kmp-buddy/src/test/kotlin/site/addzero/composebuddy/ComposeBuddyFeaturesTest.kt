@@ -56,6 +56,79 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(Regex("Modifier\\.modifierChainStyle\\(\\)").findAll(text).count() >= 2)
     }
 
+    fun testModifierChainStyleableIntentionConvertsProjectModifierStyleHelpers() {
+        val currentFile = myFixture.configureByText(
+            "ModifierStyle.kt",
+            """
+            package demo
+
+            import androidx.compose.foundation.background
+            import androidx.compose.foundation.layout.fillMaxSize
+            import androidx.compose.foundation.layout.padding
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.graphics.Color
+            import androidx.compose.ui.unit.dp
+
+            private fun Modifier.root<caret>Style(background: Color): Modifier =
+                fillMaxSize()
+                    .background(background)
+                    .padding(12.dp)
+            """.trimIndent(),
+        )
+        val otherFile = myFixture.addFileToProject(
+            "OtherModifierStyle.kt",
+            """
+            package demo
+
+            import androidx.compose.foundation.layout.height
+            import androidx.compose.foundation.layout.width
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.unit.dp
+
+            internal fun Modifier.cardStyle(): Modifier {
+                return this.width(120.dp)
+                    .height(80.dp)
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Convert Modifier chain styles to styleable")
+
+        assertTrue(currentFile.text.contains("import androidx.compose.foundation.style.styleable"))
+        assertTrue(currentFile.text.contains("import androidx.compose.foundation.style.ExperimentalFoundationStyleApi"))
+        assertTrue(currentFile.text.contains("@OptIn(ExperimentalFoundationStyleApi::class)"))
+        assertTrue(currentFile.text.contains("private fun Modifier.rootStyle(background: Color): Modifier"))
+        assertTrue(currentFile.text.contains("return styleable {\n        fillMaxSize()\n        background(background)\n        padding(12.dp)\n    }"))
+        assertFalse(currentFile.text.contains("= fillMaxSize()"))
+
+        assertTrue(otherFile.text.contains("import androidx.compose.foundation.style.styleable"))
+        assertTrue(otherFile.text.contains("import androidx.compose.foundation.style.ExperimentalFoundationStyleApi"))
+        assertTrue(otherFile.text.contains("@OptIn(ExperimentalFoundationStyleApi::class)"))
+        assertTrue(otherFile.text.contains("internal fun Modifier.cardStyle(): Modifier"))
+        assertTrue(otherFile.text.contains("return styleable {\n        width(120.dp)\n        height(80.dp)\n    }"))
+        assertFalse(otherFile.text.contains("return this.width(120.dp)"))
+    }
+
+    fun testModifierChainStyleableIntentionIgnoresOrdinaryModifierArguments() {
+        myFixture.configureByText(
+            "OrdinaryModifier.kt",
+            """
+            import androidx.compose.foundation.layout.padding
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.unit.dp
+
+            @Composable
+            fun Sa<caret>mple() {
+                Box(modifier = Modifier.padding(8.dp).padding(4.dp))
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Convert Modifier chain styles to styleable")
+        assertEmpty(actions)
+    }
+
     fun testUiStateIntentionCreatesMinimalUiState() {
         myFixture.configureByText(
             "UiState.kt",

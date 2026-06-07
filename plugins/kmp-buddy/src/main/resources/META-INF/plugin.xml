@@ -176,6 +176,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.parametersort.ParameterSortIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.callargfill.CallArgFillIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>
@@ -302,6 +308,23 @@
             class="site.addzero.composebuddy.actions.MoveFilesToSharedSourceSetAction"
             text="%action.move.files.to.shared"
             description="%action.move.files.to.shared.description">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.CullDeadCode"
+            class="site.addzero.composebuddy.deadcode.DeadCodeCullAction"
+            text="KMP Buddy: Cull Dead Code From Entry"
+            description="Move whole-file dead code into an isolated mirror module">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.RestoreDeadCode"
+            class="site.addzero.composebuddy.deadcode.DeadCodeRestoreAction"
+            text="KMP Buddy: Restore Dead Code"
+            description="Restore files from a KMP Buddy dead-code manifest">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>

@@ -844,6 +844,51 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("AddTree(viewModel = vm"))
     }
 
+    fun testParameterSortIntentionGroupsPropsStateEventsAndLambdas() {
+        myFixture.configureByText(
+            "SortedParameters.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+
+            @Composable
+            fun SearchScreen<caret>(
+                onRetry: () -> Unit,
+                footer: @Composable () -> Unit,
+                modifier: Modifier = Modifier,
+                query: String,
+                title: String,
+                onQueryChange: (String) -> Unit,
+                onSubmit: () -> Unit,
+            ) {
+                Text(title)
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Sort parameters by props, state, events, and lambdas")
+
+        myFixture.checkResult(
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+
+            @Composable
+            fun SearchScreen(
+                modifier: Modifier = Modifier,
+                title: String,
+                query: String,
+                onQueryChange: (String) -> Unit,
+                onRetry: () -> Unit,
+                onSubmit: () -> Unit,
+                footer: @Composable () -> Unit
+            ) {
+                Text(title)
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testCallArgFillIntentionFillsPlaceholderArgumentsFromParameters() {
         myFixture.configureByText(
             "FillCallArgs.kt",

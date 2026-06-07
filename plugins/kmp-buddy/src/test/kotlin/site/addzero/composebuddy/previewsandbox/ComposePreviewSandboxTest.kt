@@ -191,6 +191,63 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(imports.contains("import androidx.compose.runtime.setValue"))
     }
 
+    fun testReachableAstSnapshotKeepsImportsUsedByCopiedParameterAndBodyExpressions() {
+        myFixture.configureByText(
+            "GridHeaderCell.kt",
+            """
+            package site.addzero.component.layout
+
+            import androidx.compose.foundation.BorderStroke
+            import androidx.compose.material3.MaterialTheme
+            import androidx.compose.material3.Surface
+            import androidx.compose.material3.contentColorFor
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.graphics.Color
+            import androidx.compose.ui.graphics.RectangleShape
+            import androidx.compose.ui.tooling.preview.Preview
+            import androidx.compose.ui.unit.Dp
+            import androidx.compose.ui.unit.dp
+            import demo.unused.UnusedImport
+
+            @Preview
+            @Composable
+            fun HeaderPreview() {
+                HeaderCell(label = "A", width = 48.dp)
+            }
+
+            @Composable
+            fun HeaderCell(
+                label: String,
+                width: Dp,
+                modifier: Modifier = Modifier,
+                borderWidth: Dp = 1.dp,
+                color: Color = MaterialTheme.colorScheme.surface,
+            ) {
+                val border = BorderStroke(borderWidth, color)
+                Surface(
+                    modifier = modifier,
+                    shape = RectangleShape,
+                    color = color,
+                    contentColor = contentColorFor(color),
+                    border = border,
+                ) {
+                    println(label + ":" + width)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("HeaderPreview")
+        val imports = snapshot.files.flatMap(PreviewSandboxSourceFile::imports)
+
+        assertTrue(imports.contains("import androidx.compose.foundation.BorderStroke"))
+        assertTrue(imports.contains("import androidx.compose.ui.graphics.RectangleShape"))
+        assertTrue(imports.contains("import androidx.compose.material3.contentColorFor"))
+        assertTrue(imports.contains("import androidx.compose.ui.unit.dp"))
+        assertFalse(imports.contains("import demo.unused.UnusedImport"))
+    }
+
     fun testWriterRendersKmpActualDeclarationAsPlainJvmDeclaration() {
         myFixture.configureByText(
             "SidebarPreview.kt",
@@ -228,6 +285,84 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertFalse(generatedText.contains("expect fun isMobile"))
         assertFalse(generatedText.contains("actual fun isMobile"))
         assertTrue(generatedText.contains("fun isMobile(): Boolean = false"))
+    }
+
+    fun testReachableAstSnapshotIncludesJvmActualForCommonMainExpectDeclaration() {
+        myFixture.addFileToProject(
+            "src/commonMain/kotlin/site/addzero/component/zh/fonts/ChineseFonts.kt",
+            """
+            package site.addzero.component.zh.fonts
+
+            import androidx.compose.runtime.Composable
+
+            class ChineseUiFontProfile(
+                val family: String,
+            )
+
+            expect fun preferredChineseUiFontProfile(): ChineseUiFontProfile
+
+            @Composable
+            expect fun rememberChineseUiFontFamilyOrNull(): String?
+
+            @Composable
+            fun rememberChineseTypography(): String {
+                return rememberChineseUiFontFamilyOrNull() ?: preferredChineseUiFontProfile().family
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "src/jvmMain/kotlin/site/addzero/component/zh/fonts/ChineseFonts.jvm.kt",
+            """
+            package site.addzero.component.zh.fonts
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            actual fun rememberChineseUiFontFamilyOrNull(): String? = rememberPreferredJvmChineseUiFontFamily()
+
+            actual fun preferredChineseUiFontProfile(): ChineseUiFontProfile = ChineseUiFontProfile("system")
+
+            private fun rememberPreferredJvmChineseUiFontFamily(): String {
+                return preferredChineseUiFontProfile().family
+            }
+            """.trimIndent(),
+        )
+        val previewFile = myFixture.addFileToProject(
+            "src/commonMain/kotlin/demo/InputPreview.kt",
+            """
+            package demo
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+            import site.addzero.component.zh.fonts.rememberChineseTypography
+
+            @Preview
+            @Composable
+            fun InputPreview() {
+                rememberChineseTypography()
+            }
+            """.trimIndent(),
+        ) as KtFile
+        myFixture.configureFromExistingVirtualFile(previewFile.virtualFile)
+
+        val snapshot = collectSnapshot("InputPreview")
+        val snapshotText = snapshot.files.joinToString("\n") { sourceFile ->
+            sourceFile.declarations.joinToString("\n")
+        }
+        val written = ComposePreviewSandboxWriter.write(project, snapshot)
+            ?: error("Expected preview sandbox files to be written")
+        val generatedText = written.generatedFiles.joinToString("\n") { generatedFile ->
+            String(Files.readAllBytes(generatedFile.path), Charsets.UTF_8)
+        }
+
+        assertTrue(snapshotText.contains("actual fun rememberChineseUiFontFamilyOrNull"))
+        assertTrue(snapshotText.contains("actual fun preferredChineseUiFontProfile"))
+        assertFalse(generatedText.contains("expect fun rememberChineseUiFontFamilyOrNull"))
+        assertFalse(generatedText.contains("expect fun preferredChineseUiFontProfile"))
+        assertFalse(generatedText.contains("actual fun rememberChineseUiFontFamilyOrNull"))
+        assertFalse(generatedText.contains("actual fun preferredChineseUiFontProfile"))
+        assertTrue(generatedText.contains("fun rememberChineseUiFontFamilyOrNull(): String?"))
+        assertTrue(generatedText.contains("fun preferredChineseUiFontProfile(): ChineseUiFontProfile"))
     }
 
     fun testReachableAstSnapshotInfersExternalDependenciesFromThemeChain() {

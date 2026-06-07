@@ -9,6 +9,7 @@ plugins {
 
 dependencies {
     implementation(project(":plugins:kmp-buddy:kmp-buddy-blocks"))
+    implementation(project(":plugins:kmp-buddy:kmp-buddy-dead-code"))
     implementation(project(":plugins:kmp-buddy:kmp-buddy-designer"))
     implementation(project(":plugins:kmp-buddy:kmp-buddy-preview"))
     implementation(project(":plugins:kmp-buddy:kmp-buddy-preview-sandbox"))

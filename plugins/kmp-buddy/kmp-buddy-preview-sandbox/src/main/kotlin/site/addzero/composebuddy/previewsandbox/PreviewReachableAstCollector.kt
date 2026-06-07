@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import java.security.MessageDigest
@@ -111,6 +112,7 @@ object PreviewReachableAstCollector {
 
     private fun KtNamedDeclaration.collectReachableDeclarations(): List<KtNamedDeclaration> {
         val reachable = linkedMapOf<DeclarationKey, KtNamedDeclaration>()
+        val referencedNames = collectReferencedNames().toSet()
         collectDescendantsOfType<KtNameReferenceExpression>().forEach { reference ->
             val resolved = resolveReference(reference) ?: return@forEach
             val declaration = resolved.sourceTopLevelDeclaration() ?: return@forEach
@@ -120,6 +122,19 @@ object PreviewReachableAstCollector {
             val key = declaration.declarationKey() ?: return@forEach
             reachable.putIfAbsent(key, declaration)
         }
+
+        containingKtFile.declarations
+            .filterIsInstance<KtNamedDeclaration>()
+            .filter { declaration ->
+                declaration.hasModifier(KtTokens.EXPECT_KEYWORD) &&
+                    declaration.name in referencedNames &&
+                    declaration.isSandboxEligible()
+            }
+            .forEach { declaration ->
+                val key = declaration.declarationKey() ?: return@forEach
+                reachable.putIfAbsent(key, declaration)
+            }
+
         return reachable.values.toList()
     }
 
@@ -129,23 +144,13 @@ object PreviewReachableAstCollector {
         }
         val expectedName = name ?: return emptyList()
         val expectedFile = containingKtFile
-        val expectedUrl = expectedFile.virtualFile?.url ?: return emptyList()
-        val moduleRootUrl = expectedUrl.substringBefore(COMMON_MAIN_SOURCE_ROOT_MARKER, missingDelimiterValue = "")
-            .takeIf(String::isNotBlank)
-            ?: return emptyList()
         val packagePath = expectedFile.packageFqName
             .asString()
             .replace('.', '/')
             .takeIf(String::isNotBlank)
 
-        return buildList {
-            jvmActualSourceSets.forEach { sourceSetName ->
-                val sourceRootUrl = "$moduleRootUrl/src/$sourceSetName/kotlin"
-                val packageDirectoryUrl = packagePath
-                    ?.let { "$sourceRootUrl/$it" }
-                    ?: sourceRootUrl
-                val packageDirectory = VirtualFileManager.getInstance().findFileByUrl(packageDirectoryUrl)
-                    ?: return@forEach
+        return expectedFile.jvmActualPackageDirectories(packagePath)
+            .flatMap { packageDirectory ->
                 packageDirectory.children
                     .asSequence()
                     .filter { child -> !child.isDirectory && child.extension == "kt" }
@@ -156,9 +161,52 @@ object PreviewReachableAstCollector {
                             candidate.hasModifier(KtTokens.ACTUAL_KEYWORD) &&
                             candidate.isSandboxEligible()
                     }
-                    .forEach(::add)
             }
-        }.distinctBy { actualDeclaration -> actualDeclaration.declarationKey() }
+            .distinctBy { actualDeclaration -> actualDeclaration.declarationKey() }
+    }
+
+    private fun KtFile.jvmActualPackageDirectories(packagePath: String?): List<VirtualFile> {
+        return jvmActualSourceRoots()
+            .mapNotNull { sourceRoot ->
+                packagePath
+                    ?.let(sourceRoot::findFileByRelativePath)
+                    ?: sourceRoot
+            }
+            .distinctBy(VirtualFile::getUrl)
+    }
+
+    private fun KtFile.jvmActualSourceRoots(): List<VirtualFile> {
+        val sourceRootCandidates = buildList {
+            virtualFile?.commonMainModuleRoots()?.forEach { moduleRoot ->
+                jvmActualSourceSets.forEach { sourceSetName ->
+                    moduleRoot.findFileByRelativePath("src/$sourceSetName/kotlin")?.let(::add)
+                }
+            }
+
+            val expectedUrl = virtualFile?.url
+                ?: return@buildList
+            val moduleRootUrl = expectedUrl.substringBefore(COMMON_MAIN_SOURCE_ROOT_MARKER, missingDelimiterValue = "")
+                .takeIf(String::isNotBlank)
+                ?: return@buildList
+            jvmActualSourceSets.forEach { sourceSetName ->
+                val sourceRootUrl = "$moduleRootUrl/src/$sourceSetName/kotlin"
+                VirtualFileManager.getInstance().findFileByUrl(sourceRootUrl)?.let(::add)
+            }
+        }
+
+        return sourceRootCandidates.distinctBy(VirtualFile::getUrl)
+    }
+
+    private fun VirtualFile.commonMainModuleRoots(): List<VirtualFile> {
+        return generateSequence(this) { file -> file.parent }
+            .filter { file ->
+                file.name == "kotlin" &&
+                    file.parent?.name == "commonMain" &&
+                    file.parent?.parent?.name == "src"
+            }
+            .mapNotNull { commonKotlinRoot -> commonKotlinRoot.parent?.parent?.parent }
+            .distinctBy(VirtualFile::getUrl)
+            .toList()
     }
 
     private fun KtNamedDeclaration.matchingKoinImplementationDeclarations(): List<KtNamedDeclaration> {
@@ -230,8 +278,12 @@ object PreviewReachableAstCollector {
     }
 
     private fun KtElement.collectReferencedNames(): List<String> {
-        return collectDescendantsOfType<KtNameReferenceExpression>()
+        val expressionNames = collectDescendantsOfType<KtSimpleNameExpression>()
             .map { reference -> reference.getReferencedName() }
+        val textNames = kotlinIdentifierRegex.findAll(text)
+            .map { match -> match.value }
+            .filterNot(kotlinKeywords::contains)
+        return (expressionNames + textNames)
             .filter(String::isNotBlank)
             .distinct()
     }
@@ -327,6 +379,84 @@ object PreviewReachableAstCollector {
     }
 
     private val propertyDelegateImportNames = setOf("getValue", "setValue")
+
+    private val kotlinIdentifierRegex = Regex("""[A-Za-z_\p{L}][A-Za-z0-9_\p{L}\p{N}]*""")
+
+    private val kotlinKeywords = setOf(
+        "abstract",
+        "actual",
+        "annotation",
+        "as",
+        "break",
+        "by",
+        "catch",
+        "class",
+        "companion",
+        "const",
+        "constructor",
+        "continue",
+        "crossinline",
+        "data",
+        "do",
+        "dynamic",
+        "else",
+        "enum",
+        "expect",
+        "external",
+        "false",
+        "field",
+        "file",
+        "final",
+        "finally",
+        "for",
+        "fun",
+        "get",
+        "if",
+        "import",
+        "in",
+        "infix",
+        "init",
+        "inline",
+        "inner",
+        "interface",
+        "internal",
+        "is",
+        "it",
+        "lateinit",
+        "noinline",
+        "null",
+        "object",
+        "open",
+        "operator",
+        "out",
+        "override",
+        "package",
+        "param",
+        "private",
+        "property",
+        "protected",
+        "public",
+        "receiver",
+        "reified",
+        "return",
+        "sealed",
+        "set",
+        "setparam",
+        "super",
+        "suspend",
+        "tailrec",
+        "this",
+        "throw",
+        "true",
+        "try",
+        "typealias",
+        "val",
+        "var",
+        "vararg",
+        "when",
+        "where",
+        "while",
+    )
 
     private val providerAnnotationNames = setOf("Single", "Factory")
 

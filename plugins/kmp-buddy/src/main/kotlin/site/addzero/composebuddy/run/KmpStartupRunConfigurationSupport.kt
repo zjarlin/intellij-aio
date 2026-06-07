@@ -3,19 +3,19 @@ package site.addzero.composebuddy.run
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
-import com.intellij.execution.configurations.ConfigurationTypeUtil
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
+import com.intellij.openapi.externalSystem.model.ProjectSystemId
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.project.Project
-import org.jetbrains.plugins.gradle.service.execution.GradleExternalTaskConfigurationType
-import org.jetbrains.plugins.gradle.util.GradleConstants
 
 object KmpStartupRunConfigurationSupport {
+    private val gradleSystemId = ProjectSystemId("GRADLE")
+
     fun run(project: Project, target: KmpStartupRunTarget) {
         val taskSettings = ExternalSystemTaskExecutionSettings().apply {
-            externalSystemIdString = GradleConstants.SYSTEM_ID.id
+            externalSystemIdString = gradleSystemId.id
             externalProjectPath = target.externalProjectPath
             taskNames = listOf(target.fullTaskName)
         }
@@ -49,7 +49,7 @@ object KmpStartupRunConfigurationSupport {
             ExternalSystemUtil.createExternalSystemRunnerAndConfigurationSettings(
                 taskSettings,
                 project,
-                GradleConstants.SYSTEM_ID,
+                gradleSystemId,
             ),
         ) {
             "Unable to create Gradle run configuration: $configurationName"
@@ -75,14 +75,10 @@ object KmpStartupRunConfigurationSupport {
     private fun RunnerAndConfigurationSettings.isSameGradleTaskConfiguration(
         taskSettings: ExternalSystemTaskExecutionSettings,
     ): Boolean {
-        if (type != ConfigurationTypeUtil.findConfigurationType(GradleExternalTaskConfigurationType::class.java)) {
-            return false
-        }
-
         val configuration = configuration as? ExternalSystemRunConfiguration ?: return false
         val existingSettings = configuration.settings
 
-        return existingSettings.externalSystemIdString == GradleConstants.SYSTEM_ID.id &&
+        return existingSettings.externalSystemIdString == gradleSystemId.id &&
             existingSettings.externalProjectPath == taskSettings.externalProjectPath &&
             existingSettings.taskNames == taskSettings.taskNames &&
             existingSettings.scriptParameters == taskSettings.scriptParameters &&

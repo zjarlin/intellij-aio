@@ -7,6 +7,7 @@ class SmartGeneratedArtifactExcludePathsTest {
     @Test
     fun `collect module exclude urls for gradle generated directories`() {
         val urls = SmartGeneratedArtifactExcludePaths.collectModuleExcludeUrls(
+            null,
             arrayOf(
                 "file:///repo",
                 "file:///repo/plugins/ide-kit",
@@ -31,6 +32,7 @@ class SmartGeneratedArtifactExcludePathsTest {
     @Test
     fun `deduplicate trailing slash roots`() {
         val urls = SmartGeneratedArtifactExcludePaths.collectModuleExcludeUrls(
+            null,
             arrayOf(
                 "file:///repo/",
                 "file:///repo",

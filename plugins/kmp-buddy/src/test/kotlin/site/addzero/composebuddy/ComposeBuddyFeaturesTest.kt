@@ -1,11 +1,18 @@
 package site.addzero.composebuddy
 
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import site.addzero.composebuddy.features.effectkeys.EffectKeysAnalysis
+import site.addzero.composebuddy.support.ComponentLibrarySupport
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
+import site.addzero.composebuddy.support.MoveComposeComponentWithDependenciesSupport
+import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 
 class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
     fun testComposeFunctionTypeSupportExtractsReceiverFromComposableAnnotationCallSyntax() {
@@ -650,7 +657,163 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertEmpty(actions)
     }
 
-    private fun configureProjectFile(path: String, textWithCaret: String) {
+    fun testMoveFileToSharedSourceSetPlanRequiresRememberedModuleSourceSet() {
+        val virtualFile = myFixture.tempDirFixture.createFile(
+            "feature/src/jvmMain/kotlin/demo/DeviceState.kt",
+            """
+            package demo
+
+            data class DeviceState(val online: Boolean)
+            """.trimIndent(),
+        )
+
+        assertNull(MoveToSharedSourceSetSupport.buildPlan(virtualFile))
+    }
+
+    fun testMoveFileToSharedSourceSetPlanUsesRememberedShareLogicForModule() {
+        val virtualFile = myFixture.tempDirFixture.createFile(
+            "feature/src/jvmMain/kotlin/demo/DeviceState.kt",
+            """
+            package demo
+
+            data class DeviceState(val online: Boolean)
+            """.trimIndent(),
+        )
+        val moduleRootPath = Paths.get(myFixture.tempDirFixture.findOrCreateDir("feature").path)
+        MoveToSharedSourceSetSupport.rememberSharedSourceSet(
+            moduleRootPath,
+            MoveToSharedSourceSetSupport.SHARE_LOGIC_SOURCE_SET,
+        )
+
+        val plan = MoveToSharedSourceSetSupport.buildPlan(virtualFile)
+
+        assertNotNull(plan)
+        assertEquals(
+            moduleRootPath
+                .resolve("src/share_logic/kotlin/demo/DeviceState.kt")
+                .normalize()
+                .toString(),
+            plan!!.targetFilePath.normalize().toString(),
+        )
+    }
+
+    fun testMoveFileToSharedSourceSetPlanDoesNotMoveInsideTargetSourceSet() {
+        val virtualFile = myFixture.tempDirFixture.createFile(
+            "feature/src/share_ui/kotlin/demo/DeviceState.kt",
+            """
+            package demo
+
+            data class DeviceState(val online: Boolean)
+            """.trimIndent(),
+        )
+        val moduleRootPath = Paths.get(myFixture.tempDirFixture.findOrCreateDir("feature").path)
+        MoveToSharedSourceSetSupport.rememberSharedSourceSet(
+            moduleRootPath,
+            MoveToSharedSourceSetSupport.SHARE_UI_SOURCE_SET,
+        )
+
+        assertNull(MoveToSharedSourceSetSupport.buildPlan(virtualFile))
+    }
+
+    fun testMoveComposeComponentWithDependenciesIntentionIsAvailableOnTopLevelComposable() {
+        rememberRealComponentLibraryRoot()
+        configureProjectFile(
+            "feature/src/commonMain/kotlin/demo/Badge.kt",
+            """
+            package demo
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Bad<caret>ge() {
+                Text(Tokens.Label)
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions(
+            "(KMP Buddy) Move Compose component with local dependencies",
+        )
+
+        assertTrue(actions.isNotEmpty())
+    }
+
+    fun testMoveComposeComponentWithDependenciesCollectsSamePackageDependencyClosure() {
+        val badgeFile = configureProjectFile(
+            "feature/src/commonMain/kotlin/demo/unavailable/UnavailableBadge.kt",
+            """
+            package demo.unavailable
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Unavailable<caret>Badge() {
+                Text(UnavailableRouteVisualTokens.TextMuted)
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "feature/src/commonMain/kotlin/demo/unavailable/UnavailableRouteVisualTokens.kt",
+            """
+            package demo.unavailable
+
+            internal object UnavailableRouteVisualTokens {
+                val TextMuted = Color(0xFF71757A)
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "feature/src/commonMain/kotlin/demo/unavailable/UnavailableRouteScreen.kt",
+            """
+            package demo.unavailable
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun UnavailableRouteScreen() {
+                UnavailableBadge()
+            }
+            """.trimIndent(),
+        )
+
+        val componentLibraryRootPath = Files.createTempDirectory("kmp-buddy-component-library")
+        val plan = MoveComposeComponentWithDependenciesSupport.buildPlan(
+            project = project,
+            componentFile = badgeFile,
+            componentLibraryRootPath = componentLibraryRootPath,
+        )
+
+        assertNotNull(plan)
+        val sourceNames = plan!!.dependencyFiles.map { file -> file.name }.toSet()
+        assertEquals(setOf("UnavailableBadge.kt", "UnavailableRouteVisualTokens.kt"), sourceNames)
+        val targetPaths = plan.movePlans.map { movePlan ->
+            movePlan.targetFilePath.normalize().toString()
+        }.toSet()
+        assertEquals(
+            setOf(
+                componentLibraryRootPath
+                    .resolve("demo/unavailable/UnavailableBadge.kt")
+                    .normalize()
+                    .toString(),
+                componentLibraryRootPath
+                    .resolve("demo/unavailable/UnavailableRouteVisualTokens.kt")
+                    .normalize()
+                    .toString(),
+            ),
+            targetPaths,
+        )
+    }
+
+    private fun rememberRealComponentLibraryRoot(): Path {
+        val componentLibraryRootPath = Files.createTempDirectory("kmp-buddy-component-library")
+        val componentLibraryRoot = LocalFileSystem.getInstance()
+            .refreshAndFindFileByNioFile(componentLibraryRootPath)
+        assertNotNull(componentLibraryRoot)
+        assertTrue(ComponentLibrarySupport.rememberComponentLibraryRoot(componentLibraryRoot!!))
+        return componentLibraryRootPath
+    }
+
+    private fun configureProjectFile(path: String, textWithCaret: String): KtFile {
         val caretMarker = "<caret>"
         val caretOffset = textWithCaret.indexOf(caretMarker)
         assertTrue(caretOffset >= 0)
@@ -666,6 +829,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         val virtualFile = myFixture.tempDirFixture.createFile(path, cleanedText)
         myFixture.openFileInEditor(virtualFile)
         myFixture.editor.caretModel.moveToOffset(caretOffset)
+        return myFixture.file as KtFile
     }
 
     fun testContainerWrapIntentionRequiresSelectionAndWrapsSelectedContainer() {

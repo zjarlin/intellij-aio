@@ -10,9 +10,13 @@ class SmartSourceOnlyProjectSearchScope(
     project: Project,
 ) : GlobalSearchScope(project) {
     private val fileIndex = ProjectFileIndex.getInstance(project)
+    private val gitignoreExclusion = GitignoreSearchExclusion.fromProject(project)
 
     override fun contains(file: VirtualFile): Boolean {
         if (!fileIndex.isInSourceContent(file)) {
+            return false
+        }
+        if (gitignoreExclusion.isIgnored(file)) {
             return false
         }
         if (fileIndex.isInGeneratedSources(file)) {

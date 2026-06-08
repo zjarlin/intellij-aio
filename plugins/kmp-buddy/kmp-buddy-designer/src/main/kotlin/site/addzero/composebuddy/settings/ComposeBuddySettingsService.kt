@@ -17,7 +17,8 @@ class ComposeBuddySettingsService : PersistentStateComponent<ComposeBuddySetting
         var addTemplateParameters: Boolean = true,
         var enableComposeDesigner: Boolean = false,
         var designerCustomComponentsDsl: String = "",
-        var sharedMoveTargetRelativePath: String = "../shared/src/commonMain/kotlin",
+        var sharedMoveTargetSourceSetByModuleRoot: MutableMap<String, String> = mutableMapOf(),
+        var componentLibraryRootPath: String = "",
     )
 
     private var state = State()

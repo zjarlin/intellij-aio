@@ -9,6 +9,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.DumbAware
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
+import site.addzero.composebuddy.support.SharedSourceSetTargetSelection
 
 class MoveFilesToSharedSourceSetAction : AnAction(), DumbAware {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -36,7 +37,18 @@ class MoveFilesToSharedSourceSetAction : AnAction(), DumbAware {
             )
             return
         }
-        val plannedFiles = kotlinFiles.mapNotNull(MoveToSharedSourceSetSupport::buildPlan)
+        val plannedFiles = kotlinFiles
+            .groupBy { file -> MoveToSharedSourceSetSupport.parseSourceLayout(file)?.moduleRootPath }
+            .flatMap { (moduleRootPath, files) ->
+                if (moduleRootPath == null) {
+                    return@flatMap emptyList()
+                }
+                val targetSourceSetName = SharedSourceSetTargetSelection.getOrChooseTargetSourceSet(project, moduleRootPath)
+                    ?: return@flatMap emptyList()
+                files.mapNotNull { file ->
+                    MoveToSharedSourceSetSupport.buildPlan(file, targetSourceSetName)
+                }
+            }
         val validPlans = MoveToSharedSourceSetSupport.filterConflictingPlans(plannedFiles)
         if (validPlans.isEmpty()) {
             notify(

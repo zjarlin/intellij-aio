@@ -18,8 +18,6 @@ import site.addzero.composebuddy.designer.toolwindow.ComposeDesignerToolWindowFa
 import site.addzero.composeblocks.editor.ComposeBlocksFileEditorProvider
 import site.addzero.composeblocks.settings.ComposeBlocksSettingsService
 import java.awt.BorderLayout
-import java.nio.file.InvalidPathException
-import java.nio.file.Paths
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComboBox
@@ -32,7 +30,6 @@ import javax.swing.event.DocumentListener
 class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("settings.display.name")) {
     private val settings = ComposeBuddySettingsService.getInstance().state
     private val composeBlocksSettings = ComposeBlocksSettingsService.getInstance().state
-    private val sharedMoveTargetPathField = JBTextField(settings.sharedMoveTargetRelativePath)
     private val designerComponentsArea = JBTextArea(settings.designerCustomComponentsDsl).apply {
         lineWrap = false
         rows = 14
@@ -123,14 +120,6 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
             }
         }
 
-        group(ComposeBuddyBundle.message("settings.group.source.set.move")) {
-            row(ComposeBuddyBundle.message("settings.shared.move.relative.path")) {
-                cell(sharedMoveTargetPathField)
-                    .resizableColumn()
-                    .comment(ComposeBuddyBundle.message("settings.shared.move.relative.path.comment"))
-            }
-        }
-
         group(ComposeBuddyBundle.message("settings.group.designer")) {
             row {
                 checkBox(ComposeBuddyBundle.message("settings.designer.enable"))
@@ -150,19 +139,16 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
 
         onApply {
             settings.designerCustomComponentsDsl = designerComponentsArea.text.trim()
-            settings.sharedMoveTargetRelativePath = sharedMoveTargetPathField.text.trim()
         }
 
         onReset {
             designerComponentsArea.text = settings.designerCustomComponentsDsl
-            sharedMoveTargetPathField.text = settings.sharedMoveTargetRelativePath
             reloadComponentsFromDsl(settings.designerCustomComponentsDsl)
             componentList.selectedIndex = if (componentListModel.isEmpty) -1 else 0
         }
     }
 
     override fun apply() {
-        validateSharedMoveTargetRelativePath()
         val validation = ComposeDesignerPaletteCatalog.validateCustomComponents(designerComponentsArea.text.trim())
         if (validation.errors.isNotEmpty()) {
             throw ConfigurationException(validation.errors.joinToString("\n"))
@@ -176,21 +162,6 @@ class ComposeBuddyConfigurable : BoundConfigurable(ComposeBuddyBundle.message("s
         }
         if (designerWasEnabled != settings.enableComposeDesigner) {
             ComposeDesignerToolWindowFactory.handleSettingsChanged()
-        }
-    }
-
-    private fun validateSharedMoveTargetRelativePath() {
-        val value = sharedMoveTargetPathField.text.trim()
-        if (value.isEmpty()) {
-            throw ConfigurationException(ComposeBuddyBundle.message("settings.shared.move.relative.path.error.blank"))
-        }
-        val path = try {
-            Paths.get(value)
-        } catch (_: InvalidPathException) {
-            throw ConfigurationException(ComposeBuddyBundle.message("settings.shared.move.relative.path.error.invalid", value))
-        }
-        if (path.isAbsolute) {
-            throw ConfigurationException(ComposeBuddyBundle.message("settings.shared.move.relative.path.error.absolute"))
         }
     }
 

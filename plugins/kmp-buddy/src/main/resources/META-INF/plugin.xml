@@ -212,6 +212,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.intentions.MoveComposeComponentWithDependenciesIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.intentions.PromoteComposableFunctionNameIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>
@@ -309,6 +315,39 @@
             text="%action.move.files.to.shared"
             description="%action.move.files.to.shared.description">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.SetShareLogicSourceSetForModule"
+            class="site.addzero.composebuddy.actions.SetShareLogicSourceSetForModuleAction"
+            text="%action.shared.source.set.module.share.logic"
+            description="%action.shared.source.set.module.description">
+            <add-to-group
+                group-id="ProjectViewPopupMenu"
+                anchor="after"
+                relative-to-action="ComposeBuddy.MoveFilesToSharedSourceSet"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.SetShareUiSourceSetForModule"
+            class="site.addzero.composebuddy.actions.SetShareUiSourceSetForModuleAction"
+            text="%action.shared.source.set.module.share.ui"
+            description="%action.shared.source.set.module.description">
+            <add-to-group
+                group-id="ProjectViewPopupMenu"
+                anchor="after"
+                relative-to-action="ComposeBuddy.SetShareLogicSourceSetForModule"/>
+        </action>
+
+        <action
+            id="ComposeBuddy.SetComponentLibraryRoot"
+            class="site.addzero.composebuddy.actions.SetComponentLibraryRootAction"
+            text="%action.set.component.library.root"
+            description="%action.set.component.library.root.description">
+            <add-to-group
+                group-id="ProjectViewPopupMenu"
+                anchor="after"
+                relative-to-action="ComposeBuddy.SetShareUiSourceSetForModule"/>
         </action>
 
         <action

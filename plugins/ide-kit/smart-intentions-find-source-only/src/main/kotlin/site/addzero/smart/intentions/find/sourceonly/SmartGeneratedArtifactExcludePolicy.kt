@@ -1,5 +1,6 @@
 package site.addzero.smart.intentions.find.sourceonly
 
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootModel
 import com.intellij.openapi.roots.impl.DirectoryIndexExcludePolicy
 import com.intellij.openapi.vfs.pointers.VirtualFilePointer
@@ -7,8 +8,26 @@ import com.intellij.openapi.vfs.pointers.VirtualFilePointerManager
 import com.intellij.openapi.vfs.pointers.VirtualFilePointerListener
 
 class SmartGeneratedArtifactExcludePolicy : DirectoryIndexExcludePolicy {
+    private val projectBasePath: String?
+
+    constructor() {
+        projectBasePath = null
+    }
+
+    constructor(project: Project) {
+        projectBasePath = project.basePath
+    }
+
+    override fun getExcludeUrlsForProject(): Array<String> {
+        return SmartGeneratedArtifactExcludePaths.collectProjectExcludeUrls(projectBasePath)
+            .toTypedArray()
+    }
+
     override fun getExcludeRootsForModule(rootModel: ModuleRootModel): Array<VirtualFilePointer> {
-        return SmartGeneratedArtifactExcludePaths.collectModuleExcludeUrls(rootModel.contentRootUrls)
+        return SmartGeneratedArtifactExcludePaths.collectModuleExcludeUrls(
+            rootModel.module.project.basePath,
+            rootModel.contentRootUrls,
+        )
             .map { url ->
                 VirtualFilePointerManager.getInstance().createDirectoryPointer(
                     url,
@@ -31,8 +50,8 @@ internal object SmartGeneratedArtifactExcludePaths {
         "build/tmp",
     )
 
-    fun collectModuleExcludeUrls(contentRootUrls: Array<String>): List<String> {
-        return contentRootUrls.asSequence()
+    fun collectModuleExcludeUrls(projectBasePath: String?, contentRootUrls: Array<String>): List<String> {
+        val builtInExcludeUrls = contentRootUrls.asSequence()
             .map { rootUrl -> rootUrl.trimEnd('/') }
             .filter { rootUrl -> rootUrl.isNotBlank() }
             .flatMap { rootUrl ->
@@ -42,5 +61,11 @@ internal object SmartGeneratedArtifactExcludePaths {
             }
             .distinct()
             .toList()
+        val gitignoreExcludeUrls = GitignoreSearchExclusion.collectDirectoryExcludeUrls(projectBasePath, contentRootUrls)
+        return (builtInExcludeUrls + gitignoreExcludeUrls).distinct()
+    }
+
+    fun collectProjectExcludeUrls(projectBasePath: String?): List<String> {
+        return GitignoreSearchExclusion.collectProjectExcludeUrls(projectBasePath)
     }
 }

@@ -11,11 +11,18 @@ import org.jetbrains.kotlin.psi.KtFile
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.settings.ComposeBuddySettingsService
 import java.nio.file.Files
-import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.nio.file.Paths
 
 object MoveToSharedSourceSetSupport {
+    const val SHARE_LOGIC_SOURCE_SET = "share_logic"
+    const val SHARE_UI_SOURCE_SET = "share_ui"
+
+    val SUPPORTED_SHARED_SOURCE_SETS: List<String> = listOf(
+        SHARE_LOGIC_SOURCE_SET,
+        SHARE_UI_SOURCE_SET,
+    )
+
     data class MovePlan(
         val sourceFile: VirtualFile,
         val targetFilePath: Path,
@@ -23,6 +30,12 @@ object MoveToSharedSourceSetSupport {
         val targetDirectoryPath: Path
             get() = targetFilePath.parent
     }
+
+    data class SourceLayout(
+        val moduleRootPath: Path,
+        val sourceSetName: String,
+        val relativeFilePath: Path,
+    )
 
     fun collectKotlinFiles(selectedFiles: Collection<VirtualFile>): List<VirtualFile> {
         val collectedFiles = linkedMapOf<String, VirtualFile>()
@@ -32,31 +45,56 @@ object MoveToSharedSourceSetSupport {
         return collectedFiles.values.toList()
     }
 
-    fun buildPlan(file: VirtualFile): MovePlan? {
+    fun parseSourceLayout(file: VirtualFile): SourceLayout? {
         if (!file.isValid || file.isDirectory || !file.isInLocalFileSystem) {
             return null
         }
-        val sourceLayout = parseSourceLayout(file.path) ?: return null
-        val relativeTargetPath = ComposeBuddySettingsService.getInstance().state.sharedMoveTargetRelativePath.trim()
-        if (relativeTargetPath.isEmpty()) {
+        val normalizedPath = file.path.replace('\\', '/')
+        val matchResult = SOURCE_FILE_PATTERN.matchEntire(normalizedPath) ?: return null
+        return SourceLayout(
+            moduleRootPath = Paths.get(matchResult.groupValues[1]).normalize(),
+            sourceSetName = matchResult.groupValues[2],
+            relativeFilePath = Paths.get(matchResult.groupValues[3]).normalize(),
+        )
+    }
+
+    fun getRememberedSharedSourceSet(moduleRootPath: Path): String? {
+        val normalizedModuleRootPath = normalizeModuleRootPath(moduleRootPath)
+        return ComposeBuddySettingsService.getInstance()
+            .state
+            .sharedMoveTargetSourceSetByModuleRoot[normalizedModuleRootPath]
+            ?.takeIf(::isSupportedSharedSourceSet)
+    }
+
+    fun rememberSharedSourceSet(moduleRootPath: Path, sourceSetName: String): Boolean {
+        if (!isSupportedSharedSourceSet(sourceSetName)) {
+            return false
+        }
+        val normalizedModuleRootPath = normalizeModuleRootPath(moduleRootPath)
+        ComposeBuddySettingsService.getInstance()
+            .state
+            .sharedMoveTargetSourceSetByModuleRoot[normalizedModuleRootPath] = sourceSetName
+        return true
+    }
+
+    fun buildPlan(file: VirtualFile, targetSourceSetName: String): MovePlan? {
+        if (!file.isValid || file.isDirectory || !file.isInLocalFileSystem) {
             return null
         }
-        val configuredPath = try {
-            Paths.get(relativeTargetPath)
-        } catch (_: InvalidPathException) {
+        if (!isSupportedSharedSourceSet(targetSourceSetName)) {
             return null
         }
-        if (configuredPath.isAbsolute) {
-            return null
-        }
-        val moduleRootPath = Paths.get(sourceLayout.moduleRootPath).normalize()
+        val sourceLayout = parseSourceLayout(file) ?: return null
         val currentFilePath = Paths.get(file.path).normalize()
-        val relativeFilePath = Paths.get(sourceLayout.relativeFilePath).normalize()
-        val targetSourceRootPath = moduleRootPath.resolve(configuredPath).normalize()
+        val targetSourceRootPath = sourceLayout.moduleRootPath
+            .resolve("src")
+            .resolve(targetSourceSetName)
+            .resolve("kotlin")
+            .normalize()
         if (currentFilePath.startsWith(targetSourceRootPath)) {
             return null
         }
-        val targetFilePath = targetSourceRootPath.resolve(relativeFilePath).normalize()
+        val targetFilePath = targetSourceRootPath.resolve(sourceLayout.relativeFilePath).normalize()
         if (targetFilePath == currentFilePath) {
             return null
         }
@@ -70,6 +108,12 @@ object MoveToSharedSourceSetSupport {
         )
     }
 
+    fun buildPlan(file: VirtualFile): MovePlan? {
+        val sourceLayout = parseSourceLayout(file) ?: return null
+        val targetSourceSetName = getRememberedSharedSourceSet(sourceLayout.moduleRootPath) ?: return null
+        return buildPlan(file, targetSourceSetName)
+    }
+
     fun filterConflictingPlans(plans: Collection<MovePlan>): List<MovePlan> {
         val conflictingTargets = plans
             .groupBy { it.targetFilePath.normalize() }
@@ -78,7 +122,11 @@ object MoveToSharedSourceSetSupport {
         return plans.filterNot { it.targetFilePath.normalize() in conflictingTargets }
     }
 
-    fun movePlans(project: Project, plans: Collection<MovePlan>): Int {
+    fun movePlans(
+        project: Project,
+        plans: Collection<MovePlan>,
+        commandName: String = ComposeBuddyBundle.message("command.move.file.to.shared"),
+    ): Int {
         if (plans.isEmpty()) {
             return 0
         }
@@ -87,7 +135,7 @@ object MoveToSharedSourceSetSupport {
         plans
             .groupBy { it.targetDirectoryPath.normalize() }
             .forEach { (targetDirectoryPath, groupedPlans) ->
-                val targetDirectory = createTargetDirectory(project, targetDirectoryPath) ?: return@forEach
+                val targetDirectory = createTargetDirectory(project, targetDirectoryPath, commandName) ?: return@forEach
                 val psiFiles = groupedPlans.mapNotNull { plan ->
                     psiManager.findFile(plan.sourceFile) as? KtFile
                 }
@@ -108,9 +156,9 @@ object MoveToSharedSourceSetSupport {
         return movedFileCount
     }
 
-    private fun createTargetDirectory(project: Project, path: Path): PsiDirectory? {
+    private fun createTargetDirectory(project: Project, path: Path, commandName: String): PsiDirectory? {
         return WriteCommandAction.writeCommandAction(project)
-            .withName(ComposeBuddyBundle.message("command.move.file.to.shared"))
+            .withName(commandName)
             .compute<PsiDirectory?, RuntimeException> {
                 val virtualDirectory = VfsUtil.createDirectoryIfMissing(path.toString()) ?: return@compute null
                 PsiManager.getInstance(project).findDirectory(virtualDirectory)
@@ -133,19 +181,11 @@ object MoveToSharedSourceSetSupport {
         sink.putIfAbsent(file.path, file)
     }
 
-    private fun parseSourceLayout(filePath: String): SourceLayout? {
-        val normalizedPath = filePath.replace('\\', '/')
-        val matchResult = SOURCE_FILE_PATTERN.matchEntire(normalizedPath) ?: return null
-        return SourceLayout(
-            moduleRootPath = matchResult.groupValues[1],
-            relativeFilePath = matchResult.groupValues[2],
-        )
+    private fun normalizeModuleRootPath(path: Path): String = path.normalize().toString()
+
+    private fun isSupportedSharedSourceSet(sourceSetName: String): Boolean {
+        return sourceSetName in SUPPORTED_SHARED_SOURCE_SETS
     }
 
-    private data class SourceLayout(
-        val moduleRootPath: String,
-        val relativeFilePath: String,
-    )
-
-    private val SOURCE_FILE_PATTERN = Regex("""^(.+)/src/[^/]+Main/kotlin/(.+)$""")
+    private val SOURCE_FILE_PATTERN = Regex("""^(.+)/src/([^/]+)/kotlin/(.+)$""")
 }

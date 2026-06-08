@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import site.addzero.composebuddy.ComposeBuddyBundle
 import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
+import site.addzero.composebuddy.support.SharedSourceSetTargetSelection
 
 class MoveFileToSharedSourceSetIntention : PsiElementBaseIntentionAction(), DumbAware {
     override fun getFamilyName(): String = ComposeBuddyBundle.message("plugin.name")
@@ -25,12 +26,21 @@ class MoveFileToSharedSourceSetIntention : PsiElementBaseIntentionAction(), Dumb
             return false
         }
         val file = (element.containingFile as? KtFile)?.virtualFile ?: return false
-        return MoveToSharedSourceSetSupport.buildPlan(file) != null
+        return MoveToSharedSourceSetSupport.parseSourceLayout(file) != null
     }
 
     override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
         val file = (element.containingFile as? KtFile)?.virtualFile ?: return
-        val plan = MoveToSharedSourceSetSupport.buildPlan(file)
+        val sourceLayout = MoveToSharedSourceSetSupport.parseSourceLayout(file)
+        if (sourceLayout == null) {
+            showError(project, editor, ComposeBuddyBundle.message("refactor.move.file.to.shared.error"))
+            return
+        }
+        val targetSourceSetName = SharedSourceSetTargetSelection.getOrChooseTargetSourceSet(project, sourceLayout.moduleRootPath)
+        if (targetSourceSetName == null) {
+            return
+        }
+        val plan = MoveToSharedSourceSetSupport.buildPlan(file, targetSourceSetName)
         if (plan == null) {
             showError(project, editor, ComposeBuddyBundle.message("refactor.move.file.to.shared.error"))
             return

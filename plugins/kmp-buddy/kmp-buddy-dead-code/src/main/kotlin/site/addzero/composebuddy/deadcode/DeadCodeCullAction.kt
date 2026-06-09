@@ -23,12 +23,17 @@ class DeadCodeCullAction : AnAction() {
         val file = event.getData(CommonDataKeys.PSI_FILE) as? KtFile
         val project = event.project
         event.presentation.isEnabledAndVisible = project != null && file != null
-        event.presentation.text = "KMP Buddy: Cull Dead Code From Entry"
+        event.presentation.text = "KMP Buddy: Transfer Code From Entry"
     }
 
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
         val ktFile = event.getData(CommonDataKeys.PSI_FILE) as? KtFile ?: return
+        val dialog = DeadCodeTransferDialog(project)
+        if (!dialog.showAndGet()) {
+            return
+        }
+        val mode = dialog.selectedMode()
         val editor = event.getData(CommonDataKeys.EDITOR)
         val entryFunction = editor
             ?.let { ktFile.findElementAt(it.caretModel.offset) }
@@ -42,7 +47,7 @@ class DeadCodeCullAction : AnAction() {
 
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             project,
-            "Culling KMP Buddy dead code",
+            mode.taskTitle,
             true,
         ) {
             override fun run(indicator: ProgressIndicator) {
@@ -55,25 +60,25 @@ class DeadCodeCullAction : AnAction() {
                     )
                 }
 
-                if (analysis.movableDeadFiles.isEmpty() && analysis.mixedFiles.isEmpty()) {
-                    notify(project, "No dead-code candidates were found.", NotificationType.INFORMATION)
+                if (mode.movableFiles(analysis).isEmpty() && analysis.mixedFiles.isEmpty()) {
+                    notify(project, mode.noCandidateMessage, NotificationType.INFORMATION)
                     return
                 }
 
-                indicator.text = "Writing dead-code mirror module..."
+                indicator.text = "Writing code-transfer mirror module..."
                 val result = WriteCommandAction.writeCommandAction(project)
-                    .withName("Cull KMP Buddy dead code")
+                    .withName(mode.commandName)
                     .compute<DeadCodeCullResult?, RuntimeException> {
-                        DeadCodeMirrorWriter(project).write(sourceModuleRoot, analysis)
+                        DeadCodeMirrorWriter(project).write(sourceModuleRoot, analysis, mode)
                     }
                 if (result == null) {
-                    notify(project, "Unable to write the dead-code mirror module.", NotificationType.WARNING)
+                    notify(project, "Unable to write the code-transfer mirror module.", NotificationType.WARNING)
                     return
                 }
 
                 notify(
                     project = project,
-                    message = "Moved ${result.movedFileCount} dead file(s). Mixed files left in report: ${result.mixedFileCount}.",
+                    message = "Moved ${result.movedFileCount} ${mode.notificationFileLabel} file(s). Mixed files left in report: ${result.mixedFileCount}.",
                     type = if (result.movedFileCount > 0) NotificationType.INFORMATION else NotificationType.WARNING,
                 )
             }

@@ -56,6 +56,62 @@ class DeadCodeCullingTest : BasePlatformTestCase() {
         assertFalse(analysis.movableDeadFiles.any { it.relativePath.endsWith("Used.kt") })
     }
 
+    fun testReachabilityFindsWholeFileLiveCodeAndLeavesMixedFilesInPlace() {
+        val moduleRoot = addModuleBuildFile()
+        addKt(
+            "lib/compose/az-compose/src/commonMain/kotlin/demo/Live.kt",
+            """
+            package demo
+
+            fun LiveComponent() = Unit
+            """.trimIndent(),
+        )
+        addKt(
+            "lib/compose/az-compose/src/commonMain/kotlin/demo/Mixed.kt",
+            """
+            package demo
+
+            fun LiveFromMixed() = Unit
+
+            fun DeadFromMixed() = Unit
+            """.trimIndent(),
+        )
+        addKt(
+            "lib/compose/az-compose/src/commonMain/kotlin/demo/Dead.kt",
+            """
+            package demo
+
+            fun DeadComponent() = Unit
+            """.trimIndent(),
+        )
+        val entryFile = addKt(
+            "apps/cmp-aio/app/shared/src/commonMain/kotlin/site/addzero/App.kt",
+            """
+            package site.addzero
+
+            import demo.LiveComponent
+            import demo.LiveFromMixed
+
+            fun App() {
+                LiveComponent()
+                LiveFromMixed()
+            }
+            """.trimIndent(),
+        )
+
+        val analysis = DeadCodeReachabilityAnalyzer(project).analyze(
+            entryFile = entryFile,
+            entryFunction = entryFile.declarations.filterIsInstance<org.jetbrains.kotlin.psi.KtNamedFunction>()
+                .single { it.name == "App" },
+            sourceModuleRoot = moduleRoot,
+        )
+
+        assertTrue(analysis.movableLiveFiles.any { it.relativePath.endsWith("Live.kt") })
+        assertFalse(analysis.movableLiveFiles.any { it.relativePath.endsWith("Mixed.kt") })
+        assertTrue(analysis.movableDeadFiles.any { it.relativePath.endsWith("Dead.kt") })
+        assertTrue(analysis.mixedFiles.any { it.relativePath.endsWith("Mixed.kt") })
+    }
+
     fun testGeneratedRouteTableReferenceKeepsRoutePageLive() {
         addModuleBuildFile()
         addKt(
@@ -158,6 +214,47 @@ class DeadCodeCullingTest : BasePlatformTestCase() {
         assertTrue(String(Files.readAllBytes(result.manifestPath), Charsets.UTF_8).contains("Dead.kt"))
     }
 
+    fun testLiveCodeMirrorWriterUsesSeparateRootAndPreservesFileName() {
+        val projectRoot = Files.createTempDirectory("kmp-buddy-live-code")
+        val sourceModule = projectRoot.resolve("lib/compose/az-compose")
+        val liveFile = sourceModule.resolve("src/commonMain/kotlin/demo/nested/Live.kt")
+        Files.createDirectories(liveFile.parent)
+        Files.write(
+            liveFile,
+            """
+            package demo.nested
+
+            fun LiveComponent() = Unit
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        Files.write(
+            sourceModule.resolve("build.gradle.kts"),
+            "plugins { id(\"site.addzero.buildlogic.kmp.cmp-lib\") }\n".toByteArray(Charsets.UTF_8),
+        )
+        val analysis = fileAnalysis(
+            sourceModule = sourceModule,
+            file = liveFile,
+            relativePath = "src/commonMain/kotlin/demo/nested/Live.kt",
+            declarationName = "LiveComponent",
+            isLive = true,
+        )
+
+        val result = DeadCodeMirrorWriter(project).writeToMirror(
+            projectRoot = projectRoot,
+            mirrorRoot = projectRoot.resolve(".kmp-buddy/live-code-modules/az-compose"),
+            analysis = analysis,
+            mode = DeadCodeTransferMode.LIVE_CODE,
+        )
+
+        val expectedMirrorFile = result.mirrorRoot
+            .resolve("src/commonMain/kotlin/demo/nested/Live.kt")
+        assertTrue(expectedMirrorFile.exists())
+        assertFalse(liveFile.exists())
+        val manifestText = String(Files.readAllBytes(result.manifestPath), Charsets.UTF_8)
+        assertTrue(manifestText.contains("\"transferMode\": \"live-code\""))
+        assertTrue(String(Files.readAllBytes(result.reportPath), Charsets.UTF_8).contains("KMP Buddy Live Code Transfer Report"))
+    }
+
     fun testRestoreSkipsExistingChangedSourceAndWritesConflictReport() {
         val projectRoot = Files.createTempDirectory("kmp-buddy-dead-code")
         val sourceModule = projectRoot.resolve("lib/compose/az-compose")
@@ -175,7 +272,13 @@ class DeadCodeCullingTest : BasePlatformTestCase() {
             sourceModule.resolve("build.gradle.kts"),
             "plugins { id(\"site.addzero.buildlogic.kmp.cmp-lib\") }\n".toByteArray(Charsets.UTF_8),
         )
-        val analysis = deadFileAnalysis(sourceModule, deadFile, "src/commonMain/kotlin/demo/Dead.kt")
+        val analysis = fileAnalysis(
+            sourceModule = sourceModule,
+            file = deadFile,
+            relativePath = "src/commonMain/kotlin/demo/Dead.kt",
+            declarationName = "DeadComponent",
+            isLive = false,
+        )
         val cullResult = DeadCodeMirrorWriter(project).writeToMirror(
             projectRoot = projectRoot,
             mirrorRoot = projectRoot.resolve(".kmp-buddy/dead-code-modules/az-compose"),
@@ -220,20 +323,35 @@ class DeadCodeCullingTest : BasePlatformTestCase() {
         file: java.nio.file.Path,
         relativePath: String,
     ): DeadCodeAnalysisResult {
+        return fileAnalysis(
+            sourceModule = sourceModule,
+            file = file,
+            relativePath = relativePath,
+            declarationName = "DeadComponent",
+            isLive = false,
+        )
+    }
+
+    private fun fileAnalysis(
+        sourceModule: java.nio.file.Path,
+        file: java.nio.file.Path,
+        relativePath: String,
+        declarationName: String,
+        isLive: Boolean,
+    ): DeadCodeAnalysisResult {
+        val declaration = DeadCodeDeclarationKey(
+            filePath = file.toString(),
+            name = declarationName,
+            offset = 0,
+        )
         return DeadCodeAnalysisResult(
             sourceModulePath = sourceModule,
             files = listOf(
                 DeadCodeFileAnalysis(
                     sourcePath = file,
                     relativePath = relativePath,
-                    declarations = listOf(
-                        DeadCodeDeclarationKey(
-                            filePath = file.toString(),
-                            name = "DeadComponent",
-                            offset = 0,
-                        ),
-                    ),
-                    liveDeclarations = emptyList(),
+                    declarations = listOf(declaration),
+                    liveDeclarations = if (isLive) listOf(declaration) else emptyList(),
                 ),
             ),
             reachableDeclarationCount = 1,

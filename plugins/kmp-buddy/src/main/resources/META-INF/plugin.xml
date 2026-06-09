@@ -357,8 +357,8 @@
         <action
             id="ComposeBuddy.CullDeadCode"
             class="site.addzero.composebuddy.deadcode.DeadCodeCullAction"
-            text="KMP Buddy: Cull Dead Code From Entry"
-            description="Move whole-file dead code into an isolated mirror module">
+            text="KMP Buddy: Transfer Code From Entry"
+            description="Move whole-file dead or live code into an isolated mirror module">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
@@ -366,8 +366,8 @@
         <action
             id="ComposeBuddy.RestoreDeadCode"
             class="site.addzero.composebuddy.deadcode.DeadCodeRestoreAction"
-            text="KMP Buddy: Restore Dead Code"
-            description="Restore files from a KMP Buddy dead-code manifest">
+            text="KMP Buddy: Restore Transferred Code"
+            description="Restore files from a KMP Buddy code-transfer manifest">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>

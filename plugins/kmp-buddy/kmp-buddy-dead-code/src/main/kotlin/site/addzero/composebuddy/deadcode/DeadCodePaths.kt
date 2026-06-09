@@ -30,10 +30,11 @@ object DeadCodePaths {
     fun mirrorModuleRoot(
         project: Project,
         sourceModuleRoot: VirtualFile,
+        mode: DeadCodeTransferMode,
     ): Path? {
         val root = projectRoot(project) ?: return null
         return root
-            .resolve(DeadCodeConstants.MIRROR_ROOT_RELATIVE_PATH)
+            .resolve(mode.mirrorRootRelativePath)
             .resolve(sourceModuleRoot.path.trim('/').replace("/", "__"))
     }
 

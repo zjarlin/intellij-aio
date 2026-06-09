@@ -19,7 +19,7 @@ class DeadCodeRestoreAction : AnAction(), DumbAware {
         event.presentation.isEnabledAndVisible = event.project != null &&
             selectedFile != null &&
             selectedFile.name == DeadCodeConstants.MANIFEST_FILE_NAME
-        event.presentation.text = "KMP Buddy: Restore Dead Code"
+        event.presentation.text = "KMP Buddy: Restore Transferred Code"
     }
 
     override fun actionPerformed(event: AnActionEvent) {
@@ -27,7 +27,7 @@ class DeadCodeRestoreAction : AnAction(), DumbAware {
         val manifestVirtualFile = event.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
         val manifestPath = Paths.get(manifestVirtualFile.path)
         val result = WriteCommandAction.writeCommandAction(project)
-            .withName("Restore KMP Buddy dead code")
+            .withName("Restore KMP Buddy transferred code")
             .compute<DeadCodeRestoreResult, RuntimeException> {
                 DeadCodeRestorer(project).restore(manifestPath)
             }

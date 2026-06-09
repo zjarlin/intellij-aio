@@ -280,12 +280,106 @@ object PreviewReachableAstCollector {
     private fun KtElement.collectReferencedNames(): List<String> {
         val expressionNames = collectDescendantsOfType<KtSimpleNameExpression>()
             .map { reference -> reference.getReferencedName() }
-        val textNames = kotlinIdentifierRegex.findAll(text)
+        val textNames = kotlinIdentifierRegex.findAll(text.withoutKotlinComments())
             .map { match -> match.value }
             .filterNot(kotlinKeywords::contains)
         return (expressionNames + textNames)
             .filter(String::isNotBlank)
             .distinct()
+    }
+
+    private fun String.withoutKotlinComments(): String {
+        val result = StringBuilder(length)
+        var index = 0
+        var blockDepth = 0
+        var inLineComment = false
+        var inString = false
+        var inTripleString = false
+        var escaped = false
+
+        while (index < length) {
+            val char = this[index]
+            val next = getOrNull(index + 1)
+            val nextTwo = getOrNull(index + 2)
+
+            when {
+                inLineComment -> {
+                    if (char == '\n' || char == '\r') {
+                        inLineComment = false
+                        result.append(char)
+                    } else {
+                        result.append(' ')
+                    }
+                }
+
+                blockDepth > 0 -> {
+                    when {
+                        char == '/' && next == '*' -> {
+                            blockDepth++
+                            result.append("  ")
+                            index++
+                        }
+
+                        char == '*' && next == '/' -> {
+                            blockDepth--
+                            result.append("  ")
+                            index++
+                        }
+
+                        char == '\n' || char == '\r' -> result.append(char)
+                        else -> result.append(' ')
+                    }
+                }
+
+                inTripleString -> {
+                    if (char == '"' && next == '"' && nextTwo == '"') {
+                        inTripleString = false
+                        result.append("\"\"\"")
+                        index += 2
+                    } else {
+                        result.append(char)
+                    }
+                }
+
+                inString -> {
+                    result.append(char)
+                    when {
+                        escaped -> escaped = false
+                        char == '\\' -> escaped = true
+                        char == '"' -> inString = false
+                    }
+                }
+
+                char == '"' && next == '"' && nextTwo == '"' -> {
+                    inTripleString = true
+                    result.append("\"\"\"")
+                    index += 2
+                }
+
+                char == '"' -> {
+                    inString = true
+                    result.append(char)
+                }
+
+                char == '/' && next == '/' -> {
+                    inLineComment = true
+                    result.append("  ")
+                    index++
+                }
+
+                char == '/' && next == '*' -> {
+                    blockDepth = 1
+                    result.append("  ")
+                    index++
+                }
+
+                else -> result.append(char)
+            }
+
+            index++
+        }
+
+        return result.toString()
     }
 
     private fun PsiElement.sourceTopLevelDeclaration(): KtNamedDeclaration? {

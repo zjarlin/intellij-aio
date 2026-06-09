@@ -248,6 +248,44 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertFalse(imports.contains("import demo.unused.UnusedImport"))
     }
 
+    fun testReachableAstSnapshotDropsImportsOnlyUsedByKdocLinks() {
+        myFixture.configureByText(
+            "Dialog.kt",
+            """
+            package demo
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+            import demo.modal.ModalDescription
+            import demo.modal.ModalTitle
+
+            @Preview
+            @Composable
+            fun DialogPreview() {
+                Dialog(header = { println("header") })
+            }
+
+            /**
+             * Header usually contains [ModalTitle] and [ModalDescription].
+             */
+            @Composable
+            fun Dialog(header: @Composable () -> Unit) {
+                header()
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("DialogPreview")
+        val imports = snapshot.files.flatMap(PreviewSandboxSourceFile::imports)
+        val generatedText = snapshot.files.joinToString("\n") { sourceFile ->
+            sourceFile.declarations.joinToString("\n")
+        }
+
+        assertFalse(imports.contains("import demo.modal.ModalDescription"))
+        assertFalse(imports.contains("import demo.modal.ModalTitle"))
+        assertTrue(generatedText.contains("[ModalTitle] and [ModalDescription]"))
+    }
+
     fun testWriterRendersKmpActualDeclarationAsPlainJvmDeclaration() {
         myFixture.configureByText(
             "SidebarPreview.kt",

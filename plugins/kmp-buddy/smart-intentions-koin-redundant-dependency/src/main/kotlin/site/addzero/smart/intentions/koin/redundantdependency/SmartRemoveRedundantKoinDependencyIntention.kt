@@ -15,7 +15,7 @@ class SmartRemoveRedundantKoinDependencyIntention : PsiElementBaseIntentionActio
     }
 
     override fun getText(): String {
-        return SmartIntentionsMessages.REMOVE_REDUNDANT_KOIN_DEPENDENCY
+        return "$KMP_BUDDY_MARKER ${SmartIntentionsMessages.REMOVE_REDUNDANT_KOIN_DEPENDENCY}"
     }
 
     override fun startInWriteAction(): Boolean {
@@ -33,3 +33,5 @@ class SmartRemoveRedundantKoinDependencyIntention : PsiElementBaseIntentionActio
         candidate.apply(project)
     }
 }
+
+private const val KMP_BUDDY_MARKER = "(KMP Buddy)"

@@ -42,6 +42,10 @@
             language="kotlin"
             implementationClass="site.addzero.composebuddy.previewsandbox.ComposePreviewSandboxLineMarkerProvider"/>
 
+        <codeInsight.lineMarkerProvider
+            language="kotlin"
+            implementationClass="site.addzero.composebuddy.features.koincollection.KoinCollectionInjectionLineMarkerProvider"/>
+
         <intentionAction order="FIRST">
             <language>kotlin</language>
             <className>site.addzero.composebuddy.intentions.ExpandWrapperSignatureIntention</className>

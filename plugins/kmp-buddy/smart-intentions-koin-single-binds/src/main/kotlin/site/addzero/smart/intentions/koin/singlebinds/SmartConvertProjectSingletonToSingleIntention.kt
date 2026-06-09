@@ -15,7 +15,7 @@ class SmartConvertProjectSingletonToSingleIntention : PsiElementBaseIntentionAct
     }
 
     override fun getText(): String {
-        return SmartIntentionsMessages.CONVERT_PROJECT_KOIN_SINGLETON_TO_SINGLE
+        return "$KMP_BUDDY_MARKER ${SmartIntentionsMessages.CONVERT_PROJECT_KOIN_SINGLETON_TO_SINGLE}"
     }
 
     override fun startInWriteAction(): Boolean {
@@ -45,3 +45,5 @@ class SmartConvertProjectSingletonToSingleIntention : PsiElementBaseIntentionAct
         )
     }
 }
+
+private const val KMP_BUDDY_MARKER = "(KMP Buddy)"

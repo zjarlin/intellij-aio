@@ -15,7 +15,7 @@ class SmartRemoveProjectSingleBindsIntention : PsiElementBaseIntentionAction(), 
     }
 
     override fun getText(): String {
-        return SmartIntentionsMessages.REMOVE_PROJECT_SINGLE_BINDS
+        return "$KMP_BUDDY_MARKER ${SmartIntentionsMessages.REMOVE_PROJECT_SINGLE_BINDS}"
     }
 
     override fun startInWriteAction(): Boolean {
@@ -35,3 +35,5 @@ class SmartRemoveProjectSingleBindsIntention : PsiElementBaseIntentionAction(), 
         ProjectSingleBindsSupport.apply(project)
     }
 }
+
+private const val KMP_BUDDY_MARKER = "(KMP Buddy)"

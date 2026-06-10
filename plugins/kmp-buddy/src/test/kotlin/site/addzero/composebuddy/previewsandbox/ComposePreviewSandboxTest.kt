@@ -594,6 +594,7 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
                         "import kotlinx.coroutines.launch",
                         "import kotlinx.serialization.Serializable",
                         "import org.koin.compose.koinInject",
+                        "import org.koin.compose.viewmodel.koinViewModel",
                         "import org.koin.core.KoinApplication.Companion.init",
                         "import org.koin.core.annotation.KoinViewModel",
                     ),
@@ -601,7 +602,11 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
                         """
                         @KoinViewModel
                         @Serializable
-                        class AppViewModel : ViewModel()
+                        class AppViewModel : ViewModel() {
+                            fun render() {
+                                println(::koinViewModel.name)
+                            }
+                        }
                         """.trimIndent(),
                     ),
                 ),
@@ -613,6 +618,7 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(dependencies.contains("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0"))
         assertTrue(dependencies.contains("io.insert-koin:koin-annotations:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-compose:4.2.1"))
+        assertTrue(dependencies.contains("io.insert-koin:koin-compose-viewmodel:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-core:4.2.1"))
     }
 

@@ -29,6 +29,6 @@ class SmartShortenProjectQualifiedNamesIntention : PsiElementBaseIntentionAction
         if (element.containingFile !is KtFile) {
             return
         }
-        ProjectShortenQualifiedNameSupport.apply(project)
+        ProjectShortenQualifiedNameSupport.applyInBackground(project)
     }
 }

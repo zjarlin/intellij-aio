@@ -210,6 +210,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.deletecomponent.DeleteComposeCallAndOrphanLocalComponentsIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.intentions.MoveFileToSharedSourceSetIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>

@@ -25,6 +25,7 @@ class ExclusionConfigDialog(
     private lateinit var newPatternField: JBTextField
     private lateinit var maxFullScanField: JBTextField
     private lateinit var maxIncrementalScanField: JBTextField
+    private lateinit var backgroundCompileCheckbox: JBCheckBox
 
     init {
         title = "Problem4AI 排除规则配置"
@@ -155,6 +156,13 @@ class ExclusionConfigDialog(
         fieldsPanel.add(maxIncrementalScanField)
         panel.add(fieldsPanel)
 
+        backgroundCompileCheckbox = JBCheckBox(
+            "扫描完成后自动触发 IDE 编译收集未打开文件错误",
+            config.isBackgroundCompileEnabled()
+        )
+        backgroundCompileCheckbox.toolTipText = "大项目建议关闭，避免触发完整 JPS/Kotlin 编译导致内存压力"
+        panel.add(backgroundCompileCheckbox)
+
         val actionsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 8, 0))
         val resetDefaultButton = JButton("恢复默认(50/50)")
         resetDefaultButton.addActionListener {
@@ -187,6 +195,7 @@ class ExclusionConfigDialog(
         config.setMaxIncrementalScanFiles(
             parseLimitOrDefault(maxIncrementalScanField.text, config.getMaxIncrementalScanFiles())
         )
+        config.setBackgroundCompileEnabled(backgroundCompileCheckbox.isSelected)
 
         super.doOKAction()
     }

@@ -20,6 +20,7 @@ object PreviewSandboxExternalDependencies {
     const val KYANT_SHAPES: String = "io.github.kyant0:shapes:$KYANT_SHAPES_VERSION"
     const val KOIN_ANNOTATIONS: String = "io.insert-koin:koin-annotations:$KOIN_VERSION"
     const val KOIN_COMPOSE: String = "io.insert-koin:koin-compose:$KOIN_VERSION"
+    const val KOIN_COMPOSE_VIEWMODEL: String = "io.insert-koin:koin-compose-viewmodel:$KOIN_VERSION"
     const val KOIN_CORE: String = "io.insert-koin:koin-core:$KOIN_VERSION"
 
     const val KOTLINX_SERIALIZATION_CORE: String =
@@ -60,6 +61,9 @@ object PreviewSandboxExternalDependencies {
             if (text.contains("org.koin.compose.")) {
                 add(KOIN_COMPOSE)
                 add(KOIN_CORE)
+            }
+            if (text.contains("org.koin.compose.viewmodel.")) {
+                add(KOIN_COMPOSE_VIEWMODEL)
             }
             if (text.contains("org.koin.core.annotation.")) {
                 add(KOIN_ANNOTATIONS)

@@ -601,6 +601,11 @@ class DiagnosticCollectorService(private val project: Project) : AutoCloseable {
     }
 
     private fun maybeTriggerBackgroundCompile() {
+        if (!exclusionConfig.isBackgroundCompileEnabled()) {
+            LOG.info("[Problem4AI][Compile] skip background make because it is disabled")
+            return
+        }
+
         if (!compileTriggeredOnce.compareAndSet(false, true)) {
             return
         }

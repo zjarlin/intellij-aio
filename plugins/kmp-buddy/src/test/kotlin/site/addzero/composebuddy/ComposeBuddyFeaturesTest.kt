@@ -1829,6 +1829,208 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("modifier = Modifier.weight(1f)"))
     }
 
+    fun testDeleteComposeCallAndOrphansRemovesSameFilePrivateDependencyGraph() {
+        myFixture.configureByText(
+            "ConfigurationCenterScreen.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            class ConfigurationCenterState(
+                val alias: String,
+            )
+
+            @Composable
+            fun ConfigurationCenterScreen(state: ConfigurationCenterState) {
+                Row {
+                    ConfigurationSpecRail(state)
+                    ConfigurationDetailPanel(state)
+                    ConfigurationAbi<caret>Panel(state)
+                }
+            }
+
+            @Composable
+            private fun ConfigurationSpecRail(state: ConfigurationCenterState) {
+                SharedBadge()
+                Text(state.alias)
+            }
+
+            @Composable
+            private fun ConfigurationDetailPanel(state: ConfigurationCenterState) {
+                SharedBadge()
+                Text(state.alias)
+            }
+
+            @Composable
+            private fun ConfigurationAbiPanel(state: ConfigurationCenterState) {
+                AbiRuleRow("1")
+                AliasRow(state.alias)
+                OrphanNested()
+                SharedBadge()
+            }
+
+            @Composable
+            private fun AbiRuleRow(index: String) {
+                Text(index)
+            }
+
+            @Composable
+            private fun AliasRow(alias: String) {
+                Text(alias)
+            }
+
+            @Composable
+            private fun OrphanNested() {
+                DeepOrphan()
+            }
+
+            @Composable
+            private fun DeepOrphan() {
+                Text("deep")
+            }
+
+            @Composable
+            private fun SharedBadge() {
+                Text("shared")
+            }
+
+            @Composable
+            private fun Row(content: @Composable () -> Unit) {
+                content()
+            }
+
+            @Composable
+            private fun Text(value: String) {
+                value.hashCode()
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Delete Compose call and orphan local components")
+
+        val text = myFixture.file.text
+        assertFalse(text.contains("ConfigurationAbiPanel(state)"))
+        assertFalse(text.contains("private fun ConfigurationAbiPanel"))
+        assertFalse(text.contains("private fun AbiRuleRow"))
+        assertFalse(text.contains("private fun AliasRow"))
+        assertFalse(text.contains("private fun OrphanNested"))
+        assertFalse(text.contains("private fun DeepOrphan"))
+        assertTrue(text.contains("private fun ConfigurationSpecRail"))
+        assertTrue(text.contains("private fun ConfigurationDetailPanel"))
+        assertTrue(text.contains("private fun SharedBadge"))
+        assertTrue(text.contains("private fun Text"))
+    }
+
+    fun testDeleteComposeCallAndOrphansRemovesSelectedSiblingCallsTogether() {
+        myFixture.configureByText(
+            "NoteScreen.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            class Stats(
+                val totalNotes: Int,
+                val blinkoNotes: Int,
+                val accountRows: Int,
+            )
+
+            class Snapshot(
+                val stats: Stats,
+            )
+
+            class NoteScreenViewModel(
+                val snapshot: Snapshot,
+            )
+
+            object Icons {
+                object Outlined {
+                    const val Description: String = "description"
+                    const val AutoAwesome: String = "auto"
+                    const val Key: String = "key"
+                }
+            }
+
+            @Composable
+            fun NoteScreen(state: NoteScreenViewModel) {
+                NoteHeader(state)
+            }
+
+            @Composable
+            private fun NoteHeader(state: NoteScreenViewModel) {
+                Row {
+                    Text("Note 工作台")
+                    HeaderMetric("笔记", state.snapshot.stats.totalNotes.toString(), Icons.Outlined.Description)
+                    HeaderMetric("Blinko", state.snapshot.stats.blinkoNotes.toString(), Icons.Outlined.AutoAwesome)
+                    HeaderMetric("账号", state.snapshot.stats.accountRows.toString(), Icons.Outlined.Key)
+                    Text("tail")
+                }
+            }
+
+            @Composable
+            private fun HeaderMetric(
+                label: String,
+                value: String,
+                icon: String,
+            ) {
+                Text("${'$'}label/${'$'}value/${'$'}icon")
+            }
+
+            @Composable
+            private fun Row(content: @Composable () -> Unit) {
+                content()
+            }
+
+            @Composable
+            private fun Text(value: String) {
+                value.hashCode()
+            }
+            """.trimIndent(),
+        )
+
+        val originalText = myFixture.file.text
+        val selectionStart = originalText.indexOf("HeaderMetric(\"笔记\"")
+        val selectionEnd = originalText.indexOf("Text(\"tail\")", selectionStart)
+        myFixture.editor.selectionModel.setSelection(selectionStart, selectionEnd)
+        myFixture.editor.caretModel.moveToOffset(selectionStart + 1)
+
+        invokeIntention("(KMP Buddy) Delete Compose call and orphan local components")
+
+        val text = myFixture.file.text
+        assertFalse(text.contains("HeaderMetric(\"笔记\""))
+        assertFalse(text.contains("HeaderMetric(\"Blinko\""))
+        assertFalse(text.contains("HeaderMetric(\"账号\""))
+        assertFalse(text.contains("private fun HeaderMetric"))
+        assertTrue(text.contains("Text(\"Note 工作台\")"))
+        assertTrue(text.contains("Text(\"tail\")"))
+        assertTrue(text.contains("private fun Row"))
+        assertTrue(text.contains("private fun Text"))
+    }
+
+    fun testDeleteComposeCallAndOrphansIsHiddenForPublicComponentCall() {
+        myFixture.configureByText(
+            "PublicPanel.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun Host() {
+                Public<caret>Panel()
+            }
+
+            @Composable
+            fun PublicPanel() {
+                Text("public")
+            }
+
+            @Composable
+            private fun Text(value: String) {
+                value.hashCode()
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Delete Compose call and orphan local components")
+        assertEmpty(actions)
+    }
+
     private fun invokeIntention(actionText: String) {
         val action = myFixture.findSingleIntention(actionText)
         action.invoke(project, myFixture.editor, myFixture.file)

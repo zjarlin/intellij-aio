@@ -23,8 +23,9 @@ class ShortenProjectQualifiedNamesAction : AnAction(
 
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
-        val result = ProjectShortenQualifiedNameSupport.apply(project)
-        notify(project, result)
+        ProjectShortenQualifiedNameSupport.applyInBackground(project) { result ->
+            notify(project, result)
+        }
     }
 
     private fun notify(project: Project, result: ProjectShortenQualifiedNameResult) {

@@ -47,6 +47,7 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
         const val DEFAULT_MAX_FULL_SCAN_FILES = 50
         const val DEFAULT_MAX_INCREMENTAL_SCAN_FILES = 50
+        const val DEFAULT_BACKGROUND_COMPILE_ENABLED = false
     }
 
     override fun getState(): ExclusionState = state
@@ -121,6 +122,14 @@ class DiagnosticExclusionConfig : PersistentStateComponent<ExclusionState> {
 
     fun setMaxIncrementalScanFiles(limit: Int) {
         state.maxIncrementalScanFiles = normalizeScanLimit(limit, DEFAULT_MAX_INCREMENTAL_SCAN_FILES)
+    }
+
+    fun isBackgroundCompileEnabled(): Boolean {
+        return state.backgroundCompileEnabled
+    }
+
+    fun setBackgroundCompileEnabled(enabled: Boolean) {
+        state.backgroundCompileEnabled = enabled
     }
 
     /**
@@ -375,7 +384,8 @@ data class ExclusionState(
     var gitignoreLoaded: Boolean = false,
     var enabledFileExtensions: List<String> = DEFAULT_FILE_EXTENSIONS,
     var maxFullScanFiles: Int = DiagnosticExclusionConfig.DEFAULT_MAX_FULL_SCAN_FILES,
-    var maxIncrementalScanFiles: Int = DiagnosticExclusionConfig.DEFAULT_MAX_INCREMENTAL_SCAN_FILES
+    var maxIncrementalScanFiles: Int = DiagnosticExclusionConfig.DEFAULT_MAX_INCREMENTAL_SCAN_FILES,
+    var backgroundCompileEnabled: Boolean = DiagnosticExclusionConfig.DEFAULT_BACKGROUND_COMPILE_ENABLED
 ) {
     companion object {
         val DEFAULT_FILE_EXTENSIONS = listOf("java", "kt")

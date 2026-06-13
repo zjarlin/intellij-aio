@@ -1,17 +1,13 @@
 package site.addzero.composebuddy
 
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import site.addzero.composebuddy.features.effectkeys.EffectKeysAnalysis
-import site.addzero.composebuddy.support.ComponentLibrarySupport
 import site.addzero.composebuddy.support.ComposeFunctionTypeSupport
 import site.addzero.composebuddy.support.MoveComposeComponentWithDependenciesSupport
 import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
-import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 
 class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
@@ -134,6 +130,92 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
 
         val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Convert Modifier chain styles to styleable")
         assertEmpty(actions)
+    }
+
+    fun testModifierChainStyleableIntentionHoistsComposableThemeReads() {
+        val file = myFixture.configureByText(
+            "ThemeModifierStyle.kt",
+            """
+            package demo
+
+            import androidx.compose.foundation.background
+            import androidx.compose.foundation.border
+            import androidx.compose.foundation.layout.fillMaxSize
+            import androidx.compose.material3.MaterialTheme
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.unit.dp
+
+            private fun Modifier.root<caret>Style(): Modifier =
+                fillMaxSize()
+                    .background(MaterialTheme.appColors.workbenchStageBackground)
+                    .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Convert Modifier chain styles to styleable")
+
+        assertTrue(file.text.contains("import androidx.compose.runtime.Composable"))
+        assertTrue(file.text.contains("@Composable\nprivate fun Modifier.rootStyle(): Modifier"))
+        assertTrue(file.text.contains("val appColors = MaterialTheme.appColors"))
+        assertTrue(file.text.contains("val colorScheme = MaterialTheme.colorScheme"))
+        assertTrue(file.text.contains("background(appColors.workbenchStageBackground)"))
+        assertTrue(file.text.contains("border(width = 1.dp, color = colorScheme.outlineVariant)"))
+        assertFalse(file.text.contains("background(MaterialTheme.appColors.workbenchStageBackground)"))
+        assertFalse(file.text.contains("color = MaterialTheme.colorScheme.outlineVariant"))
+    }
+
+    fun testModifierArgumentStyleIntentionExtractsLocalStyleableHelper() {
+        myFixture.configureByText(
+            "Item.kt",
+            """
+            import androidx.compose.foundation.background
+            import androidx.compose.foundation.layout.Box
+            import androidx.compose.foundation.layout.height
+            import androidx.compose.material3.MaterialTheme
+            import androidx.compose.material3.Text
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.Alignment
+            import androidx.compose.ui.Modifier
+            import androidx.compose.ui.unit.dp
+
+            @Composable
+            fun Item(modifier: Modifier, item: String) {
+                Box(
+                    modifier = modifier.height(48.dp).back<caret>ground(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = MaterialTheme.shapes.medium,
+                    ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(item)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Extract Modifier argument as styleable helper")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("import androidx.compose.foundation.style.styleable"))
+        assertTrue(text.contains("import androidx.compose.foundation.style.ExperimentalFoundationStyleApi"))
+        assertTrue(text.contains("modifier = modifier.itemStyle()"))
+        assertTrue(text.contains("@OptIn(ExperimentalFoundationStyleApi::class)"))
+        assertTrue(text.contains("@Composable\nprivate fun Modifier.itemStyle(): Modifier"))
+        assertTrue(text.contains("val colorScheme = MaterialTheme.colorScheme"))
+        assertTrue(text.contains("val shapes = MaterialTheme.shapes"))
+        assertTrue(
+            text.contains(
+                """
+                return styleable {
+                        height(48.dp)
+                        background(
+                            color = colorScheme.primaryContainer,
+                            shape = shapes.medium,
+                        )
+                    }
+                """.trimIndent(),
+            ),
+        )
     }
 
     fun testUiStateIntentionCreatesMinimalUiState() {
@@ -716,7 +798,6 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
     }
 
     fun testMoveComposeComponentWithDependenciesIntentionIsAvailableOnTopLevelComposable() {
-        rememberRealComponentLibraryRoot()
         configureProjectFile(
             "feature/src/commonMain/kotlin/demo/Badge.kt",
             """
@@ -732,7 +813,7 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         )
 
         val actions = myFixture.filterAvailableIntentions(
-            "(KMP Buddy) Move Compose component with local dependencies",
+            "(KMP Buddy) Extract minimal Compose dependency set",
         )
 
         assertTrue(actions.isNotEmpty())
@@ -772,45 +853,60 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             @Composable
             fun UnavailableRouteScreen() {
                 UnavailableBadge()
+                Text(UnavailableRouteVisualTokens.TextMuted.toString())
             }
             """.trimIndent(),
         )
 
-        val componentLibraryRootPath = Files.createTempDirectory("kmp-buddy-component-library")
         val plan = MoveComposeComponentWithDependenciesSupport.buildPlan(
             project = project,
             componentFile = badgeFile,
-            componentLibraryRootPath = componentLibraryRootPath,
         )
 
         assertNotNull(plan)
         val sourceNames = plan!!.dependencyFiles.map { file -> file.name }.toSet()
         assertEquals(setOf("UnavailableBadge.kt", "UnavailableRouteVisualTokens.kt"), sourceNames)
-        val targetPaths = plan.movePlans.map { movePlan ->
+        val targetPaths = plan.minimalUseMovePlans.map { movePlan ->
             movePlan.targetFilePath.normalize().toString()
         }.toSet()
+        val parentDirectoryPath = Paths.get(badgeFile.virtualFile!!.parent.path).normalize()
         assertEquals(
             setOf(
-                componentLibraryRootPath
-                    .resolve("demo/unavailable/UnavailableBadge.kt")
-                    .normalize()
-                    .toString(),
-                componentLibraryRootPath
-                    .resolve("demo/unavailable/UnavailableRouteVisualTokens.kt")
+                parentDirectoryPath
+                    .resolve("minimal_use/UnavailableBadge.kt")
                     .normalize()
                     .toString(),
             ),
             targetPaths,
         )
-    }
+        val commonTargetPaths = plan.commonMovePlans.map { movePlan ->
+            movePlan.targetFilePath.normalize().toString()
+        }.toSet()
+        assertEquals(
+            setOf(
+                parentDirectoryPath
+                    .resolve("common/UnavailableRouteVisualTokens.kt")
+                    .normalize()
+                    .toString(),
+            ),
+            commonTargetPaths,
+        )
+        assertEquals(1, plan.couplingPoints.size)
+        val readmeContent = plan.couplingReadme!!.content
+        assertTrue(readmeContent.contains("demo.unavailable.common.UnavailableRouteVisualTokens"))
+        assertTrue(readmeContent.contains("demo.unavailable.UnavailableRouteScreen"))
 
-    private fun rememberRealComponentLibraryRoot(): Path {
-        val componentLibraryRootPath = Files.createTempDirectory("kmp-buddy-component-library")
-        val componentLibraryRoot = LocalFileSystem.getInstance()
-            .refreshAndFindFileByNioFile(componentLibraryRootPath)
-        assertNotNull(componentLibraryRoot)
-        assertTrue(ComponentLibrarySupport.rememberComponentLibraryRoot(componentLibraryRoot!!))
-        return componentLibraryRootPath
+        assertTrue(
+            MoveComposeComponentWithDependenciesSupport.writeCouplingReadme(
+                project = project,
+                plan = plan,
+                commandName = "Test README",
+            ),
+        )
+        val readmeFile = plan.componentParentDirectory.findChild("common")!!.findChild("README.md")!!
+        val readmeText = String(readmeFile.contentsToByteArray(), Charsets.UTF_8)
+        assertTrue(readmeText.contains("demo.unavailable.common.UnavailableRouteVisualTokens"))
+        assertTrue(readmeText.contains("demo.unavailable.UnavailableRouteScreen"))
     }
 
     private fun configureProjectFile(path: String, textWithCaret: String): KtFile {
@@ -1008,6 +1104,54 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
         assertTrue(text.contains("AddTree(viewModel = vm"))
     }
 
+    fun testViewModelInlineIntentionExtractsDelegatedStatePropertiesFromStateParameter() {
+        myFixture.configureByText(
+            "StateMessage.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.getValue
+            import androidx.compose.runtime.mutableStateOf
+            import androidx.compose.runtime.setValue
+
+            class NoteScreenViewModel {
+                var message by mutableStateOf<String?>(null)
+                    private set
+
+                var errorMessage by mutableStateOf<String?>(null)
+                    private set
+            }
+
+            @Composable
+            fun Host(viewModel: NoteScreenViewModel) {
+                StateMessage(viewModel)
+            }
+
+            @Composable
+            private fun State<caret>Message(state: NoteScreenViewModel) {
+                val text = state.errorMessage ?: state.message ?: return
+                Text(
+                    text = text,
+                    color = if (state.errorMessage == null) "primary" else "error",
+                )
+            }
+
+            @Composable
+            private fun Text(text: String, color: String) {
+                text.hashCode()
+                color.hashCode()
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Inline used viewModel state and events into parameters")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("private fun StateMessage(errorMessage: String?, message: String?)"))
+        assertTrue(text.contains("val text = errorMessage ?: message ?: return"))
+        assertTrue(text.contains("color = if (errorMessage == null) \"primary\" else \"error\""))
+        assertTrue(text.contains("StateMessage(errorMessage = viewModel.errorMessage, message = viewModel.message)"))
+    }
+
     fun testParameterSortIntentionGroupsPropsStateEventsAndLambdas() {
         myFixture.configureByText(
             "SortedParameters.kt",
@@ -1051,6 +1195,68 @@ class ComposeBuddyFeaturesTest : BasePlatformTestCase() {
             }
             """.trimIndent(),
         )
+    }
+
+    fun testParameterSortIntentionKeepsNamedCallSitesSafe() {
+        myFixture.configureByText(
+            "NamedCallSites.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun SearchScreen<caret>(
+                onRetry: () -> Unit,
+                query: String,
+                onQueryChange: (String) -> Unit,
+                title: String,
+            ) {
+                Text(title)
+            }
+
+            @Composable
+            fun Host(query: String, onQueryChange: (String) -> Unit) {
+                SearchScreen(
+                    onRetry = {},
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    title = "Search",
+                )
+            }
+            """.trimIndent(),
+        )
+
+        invokeIntention("(KMP Buddy) Sort parameters by props, state, events, and lambdas")
+
+        val text = myFixture.file.text
+        assertTrue(text.contains("fun SearchScreen(\n    title: String,\n    query: String,\n    onQueryChange: (String) -> Unit,\n    onRetry: () -> Unit\n)"))
+        assertTrue(text.contains("SearchScreen(\n        onRetry = {},\n        query = query,\n        onQueryChange = onQueryChange,\n        title = \"Search\",\n    )"))
+    }
+
+    fun testParameterSortIntentionIsHiddenForPositionalCallSites() {
+        myFixture.configureByText(
+            "UnsafeCallSites.kt",
+            """
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun SearchScreen<caret>(
+                onRetry: () -> Unit,
+                query: String,
+                onQueryChange: (String) -> Unit,
+                title: String,
+            ) {
+                Text(title)
+            }
+
+            @Composable
+            fun Host(query: String, onQueryChange: (String) -> Unit) {
+                SearchScreen({}, query, onQueryChange, "Search")
+            }
+            """.trimIndent(),
+        )
+
+        val actions = myFixture.filterAvailableIntentions("(KMP Buddy) Sort parameters by props, state, events, and lambdas")
+        assertEmpty(actions)
     }
 
     fun testCallArgFillIntentionFillsPlaceholderArgumentsFromParameters() {

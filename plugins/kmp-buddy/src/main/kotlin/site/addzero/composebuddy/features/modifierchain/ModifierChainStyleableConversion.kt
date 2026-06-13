@@ -30,6 +30,7 @@ internal object ModifierChainStyleableConversion {
     private const val MODIFIER_FQ_TYPE = "androidx.compose.ui.Modifier"
     private const val STYLEABLE_FQ_NAME = "androidx.compose.foundation.style.styleable"
     private const val EXPERIMENTAL_STYLE_API_FQ_NAME = "androidx.compose.foundation.style.ExperimentalFoundationStyleApi"
+    private const val COMPOSABLE_FQ_NAME = "androidx.compose.runtime.Composable"
     private const val OPT_IN_TEXT = "@OptIn(ExperimentalFoundationStyleApi::class)"
 
     fun isApplicable(function: KtNamedFunction): Boolean {
@@ -59,6 +60,7 @@ internal object ModifierChainStyleableConversion {
 
         var changedFunctions = 0
         val changedFiles = linkedSetOf<KtFile>()
+        val filesNeedingComposableImport = linkedSetOf<KtFile>()
         SmartPsiWriteSupport.runWriteCommand(project, ComposeBuddyBundle.message("command.convert.modifier.chain.styleable")) {
             val psiFactory = KtPsiFactory(project)
             functionPointers.asSequence()
@@ -67,6 +69,9 @@ internal object ModifierChainStyleableConversion {
                 .forEach { function ->
                     val analysis = analyze(function) ?: return@forEach
                     val file = function.containingKtFile
+                    if (analysis.needsComposableAnnotation(function)) {
+                        filesNeedingComposableImport += file
+                    }
                     convertFunction(function, analysis, psiFactory)
                     changedFunctions += 1
                     changedFiles += file
@@ -75,6 +80,9 @@ internal object ModifierChainStyleableConversion {
             changedFiles.forEach { file ->
                 file.ensureImport(psiFactory, STYLEABLE_FQ_NAME)
                 file.ensureImport(psiFactory, EXPERIMENTAL_STYLE_API_FQ_NAME)
+            }
+            filesNeedingComposableImport.forEach { file ->
+                file.ensureImport(psiFactory, COMPOSABLE_FQ_NAME)
             }
         }
 
@@ -172,11 +180,20 @@ internal object ModifierChainStyleableConversion {
     }
 
     private fun renderReplacement(function: KtNamedFunction, calls: List<String>): String {
+        val rendering = ModifierStyleableRenderSupport.rewriteComposableReads(
+            calls = calls,
+            reservedNames = function.valueParameters.mapNotNull { parameter -> parameter.name }.toSet(),
+        )
         return buildString {
-            append(renderPrefix(function))
+            append(renderPrefix(function, needsComposableAnnotation = rendering.declarations.isNotEmpty()))
             append(" {\n")
+            rendering.declarations.forEach { declaration ->
+                append("    ")
+                append(declaration)
+                append("\n")
+            }
             append("    return styleable {\n")
-            calls.forEach { call ->
+            rendering.calls.forEach { call ->
                 append(indentCall(call))
                 append("\n")
             }
@@ -190,7 +207,10 @@ internal object ModifierChainStyleableConversion {
             .joinToString(separator = "\n") { line -> "        $line" }
     }
 
-    private fun renderPrefix(function: KtNamedFunction): String {
+    private fun renderPrefix(
+        function: KtNamedFunction,
+        needsComposableAnnotation: Boolean,
+    ): String {
         val body = function.bodyExpression ?: return function.text.substringBefore("{").trim()
         val prefix = function.text.substring(0, body.textRange.startOffset - function.textRange.startOffset)
             .let { text ->
@@ -201,14 +221,37 @@ internal object ModifierChainStyleableConversion {
                 }
             }
             .trim()
-        return prefix
-            .let { prefix ->
-                if (prefix.startsWith(OPT_IN_TEXT)) {
-                    prefix
+        val optInPrefix = prefix
+            .let { currentPrefix ->
+                if (currentPrefix.startsWith(OPT_IN_TEXT)) {
+                    currentPrefix
                 } else {
-                    "$OPT_IN_TEXT\n$prefix"
+                    "$OPT_IN_TEXT\n$currentPrefix"
                 }
             }
+        if (!needsComposableAnnotation || function.hasComposableAnnotation()) {
+            return optInPrefix
+        }
+        val lines = optInPrefix.lines().toMutableList()
+        val insertIndex = lines.indexOfLast { line -> line.trim().startsWith("@") } + 1
+        lines.add(insertIndex.coerceAtLeast(0), "@Composable")
+        return lines.joinToString("\n")
+    }
+
+    private fun ModifierChainStyleableAnalysis.needsComposableAnnotation(function: KtNamedFunction): Boolean {
+        if (function.hasComposableAnnotation()) {
+            return false
+        }
+        return ModifierStyleableRenderSupport.rewriteComposableReads(
+            calls = calls,
+            reservedNames = function.valueParameters.mapNotNull { parameter -> parameter.name }.toSet(),
+        ).declarations.isNotEmpty()
+    }
+
+    private fun KtNamedFunction.hasComposableAnnotation(): Boolean {
+        return annotationEntries.any { annotation ->
+            annotation.shortName?.asString() == "Composable" || annotation.text.contains(".Composable")
+        }
     }
 
     private fun KtFile.ensureImport(

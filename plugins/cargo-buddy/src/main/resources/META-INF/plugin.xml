@@ -1,0 +1,82 @@
+<idea-plugin>
+    <id>site.addzero.cargo-buddy</id>
+    <name>Cargo Buddy</name>
+    <vendor>AddZero</vendor>
+
+    <description>
+        Cargo Buddy adds a floating Cargo toolbar for Rust crates in JetBrains IDEs.
+
+        Features:
+        - Detects the crate for the current editor file
+        - Runs Cargo commands without browsing the project tree
+        - Supports build, check, test, clippy, clean, and publish
+    </description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <actions>
+        <group id="CargoBuddy.CrateToolbarGroup"
+               text="Cargo Buddy"
+               popup="false"/>
+
+        <action id="CargoBuddy.Command.build"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="build"
+                description="Run cargo build for the current crate"
+                icon="AllIcons.Actions.Compile">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.check"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="check"
+                description="Run cargo check for the current crate"
+                icon="AllIcons.Actions.Checked">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.test"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="test"
+                description="Run cargo test for the current crate"
+                icon="AllIcons.RunConfigurations.TestPassed">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.clippy"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="clippy"
+                description="Run cargo clippy for the current crate"
+                icon="AllIcons.Actions.RealIntentionBulb">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.clean"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="clean"
+                description="Run cargo clean for the current crate"
+                icon="AllIcons.Actions.GC">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.publish"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="publish"
+                description="Run cargo publish for the current crate"
+                icon="AllIcons.Actions.Upload">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="CargoBuddy" displayType="BALLOON" isLogByDefault="true"/>
+        <editorFloatingToolbarProvider implementation="site.addzero.cargo.buddy.editor.CargoCrateFloatingToolbarProvider"/>
+        <postStartupActivity implementation="site.addzero.cargo.buddy.editor.CargoAutoFocusStartupActivity"/>
+    </extensions>
+</idea-plugin>

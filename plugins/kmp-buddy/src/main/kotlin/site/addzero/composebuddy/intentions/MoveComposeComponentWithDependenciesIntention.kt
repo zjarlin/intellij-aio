@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import site.addzero.composebuddy.ComposeBuddyBundle
-import site.addzero.composebuddy.support.ComponentLibrarySupport
 import site.addzero.composebuddy.support.MoveComposeComponentWithDependenciesSupport
 import site.addzero.composebuddy.support.MoveToSharedSourceSetSupport
 
@@ -26,8 +25,7 @@ class MoveComposeComponentWithDependenciesIntention : PsiElementBaseIntentionAct
         if (!MoveComposeComponentWithDependenciesSupport.isMovableComponent(function)) {
             return false
         }
-        return function.containingKtFile.virtualFile != null &&
-            ComponentLibrarySupport.getComponentLibraryRootPath() != null
+        return function.containingKtFile.virtualFile != null
     }
 
     override fun invoke(project: Project, editor: Editor?, element: PsiElement) {
@@ -37,26 +35,27 @@ class MoveComposeComponentWithDependenciesIntention : PsiElementBaseIntentionAct
         }
         val ktFile = function.containingKtFile
         ktFile.virtualFile ?: return
-        val componentLibraryRootPath = ComponentLibrarySupport.getComponentLibraryRootPath()
-        if (componentLibraryRootPath == null) {
-            showError(
-                project,
-                editor,
-                ComposeBuddyBundle.message("refactor.move.component.with.dependencies.error.no.library"),
-            )
-            return
-        }
-        val plan = MoveComposeComponentWithDependenciesSupport.buildPlan(project, ktFile, componentLibraryRootPath)
+        val plan = MoveComposeComponentWithDependenciesSupport.buildPlan(project, ktFile)
         if (plan == null) {
             showError(project, editor, ComposeBuddyBundle.message("refactor.move.component.with.dependencies.error"))
             return
         }
+        val commandName = ComposeBuddyBundle.message("command.move.component.with.dependencies")
         val movedFileCount = MoveToSharedSourceSetSupport.movePlans(
             project = project,
             plans = plan.movePlans,
-            commandName = ComposeBuddyBundle.message("command.move.component.with.dependencies"),
+            commandName = commandName,
         )
         if (movedFileCount == 0) {
+            showError(project, editor, ComposeBuddyBundle.message("refactor.move.component.with.dependencies.error.directory"))
+            return
+        }
+        val readmeWritten = MoveComposeComponentWithDependenciesSupport.writeCouplingReadme(
+            project = project,
+            plan = plan,
+            commandName = commandName,
+        )
+        if (!readmeWritten) {
             showError(project, editor, ComposeBuddyBundle.message("refactor.move.component.with.dependencies.error.directory"))
         }
     }

@@ -102,6 +102,12 @@
 
         <intentionAction order="FIRST">
             <language>kotlin</language>
+            <className>site.addzero.composebuddy.features.modifierchain.ModifierArgumentStyleIntention</className>
+            <category>kmp-buddy</category>
+        </intentionAction>
+
+        <intentionAction order="FIRST">
+            <language>kotlin</language>
             <className>site.addzero.composebuddy.features.modifierchain.ModifierChainStyleableIntention</className>
             <category>kmp-buddy</category>
         </intentionAction>

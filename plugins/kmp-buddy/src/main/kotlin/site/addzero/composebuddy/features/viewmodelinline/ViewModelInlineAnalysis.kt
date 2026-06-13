@@ -277,7 +277,7 @@ private sealed interface TypeNode {
             val property = klass.findProperty(pathSegments.first()) ?: return null
             if (pathSegments.size == 1) {
                 return PropertyResolution(
-                    typeText = property.typeReference?.text ?: return null,
+                    typeText = property.typeText ?: return null,
                     sourceKind = property.sourceKind,
                 )
             }
@@ -336,6 +336,7 @@ private sealed interface TypeNode {
 
 private data class KotlinPropertyInfo(
     val typeReference: KtTypeReference?,
+    val inferredTypeText: String?,
     val context: com.intellij.psi.PsiElement,
     val sourceKind: ViewModelStateSourceKind,
 )
@@ -347,11 +348,17 @@ private data class PropertyResolution(
 
 private fun KtClass.findProperty(name: String): KotlinPropertyInfo? {
     primaryConstructorParameters.firstOrNull { it.hasValOrVar() && it.name == name }?.let {
-        return KotlinPropertyInfo(it.typeReference, it, ViewModelStateSourceKind.INPUT)
+        return KotlinPropertyInfo(
+            typeReference = it.typeReference,
+            inferredTypeText = null,
+            context = it,
+            sourceKind = ViewModelStateSourceKind.INPUT,
+        )
     }
     declarations.filterIsInstance<KtProperty>().firstOrNull { it.name == name }?.let { property ->
         return KotlinPropertyInfo(
             typeReference = property.typeReference,
+            inferredTypeText = property.inferDelegatedStateTypeText(),
             context = property,
             sourceKind = if (property.isComputedProperty()) {
                 ViewModelStateSourceKind.COMPUTED
@@ -361,6 +368,35 @@ private fun KtClass.findProperty(name: String): KotlinPropertyInfo? {
         )
     }
     return null
+}
+
+private val KotlinPropertyInfo.typeText: String?
+    get() = typeReference?.text ?: inferredTypeText
+
+private fun KtProperty.inferDelegatedStateTypeText(): String? {
+    val delegateText = delegateExpression?.text ?: return null
+    if (!delegateText.contains("mutableStateOf")) return null
+
+    val explicitType = Regex("""mutableStateOf\s*<\s*([^>]+)\s*>""")
+        .find(delegateText)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.trim()
+    if (!explicitType.isNullOrBlank()) return explicitType
+
+    val argumentText = delegateText
+        .substringAfter("(", missingDelimiterValue = "")
+        .substringBeforeLast(")", missingDelimiterValue = "")
+        .trim()
+
+    return when {
+        argumentText == "true" || argumentText == "false" -> "Boolean"
+        argumentText.startsWith("\"") -> "String"
+        argumentText.toIntOrNull() != null -> "Int"
+        argumentText.toLongOrNull() != null -> "Long"
+        argumentText.toDoubleOrNull() != null -> "Double"
+        else -> null
+    }
 }
 
 private fun KtProperty.isComputedProperty(): Boolean {

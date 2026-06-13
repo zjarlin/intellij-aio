@@ -1,0 +1,11 @@
+plugins {
+    id("site.addzero.buildlogic.intellij.intellij-platform")
+}
+
+val pluginName = project.name
+intellijPlatform {
+    pluginConfiguration {
+        id = "site.addzero.$pluginName"
+        name = "Cargo Buddy"
+    }
+}

@@ -8,7 +8,7 @@ Dioxus Buddy adds editor actions for Rust files that contain Dioxus preview targ
 - Adds a gutter icon on detected preview targets.
 - Adds editor and Tools menu actions for launching the current preview target.
 - Generates a local `.dioxus-buddy/preview-sandbox/<function>` crate.
-- Copies the current source file into the sandbox and patches the selected function to be callable.
+- Copies the crate source tree into the sandbox and patches the selected function to be callable.
 - Runs `dx serve --platform web` in the IDE Run tool window.
 
 ## Preview Model

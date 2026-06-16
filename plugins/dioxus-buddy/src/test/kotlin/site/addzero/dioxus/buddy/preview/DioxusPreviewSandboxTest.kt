@@ -1,8 +1,13 @@
 package site.addzero.dioxus.buddy.preview
 
+import com.intellij.testFramework.LightVirtualFile
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import site.addzero.dioxus.buddy.model.CargoManifest
+import site.addzero.dioxus.buddy.model.DioxusPreviewParser
+import site.addzero.dioxus.buddy.model.DioxusPreviewTarget
 import java.nio.file.Files
 import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
@@ -117,5 +122,142 @@ class DioxusPreviewSandboxTest {
         )
 
         assertTrue(result.dependencies.single().contains("""path = "../../../../shared/crate""""))
+    }
+
+    @Test
+    fun `component target with children and default props can be rendered from empty rsx props`() {
+        val source = """
+            use dioxus::prelude::*;
+
+            #[component]
+            pub fn AzCard(children: Element, #[props(default, into)] class: String) -> Element {
+                rsx! { article { class: class, {children} } }
+            }
+            """.trimIndent()
+
+        val target = DioxusPreviewParser.parse(source).single()
+
+        assertTrue(target.canRenderDirectly)
+    }
+
+    @Test
+    fun `component target with required props is not exposed as directly previewable`() {
+        val source = """
+            use dioxus::prelude::*;
+
+            #[component]
+            pub fn RequiredTitle(title: String) -> Element {
+                rsx! { h1 { "{title}" } }
+            }
+            """.trimIndent()
+
+        val target = DioxusPreviewParser.parse(source).single()
+
+        assertFalse(target.canRenderDirectly)
+    }
+
+    @Test
+    fun `writer copies crate source modules and normalizes included crate level docs`() {
+        val workspaceRoot = Files.createTempDirectory("dioxus-buddy-writer")
+        val crateRoot = workspaceRoot.resolve("az-dioxus-components").createDirectories()
+        val sourceRoot = crateRoot.resolve("src").createDirectories()
+        val utilDirectory = sourceRoot.resolve("util").createDirectories()
+        Files.write(
+            crateRoot.resolve("Cargo.toml"),
+            """
+            [package]
+            name = "az-dioxus-components"
+            edition = "2021"
+
+            [dependencies]
+            dioxus = "0.7"
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        Files.write(
+            sourceRoot.resolve("util.rs"),
+            """
+            pub(crate) mod class_name;
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        Files.write(
+            utilDirectory.resolve("class_name.rs"),
+            """
+            pub(crate) fn compose_class(base: &str, extra: &str, _modifiers: &[(&str, bool)]) -> String {
+                format!("{base} {extra}")
+            }
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        val source = """
+            //! Card module docs.
+
+            use dioxus::prelude::*;
+            use crate::util::class_name::compose_class;
+
+            #[component]
+            pub fn AzCard(children: Element, #[props(default, into)] class: String) -> Element {
+                let card_class = compose_class("az-card", &class, &[]);
+                rsx! { article { class: card_class, {children} } }
+            }
+            """.trimIndent()
+        Files.write(sourceRoot.resolve("az_card.rs"), source.toByteArray(Charsets.UTF_8))
+        Files.write(
+            sourceRoot.resolve("lib.rs"),
+            """
+            #![doc = include_str!("../README.md")]
+            pub mod az_card;
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+
+        val parsed = DioxusPreviewParser.parse(source).single()
+        val target = DioxusPreviewTarget(
+            sourceFile = LightVirtualFile("az_card.rs", source),
+            sourceText = source,
+            sourceRelativePath = "src/az_card.rs",
+            cargoManifest = CargoManifest(
+                manifestPath = crateRoot.resolve("Cargo.toml"),
+                rootPath = crateRoot,
+                packageName = "az-dioxus-components",
+                edition = "2021",
+            ),
+            parsed = parsed,
+            previewPort = 31_000,
+        )
+
+        val sandbox = DioxusPreviewSandboxWriter.write(target)
+        val mainText = sandbox.mainFilePath.readText()
+        val previewSourceText = sandbox.sourceFilePath.readText()
+
+        assertTrue(mainText.contains("mod util;"))
+        assertTrue(mainText.contains("mod az_card;"))
+        assertTrue(mainText.contains("dioxus::prelude::rsx! { AzCard {} }"))
+        assertTrue(sandbox.rootPath.resolve("src/util/class_name.rs").readText().contains("compose_class"))
+        assertFalse(sandbox.rootPath.resolve("src/lib.rs").toFile().exists())
+        assertFalse(previewSourceText.contains("//!"))
+        assertTrue(previewSourceText.startsWith("// Card module docs."))
+    }
+
+    @Test
+    fun `exclude policy hides generated dioxus buddy directories under content roots`() {
+        val workspaceRoot = Files.createTempDirectory("dioxus-buddy-exclude")
+        val crateRoot = workspaceRoot.resolve("crates/ui/az-dioxus-components").createDirectories()
+        Files.write(
+            crateRoot.resolve("Cargo.toml"),
+            """
+            [package]
+            name = "az-dioxus-components"
+            edition = "2021"
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+
+        val urls = DioxusBuddyGeneratedExcludePaths.collectModuleExcludeUrls(
+            arrayOf(workspaceRoot.toUri().toString().trimEnd('/')),
+        )
+
+        assertTrue(urls.contains(workspaceRoot.resolve(".dioxus-buddy").toUri().toString().trimEnd('/')))
+        assertTrue(urls.contains(crateRoot.resolve(".dioxus-buddy").toUri().toString().trimEnd('/')))
+        assertEquals(
+            listOf("file:///workspace/crate/.dioxus-buddy"),
+            DioxusBuddyGeneratedExcludePaths.collectModuleExcludeUrls(arrayOf("file:///workspace/crate/")),
+        )
     }
 }

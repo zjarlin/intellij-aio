@@ -5,6 +5,7 @@ import site.addzero.dioxus.buddy.model.DioxusPreviewTarget
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.Comparator
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -33,8 +34,12 @@ object DioxusPreviewSandboxWriter {
         val mainFilePath = sourceDirectory.resolve("main.rs")
         val cargoTomlPath = rootPath.resolve("Cargo.toml")
 
-        writeUtf8(sourceFilePath, target.sourceText.prepareIncludedSource())
+        copyCrateSourceTree(
+            sourceRootPath = target.cargoManifest.rootPath.resolve("src"),
+            sandboxSourceDirectory = sourceDirectory,
+        )
         writeUtf8(mainFilePath, renderMainFile(target))
+        writeUtf8(sourceFilePath, target.sourceText.prepareIncludedSource())
         writeUtf8(cargoTomlPath, renderCargoToml(target))
 
         return DioxusPreviewSandbox(
@@ -52,10 +57,12 @@ object DioxusPreviewSandboxWriter {
             appendLine("// Original file: ${target.sourceFile.path}")
             appendLine("#![allow(dead_code, unused_imports, unused_variables, non_snake_case)]")
             appendLine()
+            renderRootModuleDeclarations(target).forEach(::appendLine)
+            appendLine()
             appendLine("include!(\"preview_source.rs\");")
             appendLine()
             appendLine("fn DioxusBuddyPreviewRoot() -> dioxus::prelude::Element {")
-            appendLine("    ${target.functionName}()")
+            appendLine(target.renderPreviewInvocation())
             appendLine("}")
             appendLine()
             appendLine("fn main() {")
@@ -103,7 +110,78 @@ object DioxusPreviewSandboxWriter {
     }
 
     private fun String.prepareIncludedSource(): String {
-        return renameStandaloneMainFunctions()
+        return normalizeCrateLevelSourceLines()
+            .renameStandaloneMainFunctions()
+    }
+
+    private fun DioxusPreviewTarget.renderPreviewInvocation(): String {
+        return if (parsed.isComponent) {
+            "    dioxus::prelude::rsx! { $functionName {} }"
+        } else {
+            "    $functionName()"
+        }
+    }
+
+    private fun renderRootModuleDeclarations(target: DioxusPreviewTarget): List<String> {
+        val sourceRootPath = target.cargoManifest.rootPath.resolve("src")
+        if (!sourceRootPath.exists()) return emptyList()
+
+        val moduleNames = mutableSetOf<String>()
+        Files.list(sourceRootPath).use { paths ->
+            paths.forEach { path ->
+                val fileName = path.fileName.toString()
+                val moduleName = when {
+                    Files.isDirectory(path) && path.resolve("mod.rs").exists() -> fileName
+                    Files.isRegularFile(path) && fileName.endsWith(".rs") -> path.fileName.toString().removeSuffix(".rs")
+                    else -> null
+                }
+                if (moduleName != null && moduleName !in setOf("lib", "main", "preview_source") && moduleName.isRustIdentifier()) {
+                    moduleNames += moduleName
+                }
+            }
+        }
+
+        return moduleNames.sorted().map { moduleName -> "mod $moduleName;" }
+    }
+
+    private fun String.isRustIdentifier(): Boolean {
+        return matches(Regex("""[A-Za-z_][A-Za-z0-9_]*"""))
+    }
+
+    private fun copyCrateSourceTree(
+        sourceRootPath: Path,
+        sandboxSourceDirectory: Path,
+    ) {
+        if (!sourceRootPath.exists()) return
+
+        Files.walk(sourceRootPath).use { paths ->
+            paths
+                .filter { sourcePath -> Files.isRegularFile(sourcePath) }
+                .filter { sourcePath ->
+                    val relativePath = sourceRootPath.relativize(sourcePath)
+                    relativePath.nameCount != 1 || sourcePath.fileName.toString() !in setOf("lib.rs", "main.rs")
+                }
+                .forEach { sourcePath ->
+                    val relativePath = sourceRootPath.relativize(sourcePath)
+                    val targetPath = sandboxSourceDirectory.resolve(relativePath.toString()).normalize()
+                    targetPath.parent.createDirectories()
+                    Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING)
+                }
+        }
+    }
+
+    private fun String.normalizeCrateLevelSourceLines(): String {
+        val normalized = lines().joinToString("\n") { line ->
+            val indent = line.takeWhile { char -> char == ' ' || char == '\t' }
+            val trimmed = line.drop(indent.length)
+            when {
+                trimmed.startsWith("//!") -> indent + "//" + trimmed.removePrefix("//!")
+                trimmed.startsWith("/*!") -> indent + "/*" + trimmed.removePrefix("/*!")
+                trimmed.startsWith("#![") -> indent + "#[" + trimmed.removePrefix("#![")
+                else -> line
+            }
+        }
+        return if (endsWith("\n")) "$normalized\n" else normalized
     }
 
     private fun String.renameStandaloneMainFunctions(): String {

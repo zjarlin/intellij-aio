@@ -28,6 +28,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="DioxusBuddy" displayType="BALLOON" isLogByDefault="true"/>
+        <directoryIndexExcludePolicy implementation="site.addzero.dioxus.buddy.preview.DioxusBuddyGeneratedExcludePolicy"/>
         <codeInsight.lineMarkerProvider implementationClass="site.addzero.dioxus.buddy.gutter.DioxusPreviewLineMarkerProvider"/>
     </extensions>
 </idea-plugin>

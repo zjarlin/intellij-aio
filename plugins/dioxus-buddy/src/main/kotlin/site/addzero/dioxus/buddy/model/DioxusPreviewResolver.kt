@@ -24,8 +24,12 @@ object DioxusPreviewResolver {
         file: VirtualFile,
     ): DioxusPreviewTarget? {
         val text = editor.document.text
-        val parsed = DioxusPreviewParser.findTargetAt(text, editor.caretModel.offset)
-            ?: DioxusPreviewParser.parse(text).firstOrNull()
+        val parsedAtCaret = DioxusPreviewParser.findTargetAt(text, editor.caretModel.offset)
+        val parsed = if (parsedAtCaret != null) {
+            parsedAtCaret.takeIf { it.canRenderDirectly }
+        } else {
+            DioxusPreviewParser.parse(text).firstOrNull { it.canRenderDirectly }
+        }
             ?: return null
         return resolve(project, file, text, parsed)
     }
@@ -38,16 +42,18 @@ object DioxusPreviewResolver {
         if (!isRustFile(file)) return emptyList()
         val manifest = resolveManifest(project, file) ?: return emptyList()
         val sourceRelativePath = sourceRelativePath(manifest.rootPath, file)
-        return DioxusPreviewParser.parse(text).map { parsed ->
-            DioxusPreviewTarget(
-                sourceFile = file,
-                sourceText = text,
-                sourceRelativePath = sourceRelativePath,
-                cargoManifest = manifest,
-                parsed = parsed,
-                previewPort = stablePreviewPort(manifest.rootPath.toString(), file.path, parsed.functionName),
-            )
-        }
+        return DioxusPreviewParser.parse(text)
+            .filter { parsed -> parsed.canRenderDirectly }
+            .map { parsed ->
+                DioxusPreviewTarget(
+                    sourceFile = file,
+                    sourceText = text,
+                    sourceRelativePath = sourceRelativePath,
+                    cargoManifest = manifest,
+                    parsed = parsed,
+                    previewPort = stablePreviewPort(manifest.rootPath.toString(), file.path, parsed.functionName),
+                )
+            }
     }
 
     fun resolve(
@@ -57,6 +63,7 @@ object DioxusPreviewResolver {
         parsed: ParsedDioxusPreviewTarget,
     ): DioxusPreviewTarget? {
         if (!isRustFile(file)) return null
+        if (!parsed.canRenderDirectly) return null
         val manifest = resolveManifest(project, file) ?: return null
         return DioxusPreviewTarget(
             sourceFile = file,

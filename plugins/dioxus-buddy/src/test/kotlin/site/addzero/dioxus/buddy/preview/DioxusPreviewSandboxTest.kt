@@ -237,6 +237,82 @@ class DioxusPreviewSandboxTest {
     }
 
     @Test
+    fun `writer depends on original crate for example preview sources`() {
+        val workspaceRoot = Files.createTempDirectory("dioxus-buddy-example")
+        val crateRoot = workspaceRoot.resolve("adui-dioxus").createDirectories()
+        val sourceRoot = crateRoot.resolve("src").createDirectories()
+        val examplesRoot = crateRoot.resolve("examples").createDirectories()
+        Files.write(
+            crateRoot.resolve("Cargo.toml"),
+            """
+            [package]
+            name = "adui-dioxus"
+            edition = "2024"
+
+            [lib]
+            name = "adui_dioxus"
+            path = "src/lib.rs"
+
+            [dependencies]
+            dioxus = "0.7"
+            regex = "1"
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        Files.write(
+            sourceRoot.resolve("lib.rs"),
+            """
+            pub fn exported_component() {}
+            """.trimIndent().toByteArray(Charsets.UTF_8),
+        )
+        val source = """
+            //! Collapse example docs.
+
+            use adui_dioxus::exported_component;
+            use dioxus::prelude::*;
+
+            fn main() {
+                dioxus::launch(CollapseDemo);
+            }
+
+            #[component]
+            fn CollapseDemo() -> Element {
+                exported_component();
+                rsx! { div { "demo" } }
+            }
+            """.trimIndent()
+        Files.write(examplesRoot.resolve("collapse_demo.rs"), source.toByteArray(Charsets.UTF_8))
+
+        val parsed = DioxusPreviewParser.parse(source).single()
+        val target = DioxusPreviewTarget(
+            sourceFile = LightVirtualFile("collapse_demo.rs", source),
+            sourceText = source,
+            sourceRelativePath = "examples/collapse_demo.rs",
+            cargoManifest = CargoManifest(
+                manifestPath = crateRoot.resolve("Cargo.toml"),
+                rootPath = crateRoot,
+                packageName = "adui-dioxus",
+                edition = "2024",
+            ),
+            parsed = parsed,
+            previewPort = 31_001,
+        )
+
+        val sandbox = DioxusPreviewSandboxWriter.write(target)
+        val cargoText = sandbox.cargoTomlPath.readText()
+        val mainText = sandbox.mainFilePath.readText()
+        val previewSourceText = sandbox.sourceFilePath.readText()
+
+        assertTrue(cargoText.contains("""adui_dioxus = { package = "adui-dioxus", path = "../../.." }"""))
+        assertTrue(cargoText.contains("""regex = "1""""))
+        assertFalse(mainText.contains("mod components;"))
+        assertFalse(sandbox.rootPath.resolve("src/lib.rs").toFile().exists())
+        assertFalse(previewSourceText.contains("//!"))
+        assertTrue(previewSourceText.startsWith("// Collapse example docs."))
+        assertTrue(previewSourceText.contains("fn __dioxus_buddy_original_main()"))
+        assertTrue(mainText.contains("dioxus::prelude::rsx! { CollapseDemo {} }"))
+    }
+
+    @Test
     fun `exclude policy hides generated dioxus buddy directories under content roots`() {
         val workspaceRoot = Files.createTempDirectory("dioxus-buddy-exclude")
         val crateRoot = workspaceRoot.resolve("crates/ui/az-dioxus-components").createDirectories()

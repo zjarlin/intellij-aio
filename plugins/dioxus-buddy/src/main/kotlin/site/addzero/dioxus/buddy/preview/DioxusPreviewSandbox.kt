@@ -22,10 +22,8 @@ object DioxusPreviewSandboxWriter {
     private const val DIOXUS_VERSION = "0.7"
 
     fun write(target: DioxusPreviewTarget): DioxusPreviewSandbox {
-        val generatedRootPath = target.cargoManifest.rootPath.resolve(".dioxus-buddy")
-        val rootPath = generatedRootPath
-            .resolve("preview-sandbox")
-            .resolve(target.functionName.toSlug())
+        val generatedRootPath = target.generatedRootPath()
+        val rootPath = target.sandboxRootPath()
 
         DioxusBuddyGeneratedFiles.writeGitignore(generatedRootPath)
         replaceDirectory(rootPath)
@@ -34,10 +32,12 @@ object DioxusPreviewSandboxWriter {
         val mainFilePath = sourceDirectory.resolve("main.rs")
         val cargoTomlPath = rootPath.resolve("Cargo.toml")
 
-        copyCrateSourceTree(
-            sourceRootPath = target.cargoManifest.rootPath.resolve("src"),
-            sandboxSourceDirectory = sourceDirectory,
-        )
+        if (target.usesCopiedCrateSourceTree()) {
+            copyCrateSourceTree(
+                sourceRootPath = target.cargoManifest.rootPath.resolve("src"),
+                sandboxSourceDirectory = sourceDirectory,
+            )
+        }
         writeUtf8(mainFilePath, renderMainFile(target))
         writeUtf8(sourceFilePath, target.sourceText.prepareIncludedSource())
         writeUtf8(cargoTomlPath, renderCargoToml(target))
@@ -75,10 +75,7 @@ object DioxusPreviewSandboxWriter {
         val originalManifest = runCatching {
             String(Files.readAllBytes(target.cargoManifest.manifestPath), Charsets.UTF_8)
         }.getOrDefault("")
-        val rootPath = target.cargoManifest.rootPath
-            .resolve(".dioxus-buddy")
-            .resolve("preview-sandbox")
-            .resolve(target.functionName.toSlug())
+        val rootPath = target.sandboxRootPath()
         val dependencyText = CargoDependencySectionExtractor.extract(
             manifestText = originalManifest,
             manifestRootPath = target.cargoManifest.rootPath,
@@ -101,6 +98,10 @@ object DioxusPreviewSandboxWriter {
             appendLine()
             appendLine("[dependencies]")
             appendLine("dioxus = { version = \"$DIOXUS_VERSION\", features = [\"web\"] }")
+            target.originalCrateDependencyLine(
+                manifestText = originalManifest,
+                sandboxRootPath = rootPath,
+            )?.let(::appendLine)
             dependencyText.dependencies.forEach(::appendLine)
             dependencyText.extraTables.forEach { table ->
                 appendLine()
@@ -110,8 +111,8 @@ object DioxusPreviewSandboxWriter {
     }
 
     private fun String.prepareIncludedSource(): String {
-        return normalizeCrateLevelSourceLines()
-            .renameStandaloneMainFunctions()
+        val normalized = normalizeCrateLevelSourceLines()
+        return normalized.renameStandaloneMainFunctions()
     }
 
     private fun DioxusPreviewTarget.renderPreviewInvocation(): String {
@@ -123,6 +124,7 @@ object DioxusPreviewSandboxWriter {
     }
 
     private fun renderRootModuleDeclarations(target: DioxusPreviewTarget): List<String> {
+        if (!target.usesCopiedCrateSourceTree()) return emptyList()
         val sourceRootPath = target.cargoManifest.rootPath.resolve("src")
         if (!sourceRootPath.exists()) return emptyList()
 
@@ -142,6 +144,42 @@ object DioxusPreviewSandboxWriter {
         }
 
         return moduleNames.sorted().map { moduleName -> "mod $moduleName;" }
+    }
+
+    private fun DioxusPreviewTarget.usesCopiedCrateSourceTree(): Boolean {
+        return sourceRelativePath.startsWith("src/")
+    }
+
+    private fun DioxusPreviewTarget.generatedRootPath(): Path {
+        return cargoManifest.rootPath.resolve(".dioxus-buddy")
+    }
+
+    private fun DioxusPreviewTarget.sandboxRootPath(): Path {
+        return generatedRootPath()
+            .resolve("preview-sandbox")
+            .resolve(functionName.toSlug())
+    }
+
+    private fun DioxusPreviewTarget.originalCrateDependencyLine(
+        manifestText: String,
+        sandboxRootPath: Path,
+    ): String? {
+        if (usesCopiedCrateSourceTree()) return null
+        val dependencyName = CargoPackageMetadata
+            .resolveLibName(manifestText)
+            ?.takeIf { it.isRustIdentifier() }
+            ?: cargoManifest.packageName.replace('-', '_')
+        val cratePath = sandboxRootPath
+            .toAbsolutePath()
+            .normalize()
+            .relativize(cargoManifest.rootPath.toAbsolutePath().normalize())
+            .toString()
+            .replace('\\', '/')
+        return if (dependencyName == cargoManifest.packageName) {
+            """$dependencyName = { path = "$cratePath" }"""
+        } else {
+            """$dependencyName = { package = "${cargoManifest.packageName}", path = "$cratePath" }"""
+        }
     }
 
     private fun String.isRustIdentifier(): Boolean {
@@ -237,6 +275,10 @@ internal object DioxusBuddyGeneratedFiles {
 }
 
 internal object CargoPackageMetadata {
+    fun resolveLibName(manifestText: String): String? {
+        return parseTomlStringValue(tableBody(manifestText, "lib"), "name")
+    }
+
     fun resolveEdition(
         manifestText: String,
         manifestRootPath: Path,

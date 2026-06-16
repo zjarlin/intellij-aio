@@ -1,0 +1,27 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dioxusBuddyBg" x1="5" y1="4" x2="35" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1F8BFF"/>
+      <stop offset=".55" stop-color="#3A57FF"/>
+      <stop offset="1" stop-color="#18C3A3"/>
+    </linearGradient>
+    <linearGradient id="dioxusBuddyCore" x1="15" y1="14" x2="25" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FEFF"/>
+      <stop offset="1" stop-color="#BDEEFF"/>
+    </linearGradient>
+    <linearGradient id="dioxusBuddyPlay" x1="22" y1="18" x2="30" y2="25" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE08A"/>
+      <stop offset="1" stop-color="#FF9F3D"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="#10243C"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#dioxusBuddyBg)" opacity=".22"/>
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="none" stroke="url(#dioxusBuddyBg)" stroke-width="2"/>
+  <ellipse cx="20" cy="20" rx="14" ry="5.8" transform="rotate(-28 20 20)" stroke="#7EE8FF" stroke-width="2" stroke-linecap="round" opacity=".92"/>
+  <ellipse cx="20" cy="20" rx="14" ry="5.8" transform="rotate(28 20 20)" stroke="#58F0B0" stroke-width="2" stroke-linecap="round" opacity=".92"/>
+  <circle cx="20" cy="20" r="6.4" fill="url(#dioxusBuddyCore)"/>
+  <circle cx="20" cy="20" r="3.2" fill="#1C4B78"/>
+  <path d="M24.2 16.7V25L31.2 20.85L24.2 16.7Z" fill="url(#dioxusBuddyPlay)"/>
+  <circle cx="10.2" cy="26.1" r="2" fill="#B8FFF0"/>
+  <circle cx="29.8" cy="13.9" r="2" fill="#C5EEFF"/>
+</svg>

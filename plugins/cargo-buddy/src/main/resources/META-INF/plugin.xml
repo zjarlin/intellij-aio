@@ -9,7 +9,7 @@
         Features:
         - Detects the crate for the current editor file
         - Runs Cargo commands without browsing the project tree
-        - Supports build, check, test, clippy, clean, and publish
+        - Supports build, check, test, clippy, clean, publish, and dependency-ordered publish
     </description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -69,6 +69,15 @@
                 text="publish"
                 description="Run cargo publish for the current crate"
                 icon="AllIcons.Actions.Upload">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.Command.publishRecursive"
+                class="site.addzero.cargo.buddy.actions.RunCargoCommandAction"
+                text="publish deps"
+                description="Publish local Cargo dependencies before the current crate"
+                icon="AllIcons.Nodes.Deploy">
             <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>

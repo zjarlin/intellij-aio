@@ -402,6 +402,54 @@ object ComposePreviewSandboxWriter {
             appendLine("}")
             if (usesKoin) {
                 appendLine()
+                appendLine("private object KmpBuddyPreviewInvocationHandler : java.lang.reflect.InvocationHandler {")
+                appendLine("    override fun invoke(proxy: Any, method: java.lang.reflect.Method, args: Array<out Any?>?): Any? {")
+                appendLine("        return kmpBuddyPreviewDefaultValue(method)")
+                appendLine("    }")
+                appendLine("}")
+                appendLine()
+                appendLine("private inline fun <reified T : Any> kmpBuddyPreviewProxy(): T {")
+                appendLine("    return java.lang.reflect.Proxy.newProxyInstance(")
+                appendLine("        T::class.java.classLoader,")
+                appendLine("        arrayOf(T::class.java),")
+                appendLine("        KmpBuddyPreviewInvocationHandler,")
+                appendLine("    ) as T")
+                appendLine("}")
+                appendLine()
+                appendLine("private fun kmpBuddyPreviewDefaultValue(method: java.lang.reflect.Method): Any? {")
+                appendLine("    val continuationType = method.genericParameterTypes.lastOrNull()?.typeName.orEmpty()")
+                appendLine("    if (continuationType.contains(\"kotlin.Unit\")) return Unit")
+                appendLine("    if (continuationType.contains(\"Boolean\") || continuationType.contains(\"java.lang.Boolean\")) return false")
+                appendLine("    if (continuationType.contains(\"Byte\") || continuationType.contains(\"java.lang.Byte\")) return 0.toByte()")
+                appendLine("    if (continuationType.contains(\"Short\") || continuationType.contains(\"java.lang.Short\")) return 0.toShort()")
+                appendLine("    if (continuationType.contains(\"Int\") || continuationType.contains(\"Integer\") || continuationType.contains(\"java.lang.Integer\")) return 0")
+                appendLine("    if (continuationType.contains(\"Long\") || continuationType.contains(\"java.lang.Long\")) return 0L")
+                appendLine("    if (continuationType.contains(\"Float\") || continuationType.contains(\"java.lang.Float\")) return 0f")
+                appendLine("    if (continuationType.contains(\"Double\") || continuationType.contains(\"java.lang.Double\")) return 0.0")
+                appendLine("    if (continuationType.contains(\"Char\") || continuationType.contains(\"Character\") || continuationType.contains(\"java.lang.Character\")) return 0.toChar()")
+                appendLine("    if (continuationType.contains(\"String\") || continuationType.contains(\"java.lang.String\")) return \"\"")
+                appendLine("    if (continuationType.contains(\"List<\") || continuationType.contains(\"List<out \")) return emptyList<Any?>()")
+                appendLine("    if (continuationType.contains(\"Set<\") || continuationType.contains(\"Set<out \")) return emptySet<Any?>()")
+                appendLine("    if (continuationType.contains(\"Map<\") || continuationType.contains(\"Map<out \")) return emptyMap<Any?, Any?>()")
+                appendLine("    return when (method.returnType) {")
+                appendLine("        java.lang.Boolean.TYPE -> false")
+                appendLine("        java.lang.Byte.TYPE -> 0.toByte()")
+                appendLine("        java.lang.Short.TYPE -> 0.toShort()")
+                appendLine("        java.lang.Integer.TYPE -> 0")
+                appendLine("        java.lang.Long.TYPE -> 0L")
+                appendLine("        java.lang.Float.TYPE -> 0f")
+                appendLine("        java.lang.Double.TYPE -> 0.0")
+                appendLine("        java.lang.Character.TYPE -> 0.toChar()")
+                appendLine("        java.lang.Void.TYPE -> null")
+                appendLine("        kotlin.Unit::class.java -> Unit")
+                appendLine("        java.lang.String::class.java -> \"\"")
+                appendLine("        java.util.List::class.java -> emptyList<Any?>()")
+                appendLine("        java.util.Set::class.java -> emptySet<Any?>()")
+                appendLine("        java.util.Map::class.java -> emptyMap<Any?, Any?>()")
+                appendLine("        else -> null")
+                appendLine("    }")
+                appendLine("}")
+                appendLine()
                 appendLine("@androidx.compose.runtime.Composable")
                 appendLine("private fun KmpBuddyPreviewKoinContext(content: @androidx.compose.runtime.Composable () -> Unit) {")
                 appendLine("    org.koin.compose.KoinApplication(")
@@ -438,8 +486,15 @@ object ComposePreviewSandboxWriter {
                 }
             }
             .toMap()
+        val injectedTypeNames = files
+            .flatMap { sourceFile ->
+                sourceFile.declarations.flatMap { declaration ->
+                    declaration.koinInjectedTypeNames()
+                }
+            }
+            .toSet()
 
-        return files
+        val realRegistrations = files
             .flatMap { sourceFile ->
                 sourceFile.declarations.mapNotNull { declaration ->
                     val kind = declaration.koinRegistrationKind() ?: return@mapNotNull null
@@ -454,9 +509,32 @@ object ComposePreviewSandboxWriter {
                         className = sourceFile.packageName.qualifyKotlinName(className),
                         bindType = bindType,
                         dependencyCount = constructorText.countConstructorParameters(),
+                        dependencyTypes = constructorText.constructorParameterTypeNames()
+                            .map { typeName -> interfaceTypes[typeName] },
                     )
                 }
             }
+            .distinctBy { registration -> registration.kind to registration.className to registration.bindType }
+        val realBindTypes = realRegistrations
+            .mapNotNull(KoinPreviewRegistration::bindType)
+            .toSet()
+        val requiredInterfaceTypes = (
+            injectedTypeNames.mapNotNull { typeName -> interfaceTypes[typeName] } +
+                realRegistrations.flatMap(KoinPreviewRegistration::dependencyTypes).filterNotNull()
+            ).toSet()
+        val fakeRegistrations = interfaceTypes.values
+            .filter(requiredInterfaceTypes::contains)
+            .filterNot(realBindTypes::contains)
+            .map { interfaceType ->
+                KoinPreviewRegistration(
+                    kind = KoinPreviewRegistrationKind.Single,
+                    className = "kmpBuddyPreviewProxy",
+                    bindType = interfaceType,
+                    dependencyCount = 0,
+                    explicitTypeArgument = interfaceType,
+                )
+            }
+        return (realRegistrations + fakeRegistrations)
             .distinctBy { registration -> registration.kind to registration.className to registration.bindType }
     }
 
@@ -466,6 +544,20 @@ object ComposePreviewSandboxWriter {
             containsKoinAnnotation("Single") || containsKoinAnnotation("KoinViewModel") -> KoinPreviewRegistrationKind.Single
             else -> null
         }
+    }
+
+    private fun String.koinInjectedTypeNames(): List<String> {
+        val explicitTypes = Regex("""\bkoinInject\s*<\s*([^>()]+)\s*>\s*\(""")
+            .findAll(this)
+            .map { match -> match.groupValues[1].toKoinTypeSimpleName() }
+            .toList()
+        val inferredTypes = Regex("""(?::\s*)([A-Za-z_][A-Za-z0-9_.<>?]*)\s*=\s*koinInject\s*\(""")
+            .findAll(this)
+            .map { match -> match.groupValues[1].toKoinTypeSimpleName() }
+            .toList()
+        return (explicitTypes + inferredTypes)
+            .filter(String::isNotBlank)
+            .distinct()
     }
 
     private fun String.containsKoinAnnotation(name: String): Boolean {
@@ -501,6 +593,20 @@ object ComposePreviewSandboxWriter {
             .count { parameterText -> ":" in parameterText.substringBefore("=") }
     }
 
+    private fun String.constructorParameterTypeNames(): List<String> {
+        if (isBlank()) {
+            return emptyList()
+        }
+        return splitTopLevel(',')
+            .mapNotNull { parameterText ->
+                parameterText
+                    .substringBefore("=")
+                    .substringAfter(":", missingDelimiterValue = "")
+                    .takeIf(String::isNotBlank)
+                    ?.toKoinTypeSimpleName()
+            }
+    }
+
     private fun String.splitTopLevel(delimiter: Char): List<String> {
         val result = mutableListOf<String>()
         var depth = 0
@@ -525,6 +631,15 @@ object ComposePreviewSandboxWriter {
 
     private fun String.toKotlinSimpleName(): String {
         return removePrefix("`").removeSuffix("`")
+    }
+
+    private fun String.toKoinTypeSimpleName(): String {
+        return trim()
+            .removeSuffix("?")
+            .substringBefore('<')
+            .substringAfterLast('.')
+            .trim()
+            .toKotlinSimpleName()
     }
 
     private fun writeManifest(
@@ -597,6 +712,8 @@ private data class KoinPreviewRegistration(
     val className: String,
     val bindType: String?,
     val dependencyCount: Int,
+    val dependencyTypes: List<String?> = emptyList(),
+    val explicitTypeArgument: String? = null,
 ) {
     fun render(): String {
         val functionName = when (kind) {
@@ -604,8 +721,11 @@ private data class KoinPreviewRegistration(
             KoinPreviewRegistrationKind.Factory -> "factory"
         }
         val typeParameter = bindType?.let { type -> "<$type>" }.orEmpty()
-        val arguments = List(dependencyCount) { "get()" }.joinToString(", ")
-        return "$functionName$typeParameter { $className($arguments) }"
+        val arguments = List(dependencyCount) { index ->
+            dependencyTypes.getOrNull(index)?.let { type -> "get<$type>()" } ?: "get()"
+        }.joinToString(", ")
+        val constructorTypeParameter = explicitTypeArgument?.let { type -> "<$type>" }.orEmpty()
+        return "$functionName$typeParameter { $className$constructorTypeParameter($arguments) }"
     }
 }
 

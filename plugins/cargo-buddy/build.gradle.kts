@@ -13,4 +13,22 @@ intellijPlatform {
 
 dependencies {
     implementation(libs.findLibrary("com-google-code-gson-gson").get())
+    testImplementation(libs.findLibrary("junit-junit").get())
+
+    val rustPluginPath = providers.gradleProperty("rust.plugin.path")
+        .orElse(
+            providers.provider {
+                "/Users/zjarlin/Library/Application Support/JetBrains/RustRover2026.1/plugins/intellij-rust"
+            },
+        )
+    val rustPluginDir = file(rustPluginPath.get())
+    if (rustPluginDir.exists()) {
+        intellijPlatform {
+            localPlugin(rustPluginDir)
+        }
+    }
+}
+
+tasks.test {
+    useJUnit()
 }

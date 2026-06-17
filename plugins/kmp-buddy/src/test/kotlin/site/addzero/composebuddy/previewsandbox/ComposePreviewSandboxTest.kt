@@ -575,9 +575,75 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         )
         assertTrue(
             runnerText.contains(
-                "single { site.addzero.context.viewmode.AppViewModel(get()) }",
+                "single { site.addzero.context.viewmode.AppViewModel(get<site.addzero.context.spi.AppStateRepository>()) }",
             ),
         )
+    }
+
+    fun testWriterUsesPreviewProxyForInterfaceKoinDependencyWithExternalImplementationDependency() {
+        myFixture.addFileToProject(
+            "src/main/kotlin/demo/lowcode/ApiClient.kt",
+            """
+            package demo.lowcode
+
+            import org.koin.core.annotation.Single
+            import io.ktor.client.HttpClient
+
+            interface ApiClient {
+                suspend fun loadItems(): List<String>
+                fun save()
+            }
+
+            interface UnusedApi {
+                fun ping()
+            }
+
+            @Single
+            class RealApiClient(
+                private val client: HttpClient,
+            ) : ApiClient {
+                override suspend fun loadItems(): List<String> = emptyList()
+                override fun save() = Unit
+            }
+            """.trimIndent(),
+        )
+        myFixture.configureByText(
+            "PreviewSandbox.kt",
+            """
+            package demo
+
+            import androidx.compose.runtime.Composable
+            import androidx.compose.ui.tooling.preview.Preview
+            import demo.lowcode.ApiClient
+            import org.koin.compose.koinInject
+
+            @Preview
+            @Composable
+            fun ApiPreview(
+                apiClient: ApiClient = koinInject(),
+            ) {
+                apiClient.save()
+            }
+            """.trimIndent(),
+        )
+
+        val snapshot = collectSnapshot("ApiPreview")
+        val generatedText = snapshot.files.joinToString("\n") { sourceFile ->
+            sourceFile.declarations.joinToString("\n")
+        }
+        val written = ComposePreviewSandboxWriter.write(project, snapshot)
+            ?: error("Expected preview sandbox files to be written")
+        val runnerText = String(Files.readAllBytes(written.runnerFile), Charsets.UTF_8)
+
+        assertTrue(generatedText.contains("interface ApiClient"))
+        assertFalse(generatedText.contains("class RealApiClient"))
+        assertTrue(
+            runnerText.contains(
+                "single<demo.lowcode.ApiClient> { kmpBuddyPreviewProxy<demo.lowcode.ApiClient>() }",
+            ),
+        )
+        assertFalse(runnerText.contains("demo.lowcode.UnusedApi"))
+        assertTrue(runnerText.contains("private object KmpBuddyPreviewInvocationHandler"))
     }
 
     fun testExternalDependenciesAreInferredFromReachableAstImports() {

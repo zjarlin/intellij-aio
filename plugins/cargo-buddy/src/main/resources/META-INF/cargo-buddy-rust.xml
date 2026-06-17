@@ -1,0 +1,13 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="site.addzero.cargo.buddy.automod.AzAutomodRustIntegrationStartupActivity"/>
+        <localInspection
+                language="Rust"
+                shortName="AzAutomodRedundantBridge"
+                displayName="Redundant az-automod bridge file"
+                groupName="Cargo Buddy"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="site.addzero.cargo.buddy.automod.AzAutomodRedundantBridgeInspection"/>
+    </extensions>
+</idea-plugin>

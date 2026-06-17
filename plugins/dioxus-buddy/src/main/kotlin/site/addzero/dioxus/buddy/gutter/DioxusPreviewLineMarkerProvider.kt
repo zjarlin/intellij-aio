@@ -18,19 +18,21 @@ class DioxusPreviewLineMarkerProvider : RelatedItemLineMarkerProvider() {
         elements: MutableList<out PsiElement>,
         result: MutableCollection<in LineMarkerInfo<*>>,
     ) {
+        val leafElements = elements.toHashSet()
         val files = elements
             .map { it.containingFile }
             .distinctBy { it.virtualFile?.path ?: it.name }
 
         files.forEach { file ->
             ignoreBrokenPsiOrIndex {
-                collectFileMarkers(file, result)
+                collectFileMarkers(file, leafElements, result)
             }
         }
     }
 
     private fun collectFileMarkers(
         file: PsiFile,
+        leafElements: Set<PsiElement>,
         result: MutableCollection<in LineMarkerInfo<*>>,
     ) {
         val project = file.project
@@ -40,6 +42,7 @@ class DioxusPreviewLineMarkerProvider : RelatedItemLineMarkerProvider() {
         val targets = DioxusPreviewResolver.resolveTargets(project, virtualFile, document.text)
         targets.forEach { target ->
             val anchor = file.findElementAt(target.parsed.nameOffset) ?: return@forEach
+            if (anchor !in leafElements) return@forEach
             result += createPreviewLineMarker(anchor, document, target.parsed.nameOffset, target.functionName)
         }
     }

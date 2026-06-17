@@ -225,10 +225,21 @@ object PreviewReachableAstCollector {
                 !candidate.isInterface() &&
                     candidate.hasKoinProviderAnnotation() &&
                     candidate.superTypeNames().contains(interfaceName) &&
+                    candidate.isPreviewSafeKoinImplementation() &&
                     candidate.isSandboxEligible()
             }
             .distinctBy { candidate -> candidate.declarationKey() }
             .toList()
+    }
+
+    private fun KtClass.isPreviewSafeKoinImplementation(): Boolean {
+        return primaryConstructorParameters.all { parameter ->
+            val typeReference = parameter.typeReference ?: return@all true
+            val typeElement = typeReference.typeElement as? KtUserType ?: return@all false
+            val reference = typeElement.referenceExpression as? KtNameReferenceExpression ?: return@all false
+            val resolved = resolveReference(reference) ?: return@all false
+            resolved.sourceTopLevelDeclaration()?.isSandboxEligible() == true
+        }
     }
 
     private fun KtClass.hasKoinProviderAnnotation(): Boolean {

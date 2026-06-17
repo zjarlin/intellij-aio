@@ -13,6 +13,7 @@
     </description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="cargo-buddy-rust.xml">com.jetbrains.rust</depends>
 
     <actions>
         <group id="CargoBuddy.CrateToolbarGroup"
@@ -78,6 +79,15 @@
                 text="publish deps"
                 description="Publish local Cargo dependencies before the current crate"
                 icon="AllIcons.Nodes.Deploy">
+            <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+
+        <action id="CargoBuddy.AzAutomod.ShowExpansion"
+                class="site.addzero.cargo.buddy.automod.ShowAzAutomodExpansionAction"
+                text="show automod expansion"
+                description="Open an in-memory preview of az-automod module expansion"
+                icon="AllIcons.Actions.Preview">
             <add-to-group group-id="CargoBuddy.CrateToolbarGroup"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>

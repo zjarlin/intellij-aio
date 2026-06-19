@@ -65,6 +65,15 @@
                 enabledByDefault="true"
                 level="WEAK WARNING"
                 implementationClass="site.addzero.smart.intentions.kotlin.redundantexplicittype.SmartRedundantExplicitTypeInspection"/>
+
+        <localInspection
+                language="kotlin"
+                shortName="SmartMoveFunctionToCurrentFile"
+                displayName="将函数移动到当前文件"
+                groupName="Smart Intentions"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="site.addzero.smart.intentions.kotlin.movefunctiontocurrentfile.SmartMoveFunctionToCurrentFileInspection"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

@@ -5,6 +5,7 @@
 - Kotlin 属性的冗余显式类型清理
 - Kotlin 全项目全限定名缩短
 - Kotlin `class` / `data class` 转 `interface`
+- 将函数移动到当前文件
 - Find in Files 里的“源码目录”搜索范围
 - Project 视图与 VCS 提交列表里的文件隐藏能力
 - Project 视图里的模块拆分与模块合并工具
@@ -14,6 +15,7 @@
 - `Alt+Enter` 意图动作：对 Kotlin 属性提供 `移除冗余显式类型`
 - `Alt+Enter` / `Code` 菜单动作：缩短项目 Kotlin 文件中的全限定名
 - `Alt+Enter` 意图动作：对简单 Kotlin `class` / `data class` 提供 `转换为 interface`
+- `Alt+Enter` / 自动修复：将函数移动到当前文件
 - Kotlin Inspection：自动标出可以安全删掉的冗余显式类型声明
 - 搜索范围：在 `Find in Files` 中增加“源码目录” scope，排除常见生成目录
 - 全局搜索降噪：自动把各模块下的 `.gradle` / `.kotlin` / `.gradle-user-home` / `build/tmp` 生成目录排除出项目索引
@@ -239,6 +241,7 @@ Split/Merge Module 面向模块重构场景，支持 Gradle Kotlin DSL、Gradle 
 
 - Kotlin 清理能力当前面向属性显式类型声明，不是对所有 Kotlin 类型标注做批量重写
 - `class -> interface` 当前只覆盖保守场景，不会尝试自动迁移 `init`、次构造、父类构造调用或类体属性
+- 函数移动当前只覆盖可安全搬入当前文件的顶层私有函数
 - “源码目录”是显式可选 scope，不会强制覆盖 IDE 默认搜索行为
 - `在项目(P)` 的全局搜索会自动少掉 `.gradle` / `.kotlin` / `.gradle-user-home` / `build/tmp` 里的 Gradle 生成脚本和访问器源码，但不会替代你手动配置的自定义 scope
 - 隐藏文件能力作用于当前项目视图与变更列表，不会修改磁盘文件，也不会改 Git 跟踪状态
@@ -252,6 +255,7 @@ Split/Merge Module 面向模块重构场景，支持 Gradle Kotlin DSL、Gradle 
 - 插件描述：`plugins/ide-kit/src/main/resources/META-INF/plugin.xml`
 - Kotlin 清理实现：`plugins/ide-kit/smart-intentions-kotlin-redundant-explicit-type`
 - `class -> interface` 实现：`plugins/ide-kit/smart-intentions-kotlin-class-to-interface`
+- 函数移动实现：`plugins/ide-kit/smart-intentions-kotlin-move-function-to-current-file`
 - 搜索 scope 实现：`plugins/ide-kit/smart-intentions-find-source-only`
 - 隐藏文件实现：`plugins/ide-kit/smart-intentions-hidden-files`
 - 模块拆分/合并实现：`plugins/ide-kit/split-module`

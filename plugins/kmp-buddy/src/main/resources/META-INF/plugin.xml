@@ -240,14 +240,6 @@
 
         <localInspection
             language="kotlin"
-            shortName="ComposeWrapperInspection"
-            displayName="%inspection.wrapper.display"
-            groupName="%plugin.name"
-            enabledByDefault="true"
-            implementationClass="site.addzero.composebuddy.inspection.ComposeWrapperInspection"/>
-
-        <localInspection
-            language="kotlin"
             shortName="ComposeParameterExplosionInspection"
             displayName="%inspection.explosion.display"
             groupName="%plugin.name"

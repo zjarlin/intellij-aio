@@ -531,6 +531,10 @@
     <codeInsight.lineMarkerProvider language="TOML"
                                     implementationClass="site.addzero.gradle.buddy.linemarker.VersionCatalogLineMarkerProvider"/>
 
+    <!-- Line Marker：查看哪些模块引用了当前 Gradle 模块 -->
+    <codeInsight.lineMarkerProvider language="kotlin"
+                                    implementationClass="site.addzero.gradle.buddy.intentions.projectdep.ProjectDependencyUsagesLineMarkerProvider"/>
+
     <!-- Line Marker: gutter icon for precompiled script plugin usages -->
     <codeInsight.lineMarkerProvider language="kotlin"
                                     implementationClass="site.addzero.idfixer.PrecompiledScriptPluginUsagesLineMarkerProvider"/>

@@ -123,7 +123,7 @@ internal object ProjectShortenQualifiedNameSupport {
         if (application.isDispatchThread) {
             action()
         } else {
-            application.invokeAndWait(action, ModalityState.defaultModalityState())
+            application.invokeAndWait(action, ModalityState.nonModal())
         }
         return changed
     }

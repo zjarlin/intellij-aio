@@ -47,10 +47,10 @@ object ProjectModuleResolver {
                     }
 
                     val buildFile = findBuildFile(file)
-                    if (buildFile != null && seenBuildFiles.add(buildFile.path)) {
+                    if (buildFile != null) {
                         val rel = file.path.removePrefix(basePath).trimStart('/')
                         val modulePath = if (rel.isEmpty()) ":" else ":${rel.replace('/', ':')}"
-                        if (modulePath != ":") {
+                        if (modulePath != ":" && seenBuildFiles.add(buildFile.path)) {
                             modules += ModuleInfo(
                                 path = modulePath,
                                 buildFile = buildFile,

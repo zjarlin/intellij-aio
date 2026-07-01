@@ -5,6 +5,7 @@
 - Kotlin 属性的冗余显式类型清理
 - Kotlin 全项目全限定名缩短
 - Kotlin `class` / `data class` 转 `interface`
+- Kotlin 多实体字段融合合并
 - 将函数移动到当前文件
 - Find in Files 里的“源码目录”搜索范围
 - Project 视图与 VCS 提交列表里的文件隐藏能力
@@ -15,6 +16,7 @@
 - `Alt+Enter` 意图动作：对 Kotlin 属性提供 `移除冗余显式类型`
 - `Alt+Enter` / `Code` 菜单动作：缩短项目 Kotlin 文件中的全限定名
 - `Alt+Enter` 意图动作：对简单 Kotlin `class` / `data class` 提供 `转换为 interface`
+- Project 视图动作：选中多个 Kotlin 实体类后，把源字段与目标类字段对比并勾选合并
 - `Alt+Enter` / 自动修复：将函数移动到当前文件
 - Kotlin Inspection：自动标出可以安全删掉的冗余显式类型声明
 - 搜索范围：在 `Find in Files` 中增加“源码目录” scope，排除常见生成目录
@@ -141,6 +143,21 @@ interface S3Config {
 - 主构造参数里存在非 `val` / `var` 参数
 - 存在父类构造调用，例如 `: Base()`
 - 类体里声明了普通属性
+
+### 4. 合并多个 Kotlin 实体字段到目标类
+
+这个功能用于把多个 Kotlin 实体/VO/DTO 的字段先融合去重，再与目标文件中的字段比较。目标可以是 Jimmer `interface`、普通 `class`、`data class`。
+
+使用方式：
+
+1. 在 `Project` 视图中选中多个 Kotlin 实体文件
+2. 右键选择 `合并实体字段到目标类`
+3. 插件默认把最后一个选中类作为目标类，其余作为来源类
+4. 在弹窗中查看新增、相同、冲突字段；默认折叠相同字段
+5. 勾选要写入目标类的新增字段并确认
+6. 合并完成后，插件会按你的选择提示是否删除源文件
+
+也可以分两步使用：先在 Project 视图右键 `记录为实体字段合并来源`，再打开目标类并在编辑器右键执行 `合并实体字段到目标类`。
 
 ### 4. 在 Find in Files 里只搜源码
 

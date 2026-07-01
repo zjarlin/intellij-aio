@@ -2,33 +2,21 @@ package site.addzero.smart.intentions.find.sourceonly
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 
 class SmartSourceOnlyProjectSearchScope(
     project: Project,
+    private val excludedFileNameSuffixes: () -> List<String> = {
+        project.getServiceIfCreated(SourceOnlySearchProjectService::class.java)
+            ?.getExcludedFileNameSuffixes()
+            .orEmpty()
+    },
 ) : GlobalSearchScope(project) {
-    private val fileIndex = ProjectFileIndex.getInstance(project)
-    private val gitignoreExclusion = GitignoreSearchExclusion.fromProject(project)
+    private val fileFilter = SourceOnlySearchFileFilter(project, excludedFileNameSuffixes)
 
     override fun contains(file: VirtualFile): Boolean {
-        if (!fileIndex.isInSourceContent(file)) {
-            return false
-        }
-        if (gitignoreExclusion.isIgnored(file)) {
-            return false
-        }
-        if (fileIndex.isInGeneratedSources(file)) {
-            return false
-        }
-        if (isUnderGeneratedOutputPath(file)) {
-            return false
-        }
-        if (isLogArtifact(file)) {
-            return false
-        }
-        return true
+        return fileFilter.contains(file)
     }
 
     override fun compare(file1: VirtualFile, file2: VirtualFile): Int {
@@ -45,36 +33,5 @@ class SmartSourceOnlyProjectSearchScope(
 
     override fun getDisplayName(): String {
         return "源码目录"
-    }
-
-    private fun isUnderGeneratedOutputPath(file: VirtualFile): Boolean {
-        var current: VirtualFile? = file
-        while (current != null) {
-            when (current.name) {
-                "build",
-                "out",
-                "target",
-                ".gradle",
-                "generated",
-                -> return true
-            }
-            current = current.parent
-        }
-        return false
-    }
-
-    private fun isLogArtifact(file: VirtualFile): Boolean {
-        var current: VirtualFile? = file
-        while (current != null) {
-            val lowerName = current.name.lowercase()
-            if (lowerName == "log" || lowerName == "logs") {
-                return true
-            }
-            if (!current.isDirectory && (lowerName.endsWith(".log") || lowerName.contains(".log."))) {
-                return true
-            }
-            current = current.parent
-        }
-        return false
     }
 }

@@ -37,6 +37,6 @@ class SmartInheritFromBaseIntention : PsiElementBaseIntentionAction(), Intention
         if (!InheritFromBaseSupport.isApplicable(klass, activeEditor.caretModel.offset)) {
             return
         }
-        InheritFromBaseSupport.chooseAndApply(project, activeEditor, klass)
+        InheritFromBaseSupport.startEditorInput(project, activeEditor, klass)
     }
 }

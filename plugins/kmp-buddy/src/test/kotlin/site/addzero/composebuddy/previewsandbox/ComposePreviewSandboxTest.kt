@@ -147,6 +147,7 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(buildText.contains("id(\"org.jetbrains.compose\")"))
         assertTrue(buildText.contains("compose.desktop"))
         assertTrue(buildText.contains("JvmTarget.fromTarget(\"${snapshot.jvmTarget}\")"))
+        assertTrue(buildText.contains("freeCompilerArgs.add(\"-Xcontext-parameters\")"))
         assertTrue(buildText.contains("kmpBuddyPreviewDependencyClasspath"))
         assertTrue(buildText.contains("implementation(kmpBuddyPreviewDependencyClasspath)"))
         assertTrue(buildText.contains("writeKmpBuddyPreviewClasspath"))
@@ -686,6 +687,52 @@ class ComposePreviewSandboxTest : BasePlatformTestCase() {
         assertTrue(dependencies.contains("io.insert-koin:koin-compose:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-compose-viewmodel:4.2.1"))
         assertTrue(dependencies.contains("io.insert-koin:koin-core:4.2.1"))
+    }
+
+    fun testExternalDependenciesIncludeKoinCoreForMultiplatformKoinPlatformImport() {
+        val dependencies = PreviewSandboxExternalDependencies.infer(
+            listOf(
+                PreviewSandboxSourceFile(
+                    key = "Type.kt",
+                    packageName = "site.addzero.component.theme.assist",
+                    originalPath = "Type.kt",
+                    outputFileName = "Type.kt",
+                    imports = listOf("import org.koin.mp.KoinPlatform"),
+                    declarations = listOf(
+                        """
+                        fun lookupProvider(): Any? {
+                            return KoinPlatform.getKoinOrNull()
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.KOIN_CORE))
+    }
+
+    fun testExternalDependenciesIncludeAddzeroToolJsonComposeForComposeJsonImport() {
+        val dependencies = PreviewSandboxExternalDependencies.infer(
+            listOf(
+                PreviewSandboxSourceFile(
+                    key = "ComponentVisualSerializers.kt",
+                    packageName = "site.addzero.component.defaults",
+                    originalPath = "ComponentVisualSerializers.kt",
+                    outputFileName = "ComponentVisualSerializers.kt",
+                    imports = listOf("import site.addzero.core.network.json.ComposeColorArgbIntSerializer"),
+                    declarations = listOf(
+                        """
+                        fun serializerName(): String {
+                            return ComposeColorArgbIntSerializer::class.simpleName.orEmpty()
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(dependencies.contains(PreviewSandboxExternalDependencies.ADDZERO_TOOL_JSON_COMPOSE))
     }
 
     fun testExternalDependenciesIncludeKyantBackdropAndShapes() {

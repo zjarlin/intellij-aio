@@ -5,56 +5,38 @@ import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 class InheritFromBaseSupportTest : BasePlatformTestCase() {
-    fun testAddsGenericBaseInterfaceAndImport() {
-        myFixture.addFileToProject(
-            "site/addzero/crud/BaseController.kt",
-            """
-            package site.addzero.crud
-
-            interface BaseController<E : Any>
-            """.trimIndent(),
-        )
+    fun testStartsEditorInputWithColonBeforeClassBody() {
         myFixture.configureByText(
-            "RuleConditionsController.kt",
+            "Controller.kt",
             """
-            package demo.ruleconditions
+            package demo
 
-            class IotRuleConditionsCon<caret>troller {
+            class DemoCon<caret>troller {
             }
             """.trimIndent(),
         )
 
         val klass = currentClass()
-        val choice = BaseTypeChoice(
-            displayName = "BaseController",
-            typeText = "site.addzero.crud.BaseController",
-            qualifiedName = "site.addzero.crud.BaseController",
-            packageName = "site.addzero.crud",
-            typeParameterNames = listOf("E"),
-        )
 
-        InheritFromBaseSupport.apply(project, myFixture.editor, klass, choice)
+        InheritFromBaseSupport.startEditorInput(project, myFixture.editor, klass)
 
         myFixture.checkResult(
             """
-            package demo.ruleconditions
+            package demo
 
-            import site.addzero.crud.BaseController
-
-            class IotRuleConditionsController : BaseController<EArg> {
+            class DemoController : <caret> {
             }
             """.trimIndent(),
         )
     }
 
-    fun testAddsSecondSuperTypeWithComma() {
+    fun testStartsEditorInputWithCommaAfterExistingSuperType() {
         myFixture.configureByText(
             "Controller.kt",
             """
             package demo
 
             interface Existing
-            interface BaseApi<T>
 
             class DemoCon<caret>troller : Existing {
             }
@@ -62,55 +44,17 @@ class InheritFromBaseSupportTest : BasePlatformTestCase() {
         )
 
         val klass = currentClass("DemoController")
-        val choice = BaseTypeChoice(
-            displayName = "BaseApi",
-            typeText = "BaseApi",
-            qualifiedName = null,
-            packageName = null,
-            typeParameterNames = listOf("T"),
-        )
 
-        InheritFromBaseSupport.apply(project, myFixture.editor, klass, choice)
+        InheritFromBaseSupport.startEditorInput(project, myFixture.editor, klass)
 
         myFixture.checkResult(
             """
             package demo
 
             interface Existing
-            interface BaseApi<T>
 
-            class DemoController : Existing, BaseApi<TArg> {
+            class DemoController : Existing, <caret> {
             }
-            """.trimIndent(),
-        )
-    }
-
-    fun testKeepsExplicitGenericText() {
-        myFixture.configureByText(
-            "Controller.kt",
-            """
-            package demo
-
-            class DemoCon<caret>troller
-            """.trimIndent(),
-        )
-
-        val klass = currentClass()
-        val choice = BaseTypeChoice(
-            displayName = "BaseController",
-            typeText = "BaseController<RuleConditionsDO>",
-            qualifiedName = null,
-            packageName = null,
-            typeParameterNames = emptyList(),
-        )
-
-        InheritFromBaseSupport.apply(project, myFixture.editor, klass, choice)
-
-        myFixture.checkResult(
-            """
-            package demo
-
-            class DemoController : BaseController<RuleConditionsDO>
             """.trimIndent(),
         )
     }

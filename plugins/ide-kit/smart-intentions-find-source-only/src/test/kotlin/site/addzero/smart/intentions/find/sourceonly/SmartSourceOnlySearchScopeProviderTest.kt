@@ -40,6 +40,21 @@ class SmartSourceOnlySearchScopeProviderTest : BasePlatformTestCase() {
         assertFalse(scope.contains(rotatedLogFile))
     }
 
+    fun testExcludesConfiguredFileNameSuffixInsideSourceRoot() {
+        val sourceRoot = myFixture.tempDirFixture.findOrCreateDir("src")
+        PsiTestUtil.addSourceRoot(module, sourceRoot)
+
+        val sourceFile = myFixture.tempDirFixture.createFile("src/SmsLog.kt", "class SmsLog")
+        val draftFile = myFixture.tempDirFixture.createFile("src/SmsLogDraft.kt", "class SmsLogDraft")
+
+        val scope = SmartSourceOnlyProjectSearchScope(project) {
+            listOf("Draft")
+        }
+
+        assertTrue(scope.contains(sourceFile))
+        assertFalse(scope.contains(draftFile))
+    }
+
     fun testExcludesFilesUnderLogsDirectoryInsideSourceRoot() {
         val sourceRoot = myFixture.tempDirFixture.findOrCreateDir("src")
         val logsDir = myFixture.tempDirFixture.findOrCreateDir("src/logs")

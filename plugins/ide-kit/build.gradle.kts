@@ -13,7 +13,7 @@ intellijPlatform {
     pluginConfiguration {
         id = pluginId
         name = pluginName
-        version = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+        version = LocalDate.now().plusDays(4).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
     }
 }
 
@@ -31,6 +31,8 @@ dependencies {
     implementation(project(":plugins:ide-kit:smart-intentions-hidden-files"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-class-to-interface"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-inherit-base"))
+    implementation(project(":plugins:ide-kit:smart-intentions-kotlin-expression-to-block"))
+    implementation(project(":plugins:ide-kit:smart-intentions-kotlin-entity-field-merge"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-move-function-to-current-file"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-kotlinx-json"))
     implementation(project(":plugins:ide-kit:smart-intentions-kotlin-redundant-explicit-type"))

@@ -13,3 +13,4 @@
 - Excluded module-local `.gradle-user-home` directories from project indexing and global search.
 - Excluded module-local `build/tmp` Gradle-generated accessor sources from project indexing and global search.
 - Added `Module Lock` to temporarily hide selected modules from the Project view without affecting Gradle builds.
+- Added Kotlin entity field merge action for comparing multiple source classes with a target class.

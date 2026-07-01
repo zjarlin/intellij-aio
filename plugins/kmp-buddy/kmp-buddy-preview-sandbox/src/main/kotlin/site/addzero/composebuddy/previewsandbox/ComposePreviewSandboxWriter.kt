@@ -190,6 +190,7 @@ object ComposePreviewSandboxWriter {
             appendLine("    jvm {")
             appendLine("        compilerOptions {")
             appendLine("            jvmTarget.set(JvmTarget.fromTarget(\"${snapshot.jvmTarget.escapeKotlinString()}\"))")
+            appendLine("            freeCompilerArgs.add(\"-Xcontext-parameters\")")
             appendLine("        }")
             appendLine("    }")
             appendLine()
@@ -258,18 +259,16 @@ object ComposePreviewSandboxWriter {
     }
 
     private fun PreviewSandboxSnapshot.usesKoin(): Boolean {
-        if (PreviewSandboxExternalDependencies.KOIN_COMPOSE in externalMavenDependencies ||
-            PreviewSandboxExternalDependencies.KOIN_CORE in externalMavenDependencies
-        ) {
+        if (PreviewSandboxExternalDependencies.KOIN_COMPOSE in externalMavenDependencies) {
             return true
         }
         return files.any { sourceFile ->
-            sourceFile.imports.any { importText -> importText.contains("org.koin.") } ||
-                sourceFile.declarations.any { declarationText ->
-                    declarationText.contains("koinInject") ||
-                        declarationText.contains("currentKoinScope") ||
-                        declarationText.contains("getKoin()")
-                }
+            sourceFile.declarations.any { declarationText ->
+                declarationText.contains("koinInject") ||
+                    declarationText.contains("koinViewModel") ||
+                    declarationText.contains("currentKoinScope") ||
+                    declarationText.contains("getKoin()")
+            }
         }
     }
 

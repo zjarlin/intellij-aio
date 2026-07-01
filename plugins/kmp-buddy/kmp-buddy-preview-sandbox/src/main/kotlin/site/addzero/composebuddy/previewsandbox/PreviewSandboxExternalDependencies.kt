@@ -13,7 +13,9 @@ object PreviewSandboxExternalDependencies {
     private const val KOTLINX_COROUTINES_VERSION = "1.11.0"
     private const val KOTLINX_SERIALIZATION_VERSION = "1.11.0"
     private const val COIL_VERSION = "3.3.0"
+    private const val ADDZERO_TOOL_JSON_COMPOSE_VERSION = "2026.06.12"
 
+    const val ADDZERO_TOOL_JSON_COMPOSE: String = "site.addzero:tool-json-compose:$ADDZERO_TOOL_JSON_COMPOSE_VERSION"
     const val COIL_COMPOSE: String = "io.coil-kt.coil3:coil-compose:$COIL_VERSION"
     const val COIL_NETWORK_KTOR3: String = "io.coil-kt.coil3:coil-network-ktor3:$COIL_VERSION"
     const val KYANT_BACKDROP: String = "io.github.kyant0:backdrop:$KYANT_BACKDROP_VERSION"
@@ -68,7 +70,7 @@ object PreviewSandboxExternalDependencies {
             if (text.contains("org.koin.core.annotation.")) {
                 add(KOIN_ANNOTATIONS)
             }
-            if (text.contains("org.koin.core.")) {
+            if (text.contains("org.koin.core.") || text.contains("org.koin.mp.")) {
                 add(KOIN_CORE)
             }
             if (text.contains("kotlinx.coroutines.")) {
@@ -76,6 +78,9 @@ object PreviewSandboxExternalDependencies {
             }
             if (text.contains("kotlinx.serialization.")) {
                 add(KOTLINX_SERIALIZATION_CORE)
+            }
+            if (text.contains("site.addzero.core.network.json.")) {
+                add(ADDZERO_TOOL_JSON_COMPOSE)
             }
         }.distinct().sorted()
     }
